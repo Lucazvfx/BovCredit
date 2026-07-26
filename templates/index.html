@@ -2374,13 +2374,14 @@ function calcCiclo(){
   const femR=fem-bezV;
   const cresc=femR-desQ;
   const totReb=mat+fem+mac+boi+totBez;
+  const totCusto=mat+fem+mac+boi; // base de custo: apenas animais adultos/jovens (bezerros incluídos no custo da matriz)
   const totVend=bVend+desQ+bezV+bezMV;
   const pBezCab=pBezArr*pArr;
   const rBoi=bVend*pBoi,rMat=desQ*pMat,rBez=bezV*pBezCab,rBezM=bezMV*pBezCab,rTot=rBoi+rMat+rBez+rBezM;
   const desembMensal=desembolsoTotalMensal();
-  const cTot=totReb*desembMensal*12;  // custo anual do rebanho = cabeças × desembolso/mês × 12
+  const cTot=totCusto*desembMensal*12;
   const res=rTot-cTot;
-  return{mat,fem,mac,boi,nat,prop,rb,des,vbp,totBez,bezF,bezM,bNec,bExc,bRen,bVend,macRest,desQ,bezV,bezMV,femR,cresc,totReb,totVend,pBoi,pMat,pBezCab,rBoi,rMat,rBez,rBezM,rTot,desembMensal,cTot,res};
+  return{mat,fem,mac,boi,nat,prop,rb,des,vbp,totBez,bezF,bezM,bNec,bExc,bRen,bVend,macRest,desQ,bezV,bezMV,femR,cresc,totReb,totCusto,totVend,pBoi,pMat,pBezCab,rBoi,rMat,rBez,rBezM,rTot,desembMensal,cTot,res};
 }
 
 function makeBarsS(items,maxV,colors){
@@ -2443,7 +2444,7 @@ function recalcCiclo(){
   const tRec=document.querySelector('#s-tbl-rec tbody');
   if(tRec){tRec.innerHTML=[['Bois',d.bVend,fR(d.pBoi),d.rBoi],['Matrizes',d.desQ,fR(d.pMat),d.rMat],['Bezerras',d.bezV,fR(d.pBezCab),d.rBez],['Bezerros M.',d.bezMV,fR(d.pBezCab),d.rBezM]].map(([c,q,p,t])=>`<tr><td>${c}</td><td class="r">${fN(q)}</td><td class="r">${p}</td><td class="g">${fR(t)}</td></tr>`).join('');const el=ki('s-rec-tot');if(el)el.textContent=fR(d.rTot);}
   const tCus=document.querySelector('#s-tbl-cus tbody');
-  if(tCus){tCus.innerHTML=COMP_DESEMB.map(k=>{const m=parseFloat(document.getElementById('cd-'+k)?.value)||0;const tot=d.totReb*m*12;return `<tr><td>${COMP_LABEL[k]}</td><td class="r">${fR(m)}</td><td class="r">/cab·mês</td><td class="cr">${fR(tot)}</td></tr>`;}).join('');const el=ki('s-cus-tot');if(el)el.textContent=fR(d.cTot);}
+  if(tCus){tCus.innerHTML=COMP_DESEMB.map(k=>{const m=parseFloat(document.getElementById('cd-'+k)?.value)||0;const tot=d.totCusto*m*12;return `<tr><td>${COMP_LABEL[k]}</td><td class="r">${fR(m)}</td><td class="r">/cab·mês</td><td class="cr">${fR(tot)}</td></tr>`;}).join('');const el=ki('s-cus-tot');if(el)el.textContent=fR(d.cTot);}
   const resBox=ki('s-res-box');
   if(resBox){const pos=d.res>=0;resBox.innerHTML=`<div class="res-box ${pos?'pos':'neg'}"><div><div style="font-family:var(--fm);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:6px">Resultado Líquido Anual</div><div style="font-family:var(--fn);font-weight:800;font-size:2.2rem;line-height:1;color:${pos?'var(--g)':'var(--rd)'}">${fR(d.res)}</div></div>${d.totVend>0?`<div style="text-align:right"><div style="font-family:var(--fm);font-size:.6rem;color:var(--mu);margin-bottom:4px">Por animal vendido</div><div style="font-family:var(--fn);font-weight:700;font-size:1.2rem;color:${pos?'var(--g)':'var(--rd)'}">${fR(d.res/d.totVend)}</div></div>`:''}</div>`;}
   renderFluxoProjetado();
