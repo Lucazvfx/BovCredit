@@ -35,7 +35,7 @@ body::before{content:'';position:fixed;inset:0;background:
   pointer-events:none;z-index:0}
 
 header{position:sticky;top:0;z-index:200;background:rgba(6,8,16,.93);backdrop-filter:blur(24px);border-bottom:1px solid var(--b);height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 36px}
-.logo{font-family:var(--fn);font-weight:800;font-size:1.4rem;letter-spacing:-.5px;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:hidden}
+.logo{font-family:var(--fn);font-weight:800;font-size:1.4rem;letter-spacing:-.5px;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:visible;flex-shrink:0}
 .logo-mk{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#4ADE80,#4ADE80);display:flex;align-items:center;justify-content:center;font-size:.9rem}
 .logo em{font-style:normal;background:linear-gradient(90deg,#4ADE80,#4ADE80);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .hdr-r{display:flex;align-items:center;gap:12px}
@@ -255,7 +255,7 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 <div class="toast" id="toast"></div>
 
 <header>
-  <div class="logo"><div class=""></div>BovCredit<em></em></div>
+  <div class="logo"><img src="/static/img/logo-dark.svg" alt="BovCredit" style="height:20px;display:block"></div>
   <div class="hdr-r">
     <span id="hdr-boi" class="ml-acc" style="cursor:default" title="Cotação Boi (R$/arroba)">Boi: --</span>
     <span id="hdr-vaca" class="ml-acc" style="cursor:default" title="Cotação Vaca (R$/arroba)">Vaca: --</span>
