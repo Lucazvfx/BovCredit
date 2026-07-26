@@ -1,4 +1,4 @@
-# Plataforma de Análise de Crédito Pecuário
+# BovCredit — Plataforma de Análise de Crédito Pecuário
 
 > **Emita pareceres de crédito rural com metodologia, Machine Learning e PDF com a marca da sua consultoria — em minutos.**
 

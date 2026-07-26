@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fluxo de caixa</title>
+<title>BovCredit</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="/static/favicon-cow.png">
 <style>
@@ -255,7 +255,7 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 <div class="toast" id="toast"></div>
 
 <header>
-  <div class="logo"><div class=""></div>Fluxo de Caixa<em></em></div>
+  <div class="logo"><div class=""></div>BovCredit<em></em></div>
   <div class="hdr-r">
     <span id="hdr-boi" class="ml-acc" style="cursor:default" title="Cotação Boi (R$/arroba)">Boi: --</span>
     <span id="hdr-vaca" class="ml-acc" style="cursor:default" title="Cotação Vaca (R$/arroba)">Vaca: --</span>
@@ -1667,7 +1667,7 @@ function renderParecer(data){
   const varESinal = varE >= 0 ? '+' : '';
   const fluxoGep = gep.receita_vendas ? `
     <div style="margin-top:0;padding:16px;border-radius:10px;border:1px solid var(--b);background:var(--bg2);margin-bottom:12px">
-      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">Fluxo de Caixa Completo — Método GEP</div>
+      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">Fluxo de Caixa Completo</div>
       <div style="display:grid;gap:4px;font-size:.82rem">
         ${mr2('(+) Receita de vendas', fR(gep.receita_vendas), 'g')}
         ${mr2('(−) Custo caixa (desembolso)', fR(gep.custo_operacional), 'r')}

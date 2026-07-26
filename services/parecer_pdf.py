@@ -134,7 +134,7 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
 
     fluxo_gep = parecer.get('fluxo_gep')
     if fluxo_gep and fluxo_gep.get('receita_vendas', 0) > 0:
-        story.append(Paragraph('Fluxo de Caixa — Método GEP', ss['SecaoTitulo']))
+        story.append(Paragraph('Fluxo de Caixa', ss['SecaoTitulo']))
         linhas_fc = [['Componente', 'R$ (Ano 1)']]
         linhas_fc.append(['(+) Receita de vendas', _fmt_moeda(fluxo_gep.get('receita_vendas'))])
         linhas_fc.append(['(−) Custo operacional', _fmt_moeda(fluxo_gep.get('custo_operacional'))])
