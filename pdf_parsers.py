@@ -856,6 +856,13 @@ def parsear_generico(text: str) -> dict:
         if m:
             fazenda = m.group(1).strip()[:60]
 
+    # 3. Fallback: "— Fazenda NOME" ou "/ Fazenda NOME" em qualquer posição da linha
+    if not fazenda:
+        m = re.search(r'[—\-/]\s*FAZENDA\s+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ0-9\s]+?)(?:\s*$|\s{2,})',
+                      text, re.I | re.M)
+        if m:
+            fazenda = m.group(1).strip()[:60]
+
     m = re.search(r'MUNIC[IÍ]PIO[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ\s\-/]+?)(?:\s{2,}|\n|$)', text, re.I)
     if m:
         municipio = m.group(1).strip()[:60]

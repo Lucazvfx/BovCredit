@@ -116,7 +116,7 @@ def admin_required(f):
         if not current_user.is_authenticated:
             return redirect(url_for('login'))
         if not is_admin(getattr(current_user, 'email', '')):
-            return redirect(url_for('index'))
+            return redirect(url_for('app_main'))
         return f(*args, **kwargs)
     return wrapper
 
@@ -223,7 +223,7 @@ if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
 @limiter.limit("10 per minute; 30 per hour")
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('app_main'))
     erro = None
     if request.method == 'POST':
         email = request.form.get('email', '').strip()
@@ -231,7 +231,7 @@ def login():
         u = db.verificar_senha(email, senha)
         if u:
             login_user(User(u), remember=True)
-            return redirect(url_for('index'))
+            return redirect(url_for('app_main'))
         erro = 'E-mail ou senha incorretos.'
     return render_template('login.html', erro=erro)
 
@@ -505,10 +505,17 @@ def api_parecer_pdf():
     return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
                      as_attachment=True, download_name='parecer_credito.pdf')
 
-# ── App principal ─────────────────────────────────────────────────────────────
+# ── Landing page pública ───────────────────────────────────────────────────────
 @app.route('/')
+def landing():
+    if current_user.is_authenticated:
+        return redirect(url_for('app_main'))
+    return render_template('landing.html')
+
+# ── App principal ─────────────────────────────────────────────────────────────
+@app.route('/app')
 @login_required
-def index():
+def app_main():
     empresa_id = _resolver_empresa_ativa()
     fazendas = db.listar_fazendas(empresa_id) if empresa_id else []
     cotacoes_dia = db.obter_cotacoes_atuais()

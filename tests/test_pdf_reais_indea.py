@@ -69,7 +69,7 @@ def test_parsear_indea_pdf_real(arquivo, total_esperado, animais_esperados):
     text = _extrair_texto(path)
     assert detectar_origem(text) == 'INDEA'
 
-    dados = parsear_indea(text)
+    dados = parsear_indea(text, pdf_path=path)
     assert dados['total'] == total_esperado, (
         f'{arquivo}: total extraído {dados["total"]} != esperado {total_esperado} '
         f'(animais: {dados["animais"]})'

@@ -27,10 +27,10 @@ def test_multifonte_natalidade_todas_as_fontes():
     r = avaliar_multifonte("natalidade", 62.0)
     fontes = {i["fonte"] for i in r}
     assert fontes == set(NATALIDADE_FONTES)
-    # 62% está dentro de Embrapa (55–65) e abaixo de ABCZ (65–75).
+    # 62% está abaixo de Embrapa (65–80) e abaixo de ABCZ (65–75).
     emb = next(i for i in r if i["fonte"] == "Embrapa")
     abcz = next(i for i in r if i["fonte"] == "ABCZ")
-    assert emb["posicao"] == "dentro"
+    assert emb["posicao"] == "abaixo"
     assert abcz["posicao"] == "abaixo"
 
 
@@ -64,10 +64,12 @@ def test_desembolso_acima_da_media_e_atencao():
     assert r["nivel"] == "atencao"
 
 
-def test_desembolso_recria_e_engorda_mapeiam_para_recria_engorda():
+def test_desembolso_recria_e_engorda_sao_desagregados():
+    # RECRIA e ENGORDA têm presets separados desde a safra 24/25 GEP Araguaia.
     a = avaliar_desembolso("RECRIA", 150.0)
     b = avaliar_desembolso("ENGORDA", 150.0)
-    assert a["media"] == b["media"] == 170.74
+    assert a["media"] == 100.50
+    assert b["media"] == 182.60
 
 
 def test_avaliar_nacional_orquestra_parcial():
