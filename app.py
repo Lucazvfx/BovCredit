@@ -744,7 +744,9 @@ def api_classificar():
                             _ano1.get('machos_vendidos', 0))) * 10.67
     _arrobas_reais = _arr_bois + _arr_vacas + _arr_bezv + _arr_machos
     if _arrobas_reais <= 0 and result.get('tipo') in ('RECRIA', 'ENGORDA') and _preco_boi_ref > 0 and _ano1.get('receita', 0) > 0:
-        _arrobas_reais = _ano1['receita'] / _preco_boi_ref
+        # Simulação usa preco × m['preco'] internamente; divide pelo preco efetivo para obter arrobas reais
+        _preco_efetivo_sim = _preco_boi_ref * CENARIOS['conservador']['mods']['preco']
+        _arrobas_reais = _ano1['receita'] / max(_preco_efetivo_sim, 1)
 
     if _arrobas_reais > 0:
         _coe_calc = fluxo_gep['custo_operacional'] / _arrobas_reais
