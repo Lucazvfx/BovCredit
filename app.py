@@ -700,6 +700,8 @@ def api_classificar():
     _peso_touro_arr = 20.53  # arrobas — mesmo do CATEGORIAS_GEP['boi']
     _preco_touro_cab = _preco_boi_ref * _peso_touro_arr * _fator_touro
     _reposicao_reprodutores = round(_touros_renovados * _preco_touro_cab, 2)
+    # DSCR calculado após deduzir reposição de reprodutores (saída real de caixa)
+    geracao_caixa_anual -= _reposicao_reprodutores
 
     # Serviço da dívida para o fluxo GEP (mesma base do DSCR do parecer)
     _servico_gep = 0.0
@@ -722,14 +724,24 @@ def api_classificar():
     )
 
     # COE (R$/@ vendida) = custo_operacional / arrobas_vendidas
-    # Arrobas reais por categoria — pesos GEP Araguaia (CATEGORIAS_GEP)
-    # Fallback para RECRIA/ENGORDA onde _ano1 não tem split por categoria.
-    _arr_bois   = float(_ano1.get('bois_vendidos', 0)) * 20.53
-    _arr_vacas  = float(_ano1.get('descarte_matrizes',
-                        _ano1.get('matrizes_descartadas', 0))) * 15.33
-    _arr_bezv   = float(_ano1.get('bezerras_vendidas', 0)) * 6.00
-    _arr_machos = float(_ano1.get('machos_024_vendidos',
-                        _ano1.get('machos_vendidos', 0))) * 10.67
+    # Arrobas reais por categoria com pesos corretos por ciclo.
+    _ciclo_tipo = result.get('tipo', 'CICLO_COMPLETO')
+    if _ciclo_tipo == 'CRIA':
+        # Machos vendidos na CRIA são bezerros desmamados (~6@), não bois nem garrotes
+        _arr_bois   = 0.0
+        _arr_vacas  = float(_ano1.get('matrizes_descartadas', 0)) * 15.33
+        _arr_bezv   = float(_ano1.get('bezerras_vendidas', 0)) * 6.00
+        _arr_machos = float(_ano1.get('machos_vendidos', 0)) * 6.00
+    elif _ciclo_tipo == 'RECRIA':
+        # Peso de saída variável; fallback receita/preco captura arrobas corretas
+        _arr_bois = _arr_vacas = _arr_bezv = _arr_machos = 0.0
+    else:  # CICLO_COMPLETO, ENGORDA
+        _arr_bois   = float(_ano1.get('bois_vendidos', 0)) * 20.53
+        _arr_vacas  = float(_ano1.get('descarte_matrizes',
+                            _ano1.get('matrizes_descartadas', 0))) * 15.33
+        _arr_bezv   = float(_ano1.get('bezerras_vendidas', 0)) * 6.00
+        _arr_machos = float(_ano1.get('machos_024_vendidos',
+                            _ano1.get('machos_vendidos', 0))) * 10.67
     _arrobas_reais = _arr_bois + _arr_vacas + _arr_bezv + _arr_machos
     if _arrobas_reais <= 0 and result.get('tipo') in ('RECRIA', 'ENGORDA') and _preco_boi_ref > 0 and _ano1.get('receita', 0) > 0:
         _arrobas_reais = _ano1['receita'] / _preco_boi_ref
@@ -762,10 +774,13 @@ def api_classificar():
                        'carencia_meses', 'dividas_mensais')}
 
     # ── Sensibilidade de preço: −15% / base / +15% ───────────────────────────
+    # Compensa o modificador de preço do cenário conservador (0.95) para que as
+    # variações na tela representem exatamente ±15% do preço de referência.
+    _preco_mod_conservador = CENARIOS['conservador']['mods']['preco']
     _servico_base = _servico_gep  # já calculado acima (mesma base do DSCR)
     sensibilidade = []
     for _label, _fator in (('queda_15pct', 0.85), ('base', 1.00), ('alta_15pct', 1.15)):
-        _pb_s = _preco_boi_ref * _fator
+        _pb_s = _preco_boi_ref * _fator / _preco_mod_conservador
         _cx_s = simular_cenario(
             v, 'conservador', ciclo=result['tipo'],
             preco_arroba=_pb_s,
@@ -953,7 +968,8 @@ def api_estimativa_valor():
     if preco_arroba == 0.0:
         return jsonify({"erro": "Cotação indisponível no banco de dados."}), 503
 
-    peso_carcaca_arrobas = peso_vivo * 0.52 / 15.0  # 52% rendimento de carcaça, 15 kg/@
+    _rendimento_carcaca = 0.55 if sexo == 'M' else 0.52
+    peso_carcaca_arrobas = peso_vivo * _rendimento_carcaca / 15.0
     valor_estimado = peso_carcaca_arrobas * preco_arroba
 
     return jsonify({

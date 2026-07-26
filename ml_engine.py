@@ -681,7 +681,7 @@ def calcular_indicadores(v: list) -> dict:
         'pct_matrizes':    round(matrizes/total*100, 1),
         'pct_mac_adultos': round(bois/total*100, 1),
         'ratio_fm':        round(tot_fem/max(tot_mac, 1), 2),
-        'bezerros_est':    int(matrizes * NATALIDADE_PCT),
+        'bezerros_est':    int(matrizes * NATALIDADE_PCT / 100),
     }
 
 # ==================================================================
@@ -826,6 +826,7 @@ def _simular_cria(
     v, cenario, nat_pct, mort_pct, desmama_pct, venda_bez_pct,
     preco_arroba_bezerro, custo_arroba, anos,
     peso_matriz=PESO_VACA_ARR, peso_bezerra=PESO_BEZERRA_ARR, preco_vaca_arr=None,
+    desc_mat_pct=15.0,
 ):
     va  = np.array(v, dtype=float)
     sc  = CENARIOS.get(cenario, CENARIOS['crescimento'])
@@ -855,7 +856,7 @@ def _simular_cria(
         femeas_vend   = vez_vendidos * 0.5
         bezerras_ret  = (desmamados - vez_vendidos) * 0.5
 
-        descarte_mat  = round(matrizes * 0.15)
+        descarte_mat  = round(matrizes * (desc_mat_pct / 100))
         matrizes_prox = max(matrizes + bezerras_ret - descarte_mat, matrizes * 0.7)
         total_prox    = int(matrizes_prox + bezerras_ret)
         mortes        = round((matrizes + fem_recria) * mort)  # adultos: taxa adulta
@@ -923,8 +924,8 @@ def _simular_recria(
     preco = preco_arroba * m['preco']
     ganho_arr = max(peso_saida_arr - peso_entrada_arr, 0.0)
 
-    # Animais em recria = machos 5–25 meses (v[3]+v[5])
-    animais   = float(va[3] + va[5])
+    # Animais em recria = machos e fêmeas 5–25 meses
+    animais   = float(va[2] + va[3] + va[4] + va[5])
     total_ini = float(va.sum())
 
     anos_proj = []
@@ -1112,6 +1113,7 @@ def simular_cenario(
             preco_arroba_bezerro, _custo_cria, anos,
             peso_matriz=peso_vaca, peso_bezerra=peso_arroba,
             preco_vaca_arr=preco_vaca_arr,
+            desc_mat_pct=desc_pct,
         )
     if ciclo == 'RECRIA':
         return _simular_recria(
@@ -1439,14 +1441,24 @@ def calcular_breakeven_simples(v: list, ciclo: str) -> dict:
         return {'preco_breakeven': round(custo / bezerros, 2), 'unidade': 'R$/cabeça'}
 
     if ciclo == 'RECRIA':
-        # (12 meses × R$80) / 14@ → R$68,57 (memorial §9)
-        be = round((12 * 80.0) / 14.0, 2)
+        # Usa pesos padrão de recria (entrada=8@, saída=14@, 12 meses)
+        _peso_entrada_r, _peso_saida_r, _meses_r = 8.0, 14.0, 12
+        _animais_r = float(va[2] + va[3] + va[4] + va[5])
+        _peso_medio_r = (_peso_entrada_r + _peso_saida_r) / 2.0
+        _custo_total_r = _animais_r * _peso_medio_r * custo_arroba * (_meses_r / 12.0)
+        _arrobas_r = _animais_r * _peso_saida_r
+        be = round(_custo_total_r / max(_arrobas_r, 1), 2)
         return {'preco_breakeven': be, 'unidade': 'R$/arroba'}
 
     if ciclo == 'ENGORDA':
-        # 520kg × 52% / 15 = 18,03@ ; (90d × R$12) / 18,03 = R$59,90 (memorial §9)
-        arrobas = (520.0 * 0.52) / 15.0
-        be = round((90 * 12.0) / arrobas, 2)
+        # Usa pesos padrão de engorda (entrada=350kg, saída=500kg, rend=54%, 120 dias)
+        _peso_entrada_e = 350.0 / 15.0               # @ entrada
+        _peso_saida_e   = (500.0 * 0.54) / 15.0      # @ carcaça saída
+        _animais_e = float(va[7] + va[9])
+        _peso_medio_e = (_peso_entrada_e + _peso_saida_e) / 2.0
+        _custo_total_e = _animais_e * _peso_medio_e * custo_arroba * (120 / 365.0)
+        _arrobas_e = _animais_e * _peso_saida_e
+        be = round(_custo_total_e / max(_arrobas_e, 1), 2)
         return {'preco_breakeven': be, 'unidade': 'R$/arroba'}
 
     # CICLO_COMPLETO: 30% do rebanho × 16@ médias (memorial §9)
