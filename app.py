@@ -213,10 +213,11 @@ def rotina_diaria_cotacoes():
 # Em modo debug, o Reloader do Flask inicia o processo duas vezes — só inicia o
 # scheduler no processo filho (WERKZEUG_RUN_MAIN=true) ou fora do debug.
 if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+    import threading
     scheduler = BackgroundScheduler(daemon=True)
     scheduler.add_job(rotina_diaria_cotacoes, 'cron', hour=8, minute=0)
     scheduler.start()
-    rotina_diaria_cotacoes()
+    threading.Thread(target=rotina_diaria_cotacoes, daemon=True).start()
 
 # ── Auth routes ─────────────────────────────────────────────────────────────
 @app.route('/login', methods=['GET', 'POST'])
