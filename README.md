@@ -1,8 +1,8 @@
 # Plataforma de Análise de Crédito Pecuário
 
-> **Emita pareceres de crédito rural com método GEP, Machine Learning e PDF com a marca da sua consultoria — em minutos.**
+> **Emita pareceres de crédito rural com metodologia especializada, Machine Learning e PDF com a marca da sua consultoria — em minutos.**
 
-Sistema especializado em análise técnico-financeira de rebanho bovino para **consultorias de crédito rural**. A plataforma classifica automaticamente o tipo de exploração (Cria / Recria / Engorda / Ciclo Completo), projeta a geração de caixa pelo método GEP Araguaia, audita a consistência do rebanho declarado e emite um **parecer de crédito com recomendação Aprovar / Ressalva / Negar** baseado no DSCR — tudo em uma única tela.
+Sistema especializado em análise técnico-financeira de rebanho bovino para **consultorias de crédito rural**. A plataforma classifica automaticamente o tipo de exploração (Cria / Recria / Engorda / Ciclo Completo), projeta a geração de caixa com metodologia especializada, audita a consistência do rebanho declarado e emite um **parecer de crédito com recomendação Aprovar / Ressalva / Negar** baseado no DSCR — tudo em uma única tela.
 
 ---
 
@@ -11,7 +11,7 @@ Sistema especializado em análise técnico-financeira de rebanho bovino para **c
 | Problema da consultoria hoje | O que a plataforma resolve |
 |---|---|
 | Análise feita em planilha, demorada e propensa a erro | Resultado completo em menos de 1 minuto |
-| Sem metodologia padronizada entre os analistas | Método GEP Araguaia aplicado de forma uniforme |
+| Sem metodologia padronizada entre os analistas | Metodologia padronizada aplicada de forma uniforme |
 | Rebanho declarado sem auditoria | Score de consistência + flags automáticos de inconsistência |
 | PDF genérico sem identidade da empresa | PDF com logo e nome da consultoria em cada parecer |
 | Sem histórico das fazendas analisadas | Histórico completo por fazenda com download de pareceres anteriores |
@@ -23,13 +23,13 @@ Sistema especializado em análise técnico-financeira de rebanho bovino para **c
 
 ### Análise técnica do rebanho
 - **Classificação ML automática** do ciclo de produção: Cria / Recria / Engorda / Ciclo Completo via ensemble de ML com ~99,8% de acurácia
-- **Importação de PDFs** de IDARON-RO, INDEA-MT e GTA — extrai a composição do rebanho automaticamente
+- **Importação de PDFs** de órgãos estaduais de defesa agropecuária e GTA — extrai a composição do rebanho automaticamente
 - **Indicadores zootécnicos** calculados na hora: relação F/M, % matrizes, pirâmide etária, bezerros estimados
-- **Benchmarks nacionais e regionais** (GEP Araguaia, CEPEA, Embrapa, ABCZ, Scot, ASBIA, Inttegra)
+- **Benchmarks nacionais e regionais** (CEPEA, Embrapa, ABCZ, Scot, ASBIA, Inttegra)
 - **Score de consistência 0–100** com flags de erros: pirâmide invertida, touro impossível, crescimento implausível, categorias desaparecidas
 
 ### Financeiro e crédito
-- **Fluxo de caixa método GEP**: resultado operacional (caixa) + variação de estoque do rebanho = resultado econômico total
+- **Fluxo de caixa pecuário**: resultado operacional (caixa) + variação de estoque do rebanho = resultado econômico total
 - **Parecer de crédito com DSCR**, parcela Price e recomendação fundamentada
 - **Análise de sensibilidade de preço**: 3 cenários automáticos (−15% / base / +15%) — mostra se o crédito sobrevive a uma queda no boi
 - **Capacidade máxima de endividamento**: quanto o produtor pode tomar dado o DSCR-alvo
@@ -56,13 +56,13 @@ Sistema especializado em análise técnico-financeira de rebanho bovino para **c
 2. CLASSIFICAR
    ├── ML classifica o ciclo de produção
    ├── Calcula indicadores, benchmarks e consistência
-   ├── Gera fluxo de caixa GEP + valoração do rebanho
+   ├── Gera fluxo de caixa + valoração do rebanho
    └── Emite parecer com DSCR, 3 cenários de sensibilidade de preço
 
 3. RESULTADO
    ├── Banner APROVAR / RESSALVA / NEGAR em destaque
    ├── KPIs: DSCR, parcela/mês, geração de caixa/ano, crédito máximo
-   ├── Fluxo de caixa GEP com variação de estoque
+   ├── Fluxo de caixa com variação de estoque
    ├── Benchmarks, pirâmide etária, indicadores, recomendações
    └── Exportar PDF com marca da consultoria
 ```
@@ -79,9 +79,9 @@ Sistema especializado em análise técnico-financeira de rebanho bovino para **c
 
 ---
 
-## Método GEP — Fluxo de Caixa
+## Metodologia — Fluxo de Caixa
 
-A plataforma implementa a metodologia do **GEP Araguaia (safra 24/25)**, diferencial que nenhum sistema de crédito rural mainstream oferece:
+A plataforma implementa uma metodologia especializada de fluxo de caixa para pecuária de corte, diferencial que nenhum sistema de crédito rural mainstream oferece:
 
 ```
 (+) Receita de vendas
@@ -96,7 +96,7 @@ A plataforma implementa a metodologia do **GEP Araguaia (safra 24/25)**, diferen
 (=) FLUXO LIVRE
 ```
 
-### Pesos e rendimentos por categoria (GEP Araguaia)
+### Pesos e rendimentos por categoria
 
 | Categoria | Arrobas-eq | Rendimento | Referência de preço |
 |---|---|---|---|
@@ -177,7 +177,7 @@ Cruza rebanho declarado em diferentes documentos para detectar superavaliação:
 
 | Documento | Representa |
 |---|---|
-| Ficha Sanitária (IDARON/INDEA) | Piso físico — animais vacinados, não pode ser forjado |
+| Ficha Sanitária (órgão estadual) | Piso físico — animais vacinados, não pode ser forjado |
 | Imposto de Renda | Declaração à Receita Federal |
 | GTA | Movimentações recentes |
 
@@ -210,8 +210,8 @@ Cruza rebanho declarado em diferentes documentos para detectar superavaliação:
 
 | Documento | Estado | Parser |
 |---|---|---|
-| Saldo Atual da Exploração (INDEA) | Mato Grosso | `parsers/indea.py` |
-| Declaração de Existência (IDARON) | Rondônia | `parsers/idaron.py` |
+| Saldo Atual da Exploração | Mato Grosso | `parsers/indea.py` |
+| Declaração de Existência | Rondônia | `parsers/idaron.py` |
 | GTA / Ficha de Declaração | Rondônia | `pdf_parsers.py` |
 
 Múltiplos PDFs podem ser enviados de uma vez — o sistema soma os rebanhos automaticamente.
@@ -243,22 +243,22 @@ app.py                        # Flask — rotas, auth, scheduler
 ml_engine.py                  # Ensemble ML + simulações financeiras
 database.py                   # Abstração SQLite/PostgreSQL
 scraper.py                    # Cotações diárias (CEPEA/Scot)
-pdf_parsers.py                # Parser de PDFs (INDEA/IDARON/GTA)
+pdf_parsers.py                # Parser de PDFs (órgãos estaduais/GTA)
 
 services/
-  fluxo_caixa_gep.py          # Valoração GEP + DRE
+  fluxo_caixa_gep.py          # Valoração + DRE
   parecer_credito.py          # Price, DSCR, crédito máximo
   parecer_pdf.py              # Geração de PDF (reportlab)
   consistencia_rebanho.py     # Score de consistência + flags
   parametros_zootecnicos.py   # Benchmarks por ciclo
-  custos_desembolso.py        # Presets de custo GEP por componente
+  custos_desembolso.py        # Presets de custo por componente
   pesos_rebanho.py            # Conversão cabeças → arrobas
   benchmarks_nacionais.py     # Benchmarks multifonte
   reconciliacao.py            # Reconciliação de documentos
 
 parsers/
-  indea.py                    # Parser INDEA-MT
-  idaron.py                   # Parser IDARON-RO
+  indea.py                    # Parser MT
+  idaron.py                   # Parser RO
 
 templates/
   index.html                  # SPA principal
@@ -282,7 +282,7 @@ tests/                        # pytest — 50+ arquivos de teste
 | GET | `/api/fazendas` | Listar fazendas da empresa ativa |
 | POST | `/api/fazendas` | Criar fazenda |
 | GET | `/api/fazendas/<id>/pareceres` | Histórico de pareceres |
-| POST | `/api/ler-pdf` | Extrair composição de PDF (INDEA/IDARON) |
+| POST | `/api/ler-pdf` | Extrair composição de PDF |
 | GET | `/api/template/download` | Template Excel |
 | POST | `/api/confirmar` | Confirmar/corrigir classificação ML |
 | POST | `/api/reconciliar` | Reconciliar documentos de garantia |
@@ -328,14 +328,14 @@ print(p['sensibilidade'])                              # 3 cenários de preço
 
 ## Parâmetros de referência
 
-### Zootécnicos (fontes: Embrapa, ABCZ, Scot, CEPEA, GEP Araguaia)
+### Zootécnicos (fontes: Embrapa, ABCZ, Scot, CEPEA)
 
 | Parâmetro | Valor default | Fonte |
 |---|---|---|
 | Taxa de natalidade | 65% | Embrapa/Scot/CEPEA/ABCZ |
-| Mortalidade geral | 3% | GEP Araguaia |
-| Taxa de desmama | 82% | GEP Araguaia |
-| Rendimento de carcaça | 52% | GEP Araguaia |
+| Mortalidade geral | 3% | Referência setorial |
+| Taxa de desmama | 82% | Referência setorial |
+| Rendimento de carcaça | 52% | Referência setorial |
 | Proporção boi/matriz | 1:30 | Ciclo Completo padrão |
 | Renovação de bois | 20%/ano | Mercado |
 | Descarte de matrizes | 30%/ano | Mercado |
