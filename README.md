@@ -1,8 +1,8 @@
 # Plataforma de Análise de Crédito Pecuário
 
-> **Emita pareceres de crédito rural com metodologia especializada, Machine Learning e PDF com a marca da sua consultoria — em minutos.**
+> **Emita pareceres de crédito rural com metodologia, Machine Learning e PDF com a marca da sua consultoria — em minutos.**
 
-Sistema especializado em análise técnico-financeira de rebanho bovino para **consultorias de crédito rural**. A plataforma classifica automaticamente o tipo de exploração (Cria / Recria / Engorda / Ciclo Completo), projeta a geração de caixa com metodologia especializada, audita a consistência do rebanho declarado e emite um **parecer de crédito com recomendação Aprovar / Ressalva / Negar** baseado no DSCR — tudo em uma única tela.
+Sistema especializado em análise técnico-financeira de rebanho bovino para **consultorias de crédito rural**. A plataforma classifica automaticamente o tipo de exploração (Cria / Recria / Engorda / Ciclo Completo), projeta a geração de caixa com metodologia, audita a consistência do rebanho declarado e emite um **parecer de crédito com recomendação Aprovar / Ressalva / Negar** baseado no DSCR — tudo em uma única tela.
 
 ---
 
@@ -94,7 +94,7 @@ Sistema especializado em análise técnico-financeira de rebanho bovino para **c
 
 ## Metodologia — Fluxo de Caixa
 
-A plataforma implementa uma metodologia especializada de fluxo de caixa para pecuária de corte, diferencial que nenhum sistema de crédito rural mainstream oferece:
+A plataforma implementa uma metodologia de fluxo de caixa para pecuária de corte, diferencial que nenhum sistema de crédito rural mainstream oferece:
 
 ```
 (+) Receita de vendas
