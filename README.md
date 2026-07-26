@@ -6,6 +6,19 @@ Sistema especializado em análise técnico-financeira de rebanho bovino para **c
 
 ---
 
+## Screenshots
+
+**Landing page**
+![Landing page](docs/screenshots/landing.png)
+
+**Inserir dados do rebanho**
+![Inserir dados](docs/screenshots/app_inserir.png)
+
+**Simular Cenários — Dashboard**
+![Simular Cenários Dashboard](docs/screenshots/simular_dashboard.png)
+
+---
+
 ## Por que usar esta plataforma?
 
 | Problema da consultoria hoje | O que a plataforma resolve |
