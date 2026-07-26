@@ -731,7 +731,7 @@ def api_classificar():
         _arr_bois   = 0.0
         _arr_vacas  = float(_ano1.get('matrizes_descartadas', 0)) * 15.33
         _arr_bezv   = float(_ano1.get('bezerras_vendidas', 0)) * 6.00
-        _arr_machos = float(_ano1.get('machos_vendidos', 0)) * 6.00
+        _arr_machos = float(_ano1.get('machos_vendidos', 0)) * 6.67  # bezerros machos
     elif _ciclo_tipo == 'RECRIA':
         # Peso de saída variável; fallback receita/preco captura arrobas corretas
         _arr_bois = _arr_vacas = _arr_bezv = _arr_machos = 0.0
@@ -790,15 +790,15 @@ def api_classificar():
             custo_arroba_engorda=_custo_fase('custo_arroba_engorda'),
             preco_boi_arr=_pb_s,
             preco_vaca_arr=(preco_vaca * _fator) if preco_vaca else None,
-            preco_bezerra_cab=(preco_bezerra * _fator) if preco_bezerra else None,
-            preco_bezerro_cab=(preco_bezerro * _fator) if preco_bezerro else None,
+            preco_bezerra_cab=(preco_bezerra * _fator / _preco_mod_conservador) if preco_bezerra else None,
+            preco_bezerro_cab=(preco_bezerro * _fator / _preco_mod_conservador) if preco_bezerro else None,
         )
-        _gc_s = _cx_s['anos'][0]['resultado']
+        _gc_s = _cx_s['anos'][0]['resultado'] - _reposicao_reprodutores
         _dscr_s = round(_gc_s / _servico_base, 2) if _servico_base > 0 else None
         sensibilidade.append({
             'cenario': _label,
             'variacao_pct': round((_fator - 1) * 100),
-            'preco_boi': round(_pb_s, 2),
+            'preco_boi': round(_preco_boi_ref * _fator, 2),
             'geracao_caixa': round(_gc_s, 2),
             'dscr': _dscr_s,
             'recomendacao': (
@@ -826,7 +826,7 @@ def api_classificar():
             preco_boi_arr=preco_boi, preco_vaca_arr=preco_vaca,
             preco_bezerra_cab=preco_bezerra, preco_bezerro_cab=preco_bezerro,
         )
-        _gc_c = _cx_c['anos'][0]['resultado']
+        _gc_c = _cx_c['anos'][0]['resultado'] - _reposicao_reprodutores
         _dscr_c = round(_gc_c / _servico_base, 2) if _servico_base > 0 else None
         sensibilidade_custo.append({
             'variacao_pct': round((_fator_c - 1) * 100),

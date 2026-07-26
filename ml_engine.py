@@ -1417,12 +1417,12 @@ def extrair_indicadores_benchmark(v: list, data: dict) -> dict:
 
 def calcular_breakeven_simples(v: list, ciclo: str) -> dict:
     """
-    Estimativa rápida do breakeven — parâmetros fixos do memorial §9.
+    Estimativa rápida do breakeven usando custo_arroba=R$57/@ padrão.
 
-    CRIA:    (total × R$850) / (matrizes × 0,75 × 0,80 × 0,60)   → R$/cabeça
-    RECRIA:  (12 × R$80)     / 14@                                → R$68,57/@
-    ENGORDA: (90 × R$12)     / (520×0,52/15)                      → R$59,90/@
-    CICLO:   (total × R$850) / (total × 0,30 × 16@)               → R$/arroba
+    CRIA:    custo_rebanho / (matrizes × 0,75 × 0,80 × 0,60)   → R$/cabeça
+    RECRIA:  custo_total / (animais × 14@)                      → R$/arroba
+    ENGORDA: custo_total / (bois × saída_carcaça@)              → R$/arroba
+    CICLO:   custo_rebanho / (total × 0,30 × 16@)               → R$/arroba
     """
     va = np.array(v, dtype=float)
     custo_arroba = 57.0
