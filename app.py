@@ -35,7 +35,7 @@ from pdf_parsers import (
 
 from services.importar_excel import parsear_ficha_excel
 
-from scraper import obter_precos_arroba
+from scraper import obter_precos_arroba, _session_com_retry, _HEADERS as _SCRAPER_HEADERS
 
 from parsers.composicao_rebanho import ler_template
 from services.consistencia_rebanho import analisar_consistencia, analisar_consistencia_historica
@@ -78,6 +78,21 @@ if not _secret_key:
         raise RuntimeError('SECRET_KEY não definida em produção — defina a variável de ambiente.')
     _secret_key = 'boviml-dev-secret-local'
 app.secret_key = _secret_key
+
+# ── CSRF protection para rotas admin ─────────────────────────────────────────
+def _csrf_token() -> str:
+    if 'csrf_token' not in session:
+        session['csrf_token'] = _secrets.token_hex(32)
+    return session['csrf_token']
+
+app.jinja_env.globals['csrf_token'] = _csrf_token
+
+@app.before_request
+def _verificar_csrf_admin():
+    if request.method == 'POST' and request.path.startswith('/admin'):
+        token = request.form.get('csrf_token', '')
+        if not token or not _secrets.compare_digest(token, session.get('csrf_token', '')):
+            abort(403)
 
 # ── Rate limiting (proteção contra força bruta) ───────────────────────────────
 limiter = Limiter(
@@ -204,6 +219,7 @@ def rotina_diaria_cotacoes():
         precos = obter_precos_arroba()
         if precos.get('boi', 0) > 0 or precos.get('vaca', 0) > 0:
             db.guardar_cotacao_diaria(precos)
+            _invalidar_cache_cotacoes()
             logger.info("✅ [Scraper] Cotações atualizadas no banco de dados.")
         else:
             logger.warning("⚠️ [Scraper] Cotações retornaram zero, não salvas.")
@@ -850,6 +866,27 @@ def api_classificar():
     except Exception as _e_shap:
         logger.warning(f'SHAP falhou (não crítico): {_e_shap}')
 
+    # ── Projeção multianual (conservador, 5 anos) ────────────────────────────
+    # Cada ano: receita, custo, resultado, margem%, DSCR (se houver crédito),
+    # rebanho, e sinalização de viabilidade para o analista.
+    _projecao_anos = []
+    for _ano in _cx['anos']:
+        _gc_ano = _ano['resultado'] - _reposicao_reprodutores
+        _margem = round(_gc_ano / max(_ano['custo'], 1) * 100, 1)
+        _dscr_ano = round(_gc_ano / _servico_base, 2) if _servico_base > 0 else None
+        _projecao_anos.append({
+            'ano':         _ano['ano'],
+            'receita':     round(_ano['receita'], 2),
+            'custo':       round(_ano['custo'], 2),
+            'resultado':   round(_gc_ano, 2),
+            'margem_pct':  _margem,
+            'rebanho':     _ano.get('total', 0),
+            'matrizes':    _ano.get('matrizes', 0),
+            'vendidos':    _ano.get('vendidos', 0),
+            'dscr':        _dscr_ano,
+            'viavel':      (_dscr_ano is None or _dscr_ano >= 1.0) and _gc_ano > 0,
+        })
+
     parecer = montar_parecer(
         identificacao={'fazenda': fazenda, 'municipio': municipio,
                        'proprietario': data.get('proprietario', '')},
@@ -888,19 +925,39 @@ def api_classificar():
         'valores': v,
         'registro_id': registro_id,
         'shap_explicacao': shap_explicacao,
+        'projecao_anos': _projecao_anos,
     })
+
+# ── Cache em memória para cotações (TTL 30 min) ──────────────────────────────
+import time as _time
+_cotacoes_cache: dict = {}
+_cotacoes_cache_ts: float = 0.0
+_COTACOES_TTL = 30 * 60  # 30 minutos
+
+
+def _cotacoes_cached() -> dict:
+    global _cotacoes_cache, _cotacoes_cache_ts
+    agora = _time.monotonic()
+    if _cotacoes_cache and (agora - _cotacoes_cache_ts) < _COTACOES_TTL:
+        return _cotacoes_cache
+    fresh = db.obter_cotacoes_atuais() or {}
+    _cotacoes_cache = fresh
+    _cotacoes_cache_ts = agora
+    return fresh
+
+
+def _invalidar_cache_cotacoes():
+    global _cotacoes_cache_ts
+    _cotacoes_cache_ts = 0.0
+
 
 @app.route('/api/precos/live', methods=['GET'])
 @login_required
 def api_precos_live():
-    """Cotação mais recente por categoria (boi/vaca R$/@, bezerro/bezerra R$/cab).
-
-    Quando o banco ainda não tem cotação, devolve as referências editáveis
-    (bezerro de referência + bezerra derivada) para a UI sempre ter algo.
-    """
+    """Cotação mais recente por categoria (boi/vaca R$/@, bezerro/bezerra R$/cab)."""
     from services.precos_diarios import BEZERRO_REF, bezerra_de
     try:
-        c = db.obter_cotacoes_atuais() or {}
+        c = _cotacoes_cached()
         tem = c.get('boi', 0) > 0 or c.get('vaca', 0) > 0
         bezerro = c.get('bezerro') or BEZERRO_REF
         return jsonify({
@@ -917,6 +974,95 @@ def api_precos_live():
     except Exception as e:
         logger.error(f"Erro ao buscar cotações: {e}", exc_info=True)
         return jsonify({'erro': str(e)}), 500
+
+# ── Notícias agropecuárias — RSS ticker ──────────────────────────────────────
+import xml.etree.ElementTree as _ET
+_noticias_cache: list = []
+_noticias_cache_ts: float = 0.0
+_NOTICIAS_TTL = 20 * 60   # 20 minutos
+
+_RSS_FEEDS = [
+    # Canal Rural
+    'https://www.canalrural.com.br/feed/',
+    # G1 Agronegócios
+    'https://g1.globo.com/rss/g1/economia/agronegocios/',
+]
+_PALAVRAS_AGRO = {
+    'boi', 'vaca', 'rebanho', 'pecuária', 'pecuaria', 'arroba', 'cepea',
+    'nelore', 'bezerro', 'gado', 'agro', 'rural', 'soja', 'milho',
+    'safra', 'fazenda', 'produtor', 'carne', 'frigorífico', 'frigorifico',
+}
+
+
+def _buscar_rss(url: str, sess) -> list[dict]:
+    try:
+        r = sess.get(url, timeout=10, headers=_SCRAPER_HEADERS)
+        r.raise_for_status()
+        root = _ET.fromstring(r.content)
+        ns = {'atom': 'http://www.w3.org/2005/Atom'}
+        itens = []
+        # RSS 2.0
+        for item in root.iter('item'):
+            titulo = (item.findtext('title') or '').strip()
+            link   = (item.findtext('link') or '').strip()
+            data   = (item.findtext('pubDate') or '').strip()
+            if titulo and link:
+                itens.append({'titulo': titulo, 'link': link, 'data': data})
+        # Atom
+        if not itens:
+            for entry in root.findall('atom:entry', ns):
+                titulo = (entry.findtext('atom:title', namespaces=ns) or '').strip()
+                link_el = entry.find('atom:link', ns)
+                link = (link_el.get('href', '') if link_el is not None else '').strip()
+                data = (entry.findtext('atom:published', namespaces=ns) or '').strip()
+                if titulo and link:
+                    itens.append({'titulo': titulo, 'link': link, 'data': data})
+        logger.info(f'[RSS] {url} → {len(itens)} itens | status={r.status_code} | tag-raiz={root.tag}')
+        return itens
+    except Exception as e:
+        logger.warning(f'[RSS] Falha em {url}: {e}')
+        return []
+
+
+def _filtrar_agro(itens: list[dict]) -> list[dict]:
+    resultado = []
+    for it in itens:
+        t = it['titulo'].lower()
+        if any(p in t for p in _PALAVRAS_AGRO):
+            resultado.append(it)
+    return resultado or itens  # sem filtro se nenhum passou
+
+
+def _noticias_fresh() -> list:
+    global _noticias_cache, _noticias_cache_ts
+    agora = _time.monotonic()
+    if _noticias_cache and (agora - _noticias_cache_ts) < _NOTICIAS_TTL:
+        return _noticias_cache
+    sess = _session_com_retry()
+    todos = []
+    for url in _RSS_FEEDS:
+        todos.extend(_buscar_rss(url, sess))
+    filtrados = _filtrar_agro(todos)[:30]
+    if filtrados:
+        _noticias_cache = filtrados
+        _noticias_cache_ts = agora
+    return _noticias_cache or []
+
+
+@app.route('/api/noticias', methods=['GET'])
+@login_required
+def api_noticias():
+    """Retorna até 30 notícias agropecuárias de RSS público (Canal Rural + G1 Agro).
+
+    Cache de 20 minutos — não bate nos feeds a cada chamada do ticker.
+    """
+    try:
+        itens = _noticias_fresh()
+        return jsonify({'ok': True, 'noticias': itens, 'total': len(itens)})
+    except Exception as e:
+        logger.error(f'[RSS] Erro no endpoint: {e}', exc_info=True)
+        return jsonify({'ok': False, 'noticias': [], 'erro': str(e)}), 500
+
 
 @app.route('/api/cenario', methods=['POST'])
 @login_required

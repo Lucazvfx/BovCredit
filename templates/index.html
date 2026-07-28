@@ -34,6 +34,16 @@ body::before{content:'';position:fixed;inset:0;background:
   radial-gradient(ellipse 50% 30% at 85% 85%,rgba(34,211,238,.04) 0%,transparent 60%);
   pointer-events:none;z-index:0}
 
+/* ── FUNDO PECUÁRIA — spotlight ── */
+#bg-rebanho{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:url('/static/img/rebanho-bg.jpg') center center/cover no-repeat;
+  opacity:0;
+  transition:opacity .4s ease;
+  -webkit-mask-image:radial-gradient(circle 220px at 50% 50%,black 0%,transparent 100%);
+  mask-image:radial-gradient(circle 220px at 50% 50%,black 0%,transparent 100%);
+}
+
 header{position:sticky;top:0;z-index:200;background:rgba(6,8,16,.93);backdrop-filter:blur(24px);border-bottom:1px solid var(--b);height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 36px}
 .logo{font-family:var(--fn);font-weight:800;font-size:1.4rem;letter-spacing:-.5px;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:visible;flex-shrink:0}
 .logo-mk{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#4ADE80,#4ADE80);display:flex;align-items:center;justify-content:center;font-size:.9rem}
@@ -195,6 +205,7 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 .loading-overlay.show{display:flex}
 .lspin{width:50px;height:50px;border:3px solid var(--b2);border-top-color:var(--g);border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .ltxt{font-family:var(--fn);font-size:1rem;letter-spacing:.5px}
 
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px}
@@ -244,10 +255,12 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 .res-box{border-radius:var(--r);padding:20px 24px;margin-top:16px;border:1px solid;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 .res-box.pos{border-color:rgba(74,222,128,.3);background:rgba(74,222,128,.06)}
 .res-box.neg{border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.06)}
+
 </style>
 </head>
 <body>
 
+<div id="bg-rebanho"></div>
 <div class="loading-overlay" id="loading-ov">
   <div class="lspin"></div>
   <div class="ltxt" id="loading-txt">Processando...</div>
@@ -278,6 +291,37 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
     <div class="field" style="margin-bottom:12px"><label>Logo</label><input type="file" id="marca-logo-input" accept="image/*" onchange="onMarcaLogoSelecionado(event)"></div>
     <div id="marca-logo-preview" style="margin-bottom:14px"></div>
     <button class="btn" style="width:100%;justify-content:center" onclick="salvarMarcaConsultoria()">Salvar</button>
+  </div>
+</div>
+
+<!-- ═══ TICKER DE NOTÍCIAS ═══ -->
+<div id="news-ticker" style="
+  position:relative;z-index:10;
+  background:rgba(6,8,16,.85);
+  border-bottom:1px solid rgba(74,222,128,.12);
+  backdrop-filter:blur(8px);
+  display:flex;align-items:center;
+  height:28px;overflow:hidden;
+">
+  <div style="
+    flex-shrink:0;
+    background:var(--g);color:#060810;
+    font-size:.58rem;font-weight:800;letter-spacing:.05em;
+    padding:0 10px;height:100%;
+    display:flex;align-items:center;white-space:nowrap;
+  ">AGRO</div>
+  <div style="flex:1;overflow:hidden;position:relative;">
+    <div id="ticker-track" style="
+      display:flex;align-items:center;gap:0;
+      white-space:nowrap;
+      animation:ticker-scroll 60s linear infinite;
+      will-change:transform;
+    ">
+      <span id="ticker-inner" style="
+        font-size:.6rem;color:var(--mu);
+        padding:0 16px;
+      ">Carregando notícias...</span>
+    </div>
   </div>
 </div>
 
@@ -1099,6 +1143,7 @@ function atualizarTituloCiclo() {
 // ================== PRECOS (FALLBACK) ==================
 const _COTACOES_FALLBACK = { boi: 0, vaca: 0 };
 function _fmtValor(v){ const n = Number(v) || 0; return n.toFixed(2) + ' R$'; }
+function escapeHtml(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;'); }
 function showToast(msg, isError=false){ const t = document.getElementById('toast'); if(!t) return; t.textContent = msg; t.classList.toggle('err', !!isError); t.classList.add('show'); clearTimeout(window._toastTimer); window._toastTimer = setTimeout(()=> t.classList.remove('show'), 6000); }
 async function atualizarPrecos(){
   try{ const res = await fetch('/api/precos/live');
@@ -1108,7 +1153,55 @@ async function atualizarPrecos(){
   document.getElementById('hdr-boi').textContent = 'Boi: ' + _fmtValor(_COTACOES_FALLBACK.boi);
   document.getElementById('hdr-vaca').textContent = 'Vaca: ' + _fmtValor(_COTACOES_FALLBACK.vaca);
 }
-document.addEventListener('DOMContentLoaded', ()=>{ atualizarPrecos(); setInterval(atualizarPrecos, 1000 * 60 * 30); });
+document.addEventListener('DOMContentLoaded', ()=>{
+  atualizarPrecos();
+  setInterval(atualizarPrecos, 1000 * 60 * 30);
+
+  // Fundo rebanho — spotlight segue o cursor
+  const bgEl = document.getElementById('bg-rebanho');
+  let hideTimer;
+  document.addEventListener('mousemove', (e)=>{
+    const x = e.clientX, y = e.clientY;
+    const mask = `radial-gradient(circle 220px at ${x}px ${y}px, black 0%, transparent 100%)`;
+    bgEl.style.webkitMaskImage = mask;
+    bgEl.style.maskImage = mask;
+    bgEl.style.opacity = '1';
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(()=>{ bgEl.style.opacity = '0'; }, 2500);
+  });
+  document.addEventListener('mouseleave', ()=>{
+    clearTimeout(hideTimer);
+    bgEl.style.opacity = '0';
+  });
+
+  // Ticker de notícias agropecuárias
+  (async function iniciarTicker(){
+    try {
+      const r = await fetch('/api/noticias');
+      const d = await r.json();
+      if (!d.ok || !d.noticias?.length) return;
+      const inner = document.getElementById('ticker-inner');
+      const track = document.getElementById('ticker-track');
+      // Constrói itens separados por ponto verde
+      const sep = '<span style="color:var(--g);padding:0 12px;opacity:.6">●</span>';
+      const html = d.noticias.map(n => {
+        const safeLink = /^https?:\/\//.test(n.link||'') ? n.link : '#';
+        return `<a href="${safeLink}" target="_blank" rel="noopener" style="color:var(--mu);text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--g)'" onmouseout="this.style.color='var(--mu)'">${escapeHtml(n.titulo)}</a>`;
+      }).join(sep);
+      // Duplica para loop contínuo
+      inner.innerHTML = html + sep + html;
+      // Ajusta velocidade ao comprimento do conteúdo
+      const largura = inner.scrollWidth / 2;
+      const velocidade = Math.max(40, largura / 80); // ~80px/s
+      track.style.animationDuration = velocidade + 's';
+      // Pausa no hover
+      track.addEventListener('mouseenter', () => track.style.animationPlayState = 'paused');
+      track.addEventListener('mouseleave', () => track.style.animationPlayState = 'running');
+    } catch(e) {
+      console.warn('Ticker: falha ao carregar notícias', e);
+    }
+  })();
+});
 
 // ================== BUILD TABLE ==================
 function buildTable(){
@@ -1588,7 +1681,7 @@ function mostrarPDFPreview(data){
       </div>
     </div>
     <button class="btn-p" style="margin-top:16px" onclick="classificarPDF(${JSON.stringify(v)},${JSON.stringify(data)})"><span>🧠 Classificar com Machine Learning</span></button>`;
-  document.getElementById('dz').innerHTML=`<span class="upzone-icon">✅</span><h2 class="upzone-title">PDF carregado: <span>${data.fazenda||'Exploração'}</span></h2><p class="upzone-sub">${fN(data.total)} animais · Clique para carregar outro(s)</p><input type="file" id="pdf-inp" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files)">`;
+  document.getElementById('dz').innerHTML=`<span class="upzone-icon">✅</span><h2 class="upzone-title">PDF carregado: <span>${escapeHtml(data.fazenda||'Exploração')}</span></h2><p class="upzone-sub">${fN(data.total)} animais · Clique para carregar outro(s)</p><input type="file" id="pdf-inp" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files)">`;
 }
 
 async function reparsarPDF(){
@@ -1732,6 +1825,62 @@ function renderParecer(data){
       })()}
     </div>` : '';
 
+  // ── Projeção multianual — cenário conservador ──────────────────────────────
+  const proj = data.projecao_anos || [];
+  const projecaoHtml = proj.length ? (() => {
+    const maxRes = Math.max(...proj.map(a => Math.abs(a.resultado)), 1);
+    const barras = proj.map(a => {
+      const pos = a.resultado >= 0;
+      const h = Math.round(Math.abs(a.resultado) / maxRes * 80);
+      const cor = pos ? 'var(--g)' : 'var(--rd)';
+      const dscrBadge = a.dscr != null
+        ? `<div style="font-size:.48rem;padding:1px 4px;border-radius:3px;margin-top:2px;background:${a.dscr>=1.3?'rgba(74,222,128,.15)':a.dscr>=1.0?'rgba(251,191,36,.15)':'rgba(248,113,113,.15)'};color:${a.dscr>=1.3?'var(--g)':a.dscr>=1.0?'var(--am)':'var(--rd)'}">DSCR ${a.dscr}</div>`
+        : '';
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0">
+        <div style="font-size:.48rem;color:${cor};font-weight:700">${fR(a.resultado)}</div>
+        <div style="width:85%;height:${Math.max(h,4)}px;background:${cor};border-radius:3px 3px 0 0;min-height:4px"></div>
+        <div style="font-size:.5rem;color:var(--mu)">Ano ${a.ano}</div>
+        ${dscrBadge}
+      </div>`;
+    }).join('');
+
+    const linhas = proj.map(a => {
+      const mCor = a.margem_pct >= 15 ? 'var(--g)' : a.margem_pct >= 0 ? 'var(--am)' : 'var(--rd)';
+      const dscrCor = a.dscr == null ? 'var(--mu)' : a.dscr >= 1.3 ? 'var(--g)' : a.dscr >= 1.0 ? 'var(--am)' : 'var(--rd)';
+      return `<tr style="border-bottom:1px solid var(--b)">
+        <td style="font-family:var(--fm);font-size:.72rem;padding:7px 10px">Ano ${a.ano}</td>
+        <td class="r" style="padding:7px 10px">${fN(a.rebanho)}</td>
+        <td class="g r" style="padding:7px 10px">${fR(a.receita)}</td>
+        <td class="r2 r" style="padding:7px 10px">${fR(a.custo)}</td>
+        <td class="r" style="padding:7px 10px;font-weight:700;color:${a.resultado>=0?'var(--g)':'var(--rd)'}">${fR(a.resultado)}</td>
+        <td class="r" style="padding:7px 10px;color:${mCor}">${a.margem_pct}%</td>
+        ${a.dscr != null ? `<td class="r" style="padding:7px 10px;font-weight:700;color:${dscrCor}">${a.dscr}</td>` : '<td class="r" style="padding:7px 10px;color:var(--mu)">—</td>'}
+      </tr>`;
+    }).join('');
+
+    const temDscr = proj.some(a => a.dscr != null);
+    return `<div style="margin-bottom:16px">
+      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Projeção Multianual — Cenário Conservador</div>
+      <div style="background:var(--bg2);border:1px solid var(--b);border-radius:10px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:flex-end;gap:8px;height:110px">${barras}</div>
+      </div>
+      <div style="overflow-x:auto;border-radius:10px;border:1px solid var(--b)">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:var(--bg2)">
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:left;color:var(--mu)">Período</th>
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">Rebanho</th>
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--g)">Receita</th>
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--rd)">Custo</th>
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">Resultado</th>
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">Margem</th>
+            ${temDscr ? '<th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">DSCR</th>' : ''}
+          </tr></thead>
+          <tbody>${linhas}</tbody>
+        </table>
+      </div>
+    </div>`;
+  })() : '';
+
   // Sensibilidade de preço — 3 cards lado a lado
   const sens = data.sensibilidade || [];
   const SREC = {aprovar:'#4ADE80', ressalva:'#FBBF24', negar:'#F87171'};
@@ -1809,7 +1958,7 @@ function renderParecer(data){
   return `<div class="card" style="margin-bottom:24px">
     <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Parecer de Crédito</div>
       <button class="btn-sm" onclick="baixarPdfParecer(window._lastParecer)">⬇ Baixar PDF</button></div>
-    <div class="cb" style="display:grid;gap:0">${concl}${fluxoGep}${sensHtml}${sensCustoHtml}</div>
+    <div class="cb" style="display:grid;gap:0">${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
   </div>`;
 }
 
@@ -1860,9 +2009,9 @@ function renderResult(data){
     <div class="rhero" style="border-color:${col}40;background:${col}08">
       <div class="rhero-grid">
         <div>
-          <div class="rhero-ey">Tipo de Exploração · ${faz} · ${mun}</div>
+          <div class="rhero-ey">Tipo de Exploração · ${escapeHtml(faz)} · ${escapeHtml(mun)}</div>
           <div class="rhero-tipo" style="color:${col}">${TL[tipo]}</div>
-          <div class="rhero-sub">${prop} &nbsp;·&nbsp; Confiança: ${data.confianca}%</div>
+          <div class="rhero-sub">${escapeHtml(prop)} &nbsp;·&nbsp; Confiança: ${data.confianca}%</div>
           <div style="margin-top:22px">${confBars}</div>
         </div>
         <div class="rhero-em">${TE[tipo]}</div>
@@ -2599,7 +2748,7 @@ async function carregarEmpresaAtiva(){
     const d = await r.json();
     const sel = document.getElementById('empresa-ativa-select');
     if(!sel) return;
-    sel.innerHTML = (d.empresas||[]).map(e=>`<option value="${e.id}" ${e.id===d.ativa_id?'selected':''}>${e.nome}</option>`).join('');
+    sel.innerHTML = (d.empresas||[]).map(e=>`<option value="${e.id}" ${e.id===d.ativa_id?'selected':''}>${escapeHtml(e.nome)}</option>`).join('');
   }catch(e){}
 }
 async function trocarEmpresaAtiva(){
