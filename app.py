@@ -243,12 +243,13 @@ def login():
         return redirect(url_for('app_main'))
     erro = None
     if request.method == 'POST':
-        email = request.form.get('email', '').strip()
-        senha = request.form.get('senha', '')
+        email = request.form.get('email', '').strip().lower()
+        senha = request.form.get('senha', '').strip()
         u = db.verificar_senha(email, senha)
         if u:
             login_user(User(u), remember=True)
             return redirect(url_for('app_main'))
+        logger.warning(f'[LOGIN] Falha de autenticação para e-mail: {email!r}')
         erro = 'E-mail ou senha incorretos.'
     return render_template('login.html', erro=erro)
 
