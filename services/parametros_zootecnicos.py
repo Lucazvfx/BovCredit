@@ -18,8 +18,8 @@ def midpoint(lo: float, hi: float) -> float:
 
 
 # ── Taxas: ponto médio do benchmark ──────────────────────────────────────────
-# Natalidade nacional (pptx): faixas 55–75 (Embrapa/Scot/CEPEA/ABCZ) → meio 65.
-NATALIDADE_PCT = midpoint(55.0, 75.0)          # 65.0
+# Natalidade nacional (pptx): faixas 55–75; conservador recomendado = 70%.
+NATALIDADE_PCT = 70.0
 # Prenhez nacional (pptx): faixas 50–75 → meio 62,5.
 PRENHEZ_PCT = midpoint(50.0, 75.0)             # 62.5
 

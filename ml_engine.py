@@ -67,10 +67,10 @@ FEATURE_NAMES = [
 # (branch 9318087 — útil para simular_cenario com defaults por ciclo)
 PARAMS_POR_CICLO = {
     'CRIA': {
-        'prop_boi': 30.0,       # 1 touro : 30 matrizes (memorial §16)
+        'prop_boi': 30.0,       # 1 touro : 30 matrizes
         'renov_boi_pct': 20.0,
-        'desc_mat_pct': 30.0,   # 30% descarte (memorial §16)
-        'venda_bez_pct': 60.0,  # 60% da produção (memorial §16)
+        'desc_mat_pct': 10.0,   # 8–15% descarte (slide ref); conservador 10%
+        'venda_bez_pct': 75.0,  # retém 25%, vende 75% (slide ref)
         'nat_pct': NATALIDADE_PCT,
     },
     'RECRIA': {
@@ -90,8 +90,8 @@ PARAMS_POR_CICLO = {
     'CICLO_COMPLETO': {
         'prop_boi': 30.0,
         'renov_boi_pct': 20.0,
-        'desc_mat_pct': 30.0,
-        'venda_bez_pct': 60.0,
+        'desc_mat_pct': 10.0,   # alinhado com CRIA (8–15%; conservador 10%)
+        'venda_bez_pct': 75.0,  # alinhado com CRIA (retém 25%, vende 75%)
         'nat_pct': NATALIDADE_PCT,
     }
 }
@@ -392,9 +392,13 @@ def classificar(
     indice_ciclo = (
         int(p_matrizes_h > 0.18) +
         int(p_mac_13_24_h > 0.10) +
-        int(p_bois_h > 0.12) +   # exige ≥12% de garrote/boi gordo para contar como engorda
+        int(p_bois_h > 0.10) +   # threshold 10% (antes 12%) — captura terminação típica
         int(p_bez_h > 0.12)
     )
+
+    # Flag: confinamento/engorda puro — sem matrizes, poucas fêmeas, machos dominam
+    _p_fem_total = (va[0] + va[2] + va[4] + va[6] + va[8]) / total
+    _engorda_puro = (p_matrizes_h < 0.02 and _p_fem_total < 0.10 and va[7] / total > 0.08)
 
     feat = extrair_features(v, taxa_natalidade, _bois_v, _bez_v).reshape(1, -1)
     probs = _pipeline.predict_proba(feat)[0]
@@ -402,8 +406,15 @@ def classificar(
 
     explicacao = []
 
-    if indice_ciclo >= 4 and intensidade_engorda > 0.05:
-        # Exige também intensidade_engorda > 5% confirmada pelo usuário;
+    if _engorda_puro:
+        tipo = 'ENGORDA'
+        confianca = max(prob_dict.get('ENGORDA', 0.0), 75.0)
+        explicacao.append(
+            f"Flag engorda_puro: p_matrizes={p_matrizes_h:.1%}, p_fem={_p_fem_total:.1%}, "
+            f"mac_25_36={va[7]/total:.1%} → confinamento sem matrizes → ENGORDA"
+        )
+    elif indice_ciclo >= 4 and intensidade_engorda > 0.05:
+        # Exige intensidade_engorda > 5% confirmada pelo usuário;
         # touros de serviço (sem bois_vendidos informado) não ativam esta regra.
         tipo = 'CICLO_COMPLETO'
         confianca = max(prob_dict.get('CICLO_COMPLETO', 0.0), 85.0)
@@ -416,29 +427,39 @@ def classificar(
         ml_idx = int(probs.argmax())
         ml_tipo = TIPOS[ml_idx]
         if ml_tipo in ('ENGORDA', 'CICLO_COMPLETO'):
-            tipo = 'CRIA' if probs[0] >= probs[1] else 'RECRIA'
-            explicacao.append(
-                f"Regra híbrida: intensidade_engorda={intensidade_engorda:.3f} < 0.1 → {ml_tipo} descartado"
-            )
-            explicacao.append(f"ML sugeria {ml_tipo}; substituído por {tipo}")
+            # Rescue CICLO_COMPLETO: ML acertou o tipo mas sem bois_vendidos.
+            # Aceita quando há evidência estrutural forte (matrizes + bois + bezerros ≥ 3/4 critérios).
+            if (ml_tipo == 'CICLO_COMPLETO' and indice_ciclo >= 3
+                    and p_bois_h > 0.08 and p_matrizes_h > 0.20 and p_bez_h > 0.20):
+                tipo = 'CICLO_COMPLETO'
+                confianca = max(prob_dict.get('CICLO_COMPLETO', 0.0), 80.0)
+                explicacao.append(
+                    f"Rescue ciclo_completo: indice_ciclo={indice_ciclo}/4, "
+                    f"p_bois={p_bois_h:.1%}>8%, p_mat={p_matrizes_h:.1%}>20%, "
+                    f"p_bez={p_bez_h:.1%}>20% → CICLO_COMPLETO (sem bois_vendidos)"
+                )
+            else:
+                tipo = 'CRIA' if probs[0] >= probs[1] else 'RECRIA'
+                explicacao.append(
+                    f"Regra híbrida: intensidade_engorda={intensidade_engorda:.3f} < 0.1 → {ml_tipo} descartado"
+                )
+                explicacao.append(f"ML sugeria {ml_tipo}; substituído por {tipo}")
         else:
             tipo = ml_tipo
             explicacao.append(
                 f"Regra híbrida: intensidade_engorda={intensidade_engorda:.3f} < 0.1 → priorizando cria/recria"
             )
             explicacao.append(f"ML confirmou: {tipo}")
-        confianca = round(float(probs[TIPOS.index(tipo)]) * 100, 1)
+        if tipo != 'CICLO_COMPLETO':
+            confianca = round(float(probs[TIPOS.index(tipo)]) * 100, 1)
     else:
         ml_idx = int(probs.argmax())
         ml_tipo = TIPOS[ml_idx]
         confianca = round(float(probs[ml_idx]) * 100, 1)
 
         # Guarda de segurança: ML votou CICLO_COMPLETO com indice_ciclo fraco.
-        # indice_ciclo ≤ 1 significa que a composição do rebanho não tem as
-        # 4 características simultâneas; provável fazenda de CRIA bem estruturada
-        # com touros de serviço sendo confundida com ciclo completo.
         if ml_tipo == 'CICLO_COMPLETO' and indice_ciclo <= 1:
-            alt_idx = int(np.argsort(probs)[-2])  # segunda opção do ML
+            alt_idx = int(np.argsort(probs)[-2])
             tipo = TIPOS[alt_idx] if TIPOS[alt_idx] != 'CICLO_COMPLETO' else (
                 'CRIA' if p_matrizes_h > 0.18 else 'RECRIA'
             )
