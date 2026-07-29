@@ -446,10 +446,22 @@ def classificar(
                 explicacao.append(f"ML sugeria {ml_tipo}; substituído por {tipo}")
         else:
             tipo = ml_tipo
-            explicacao.append(
-                f"Regra híbrida: intensidade_engorda={intensidade_engorda:.3f} < 0.1 → priorizando cria/recria"
-            )
-            explicacao.append(f"ML confirmou: {tipo}")
+            # Rescue: ML classificou CRIA mas estrutura do rebanho indica CICLO_COMPLETO
+            # (matrizes + bois + bezerros ≥ 3/4 critérios, mesmo sem bois_vendidos)
+            if (tipo == 'CRIA' and indice_ciclo >= 3
+                    and p_bois_h > 0.08 and p_matrizes_h > 0.20 and p_bez_h > 0.20):
+                tipo = 'CICLO_COMPLETO'
+                confianca = max(prob_dict.get('CICLO_COMPLETO', 0.0), 80.0)
+                explicacao.append(
+                    f"Rescue ciclo_completo: ML=CRIA, indice_ciclo={indice_ciclo}/4, "
+                    f"p_bois={p_bois_h:.1%}>8%, p_mat={p_matrizes_h:.1%}>20%, "
+                    f"p_bez={p_bez_h:.1%}>20% → CICLO_COMPLETO"
+                )
+            else:
+                explicacao.append(
+                    f"Regra híbrida: intensidade_engorda={intensidade_engorda:.3f} < 0.1 → priorizando cria/recria"
+                )
+                explicacao.append(f"ML confirmou: {tipo}")
         if tipo != 'CICLO_COMPLETO':
             confianca = round(float(probs[TIPOS.index(tipo)]) * 100, 1)
     else:

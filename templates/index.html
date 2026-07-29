@@ -1056,10 +1056,10 @@ let _last_pdf_raw = null; // para reprocessamento
 
 // ================== PARÂMETROS POR CICLO ==================
 const DEFAULT_PARAMS_CICLO = {
-  CRIA: { prop_boi:20, renov_boi_pct:15, desc_mat_pct:20, venda_bez_pct:10, nat_pct:65 },
-  RECRIA: { prop_boi:0, renov_boi_pct:0, desc_mat_pct:0, venda_bez_pct:80, nat_pct:65 },
-  ENGORDA: { prop_boi:0, renov_boi_pct:0, desc_mat_pct:0, venda_bez_pct:100, nat_pct:65 },
-  CICLO_COMPLETO: { prop_boi:30, renov_boi_pct:20, desc_mat_pct:30, venda_bez_pct:30, nat_pct:65 }
+  CRIA: { prop_boi:30, renov_boi_pct:20, desc_mat_pct:10, venda_bez_pct:75, nat_pct:70 },
+  RECRIA: { prop_boi:0, renov_boi_pct:0, desc_mat_pct:0, venda_bez_pct:100, nat_pct:70 },
+  ENGORDA: { prop_boi:0, renov_boi_pct:0, desc_mat_pct:0, venda_bez_pct:100, nat_pct:70 },
+  CICLO_COMPLETO: { prop_boi:30, renov_boi_pct:20, desc_mat_pct:10, venda_bez_pct:75, nat_pct:70 }
 };
 let paramsPorCiclo = {};
 
@@ -1264,7 +1264,7 @@ function upd(){
 
 // ================== EXEMPLOS ==================
 const EX={
-  ciclo: {v:[300,280,400,200,900,1200,250,80,600,40],faz:'Fazenda Modelo',mun:'Sinop - MT',prop:'Exemplo'},
+  ciclo: {v:[120,100,80,70,40,50,150,80,270,40],faz:'Fazenda Modelo',mun:'Sinop - MT',prop:'Exemplo'},
   cria:  {v:[300,280,200,80,100,40,150,10,600,15],faz:'Fazenda Bela Vista',mun:'Alta Floresta - MT',prop:'Exemplo'},
   recria:{v:[50,45,80,70,400,600,100,80,80,20],faz:'Fazenda Santa Fé',mun:'Guarantã - MT',prop:'Exemplo'},
   engorda:{v:[10,8,20,18,50,80,20,120,10,400],faz:'Fazenda Confinamento',mun:'Primavera do Leste - MT',prop:'Exemplo'},
