@@ -398,8 +398,13 @@ def atualizar_perfil_consultoria(user_id: int, nome_consultoria: str, logo_base6
 
 def verificar_senha(email: str, senha: str) -> dict | None:
     u = buscar_usuario_email(email)
-    if u and check_password_hash(u['senha_hash'], senha):
-        return u
+    if not u or not u.get('senha_hash'):
+        return None
+    try:
+        if check_password_hash(u['senha_hash'], senha):
+            return u
+    except Exception:
+        pass
     return None
 
 def listar_usuarios() -> list:
