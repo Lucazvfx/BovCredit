@@ -438,6 +438,13 @@ def classificar(
                     f"p_bois={p_bois_h:.1%}>8%, p_mat={p_matrizes_h:.1%}>20%, "
                     f"p_bez={p_bez_h:.1%}>20% → CICLO_COMPLETO (sem bois_vendidos)"
                 )
+            # Rescue ENGORDA: bois dominam o rebanho (>45%) → aceita voto ML mesmo sem bois_vendidos
+            elif ml_tipo == 'ENGORDA' and p_bois_h > 0.45:
+                tipo = 'ENGORDA'
+                confianca = max(prob_dict.get('ENGORDA', 0.0), 80.0)
+                explicacao.append(
+                    f"Rescue engorda: p_bois={p_bois_h:.1%}>45% confirma terminação → ENGORDA (sem bois_vendidos)"
+                )
             else:
                 tipo = 'CRIA' if probs[0] >= probs[1] else 'RECRIA'
                 explicacao.append(
