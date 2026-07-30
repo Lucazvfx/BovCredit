@@ -950,6 +950,31 @@ def api_classificar():
         'narrativa_ia': _narrativa_ia,
     })
 
+@app.route('/api/chat', methods=['POST'])
+@login_required
+def api_chat():
+    """Chat com o parecer de crédito via Groq."""
+    from services.groq_narrativa import gerar_resposta_chat, _feature_ativa
+    if not _feature_ativa():
+        return jsonify({'erro': 'IA não configurada — adicione GROQ_API_KEY nas variáveis de ambiente.'}), 503
+
+    data = request.json or {}
+    mensagem = (data.get('mensagem') or '').strip()
+    if not mensagem:
+        return jsonify({'erro': 'Mensagem vazia'}), 400
+    if len(mensagem) > 800:
+        return jsonify({'erro': 'Mensagem muito longa (máx. 800 caracteres)'}), 400
+
+    historico = data.get('historico') or []
+    contexto  = data.get('contexto') or {}
+
+    resposta = gerar_resposta_chat(mensagem, historico, contexto)
+    if resposta is None:
+        return jsonify({'erro': 'Serviço de IA temporariamente indisponível. Tente novamente.'}), 503
+
+    return jsonify({'resposta': resposta})
+
+
 # ── Cache em memória para cotações (TTL 30 min) ──────────────────────────────
 import time as _time
 _cotacoes_cache: dict = {}

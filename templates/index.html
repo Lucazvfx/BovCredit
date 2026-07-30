@@ -549,6 +549,7 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 <!-- ═══ RESULTADO ═══ -->
 <div class="panel" id="panel-resultado">
   <div id="result-wrap"></div>
+  <div id="chat-panel" style="display:none;margin-top:16px"></div>
 </div>
 
 <!-- ═══ CENÁRIOS ═══ -->
@@ -2150,11 +2151,34 @@ function renderResult(data){
       </div>
     </div>
 
-    <div style="display:flex;gap:10px;margin-top:24px">
+    ${data.narrativa_ia ? `<div class="card" style="margin-bottom:16px">
+      <div class="ch"><div class="ct"><div class="cd" style="background:#A78BFA"></div>Análise Narrativa · IA</div>
+        <span style="font-family:var(--fm);font-size:.48rem;letter-spacing:1px;padding:2px 7px;border-radius:4px;background:rgba(167,139,250,.1);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">Llama 3.3 70B</span>
+      </div>
+      <div class="cb" style="font-size:.84rem;line-height:1.7;color:var(--sb);white-space:pre-wrap">${escapeHtml(data.narrativa_ia)}</div>
+    </div>` : ''}
+
+    <div style="display:flex;gap:10px;margin-top:24px;flex-wrap:wrap">
       <button class="btn-sm" onclick="document.getElementById('tab-cen').click()">Ver Simulação de Cenários</button>
       <button class="btn-sm" onclick="resetApp()">↩ Nova Classificação</button>
       <button class="btn-sm" onclick="window.print()">Imprimir</button>
     </div>`;
+
+  window._chatContexto = {
+    tipo: data.tipo, confianca: (data.confianca||0)/100,
+    total_rebanho: Math.round(v ? v.reduce((a,b)=>a+b,0) : 0),
+    receita_anual: (data.fluxo_gep||{}).receita_vendas || 0,
+    geracao_caixa_anual: ((data.parecer||{}).conclusao||{}).geracao_caixa_anual || 0,
+    dscr: ((data.parecer||{}).conclusao||{}).dscr || null,
+    recomendacao: ((data.parecer||{}).conclusao||{}).recomendacao || '',
+    limite_credito: ((data.parecer||{}).conclusao||{}).capacidade_maxima || null,
+    coe_por_arroba: (data.fluxo_gep||{}).coe_por_arroba || null,
+    consistencia_score: ((data.consistencia||{}).score_consistencia) || 100,
+    fazenda: document.getElementById('f_faz')?.value || '',
+    municipio: document.getElementById('f_mun')?.value || '',
+    proprietario: document.getElementById('f_prop')?.value || '',
+  };
+  initChat();
 
   setTimeout(()=>{
     document.querySelectorAll('.cbar-f[data-w]').forEach(el=>el.style.width=el.dataset.w+'%');
@@ -2952,6 +2976,137 @@ function onBezerroChange(){
 function usarCotacaoDia(){
   const boi = +document.getElementById('cot-boi').value||0;
   if(boi>0){ const el=document.getElementById('s-preco-arr'); if(el){ el.value=boi; if(typeof recalcCiclo==='function') recalcCiclo(); if(typeof runSc==='function') runSc(); } }
+}
+
+// ================== CHAT COM PARECER (IA) ==================
+let _chatHistorico = [];
+
+function initChat() {
+  _chatHistorico = [];
+  const el = document.getElementById('chat-panel');
+  if (!el) return;
+  el.style.display = '';
+  el.innerHTML = `
+    <div class="card" id="chat-card">
+      <div class="ch" style="cursor:pointer;user-select:none" onclick="toggleChat()">
+        <div class="ct">
+          <div class="cd" style="background:#A78BFA"></div>
+          ✨ Perguntar à IA sobre este parecer
+        </div>
+        <span id="chat-toggle-icon" style="font-family:var(--fm);font-size:.7rem;color:var(--mu)">▼ expandir</span>
+      </div>
+      <div id="chat-body" style="display:none">
+        <div id="chat-msgs" style="padding:12px 16px;max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;min-height:60px"></div>
+        <div style="padding:0 12px 6px;display:flex;gap:6px;flex-wrap:wrap" id="chat-chips"></div>
+        <div style="padding:8px 12px 14px;display:flex;gap:8px;align-items:flex-end;border-top:1px solid var(--b)">
+          <textarea id="chat-input" rows="2" placeholder="Pergunte sobre o parecer…"
+            style="flex:1;background:var(--c2);border:1px solid var(--b);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.84rem;resize:none;font-family:var(--fb);line-height:1.5;min-height:44px"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarChat()}"></textarea>
+          <button onclick="enviarChat()" id="chat-send"
+            style="background:var(--g);color:#000;border:none;border-radius:8px;padding:10px 16px;font-family:var(--fn);font-weight:700;font-size:.72rem;letter-spacing:.5px;cursor:pointer;min-height:44px;white-space:nowrap">
+            Enviar
+          </button>
+        </div>
+      </div>
+    </div>`;
+
+  // Quick chips
+  const perguntas = [
+    'Por que esse parecer?',
+    'Como melhorar o limite?',
+    'Quais são os principais riscos?',
+    'O que é DSCR?',
+    'Como o ciclo afeta o crédito?',
+  ];
+  document.getElementById('chat-chips').innerHTML = perguntas.map(p =>
+    `<button onclick="enviarChatChip(this)" style="font-family:var(--fm);font-size:.6rem;padding:5px 10px;border-radius:20px;border:1px solid var(--b);background:var(--c2);color:var(--sb);cursor:pointer;white-space:nowrap">${escapeHtml(p)}</button>`
+  ).join('');
+}
+
+function toggleChat() {
+  const body = document.getElementById('chat-body');
+  const icon = document.getElementById('chat-toggle-icon');
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  if (icon) icon.textContent = open ? '▲ recolher' : '▼ expandir';
+}
+
+function enviarChatChip(btn) {
+  const input = document.getElementById('chat-input');
+  if (input) { input.value = btn.textContent; enviarChat(); }
+}
+
+function _chatAppendMsg(role, text) {
+  const el = document.getElementById('chat-msgs');
+  if (!el) return;
+  const isUser = role === 'user';
+  const div = document.createElement('div');
+  div.style.cssText = `display:flex;justify-content:${isUser?'flex-end':'flex-start'}`;
+  div.innerHTML = `<div style="
+    max-width:82%;padding:10px 14px;border-radius:${isUser?'12px 12px 4px 12px':'12px 12px 12px 4px'};
+    background:${isUser?'rgba(74,222,128,.12)':'var(--c2)'};
+    border:1px solid ${isUser?'rgba(74,222,128,.25)':'var(--b)'};
+    font-size:.82rem;line-height:1.6;color:var(--tx);white-space:pre-wrap">${escapeHtml(text)}</div>`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function enviarChat() {
+  const input = document.getElementById('chat-input');
+  const sendBtn = document.getElementById('chat-send');
+  const mensagem = (input?.value || '').trim();
+  if (!mensagem) return;
+
+  // Abre o chat se estiver recolhido
+  const body = document.getElementById('chat-body');
+  if (body && body.style.display === 'none') toggleChat();
+
+  input.value = '';
+  _chatAppendMsg('user', mensagem);
+  _chatHistorico.push({ role: 'user', content: mensagem });
+
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '…'; }
+
+  // Placeholder de "digitando"
+  const loadId = 'chat-load-' + Date.now();
+  const msgs = document.getElementById('chat-msgs');
+  if (msgs) {
+    const ldiv = document.createElement('div');
+    ldiv.id = loadId;
+    ldiv.style.cssText = 'display:flex;justify-content:flex-start';
+    ldiv.innerHTML = `<div style="padding:10px 14px;border-radius:12px 12px 12px 4px;background:var(--c2);border:1px solid var(--b);font-family:var(--fm);font-size:.72rem;color:var(--mu);letter-spacing:2px">· · ·</div>`;
+    msgs.appendChild(ldiv);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mensagem,
+        historico: _chatHistorico.slice(-8),
+        contexto: window._chatContexto || {},
+      }),
+    });
+    const data = await res.json();
+    document.getElementById(loadId)?.remove();
+
+    if (data.erro) {
+      _chatAppendMsg('assistant', '⚠ ' + data.erro);
+    } else {
+      const resposta = data.resposta || '';
+      _chatAppendMsg('assistant', resposta);
+      _chatHistorico.push({ role: 'assistant', content: resposta });
+    }
+  } catch(e) {
+    document.getElementById(loadId)?.remove();
+    _chatAppendMsg('assistant', '⚠ Erro de conexão. Tente novamente.');
+  } finally {
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Enviar'; }
+    if (msgs) msgs.scrollTop = msgs.scrollHeight;
+  }
 }
 
 // ================== INIT ==================
