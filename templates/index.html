@@ -2174,11 +2174,14 @@ function renderResult(data){
       </div>
     </div>
 
-    ${data.narrativa_ia ? `<div class="card" style="margin-bottom:16px">
+    ${(data.narrativa_ia || data.narrativa_pendente) ? `<div class="card" style="margin-bottom:16px" id="card-narrativa">
       <div class="ch"><div class="ct"><div class="cd" style="background:#A78BFA"></div>Análise Narrativa · IA</div>
         <span style="font-family:var(--fm);font-size:.48rem;letter-spacing:1px;padding:2px 7px;border-radius:4px;background:rgba(167,139,250,.1);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">Llama 3.3 70B</span>
       </div>
-      <div class="cb" style="font-size:.84rem;line-height:1.7;color:var(--sb);white-space:pre-wrap">${escapeHtml(data.narrativa_ia)}</div>
+      <div class="cb" id="narrativa-body" style="font-size:.84rem;line-height:1.7;color:var(--sb);white-space:pre-wrap">${
+        data.narrativa_ia ? escapeHtml(data.narrativa_ia)
+        : '<span style="font-family:var(--fm);font-size:.72rem;color:var(--mu);letter-spacing:2px">· · ·  gerando análise</span>'
+      }</div>
     </div>` : ''}
 
     <div style="display:flex;gap:10px;margin-top:24px;flex-wrap:wrap">
@@ -2202,6 +2205,10 @@ function renderResult(data){
     proprietario: document.getElementById('f_prop')?.value || '',
   };
   initChat();
+
+  // Narrativa IA: buscada depois do parecer já estar na tela, para que a
+  // latência do Groq (até 20s) não atrase a análise de crédito.
+  if(data.narrativa_pendente && data.narrativa_contexto) carregarNarrativa(data.narrativa_contexto);
 
   setTimeout(()=>{
     document.querySelectorAll('.cbar-f[data-w]').forEach(el=>el.style.width=el.dataset.w+'%');
@@ -2999,6 +3006,26 @@ function onBezerroChange(){
 function usarCotacaoDia(){
   const boi = +document.getElementById('cot-boi').value||0;
   if(boi>0){ const el=document.getElementById('s-preco-arr'); if(el){ el.value=boi; if(typeof recalcCiclo==='function') recalcCiclo(); if(typeof runSc==='function') runSc(); } }
+}
+
+// ================== NARRATIVA IA (assíncrona) ==================
+async function carregarNarrativa(contexto){
+  const body = document.getElementById('narrativa-body');
+  if(!body) return;
+  try{
+    const r = await fetch('/api/narrativa', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({contexto}),
+    });
+    const d = await r.json();
+    if(d.narrativa){
+      body.textContent = d.narrativa;
+    } else {
+      document.getElementById('card-narrativa')?.remove();
+    }
+  }catch(e){
+    document.getElementById('card-narrativa')?.remove();
+  }
 }
 
 // ================== CHAT COM PARECER (IA) ==================

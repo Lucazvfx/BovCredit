@@ -635,6 +635,69 @@ def calcular_atipicidade(v: list) -> dict | None:
 
 
 # ==================================================================
+# 5a-bis. FEATURES REDUNDANTES — agrupamento para o SHAP
+# ==================================================================
+# extrair_features() produz 40 colunas, mas várias são a MESMA informação
+# escrita de outro jeito (ex.: 'Machos 0-5m / total' e 'Bezerros 0-5m / total'
+# têm correlação 1,0000). O SHAP reparte a importância entre as cópias, o que
+# dilui a explicação regulatória: uma única variável aparece como duas linhas
+# com metade do peso cada.
+#
+# A correção aqui é de APRESENTAÇÃO, não de modelagem: o modelo continua
+# recebendo as 40 colunas (nada é retreinado), mas a explicação soma as
+# contribuições dentro de cada grupo e mostra uma linha por informação real.
+#
+# Reversível: defina SHAP_AGRUPAR_REDUNDANTES=0 no ambiente para voltar ao
+# comportamento anterior (40 linhas, com duplicatas).
+_SHAP_AGRUPAR = os.environ.get('SHAP_AGRUPAR_REDUNDANTES', '1') != '0'
+_CORR_REDUNDANTE = 0.995
+_GRUPOS_RED = None
+
+
+def _grupos_redundantes() -> list[list[int]]:
+    """
+    Agrupa índices de features com correlação absoluta > 0.995 no conjunto de
+    treino (union-find). Calculado uma vez e cacheado.
+
+    Retorna lista de grupos; features sem par aparecem como grupo unitário.
+    """
+    global _GRUPOS_RED
+    if _GRUPOS_RED is not None:
+        return _GRUPOS_RED
+
+    X_csv, _ = _carregar_dataset_csv()
+    n_feat = len(FEATURE_NAMES)
+    if not X_csv:
+        _GRUPOS_RED = [[i] for i in range(n_feat)]
+        return _GRUPOS_RED
+
+    F = np.array([extrair_features(v) for v in X_csv], dtype=float)
+    sd = F.std(axis=0)
+    sd[sd < 1e-9] = 1e-9
+    C = np.nan_to_num(np.corrcoef(((F - F.mean(axis=0)) / sd).T))
+
+    pai = list(range(n_feat))
+
+    def _find(a: int) -> int:
+        while pai[a] != a:
+            pai[a] = pai[pai[a]]
+            a = pai[a]
+        return a
+
+    for i in range(n_feat):
+        for j in range(i + 1, n_feat):
+            if abs(C[i, j]) > _CORR_REDUNDANTE:
+                pai[_find(i)] = _find(j)
+
+    agrup: dict[int, list[int]] = {}
+    for i in range(n_feat):
+        agrup.setdefault(_find(i), []).append(i)
+
+    _GRUPOS_RED = list(agrup.values())
+    return _GRUPOS_RED
+
+
+# ==================================================================
 # 5b. SHAP — Explicabilidade (CMN 4.966/2021 / Marco Legal IA)
 # ==================================================================
 def explicar_shap(
@@ -706,18 +769,39 @@ def explicar_shap(
         return {}
 
     media = np.mean(contribs, axis=0)
-    total_abs = float(np.abs(media).sum()) or 1.0
+
+    # Soma as contribuições de features que são a mesma informação, para que
+    # uma variável não apareça repartida em duas linhas com metade do peso.
+    if _SHAP_AGRUPAR:
+        grupos = _grupos_redundantes()
+        itens = []
+        for g in grupos:
+            soma = float(sum(media[i] for i in g))
+            nome = FEATURE_NAMES[g[0]]
+            itens.append({
+                'idx': g[0],
+                'shap': soma,
+                'feature': nome,
+                'equivalentes': [FEATURE_NAMES[i] for i in g[1:]],
+            })
+    else:
+        itens = [{'idx': i, 'shap': float(media[i]),
+                  'feature': FEATURE_NAMES[i], 'equivalentes': []}
+                 for i in range(len(media))]
+
+    total_abs = float(sum(abs(it['shap']) for it in itens)) or 1.0
 
     fatores = sorted(
         [
             {
-                'feature':    FEATURE_NAMES[i],
-                'shap':       round(float(media[i]), 4),
-                'importancia_pct': round(abs(float(media[i])) / total_abs * 100, 1),
-                'direcao':    'positivo' if media[i] > 0 else 'negativo',
+                'feature':         it['feature'],
+                'shap':            round(it['shap'], 4),
+                'importancia_pct': round(abs(it['shap']) / total_abs * 100, 1),
+                'direcao':         'positivo' if it['shap'] > 0 else 'negativo',
+                'equivalentes':    it['equivalentes'],
             }
-            for i in range(len(media))
-            if abs(media[i]) > 1e-6
+            for it in itens
+            if abs(it['shap']) > 1e-6
         ],
         key=lambda x: abs(x['shap']),
         reverse=True,
@@ -728,8 +812,10 @@ def explicar_shap(
         'classe':        tipo_classificado,
         'fatores':       fatores,
         'n_estimadores': len(contribs),
-        'metodo':        'SHAP TreeExplainer — média do ensemble',
+        'metodo':        ('SHAP TreeExplainer — média do ensemble'
+                          + (' · features equivalentes agrupadas' if _SHAP_AGRUPAR else '')),
         'conformidade':  'CMN 4.966/2021 · Marco Legal IA (Lei 2.338/2023)',
+        'agrupamento_redundantes': _SHAP_AGRUPAR,
         'decisao_por_regra': por_regra,
         'regra_aplicada':    regra_aplicada,
         'aviso': (
