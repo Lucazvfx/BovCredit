@@ -43,11 +43,11 @@ CASOS = [
     ('slide 8 — Cria pura (493 cab)',
      _mapear(90, 92, 8, 30, 5, 10, 8, 250), 'CRIA', 48.3),
     ('slide 10 — Cria+Recria, caso real PA (1.061 cab)',
-     _mapear(411, 145, 15, 142, 44, 31, 17, 256), 'CRIA', 30.6),
+     _mapear(411, 145, 15, 142, 44, 31, 17, 256), 'CRIA_RECRIA', 30.6),
     ('slide 12 — Recria (1.230 cab)',
      _mapear(80, 70, 300, 280, 220, 180, 40, 60), 'RECRIA', 59.9),
     ('slide 13 — Recria/Engorda, caso real MT (10.302 cab)',
-     _mapear(847, 0, 2444, 394, 6211, 286, 21, 99), 'ENGORDA', 91.8),
+     _mapear(847, 0, 2444, 394, 6211, 286, 21, 99), 'RECRIA_ENGORDA', 91.8),
     ('slide 14 — Engorda intensiva (1.000 cab)',
      _mapear(0, 0, 850, 50, 100, 0, 0, 0), 'ENGORDA', 95.0),
 ]

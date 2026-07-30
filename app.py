@@ -765,8 +765,8 @@ def api_classificar():
     # COE (R$/@ vendida) = custo_operacional / arrobas_vendidas
     # Arrobas reais por categoria com pesos corretos por ciclo.
     _ciclo_tipo = result.get('tipo', 'CICLO_COMPLETO')
-    if _ciclo_tipo == 'CRIA':
-        # Machos vendidos na CRIA são bezerros desmamados (~6@), não bois nem garrotes
+    if _ciclo_tipo in ('CRIA', 'CRIA_RECRIA'):
+        # Machos vendidos na cria são bezerros desmamados (~6@), não bois nem garrotes
         _arr_bois   = 0.0
         _arr_vacas  = float(_ano1.get('matrizes_descartadas', 0)) * 15.33
         _arr_bezv   = float(_ano1.get('bezerras_vendidas', 0)) * 6.00
@@ -774,7 +774,7 @@ def api_classificar():
     elif _ciclo_tipo == 'RECRIA':
         # Peso de saída variável; fallback receita/preco captura arrobas corretas
         _arr_bois = _arr_vacas = _arr_bezv = _arr_machos = 0.0
-    else:  # CICLO_COMPLETO, ENGORDA
+    else:  # CICLO_COMPLETO, ENGORDA, RECRIA_ENGORDA
         _arr_bois   = float(_ano1.get('bois_vendidos', 0)) * 20.53
         _arr_vacas  = float(_ano1.get('descarte_matrizes',
                             _ano1.get('matrizes_descartadas', 0))) * 15.33

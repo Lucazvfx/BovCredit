@@ -125,6 +125,11 @@ def preset_modalidade(tipo: str, perfil: str) -> dict:
     tipo: CRIA | RECRIA | ENGORDA | ENGORDA_CONFINAMENTO | CICLO_COMPLETO.
     perfil: 'media' | 'top'.
     """
+    # Modalidades sem perfil próprio herdam o mais próximo:
+    #   RECRIA_ENGORDA -> ENGORDA (mesma estrutura de terminação)
+    #   CRIA_RECRIA    -> CRIA    (mesma base reprodutiva)
+    _HERDA = {'RECRIA_ENGORDA': 'ENGORDA', 'CRIA_RECRIA': 'CRIA'}
+    tipo = _HERDA.get(tipo, tipo)
     mod = tipo if tipo in PERFIL_DESEMBOLSO else 'CICLO_COMPLETO'
     idx = 0 if perfil == 'media' else 1
     return {k: v[idx] for k, v in PERFIL_DESEMBOLSO[mod].items()}

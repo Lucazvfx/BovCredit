@@ -61,10 +61,14 @@ PCT_MATRIZES = 35.0            # BENCHMARKS_RO.pct_matrizes médio
 
 # Desfrute por modalidade (nacional DESFRUTE_MODALIDADE, meio de cada faixa).
 DESFRUTE_PCT = {
-    'CRIA': midpoint(18.0, 30.0),            # 24.0
-    'RECRIA': midpoint(35.0, 55.0),          # 45.0
-    'ENGORDA': midpoint(80.0, 120.0),        # 100.0
-    'CICLO_COMPLETO': midpoint(20.0, 40.0),  # 30.0
+    'CRIA': midpoint(18.0, 30.0),               # 24.0
+    'RECRIA': midpoint(35.0, 55.0),             # 45.0
+    'ENGORDA': midpoint(80.0, 120.0),           # 100.0
+    'CICLO_COMPLETO': midpoint(20.0, 40.0),     # 30.0
+    'RECRIA_ENGORDA': midpoint(60.0, 85.0),     # 72.5
+    # Sistema misto: base de cria com compra de desmama. O desfrute fica acima
+    # de uma cria pura porque o volume recriado também é comercializado.
+    'CRIA_RECRIA': midpoint(25.0, 40.0),        # 32.5
 }
 
 # ── Pesos por categoria: GEP Araguaia safra 24/25 (fonte primária) ───────────

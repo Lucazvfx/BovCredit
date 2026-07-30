@@ -39,7 +39,14 @@ _RAZAO_MORT_BEZERRA = MORTALIDADE_BEZERRA_PCT / MORTALIDADE_ADULTO_PCT  # 3.5
 # ==================================================================
 _MODEL_PATH = os.path.join(os.path.dirname(__file__), 'gestao_model.pkl')
 _CSV_PATH = os.path.join(os.path.dirname(__file__), 'dataset_sintetico_bovino.csv')
-TIPOS = ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO']
+# Modalidades pecuárias. A ordem define o rótulo numérico no dataset e NÃO
+# pode ser reordenada — os rótulos 0–3 já existem no CSV histórico.
+# As duas últimas vieram do material "Análise de Crédito na Pecuária Bovina",
+# que trabalha com 5 modalidades + o sistema misto cria/recria:
+#   RECRIA_ENGORDA — compra magro e termina (desfrute 60–85%)
+#   CRIA_RECRIA    — base de cria + compra de desmama (sistema misto)
+TIPOS = ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO',
+         'RECRIA_ENGORDA', 'CRIA_RECRIA']
 
 # Nomes legíveis das 40 features geradas por extrair_features()
 # Ordem exata: norm[0-9] | p_agregados[10-13] | por_cat[14-19] |
@@ -72,6 +79,8 @@ FEATURE_NAMES = [
     'Produção esperada / total',  'Eficiência reprodutiva',
     'Transição garrote→adulto',   'Intensidade de engorda',
     'Intensidade de cria',
+    # 40-41: sinal de compra de desmama (discrimina cria pura de cria+recria)
+    'Coorte 0-12m / produção própria', 'Coorte 0-12m % total',
 ]
 
 # Parâmetros padrão por ciclo de produção
@@ -104,7 +113,24 @@ PARAMS_POR_CICLO = {
         'desc_mat_pct': 10.0,   # alinhado com CRIA (8–15%; conservador 10%)
         'venda_bez_pct': 75.0,  # alinhado com CRIA (retém 25%, vende 75%)
         'nat_pct': NATALIDADE_PCT,
-    }
+    },
+    # Compra magro + terminação. Retenção "muito baixa", sem base reprodutiva.
+    'RECRIA_ENGORDA': {
+        'prop_boi': 0.0,
+        'renov_boi_pct': 0.0,
+        'desc_mat_pct': 0.0,
+        'venda_bez_pct': 100.0,
+        'nat_pct': 0.0,
+    },
+    # Base de cria + compra de desmama para recria. Mantém matrizes e produção
+    # própria, mas o giro de jovens é maior que o de uma cria pura.
+    'CRIA_RECRIA': {
+        'prop_boi': 30.0,
+        'renov_boi_pct': 20.0,
+        'desc_mat_pct': 10.0,
+        'venda_bez_pct': 60.0,  # retém mais para recriar do que a cria pura
+        'nat_pct': NATALIDADE_PCT,
+    },
 }
 
 # ==================================================================
@@ -127,7 +153,7 @@ def _carregar_dataset_csv(path: str = _CSV_PATH):
                     float(row['facF']), float(row['facM']),
                 ]
                 label = int(row['rotulo'])
-                if label not in (0, 1, 2, 3):
+                if label not in range(len(TIPOS)):
                     continue
                 X.append(v)
                 y.append(label)
@@ -196,6 +222,14 @@ def extrair_features(
     intensidade_engorda    = _bois_v / total
     intensidade_cria       = _bez_v  / total
 
+    # Sinal de COMPRA de desmama: a coorte de 0–12 meses observada contra a
+    # produção biologicamente possível do próprio rebanho. Acima de ~1,15 o
+    # excedente só pode ter vindo de compra — é o que separa uma cria pura de
+    # um sistema misto cria+recria (material de treinamento, caso real do PA).
+    coorte_0_12   = v[0] + v[1] + v[2] + v[3]
+    razao_compra  = min(coorte_0_12 / max(producao_esperada, 1.0), 4.0)
+    p_coorte_0_12 = coorte_0_12 / total
+
     features = np.concatenate([
         norm,
         [p_femeas_024, p_machos_024, p_matrizes, p_bois],
@@ -211,6 +245,7 @@ def extrair_features(
          taxa_transicao,
          intensidade_engorda,
          intensidade_cria],
+        [razao_compra, p_coorte_0_12],
     ])
     return features
 
@@ -841,6 +876,9 @@ def explicar_shap(
 # ==================================================================
 # 5c. CICLOS MISTOS (pós-processamento)
 # ==================================================================
+# Pares de ciclo que fazem sentido coexistir numa mesma propriedade.
+# RECRIA_ENGORDA e CRIA_RECRIA ficam de fora de propósito: já SÃO combinações
+# de fases, e tratá-las como "principal + secundário" duplicaria a leitura.
 _PARES_VALIDOS = {
     ('CRIA',    'RECRIA'),
     ('RECRIA',  'CRIA'),
@@ -1445,13 +1483,23 @@ def simular_cenario(
     _custo_recria  = custo_arroba_recria  if custo_arroba_recria  is not None else custo_arroba
     _custo_engorda = custo_arroba_engorda if custo_arroba_engorda is not None else custo_arroba
 
-    if ciclo == 'CRIA':
+    # CRIA_RECRIA usa o motor de cria: mantém matrizes e produção própria. A
+    # compra de desmama já é captada pelo balanço de animais (a coorte 0–12m
+    # declarada entra no vetor) e precificada pela reposição.
+    if ciclo in ('CRIA', 'CRIA_RECRIA'):
         return _simular_cria(
             v, cenario, nat_pct, mort_pct, desmama_pct, venda_bez_pct,
             preco_arroba_bezerro, _custo_cria, anos,
             peso_matriz=peso_vaca, peso_bezerra=peso_arroba,
             preco_vaca_arr=preco_vaca_arr,
             desc_mat_pct=desc_pct,
+        )
+    # RECRIA_ENGORDA termina o animal comprado magro — mesmo motor da engorda,
+    # cujo custo já inclui a reposição 1:1.
+    if ciclo == 'RECRIA_ENGORDA':
+        return _simular_engorda(
+            v, cenario, mort_pct, preco_arroba, peso_entrada_kg, peso_saida_kg,
+            rendimento_carcaca, _custo_engorda, dias_engorda, anos,
         )
     if ciclo == 'RECRIA':
         return _simular_recria(
@@ -1576,7 +1624,7 @@ BENCHMARKS_RO = {
         # memorial §3: Abaixo<65, Médio 65–78, Bom 78–88, Excelente>=88
         'faixas': {'abaixo': 65.0, 'medio': 78.0, 'bom': 88.0},
         'inverso': False,
-        'ciclos': ['CRIA', 'CICLO_COMPLETO'],
+        'ciclos': ['CRIA', 'CICLO_COMPLETO', 'CRIA_RECRIA'],
     },
     'mortalidade': {
         'label': 'Mortalidade Geral',
@@ -1584,7 +1632,8 @@ BENCHMARKS_RO = {
         # memorial §3: Excelente<=1,5, Bom 1,5–3, Médio 3–5, Abaixo>5
         'faixas': {'abaixo': 5.0, 'medio': 3.0, 'bom': 1.5},
         'inverso': True,
-        'ciclos': ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO'],
+        'ciclos': ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO',
+                   'RECRIA_ENGORDA', 'CRIA_RECRIA'],
     },
     'desmama': {
         'label': 'Taxa de Desmama',
@@ -1592,7 +1641,7 @@ BENCHMARKS_RO = {
         # memorial §3: Abaixo<70, Médio 70–82, Bom 82–90, Excelente>=90
         'faixas': {'abaixo': 70.0, 'medio': 82.0, 'bom': 90.0},
         'inverso': False,
-        'ciclos': ['CRIA', 'CICLO_COMPLETO'],
+        'ciclos': ['CRIA', 'CICLO_COMPLETO', 'CRIA_RECRIA'],
     },
     'relacao_fm': {
         'label': 'Relação Fêmeas/Macho Adulto',
@@ -1600,7 +1649,7 @@ BENCHMARKS_RO = {
         # memorial §3: Abaixo<1,8, Médio 1,8–2,2, Bom 2,2–2,8, Excelente>=2,8
         'faixas': {'abaixo': 1.8, 'medio': 2.2, 'bom': 2.8},
         'inverso': False,
-        'ciclos': ['CRIA', 'CICLO_COMPLETO'],
+        'ciclos': ['CRIA', 'CICLO_COMPLETO', 'CRIA_RECRIA'],
     },
     'pct_matrizes': {
         'label': '% Matrizes no Rebanho',
@@ -1608,7 +1657,7 @@ BENCHMARKS_RO = {
         # memorial §3: Abaixo<28, Médio 28–35, Bom 35–42, Excelente>=42
         'faixas': {'abaixo': 28.0, 'medio': 35.0, 'bom': 42.0},
         'inverso': False,
-        'ciclos': ['CRIA', 'CICLO_COMPLETO'],
+        'ciclos': ['CRIA', 'CICLO_COMPLETO', 'CRIA_RECRIA'],
     },
     'ganho_peso_arr': {
         'label': 'Ganho de Peso (@/mês)',
@@ -1638,6 +1687,8 @@ BENCHMARKS_RO = {
             'RECRIA':          {'abaixo': 35.0, 'medio': 45.0, 'bom': 55.0},
             'ENGORDA':         {'abaixo': 80.0, 'medio': 100.0, 'bom': 120.0},
             'CICLO_COMPLETO':  {'abaixo': 20.0, 'medio': 32.0, 'bom': 45.0},
+            'RECRIA_ENGORDA':  {'abaixo': 60.0, 'medio': 72.0, 'bom': 85.0},
+            'CRIA_RECRIA':     {'abaixo': 25.0, 'medio': 32.0, 'bom': 40.0},
         },
         'inverso': False,
     },

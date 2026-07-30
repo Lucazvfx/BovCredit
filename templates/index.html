@@ -188,7 +188,7 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 .ytbl td.r2{color:var(--rd);font-family:var(--fm);font-size:.78rem;text-align:right}
 .ytbl tbody tr:hover td{background:rgba(255,255,255,.02)}
 
-.tc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+.tc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
 .tc{border-radius:var(--rs);padding:16px;border:1px solid var(--b);background:var(--c2);position:relative}
 .tc-sel{position:absolute;top:10px;right:10px;font-family:var(--fm);font-size:.48rem;letter-spacing:1.5px;text-transform:uppercase;padding:2px 8px;border-radius:3px}
 .tc-ico{font-size:1.7rem;margin-bottom:7px;display:block}
@@ -1080,10 +1080,10 @@ function setValsFromApi(v10){
   FAIXAS.forEach((f,i)=>{document.getElementById(f.key+'_F').value=d[i][0];document.getElementById(f.key+'_M').value=d[i][1];});
   upd();
 }
-const TC={CRIA:'#4ADE80',RECRIA:'#22D3EE',ENGORDA:'#F87171',CICLO_COMPLETO:'#FBBF24'};
-const TE={CRIA:'🐄',RECRIA:'🐂',ENGORDA:'🥩',CICLO_COMPLETO:'🔄'};
-const TL={CRIA:'CRIA',RECRIA:'RECRIA',ENGORDA:'ENGORDA',CICLO_COMPLETO:'CICLO COMPLETO'};
-const TD={CRIA:'Foco em produção de bezerros. Predomínio de vacas/matrizes adultas, alta taxa de cria.',RECRIA:'Fase de desenvolvimento pós-desmame. Alta concentração 13–24m.',ENGORDA:'Terminação para abate. Machos adultos em peso de corte predominam.',CICLO_COMPLETO:'Todas as fases integradas: cria, recria e terminação na mesma propriedade.'};
+const TC={CRIA:'#4ADE80',RECRIA:'#22D3EE',ENGORDA:'#F87171',CICLO_COMPLETO:'#FBBF24',RECRIA_ENGORDA:'#FB923C',CRIA_RECRIA:'#A78BFA'};
+const TE={CRIA:'🐄',RECRIA:'🐂',ENGORDA:'🥩',CICLO_COMPLETO:'🔄',RECRIA_ENGORDA:'🐂',CRIA_RECRIA:'🐄'};
+const TL={CRIA:'CRIA',RECRIA:'RECRIA',ENGORDA:'ENGORDA',CICLO_COMPLETO:'CICLO COMPLETO',RECRIA_ENGORDA:'RECRIA / ENGORDA',CRIA_RECRIA:'CRIA + RECRIA'};
+const TD={CRIA:'Foco em produção de bezerros. Predomínio de vacas/matrizes adultas, alta taxa de cria.',RECRIA:'Fase de desenvolvimento pós-desmame. Alta concentração 13–24m.',ENGORDA:'Terminação para abate. Machos adultos em peso de corte predominam.',CICLO_COMPLETO:'Todas as fases integradas: cria, recria e terminação na mesma propriedade.',RECRIA_ENGORDA:'Compra magro e termina. Giro alto, retenção muito baixa, receita em boi gordo.',CRIA_RECRIA:'Base de cria com compra de desmama. Produção própria somada a animais adquiridos para recria.'};
 const fN=n=>Math.round(n).toLocaleString('pt-BR');
 const fR=n=>'R$ '+Math.round(n).toLocaleString('pt-BR');
 const fP=n=>(n*100).toFixed(1)+'%';
@@ -2031,7 +2031,7 @@ function renderResult(data){
 
   const recs=getRecs(tipo,ind);
 
-  const tipoCards=['CRIA','RECRIA','ENGORDA','CICLO_COMPLETO'].map(t=>{
+  const tipoCards=['CRIA','RECRIA','ENGORDA','CICLO_COMPLETO','RECRIA_ENGORDA','CRIA_RECRIA'].map(t=>{
     const sel=t===tipo;
     return`<div class="tc" style="${sel?`border-color:${TC[t]};background:${TC[t]}12;border-width:2px`:''}">
       ${sel?`<div class="tc-sel" style="background:${TC[t]}25;color:${TC[t]}">← IDENTIFICADO</div>`:''}
@@ -2543,7 +2543,7 @@ function updateDesembolsoInfo(){
     +(comparacao?` <span style="margin-left:6px">${comparacao}</span>`:'');
 }
 
-const _FP_DUR_DEFAULT={CRIA:12,RECRIA:8,ENGORDA:4,CICLO_COMPLETO:24};
+const _FP_DUR_DEFAULT={CRIA:12,RECRIA:8,ENGORDA:4,CICLO_COMPLETO:24,RECRIA_ENGORDA:6,CRIA_RECRIA:14};
 
 function renderFluxoProjetado(){
   const kpiEl=document.getElementById('fp-kpis');

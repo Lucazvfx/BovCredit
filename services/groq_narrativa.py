@@ -38,6 +38,8 @@ def _contexto_str(d: dict) -> str:
         'RECRIA': 'ciclo de recria (engorda de garrotes)',
         'ENGORDA': 'ciclo de engorda/terminação',
         'CICLO_COMPLETO': 'ciclo completo (cria, recria e engorda integrados)',
+        'RECRIA_ENGORDA': 'recria/engorda (compra de magro e terminação, giro alto)',
+        'CRIA_RECRIA': 'sistema misto cria+recria (produção própria e compra de desmama)',
     }.get(tipo, tipo)
     rec_str = {
         'aprovar': 'APROVADO',

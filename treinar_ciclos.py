@@ -17,7 +17,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-TIPOS = ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO']
+from ml_engine import TIPOS  # fonte única da ordem dos rótulos
 
 # ── Faixas de referência extraídas do Excel ───────────────────────────────────
 # Mapeamento: indicador do Excel → constraints na composição do rebanho
@@ -69,6 +69,32 @@ REF: dict[str, dict] = {
         'pct_recria_M':         (0.09, 0.20),   # recria integrada
         'pct_bois_adultos':     (0.08, 0.22),   # terminação presente
         'desfrute_range':       (0.20, 0.40),
+    },
+    # ── Modalidades do material de treinamento ──────────────────────────────
+    # RECRIA/ENGORDA — compra magro e termina. Calibrado pelo caso real de MT
+    # (10.302 cab): 90,6% dos animais entre 13 e 36 meses, fêmeas 7,6% do
+    # total, apenas 120 animais acima de 36 meses. Retenção "muito baixa".
+    'RECRIA_ENGORDA': {
+        'pct_matrizes_adultas': (0.00, 0.02),
+        'pct_futuras_matrizes': (0.00, 0.04),
+        'pct_bezerros':         (0.02, 0.12),   # reposição comprada entrando
+        'pct_recria_M':         (0.45, 0.70),   # garrotes 13-24m dominam
+        'pct_bois_adultos':     (0.20, 0.42),   # terminação em curso
+        'desfrute_range':       (0.60, 0.85),
+    },
+    # CRIA+RECRIA — base de cria com compra de desmama. Calibrado pelo caso
+    # real do PA (1.061 cab): 256 matrizes com produção própria de ~179
+    # bezerros, mas 556 animais de 0-12 meses declarados. O excedente é
+    # comprado, e é isso que distingue esta modalidade de uma cria pura.
+    'CRIA_RECRIA': {
+        'pct_matrizes_adultas': (0.20, 0.34),
+        'pct_futuras_matrizes': (0.08, 0.18),
+        'pct_bezerros':         (0.34, 0.55),   # >> produção própria (compra)
+        'pct_recria_M':         (0.06, 0.16),
+        'pct_bois_adultos':     (0.01, 0.06),
+        'desfrute_range':       (0.25, 0.40),
+        # Marca a modalidade: a coorte 0-12m excede o que as matrizes produzem
+        'excedente_desmama':    (1.6, 3.2),     # coorte / produção própria
     },
 }
 
@@ -187,6 +213,19 @@ def _gerar_amostra(ciclo: str, rng: np.random.Generator) -> np.ndarray:
     # Monta vetor de proporções e converte para contagens
     props = np.array([f00F, f00M, f05F, f05M, f13F, f13M, f25F, f25M, facF, facM])
     props = np.maximum(props, 0.0)
+
+    # CRIA_RECRIA: garante que a coorte de 0–12 meses exceda a produção própria
+    # na faixa alvo. É a assinatura da modalidade — sem isso as amostras ficam
+    # indistinguíveis de uma cria pura.
+    alvo = ref.get('excedente_desmama')
+    if alvo:
+        matrizes_p = props[6] + props[8]
+        producao_p = matrizes_p * 0.70          # natalidade de referência
+        coorte_p   = props[0] + props[1] + props[2] + props[3]
+        if producao_p > 0 and coorte_p > 0:
+            razao_alvo = rng.uniform(*alvo)
+            fator = (producao_p * razao_alvo) / coorte_p
+            props[0:4] *= fator
     total_herd = rng.integers(150, 1500)
     counts = np.round(props * total_herd).astype(float)
 
@@ -220,7 +259,7 @@ def _carregar_csv_existente(path: str) -> tuple[list, list]:
                      ['f00F', 'f00M', 'f05F', 'f05M', 'f13F', 'f13M',
                       'f25F', 'f25M', 'facF', 'facM']]
                 label = int(row['rotulo'])
-                if label in (0, 1, 2, 3):
+                if 0 <= label < len(TIPOS):
                     X.append(v)
                     y.append(label)
             except (KeyError, ValueError):
