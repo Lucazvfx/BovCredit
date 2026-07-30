@@ -9,7 +9,7 @@ import tempfile
 import subprocess
 from functools import wraps
 
-from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, send_from_directory, send_file, session
+from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, send_from_directory, send_file, session, abort
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -47,6 +47,15 @@ from services.custos_desembolso import custo_arroba_de_desembolso, COMPONENTES
 from services.reconciliacao import reconciliar
 from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
 from services.benchmarks_nacionais import avaliar_coe as _avaliar_coe
+from services.groq_narrativa import (
+    gerar_narrativa as _gerar_narrativa_groq,
+    _feature_ativa as _narrativa_ativa,
+)
+
+# Narrativa IA: por padrão assíncrona (endpoint /api/narrativa), para não
+# somar até 20s de latência do Groq ao parecer. NARRATIVA_INLINE=1 restaura
+# o comportamento bloqueante anterior.
+_NARRATIVA_INLINE = os.environ.get('NARRATIVA_INLINE', '0') == '1'
 
 # Configuração de logging
 logging.basicConfig(
@@ -863,7 +872,11 @@ def api_classificar():
     # SHAP — explicabilidade regulatória (CMN 4.966/2021 / Marco Legal IA)
     shap_explicacao = {}
     try:
-        shap_explicacao = explicar_shap(v, result['tipo'])
+        shap_explicacao = explicar_shap(
+            v, result['tipo'],
+            origem_decisao=result.get('origem_decisao', 'ml'),
+            regra_aplicada=result.get('regra_aplicada'),
+        )
     except Exception as _e_shap:
         logger.warning(f'SHAP falhou (não crítico): {_e_shap}')
 
@@ -908,6 +921,28 @@ def api_classificar():
             db.salvar_parecer(current_user.id, int(fazenda_id),
                               solicitacao=credito_inputs, parecer=parecer)
 
+    # ── Narrativa IA (Groq Llama 3.3 70B) ───────────────────────────────────────
+    # Por padrão NÃO é gerada aqui: a chamada ao Groq leva até 20s e atrasaria
+    # todo o parecer. O frontend busca a narrativa em /api/narrativa depois que
+    # o resultado já está na tela.
+    # Reversível: NARRATIVA_INLINE=1 no ambiente volta ao modo bloqueante.
+    _ctx_narrativa = {
+        'tipo': result.get('tipo', 'CICLO_COMPLETO'),
+        'confianca': result.get('confianca', 0),
+        'total_rebanho': int(sum(v)),
+        'receita_anual': float(_ano1.get('receita', 0)),
+        'geracao_caixa_anual': geracao_caixa_anual,
+        'recomendacao': parecer['conclusao'].get('recomendacao', 'ressalva'),
+        'dscr': parecer['conclusao'].get('dscr'),
+        'limite_credito': parecer['conclusao'].get('capacidade_maxima'),
+        'coe_por_arroba': fluxo_gep.get('coe_por_arroba'),
+        'consistencia_score': int(consistencia.get('score_consistencia', 100)),
+        'fazenda': fazenda,
+        'municipio': municipio,
+        'proprietario': data.get('proprietario', ''),
+    }
+    _narrativa_ia = _gerar_narrativa_groq(**_ctx_narrativa) if _NARRATIVA_INLINE else None
+
     return jsonify({
         **result,
         'indicadores': ind,
@@ -927,7 +962,66 @@ def api_classificar():
         'registro_id': registro_id,
         'shap_explicacao': shap_explicacao,
         'projecao_anos': _projecao_anos,
+        'narrativa_ia': _narrativa_ia,
+        # Contexto para o frontend pedir a narrativa de forma assíncrona,
+        # sem atrasar a entrega do parecer.
+        'narrativa_pendente': (not _NARRATIVA_INLINE) and _narrativa_ativa(),
+        'narrativa_contexto': _ctx_narrativa if not _NARRATIVA_INLINE else None,
     })
+
+
+@app.route('/api/narrativa', methods=['POST'])
+@login_required
+def api_narrativa():
+    """
+    Narrativa do parecer gerada pela IA, fora do caminho crítico.
+
+    Separado de /api/classificar de propósito: a chamada ao Groq leva até 20s
+    e o parecer não pode esperar por ela. O frontend renderiza o resultado
+    primeiro e busca a narrativa aqui em seguida.
+    """
+    if not _narrativa_ativa():
+        return jsonify({'erro': 'IA não configurada — defina GROQ_API_KEY.'}), 503
+
+    ctx = (request.json or {}).get('contexto') or {}
+    if not ctx.get('tipo'):
+        return jsonify({'erro': 'Contexto do parecer ausente.'}), 400
+
+    permitido = {
+        'tipo', 'confianca', 'total_rebanho', 'receita_anual',
+        'geracao_caixa_anual', 'recomendacao', 'dscr', 'limite_credito',
+        'coe_por_arroba', 'consistencia_score', 'fazenda', 'municipio',
+        'proprietario',
+    }
+    texto = _gerar_narrativa_groq(**{k: v for k, v in ctx.items() if k in permitido})
+    if texto is None:
+        return jsonify({'erro': 'Serviço de IA temporariamente indisponível.'}), 503
+    return jsonify({'narrativa': texto})
+
+@app.route('/api/chat', methods=['POST'])
+@login_required
+def api_chat():
+    """Chat com o parecer de crédito via Groq."""
+    from services.groq_narrativa import gerar_resposta_chat, _feature_ativa
+    if not _feature_ativa():
+        return jsonify({'erro': 'IA não configurada — adicione GROQ_API_KEY nas variáveis de ambiente.'}), 503
+
+    data = request.json or {}
+    mensagem = (data.get('mensagem') or '').strip()
+    if not mensagem:
+        return jsonify({'erro': 'Mensagem vazia'}), 400
+    if len(mensagem) > 800:
+        return jsonify({'erro': 'Mensagem muito longa (máx. 800 caracteres)'}), 400
+
+    historico = data.get('historico') or []
+    contexto  = data.get('contexto') or {}
+
+    resposta = gerar_resposta_chat(mensagem, historico, contexto)
+    if resposta is None:
+        return jsonify({'erro': 'Serviço de IA temporariamente indisponível. Tente novamente.'}), 503
+
+    return jsonify({'resposta': resposta})
+
 
 # ── Cache em memória para cotações (TTL 30 min) ──────────────────────────────
 import time as _time

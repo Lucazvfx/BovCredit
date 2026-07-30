@@ -13,4 +13,4 @@ requests>=2.31
 lightgbm>=3.3.0
 reportlab>=4.0
 shap>=0.45
-flask-limiter>=3.5
+flask-limiter>=3.5groq>=0.9
