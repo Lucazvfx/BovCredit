@@ -15,7 +15,9 @@ def test_taxas_sao_ponto_medio_do_benchmark():
     # receita → DSCR maior). Revisar se o objetivo for projeção conservadora.
     assert NATALIDADE_PCT == 70.0
     assert midpoint(55, 75) == 65.0
-    assert PRENHEZ_PCT == 62.5
+    # Prenhez segue o valor de PROJEÇÃO do material de treinamento (70–75%,
+    # piso da faixa), não o ponto médio das faixas de mercado (50–75 → 62,5).
+    assert PRENHEZ_PCT == 70.0
     assert DESFRUTE_PCT['CICLO_COMPLETO'] == 30.0
     assert DESFRUTE_PCT['ENGORDA'] == 100.0
     assert MORTALIDADE_PCT == 3.0 and DESMAME_PCT == 82.0

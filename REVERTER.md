@@ -13,6 +13,7 @@ próximo restart.
 | `GROQ_API_KEY` | ausente | **remover** | Desliga narrativa IA e chat. Sem ela, tudo funciona como antes. |
 | `NARRATIVA_INLINE` | `0` | `1` | Volta a gerar a narrativa dentro de `/api/classificar` (bloqueante, até 20s mais lento). |
 | `SHAP_AGRUPAR_REDUNDANTES` | `1` | `0` | Volta o SHAP a listar as 40 features separadas, com duplicatas. |
+| `REPOSICAO_PRECIFICADA` | `1` | `0` | Deixa de cobrar a compra de reposição 1:1 em recria/engorda. A compra continua no balanço de animais, mas volta a custar zero — o DSCR dessas operações sobe ~4×. |
 
 ## Por reversão de commit
 

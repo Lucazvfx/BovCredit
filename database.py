@@ -541,7 +541,8 @@ def salvar(valores: list, class_ml: str, confianca: float,
     return int(rid)
 
 def confirmar(registro_id: int, class_conf: str):
-    VALIDOS = {'CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO'}
+    VALIDOS = {'CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO',
+               'RECRIA_ENGORDA', 'CRIA_RECRIA'}
     if class_conf not in VALIDOS:
         raise ValueError(f'Classificacao invalida: {class_conf}')
     ph = _PH
@@ -549,7 +550,8 @@ def confirmar(registro_id: int, class_conf: str):
           (class_conf, registro_id), commit=True)
 
 def exportar_treino():
-    TIPOS = ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO']
+    TIPOS = ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO',
+             'RECRIA_ENGORDA', 'CRIA_RECRIA']
     rows = _exec(
         'SELECT valores, class_conf FROM registros WHERE class_conf IS NOT NULL',
         fetch='all'

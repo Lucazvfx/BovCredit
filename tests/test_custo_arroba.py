@@ -1,3 +1,5 @@
+import pytest
+
 from ml_engine import calcular_ano
 from services.pesos_rebanho import arrobas_categorias
 
@@ -25,11 +27,18 @@ def test_simular_cria_custo_arroba():
         preco_arroba_bezerro=300, custo_arroba=57, anos=1,
         peso_matriz=17, peso_bezerra=8)
     ano1 = r['anos'][0]
-    # custo = (matrizes×17 + fem_recria×8 + touros×20.53) × 57
-    # touros = max(round(matrizes/30), 1) para evitar rebanho sem reprodutor
-    matrizes = 30 + 40; fem_recria = 10 + 8 + 6
-    touros = max(round(matrizes / 30.0), 1)
-    assert abs(ano1['custo'] - (matrizes*17 + fem_recria*8 + touros*20.53) * 57) < 1.0
+    # custo = (matrizes×17 + jovens(F+M)×8 + touros×20.53) × 57
+    #
+    # Antes o custo somava só as fêmeas jovens: os machos 0–25m declarados
+    # pastavam de graça no modelo. E estimava touros por 1:30 mesmo quando o
+    # rebanho já declarava bois — cobrando touros que não existiam e ignorando
+    # os que existiam. Agora o custo cobre o rebanho efetivamente mantido.
+    matrizes   = 30 + 40                 # v[6] + v[8]
+    fem_recria = 10 + 8 + 6              # v[0] + v[2] + v[4]
+    mac_recria = 10 + 8 + 6              # v[1] + v[3] + v[5]
+    touros     = 2 + 3                   # v[7] + v[9] — bois declarados
+    esperado = (matrizes*17 + (fem_recria + mac_recria)*8 + touros*20.53) * 57
+    assert abs(ano1['custo'] - esperado) < 1.0
     assert r['preco_breakeven_unidade'] == 'R$/arroba'
 
 
@@ -42,7 +51,11 @@ def test_simular_recria_custo_arroba_prorata():
     ano1 = r['anos'][0]
     animais = 50 + 30; peso_medio = (8 + 14) / 2
     esperado = animais * peso_medio * 57 * (12/12)
-    assert abs(ano1['custo'] - esperado) < 1.0
+    # `custo` passou a somar manutenção + reposição 1:1 (a recria vende o lote
+    # e repõe comprando desmamados). O rateio pro-rata é a parte de manutenção.
+    assert abs(ano1['custo_manutencao'] - esperado) < 1.0
+    assert ano1['custo'] == pytest.approx(
+        ano1['custo_manutencao'] + ano1['custo_reposicao'], abs=1.0)
 
 
 def test_simular_engorda_custo_arroba_prorata():

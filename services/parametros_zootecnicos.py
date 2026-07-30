@@ -20,8 +20,33 @@ def midpoint(lo: float, hi: float) -> float:
 # ── Taxas: ponto médio do benchmark ──────────────────────────────────────────
 # Natalidade nacional (pptx): faixas 55–75; conservador recomendado = 70%.
 NATALIDADE_PCT = 70.0
-# Prenhez nacional (pptx): faixas 50–75 → meio 62,5.
-PRENHEZ_PCT = midpoint(50.0, 75.0)             # 62.5
+# Prenhez — referência de MERCADO por fonte: Embrapa 50–65%, Scot ~60%,
+# CEPEA-USP 55–60%, ABCZ 65–75%, ASBIA 65%. Por sistema: extensivo 60–75%,
+# semi-intensivo 75–85%, intensivo acima de 85%.
+#
+# O material de treinamento ("Análise de Crédito na Pecuária Bovina", slide
+# "Taxa de Prenhez Bovina") é explícito quanto ao valor de PROJEÇÃO:
+#   "Referência utilizada em projeção de caixa: normalmente entre 70% e 75%,
+#    de forma conservadora, salvo quando o cliente apresenta histórico técnico
+#    comprovando índices maiores."
+# Adota-se o piso dessa faixa — projetar prenhez alta infla a produção de
+# bezerros e, por consequência, a capacidade de pagamento.
+PRENHEZ_PCT = 70.0
+
+# ── Relação de troca: preço da reposição derivado do boi gordo ───────────────
+# Quantas arrobas de boi gordo são necessárias para comprar 1 animal de
+# reposição. Permite precificar a compra sem depender de uma cotação própria —
+# o preço do boi já é buscado diariamente pelo scraper.
+#
+# Boi magro (macho nelore reposição, 375 kg ≈ 12,5@): ~12,4@ de boi gordo por
+#   cabeça (CEPEA, praça de São Paulo).
+# Bezerro desmamado (~200 kg): relação de troca boi/bezerro ≈ 2,16 cab por boi
+#   gordo de 20@ (média nacional, jun/2025) → 20 ÷ 2,16 ≈ 9,26@ por cabeça.
+#
+# Fontes: Notícias Agrícolas (cotação de reposição), Scot Consultoria,
+# Portal DBO (relação de troca reposição/boi gordo).
+TROCA_ARROBAS_BOI_MAGRO = 12.4
+TROCA_ARROBAS_BEZERRO   = 9.26
 
 # Sem benchmark nacional para estas — banda "médio" do benchmark regional
 # (ml_engine.BENCHMARKS_RO), documentada como tal.
@@ -36,10 +61,14 @@ PCT_MATRIZES = 35.0            # BENCHMARKS_RO.pct_matrizes médio
 
 # Desfrute por modalidade (nacional DESFRUTE_MODALIDADE, meio de cada faixa).
 DESFRUTE_PCT = {
-    'CRIA': midpoint(18.0, 30.0),            # 24.0
-    'RECRIA': midpoint(35.0, 55.0),          # 45.0
-    'ENGORDA': midpoint(80.0, 120.0),        # 100.0
-    'CICLO_COMPLETO': midpoint(20.0, 40.0),  # 30.0
+    'CRIA': midpoint(18.0, 30.0),               # 24.0
+    'RECRIA': midpoint(35.0, 55.0),             # 45.0
+    'ENGORDA': midpoint(80.0, 120.0),           # 100.0
+    'CICLO_COMPLETO': midpoint(20.0, 40.0),     # 30.0
+    'RECRIA_ENGORDA': midpoint(60.0, 85.0),     # 72.5
+    # Sistema misto: base de cria com compra de desmama. O desfrute fica acima
+    # de uma cria pura porque o volume recriado também é comercializado.
+    'CRIA_RECRIA': midpoint(25.0, 40.0),        # 32.5
 }
 
 # ── Pesos por categoria: GEP Araguaia safra 24/25 (fonte primária) ───────────

@@ -18,7 +18,18 @@ from services.parametros_zootecnicos import (
     NATALIDADE_PCT, DESMAME_PCT,
     PESO_BOI_ARR, PESO_VACA_ARR, PESO_BEZERRA_ARR, PESO_GARROTE_ARR,
     MORTALIDADE_ADULTO_PCT, MORTALIDADE_BEZERRA_PCT,
+    TROCA_ARROBAS_BOI_MAGRO, TROCA_ARROBAS_BEZERRO,
 )
+
+# ── Reposição 1:1 precificada ────────────────────────────────────────────────
+# Recria e engorda vendem o lote e repõem comprando animais magros. O material
+# de treinamento define a regra operacional: "1 animal vendido = 1 animal
+# reposto". Sem precificar essa compra, o resultado de uma engorda fica ~3,9×
+# superestimado — o modelo vendia o peso total de saída pagando só a manutenção.
+#
+# Reversível: REPOSICAO_PRECIFICADA=0 volta ao comportamento anterior
+# (compra aparece no balanço de animais, mas não custa nada).
+_REPOSICAO_PRECIFICADA = os.environ.get('REPOSICAO_PRECIFICADA', '1') != '0'
 
 # Razão bezerra/adulto para derivar mort_bezerra quando só mort_adulto é informada
 _RAZAO_MORT_BEZERRA = MORTALIDADE_BEZERRA_PCT / MORTALIDADE_ADULTO_PCT  # 3.5
@@ -28,7 +39,14 @@ _RAZAO_MORT_BEZERRA = MORTALIDADE_BEZERRA_PCT / MORTALIDADE_ADULTO_PCT  # 3.5
 # ==================================================================
 _MODEL_PATH = os.path.join(os.path.dirname(__file__), 'gestao_model.pkl')
 _CSV_PATH = os.path.join(os.path.dirname(__file__), 'dataset_sintetico_bovino.csv')
-TIPOS = ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO']
+# Modalidades pecuárias. A ordem define o rótulo numérico no dataset e NÃO
+# pode ser reordenada — os rótulos 0–3 já existem no CSV histórico.
+# As duas últimas vieram do material "Análise de Crédito na Pecuária Bovina",
+# que trabalha com 5 modalidades + o sistema misto cria/recria:
+#   RECRIA_ENGORDA — compra magro e termina (desfrute 60–85%)
+#   CRIA_RECRIA    — base de cria + compra de desmama (sistema misto)
+TIPOS = ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO',
+         'RECRIA_ENGORDA', 'CRIA_RECRIA']
 
 # Nomes legíveis das 40 features geradas por extrair_features()
 # Ordem exata: norm[0-9] | p_agregados[10-13] | por_cat[14-19] |
@@ -61,6 +79,8 @@ FEATURE_NAMES = [
     'Produção esperada / total',  'Eficiência reprodutiva',
     'Transição garrote→adulto',   'Intensidade de engorda',
     'Intensidade de cria',
+    # 40-41: sinal de compra de desmama (discrimina cria pura de cria+recria)
+    'Coorte 0-12m / produção própria', 'Coorte 0-12m % total',
 ]
 
 # Parâmetros padrão por ciclo de produção
@@ -93,7 +113,24 @@ PARAMS_POR_CICLO = {
         'desc_mat_pct': 10.0,   # alinhado com CRIA (8–15%; conservador 10%)
         'venda_bez_pct': 75.0,  # alinhado com CRIA (retém 25%, vende 75%)
         'nat_pct': NATALIDADE_PCT,
-    }
+    },
+    # Compra magro + terminação. Retenção "muito baixa", sem base reprodutiva.
+    'RECRIA_ENGORDA': {
+        'prop_boi': 0.0,
+        'renov_boi_pct': 0.0,
+        'desc_mat_pct': 0.0,
+        'venda_bez_pct': 100.0,
+        'nat_pct': 0.0,
+    },
+    # Base de cria + compra de desmama para recria. Mantém matrizes e produção
+    # própria, mas o giro de jovens é maior que o de uma cria pura.
+    'CRIA_RECRIA': {
+        'prop_boi': 30.0,
+        'renov_boi_pct': 20.0,
+        'desc_mat_pct': 10.0,
+        'venda_bez_pct': 60.0,  # retém mais para recriar do que a cria pura
+        'nat_pct': NATALIDADE_PCT,
+    },
 }
 
 # ==================================================================
@@ -116,7 +153,7 @@ def _carregar_dataset_csv(path: str = _CSV_PATH):
                     float(row['facF']), float(row['facM']),
                 ]
                 label = int(row['rotulo'])
-                if label not in (0, 1, 2, 3):
+                if label not in range(len(TIPOS)):
                     continue
                 X.append(v)
                 y.append(label)
@@ -185,6 +222,14 @@ def extrair_features(
     intensidade_engorda    = _bois_v / total
     intensidade_cria       = _bez_v  / total
 
+    # Sinal de COMPRA de desmama: a coorte de 0–12 meses observada contra a
+    # produção biologicamente possível do próprio rebanho. Acima de ~1,15 o
+    # excedente só pode ter vindo de compra — é o que separa uma cria pura de
+    # um sistema misto cria+recria (material de treinamento, caso real do PA).
+    coorte_0_12   = v[0] + v[1] + v[2] + v[3]
+    razao_compra  = min(coorte_0_12 / max(producao_esperada, 1.0), 4.0)
+    p_coorte_0_12 = coorte_0_12 / total
+
     features = np.concatenate([
         norm,
         [p_femeas_024, p_machos_024, p_matrizes, p_bois],
@@ -200,6 +245,7 @@ def extrair_features(
          taxa_transicao,
          intensidade_engorda,
          intensidade_cria],
+        [razao_compra, p_coorte_0_12],
     ])
     return features
 
@@ -450,16 +496,22 @@ def classificar(
                     f"p_bez={p_bez_h:.1%}>20% → CICLO_COMPLETO (sem bois_vendidos)"
                 )
             # Rescue ENGORDA: bois dominam o rebanho (>45%) → aceita voto ML mesmo sem bois_vendidos
-            elif ml_tipo == 'ENGORDA' and p_bois_h > 0.45:
-                tipo = 'ENGORDA'
+            elif ml_tipo in ('ENGORDA', 'RECRIA_ENGORDA') and p_bois_h > 0.45:
+                # Preserva a distinção do ML entre confinamento puro e
+                # recria/engorda — a regra confirma a terminação, não o tipo.
+                tipo = ml_tipo
                 origem_decisao = 'regra'
                 regra_aplicada = 'rescue_engorda'
-                confianca = max(prob_dict.get('ENGORDA', 0.0), 80.0)
+                confianca = max(prob_dict.get(ml_tipo, 0.0), 80.0)
                 explicacao.append(
                     f"Rescue engorda: p_bois={p_bois_h:.1%}>45% confirma terminação → ENGORDA (sem bois_vendidos)"
                 )
             else:
-                tipo = 'CRIA' if probs[0] >= probs[1] else 'RECRIA'
+                # Sem venda de boi confirmada, o rebanho é de base reprodutiva
+                # ou de recria. Escolhe entre essas por probabilidade, incluindo
+                # o sistema misto — antes o CRIA_RECRIA era forçado para CRIA.
+                _cands = ('CRIA', 'RECRIA', 'CRIA_RECRIA')
+                tipo = max(_cands, key=lambda t: probs[TIPOS.index(t)])
                 origem_decisao = 'regra'
                 regra_aplicada = 'descarte_engorda_sem_venda'
                 explicacao.append(
@@ -830,6 +882,9 @@ def explicar_shap(
 # ==================================================================
 # 5c. CICLOS MISTOS (pós-processamento)
 # ==================================================================
+# Pares de ciclo que fazem sentido coexistir numa mesma propriedade.
+# RECRIA_ENGORDA e CRIA_RECRIA ficam de fora de propósito: já SÃO combinações
+# de fases, e tratá-las como "principal + secundário" duplicaria a leitura.
 _PARES_VALIDOS = {
     ('CRIA',    'RECRIA'),
     ('RECRIA',  'CRIA'),
@@ -1095,8 +1150,13 @@ def _simular_cria(
     _preco_vaca_cab = ((preco_vaca_arr if preco_vaca_arr is not None else preco_arroba_bezerro)
                        * m['preco']) * peso_matriz
 
+    # Rebanho rastreado por categoria — TODAS as categorias declaradas.
+    # Antes só matrizes e fêmeas jovens eram acompanhadas: os machos jovens e
+    # os bois adultos sumiam do fechamento, gerando perda patrimonial fantasma.
     matrizes    = float(va[6] + va[8])
-    fem_recria  = float(va[0] + va[2] + va[4])
+    fem_recria  = float(va[0] + va[2] + va[4])   # fêmeas 0–25m
+    mac_recria  = float(va[1] + va[3] + va[5])   # machos 0–25m
+    bois        = float(va[7] + va[9])           # touros / machos adultos
     total_ini   = float(va.sum())
 
     anos_proj = []
@@ -1106,18 +1166,35 @@ def _simular_cria(
         vez_vendidos  = desmamados * venda_bz
         machos_vend   = vez_vendidos * 0.5
         femeas_vend   = vez_vendidos * 0.5
-        bezerras_ret  = (desmamados - vez_vendidos) * 0.5
+        retidos       = desmamados - vez_vendidos
+        bezerras_ret  = retidos * 0.5
+        bezerros_ret  = retidos * 0.5
 
         descarte_mat  = round(matrizes * (desc_mat_pct / 100))
-        matrizes_prox = max(matrizes + bezerras_ret - descarte_mat, matrizes * 0.7)
-        total_prox    = int(matrizes_prox + bezerras_ret)
-        mortes        = round((matrizes + fem_recria) * mort)  # adultos: taxa adulta
+        # A reposição vem das novilhas já existentes no plantel, não das
+        # bezerras nascidas neste ano (que ainda não têm idade de cobertura).
+        promovidas    = min(fem_recria, float(descarte_mat))
+        matrizes_prox = max(matrizes + promovidas - descarte_mat, matrizes * 0.7)
+
+        # Balanço do rebanho: nada entra ou sai sem estar contabilizado.
+        mortes_cat    = lambda n: n * mort
+        fem_jov_prox  = max(fem_recria - promovidas + bezerras_ret - mortes_cat(fem_recria), 0.0)
+        mac_jov_prox  = max(mac_recria + bezerros_ret - mortes_cat(mac_recria), 0.0)
+        bois_prox     = max(bois - mortes_cat(bois), 0.0)
+        total_prox    = int(matrizes_prox + fem_jov_prox + mac_jov_prox + bois_prox)
+        # Mortes = adultos/jovens + perda pré-desmame (bezerros nascidos que
+        # não chegam à desmama, por mortalidade ou por não desmamarem).
+        mortes        = round((matrizes + fem_recria + mac_recria + bois) * mort
+                              + (nascidos - desmamados))
 
         # Receita: bezerros vendidos + descarte de matrizes (ambos geram caixa na cria)
         receita   = vez_vendidos * preco_bz + descarte_mat * _preco_vaca_cab
-        # Custo inclui touros de serviço (1:30 matrizes, pesam como bois)
-        _touros_cria = max(round(matrizes / 30.0), 1) if matrizes > 0 else 0
-        custo     = (matrizes * peso_matriz + fem_recria * peso_bezerra + _touros_cria * PESO_BOI_ARR) * custo_arroba
+        # Custo sobre o rebanho inteiro mantido no ano. Os touros de serviço já
+        # estão em `bois` quando declarados; só estima 1:30 se não houver nenhum.
+        _touros_cria = bois if bois > 0 else (max(round(matrizes / 30.0), 1) if matrizes > 0 else 0)
+        custo     = (matrizes * peso_matriz
+                     + (fem_recria + mac_recria) * peso_bezerra
+                     + _touros_cria * PESO_BOI_ARR) * custo_arroba
         resultado = receita - custo
 
         anos_proj.append({
@@ -1130,17 +1207,23 @@ def _simular_cria(
             'matrizes_descartadas': descarte_mat,
             'bezerras_vendidas': int(femeas_vend),
             'machos_vendidos': int(machos_vend),
-            'aumento_matrizes': int(bezerras_ret - descarte_mat),
+            'aumento_matrizes': int(promovidas - descarte_mat),
             'receita': round(receita, 2),
             'custo': round(custo, 2),
             'resultado': round(resultado, 2),
-            # Composição do rebanho no fim do ano — usada pelo fluxo GEP
-            'bois_fim': 0,
-            'jovens_f_fim': int(bezerras_ret),
-            'jovens_m_fim': 0,
+            # Composição do rebanho no fim do ano — usada pelo fluxo GEP.
+            # Precisa cobrir TODAS as categorias, senão a variação de estoque
+            # acusa perda de animais que na verdade continuam no plantel.
+            'bois_fim':     int(bois_prox),
+            'jovens_f_fim': int(fem_jov_prox),
+            'jovens_m_fim': int(mac_jov_prox),
+            'compras':      0,          # cria não compra animais
+            'mortes':       int(mortes),
         })
         matrizes   = matrizes_prox
-        fem_recria = bezerras_ret
+        fem_recria = fem_jov_prox
+        mac_recria = mac_jov_prox
+        bois       = bois_prox
 
     result = _montar_resultado(cenario, sc, anos_proj, total_ini, 'CRIA')
     ano1 = anos_proj[0]
@@ -1178,6 +1261,13 @@ def _simular_recria(
 
     # Animais em recria = machos e fêmeas 5–25 meses
     animais   = float(va[2] + va[3] + va[4] + va[5])
+    # Demais categorias declaradas (bezerros 0–5m, matrizes, bois): não entram
+    # no giro da recria, mas continuam no plantel e precisam ser contabilizadas.
+    outros_f  = float(va[0] + va[6] + va[8])
+    outros_m  = float(va[1] + va[7] + va[9])
+    # Proporção fêmea/macho do lote em recria, para repartir o estoque final
+    _fem_rec  = float(va[2] + va[4])
+    _frac_f   = (_fem_rec / animais) if animais > 0 else 0.0
     total_ini = float(va.sum())
 
     anos_proj = []
@@ -1188,14 +1278,26 @@ def _simular_recria(
         # Receita = peso total na saída (memorial §6)
         receita   = animais_sai * peso_saida_arr * preco
         peso_medio = (peso_entrada_arr + peso_saida_arr) / 2.0
-        custo      = animais * peso_medio * custo_arroba * (meses_recria / 12.0)
-        resultado = receita - custo
+        custo_manutencao = animais * peso_medio * custo_arroba * (meses_recria / 12.0)
 
         animais_prox = animais * (1 + min(0.05, 0.04 * m['nat']))
+        # A recria vende o lote inteiro e repõe comprando magros. A compra é
+        # tornada explícita aqui para que o balanço de animais feche; o CUSTO
+        # dessa compra ainda NÃO é precificado (ver 'compras_precificadas').
+        compras      = max(animais_prox - (animais - animais_sai - mortes), 0.0)
+        outros_f_prox = max(outros_f - outros_f * mort, 0.0)
+        outros_m_prox = max(outros_m - outros_m * mort, 0.0)
+
+        # Reposição 1:1 — a recria repõe comprando bezerro desmamado, não boi
+        # magro; a relação de troca é outra (≈9,26@ contra 12,4@).
+        custo_reposicao = (compras * TROCA_ARROBAS_BEZERRO * preco
+                           if _REPOSICAO_PRECIFICADA else 0.0)
+        custo     = custo_manutencao + custo_reposicao
+        resultado = receita - custo
 
         anos_proj.append({
             'ano': yr,
-            'total': int(animais_prox),
+            'total': int(animais_prox + outros_f_prox + outros_m_prox),
             'matrizes': 0,
             'bezerros': 0,
             'vendidos': int(animais_sai),
@@ -1207,12 +1309,18 @@ def _simular_recria(
             'ganho_arrobas_por_animal': round(ganho_arr, 2),
             'receita': round(receita, 2),
             'custo': round(custo, 2),
+            'custo_manutencao': round(custo_manutencao, 2),
+            'custo_reposicao':  round(custo_reposicao, 2),
             'resultado': round(resultado, 2),
             'bois_fim': 0,
-            'jovens_f_fim': 0,
-            'jovens_m_fim': int(animais_prox),
+            'jovens_f_fim': int(animais_prox * _frac_f + outros_f_prox),
+            'jovens_m_fim': int(animais_prox * (1 - _frac_f) + outros_m_prox),
+            'compras':      int(compras),
+            'mortes':       int(mortes),
         })
-        animais = animais_prox
+        animais  = animais_prox
+        outros_f = outros_f_prox
+        outros_m = outros_m_prox
 
     result = _montar_resultado(cenario, sc, anos_proj, total_ini, 'RECRIA')
     ano1  = anos_proj[0]
@@ -1255,6 +1363,10 @@ def _simular_engorda(
 
     # Bois em engorda = machos adultos (v[7]+v[9])
     bois      = float(va[7] + va[9])
+    # Demais categorias declaradas: fora do lote de confinamento, mas seguem
+    # no plantel — sem contá-las o fechamento acusa perda de animais inexistente.
+    outros_f  = float(va[0] + va[2] + va[4] + va[6])
+    outros_m  = float(va[1] + va[3] + va[5])
     total_ini = float(va.sum())
     lotes_ano = max(1, int(365 / max(dias_engorda, 30)))
 
@@ -1267,14 +1379,28 @@ def _simular_engorda(
         # Receita = arrobas totais de carcaça na saída (memorial §7)
         receita   = bois_abatidos * arrobas_saida * preco
         arrobas_media = (arrobas_saida + (peso_entrada_kg * rend) / 15.0) / 2.0
-        custo         = bois_no_ano * arrobas_media * custo_arroba * (dias_engorda / 365.0)
-        resultado = receita - custo
+        custo_manutencao = bois_no_ano * arrobas_media * custo_arroba * (dias_engorda / 365.0)
 
         bois_prox = bois * (1 + min(0.05, 0.04 * m['nat']))
+        # O confinamento gira `lotes_ano` lotes: vende bois_abatidos e repõe
+        # comprando magros. A compra é explicitada para o balanço de animais
+        # fechar; o CUSTO dela ainda NÃO entra no resultado (ver README/parecer).
+        compras = max(bois_prox + bois_abatidos + mortes - bois, 0.0)
+        outros_f_prox = max(outros_f - outros_f * mort, 0.0)
+        outros_m_prox = max(outros_m - outros_m * mort, 0.0)
+
+        # Reposição 1:1 — cada animal vendido é reposto por um boi magro
+        # comprado. Preço derivado da relação de troca sobre o boi gordo.
+        custo_reposicao = (compras * TROCA_ARROBAS_BOI_MAGRO * preco
+                           if _REPOSICAO_PRECIFICADA else 0.0)
+        custo     = custo_manutencao + custo_reposicao
+        resultado = receita - custo
 
         anos_proj.append({
             'ano': yr,
-            'total': int(bois_prox),
+            'total': int(bois_prox + outros_f_prox + outros_m_prox),
+            'compras': int(compras),
+            'mortes': int(mortes + (outros_f + outros_m) * mort),
             'matrizes': 0,
             'bezerros': 0,
             'vendidos': int(bois_abatidos),
@@ -1289,12 +1415,16 @@ def _simular_engorda(
             'ganho_peso_kg': round(peso_saida_kg - peso_entrada_kg, 1),
             'receita': round(receita, 2),
             'custo': round(custo, 2),
+            'custo_manutencao': round(custo_manutencao, 2),
+            'custo_reposicao':  round(custo_reposicao, 2),
             'resultado': round(resultado, 2),
             'bois_fim': int(bois_prox),
-            'jovens_f_fim': 0,
-            'jovens_m_fim': 0,
+            'jovens_f_fim': int(outros_f_prox),
+            'jovens_m_fim': int(outros_m_prox),
         })
-        bois = bois_prox
+        bois     = bois_prox
+        outros_f = outros_f_prox
+        outros_m = outros_m_prox
 
     result = _montar_resultado(cenario, sc, anos_proj, total_ini, 'ENGORDA')
     ano1  = anos_proj[0]
@@ -1359,13 +1489,23 @@ def simular_cenario(
     _custo_recria  = custo_arroba_recria  if custo_arroba_recria  is not None else custo_arroba
     _custo_engorda = custo_arroba_engorda if custo_arroba_engorda is not None else custo_arroba
 
-    if ciclo == 'CRIA':
+    # CRIA_RECRIA usa o motor de cria: mantém matrizes e produção própria. A
+    # compra de desmama já é captada pelo balanço de animais (a coorte 0–12m
+    # declarada entra no vetor) e precificada pela reposição.
+    if ciclo in ('CRIA', 'CRIA_RECRIA'):
         return _simular_cria(
             v, cenario, nat_pct, mort_pct, desmama_pct, venda_bez_pct,
             preco_arroba_bezerro, _custo_cria, anos,
             peso_matriz=peso_vaca, peso_bezerra=peso_arroba,
             preco_vaca_arr=preco_vaca_arr,
             desc_mat_pct=desc_pct,
+        )
+    # RECRIA_ENGORDA termina o animal comprado magro — mesmo motor da engorda,
+    # cujo custo já inclui a reposição 1:1.
+    if ciclo == 'RECRIA_ENGORDA':
+        return _simular_engorda(
+            v, cenario, mort_pct, preco_arroba, peso_entrada_kg, peso_saida_kg,
+            rendimento_carcaca, _custo_engorda, dias_engorda, anos,
         )
     if ciclo == 'RECRIA':
         return _simular_recria(
@@ -1490,7 +1630,7 @@ BENCHMARKS_RO = {
         # memorial §3: Abaixo<65, Médio 65–78, Bom 78–88, Excelente>=88
         'faixas': {'abaixo': 65.0, 'medio': 78.0, 'bom': 88.0},
         'inverso': False,
-        'ciclos': ['CRIA', 'CICLO_COMPLETO'],
+        'ciclos': ['CRIA', 'CICLO_COMPLETO', 'CRIA_RECRIA'],
     },
     'mortalidade': {
         'label': 'Mortalidade Geral',
@@ -1498,7 +1638,8 @@ BENCHMARKS_RO = {
         # memorial §3: Excelente<=1,5, Bom 1,5–3, Médio 3–5, Abaixo>5
         'faixas': {'abaixo': 5.0, 'medio': 3.0, 'bom': 1.5},
         'inverso': True,
-        'ciclos': ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO'],
+        'ciclos': ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO',
+                   'RECRIA_ENGORDA', 'CRIA_RECRIA'],
     },
     'desmama': {
         'label': 'Taxa de Desmama',
@@ -1506,7 +1647,7 @@ BENCHMARKS_RO = {
         # memorial §3: Abaixo<70, Médio 70–82, Bom 82–90, Excelente>=90
         'faixas': {'abaixo': 70.0, 'medio': 82.0, 'bom': 90.0},
         'inverso': False,
-        'ciclos': ['CRIA', 'CICLO_COMPLETO'],
+        'ciclos': ['CRIA', 'CICLO_COMPLETO', 'CRIA_RECRIA'],
     },
     'relacao_fm': {
         'label': 'Relação Fêmeas/Macho Adulto',
@@ -1514,7 +1655,7 @@ BENCHMARKS_RO = {
         # memorial §3: Abaixo<1,8, Médio 1,8–2,2, Bom 2,2–2,8, Excelente>=2,8
         'faixas': {'abaixo': 1.8, 'medio': 2.2, 'bom': 2.8},
         'inverso': False,
-        'ciclos': ['CRIA', 'CICLO_COMPLETO'],
+        'ciclos': ['CRIA', 'CICLO_COMPLETO', 'CRIA_RECRIA'],
     },
     'pct_matrizes': {
         'label': '% Matrizes no Rebanho',
@@ -1522,7 +1663,7 @@ BENCHMARKS_RO = {
         # memorial §3: Abaixo<28, Médio 28–35, Bom 35–42, Excelente>=42
         'faixas': {'abaixo': 28.0, 'medio': 35.0, 'bom': 42.0},
         'inverso': False,
-        'ciclos': ['CRIA', 'CICLO_COMPLETO'],
+        'ciclos': ['CRIA', 'CICLO_COMPLETO', 'CRIA_RECRIA'],
     },
     'ganho_peso_arr': {
         'label': 'Ganho de Peso (@/mês)',
@@ -1552,6 +1693,8 @@ BENCHMARKS_RO = {
             'RECRIA':          {'abaixo': 35.0, 'medio': 45.0, 'bom': 55.0},
             'ENGORDA':         {'abaixo': 80.0, 'medio': 100.0, 'bom': 120.0},
             'CICLO_COMPLETO':  {'abaixo': 20.0, 'medio': 32.0, 'bom': 45.0},
+            'RECRIA_ENGORDA':  {'abaixo': 60.0, 'medio': 72.0, 'bom': 85.0},
+            'CRIA_RECRIA':     {'abaixo': 25.0, 'medio': 32.0, 'bom': 40.0},
         },
         'inverso': False,
     },

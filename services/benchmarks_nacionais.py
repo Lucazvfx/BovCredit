@@ -152,6 +152,20 @@ COMPOSICAO_TIPICA_EMBRAPA = {
 
 # Ciclos x categorias (EMBRAPA CNPGC) — quais categorias compõem cada ciclo
 CICLO_CATEGORIAS = {
+    "RECRIA_ENGORDA": {
+        "principais": ["garrote", "boi"],
+        "secundarias": ["novilha"],
+        "descricao": "Compra de magro + terminação (13–36 m). Produto: boi gordo. Retenção muito baixa, giro alto.",
+        "peso_saida_kg": (500, 560),
+        "desmama_meses": (0, 0),
+    },
+    "CRIA_RECRIA": {
+        "principais": ["vaca", "bezerra", "bezerro", "novilha", "garrote"],
+        "secundarias": [],
+        "descricao": "Base de cria + compra de desmama para recria (sistema misto). Produto: bezerro, garrote e fêmeas excedentes.",
+        "peso_saida_kg": (300, 380),
+        "desmama_meses": (6, 7),
+    },
     "CRIA":   {
         "principais": ["vaca", "bezerra", "bezerro"],
         "secundarias": ["novilha"],
