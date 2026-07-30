@@ -1,3 +1,5 @@
+import pytest
+
 from ml_engine import calcular_ano
 from services.pesos_rebanho import arrobas_categorias
 
@@ -49,7 +51,11 @@ def test_simular_recria_custo_arroba_prorata():
     ano1 = r['anos'][0]
     animais = 50 + 30; peso_medio = (8 + 14) / 2
     esperado = animais * peso_medio * 57 * (12/12)
-    assert abs(ano1['custo'] - esperado) < 1.0
+    # `custo` passou a somar manutenção + reposição 1:1 (a recria vende o lote
+    # e repõe comprando desmamados). O rateio pro-rata é a parte de manutenção.
+    assert abs(ano1['custo_manutencao'] - esperado) < 1.0
+    assert ano1['custo'] == pytest.approx(
+        ano1['custo_manutencao'] + ano1['custo_reposicao'], abs=1.0)
 
 
 def test_simular_engorda_custo_arroba_prorata():

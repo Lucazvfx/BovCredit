@@ -23,6 +23,51 @@ OK = "ok"
 _PESO = {ERRO: 25, ALERTA: 8, OK: 0}
 
 
+def estimar_compra_animais(v: list, natalidade: float = 0.70) -> dict:
+    """
+    Estima compra de animais desmamados confrontando a coorte de 0–12 meses
+    declarada com a produção biologicamente possível do próprio rebanho.
+
+        produção própria = matrizes × natalidade
+        compra estimada  = coorte 0–12m observada − produção própria
+
+    Técnica do material "Análise de Crédito na Pecuária Bovina" (caso real do
+    Pará): uma propriedade com 256 matrizes produz ~179 bezerros a 70% de
+    natalidade, mas declarava 556 animais de 0–12 meses — os 377 excedentes
+    só podem ter sido comprados.
+
+    Importa para o crédito por dois motivos: muda o enquadramento (cria pura
+    vira sistema misto cria+recria) e revela um desembolso de compra que não
+    aparece em nenhuma declaração do produtor.
+
+    Returns:
+        Dict com `coorte_0_12m`, `producao_propria`, `compra_estimada`,
+        `indica_compra` (bool) e `proporcao_comprada` (fração da coorte).
+    """
+    if len(v) != 10:
+        raise ValueError(f"Esperado vetor de 10 posições, recebido {len(v)}.")
+    v = [max(float(x), 0.0) for x in v]
+
+    matrizes = v[6] + v[8]
+    coorte = v[0] + v[1] + v[2] + v[3]          # 0–4m + 5–12m
+    producao = matrizes * max(natalidade, 0.0)
+    compra = coorte - producao
+
+    # Margem de 15% absorve variação de natalidade e defasagem entre safras;
+    # só acima disso a diferença é grande demais para ser produção própria.
+    limiar = max(producao * 0.15, 5.0)
+    indica = compra > limiar
+
+    return {
+        'coorte_0_12m':       round(coorte, 1),
+        'producao_propria':   round(producao, 1),
+        'compra_estimada':    round(max(compra, 0.0), 1),
+        'indica_compra':      bool(indica),
+        'proporcao_comprada': round(max(compra, 0.0) / coorte, 3) if coorte > 0 else 0.0,
+        'natalidade_usada':   natalidade,
+    }
+
+
 def _flag(codigo, severidade, titulo, mensagem, declarado=None, esperado=None):
     div = None
     if declarado is not None and esperado not in (None, 0):
@@ -114,6 +159,35 @@ def analisar_consistencia(
                 "bezerros_vs_esperado", OK, "Bezerros vs esperado",
                 f"{bezerros:.0f} bezerros compatível com {matrizes:.0f} matrizes.",
                 declarado=bezerros, esperado=centro))
+
+    # 1b. Compra de animais desmamados (coorte 0–12m vs produção própria).
+    # Diferente da checagem acima: olha a coorte inteira de 0–12m e QUANTIFICA
+    # o excedente. Excedente aqui não é rebanho inflado — é compra, e muda tanto
+    # o enquadramento do sistema quanto o desembolso projetado.
+    _nat_ref = (natalidade_min + natalidade_max) / 2
+    compra_info = estimar_compra_animais(v, natalidade=_nat_ref)
+    if compra_info['indica_compra']:
+        _pct = compra_info['proporcao_comprada'] * 100
+        flags.append(_flag(
+            "compra_animais_desmama", ALERTA,
+            "Compra de animais na desmama",
+            f"{compra_info['coorte_0_12m']:.0f} animais de 0–12 meses para uma produção "
+            f"própria de ~{compra_info['producao_propria']:.0f} "
+            f"({matrizes:.0f} matrizes × {_nat_ref:.0%}). "
+            f"Indica compra de ~{compra_info['compra_estimada']:.0f} desmamados "
+            f"({_pct:.0f}% da coorte) — sistema misto, com desembolso de aquisição "
+            f"não declarado.",
+            declarado=compra_info['coorte_0_12m'],
+            esperado=compra_info['producao_propria']))
+    elif matrizes > 0:
+        flags.append(_flag(
+            "compra_animais_desmama", OK,
+            "Compra de animais na desmama",
+            f"Coorte de 0–12 meses ({compra_info['coorte_0_12m']:.0f}) compatível com "
+            f"a produção própria (~{compra_info['producao_propria']:.0f}) — "
+            f"sem indício de compra.",
+            declarado=compra_info['coorte_0_12m'],
+            esperado=compra_info['producao_propria']))
 
     # 2. Proporção sexual dos bezerros (~50/50 ao nascer)
     if bezerros >= 20:

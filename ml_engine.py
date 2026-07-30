@@ -18,7 +18,18 @@ from services.parametros_zootecnicos import (
     NATALIDADE_PCT, DESMAME_PCT,
     PESO_BOI_ARR, PESO_VACA_ARR, PESO_BEZERRA_ARR, PESO_GARROTE_ARR,
     MORTALIDADE_ADULTO_PCT, MORTALIDADE_BEZERRA_PCT,
+    TROCA_ARROBAS_BOI_MAGRO, TROCA_ARROBAS_BEZERRO,
 )
+
+# ── Reposição 1:1 precificada ────────────────────────────────────────────────
+# Recria e engorda vendem o lote e repõem comprando animais magros. O material
+# de treinamento define a regra operacional: "1 animal vendido = 1 animal
+# reposto". Sem precificar essa compra, o resultado de uma engorda fica ~3,9×
+# superestimado — o modelo vendia o peso total de saída pagando só a manutenção.
+#
+# Reversível: REPOSICAO_PRECIFICADA=0 volta ao comportamento anterior
+# (compra aparece no balanço de animais, mas não custa nada).
+_REPOSICAO_PRECIFICADA = os.environ.get('REPOSICAO_PRECIFICADA', '1') != '0'
 
 # Razão bezerra/adulto para derivar mort_bezerra quando só mort_adulto é informada
 _RAZAO_MORT_BEZERRA = MORTALIDADE_BEZERRA_PCT / MORTALIDADE_ADULTO_PCT  # 3.5
@@ -1223,8 +1234,7 @@ def _simular_recria(
         # Receita = peso total na saída (memorial §6)
         receita   = animais_sai * peso_saida_arr * preco
         peso_medio = (peso_entrada_arr + peso_saida_arr) / 2.0
-        custo      = animais * peso_medio * custo_arroba * (meses_recria / 12.0)
-        resultado = receita - custo
+        custo_manutencao = animais * peso_medio * custo_arroba * (meses_recria / 12.0)
 
         animais_prox = animais * (1 + min(0.05, 0.04 * m['nat']))
         # A recria vende o lote inteiro e repõe comprando magros. A compra é
@@ -1233,6 +1243,13 @@ def _simular_recria(
         compras      = max(animais_prox - (animais - animais_sai - mortes), 0.0)
         outros_f_prox = max(outros_f - outros_f * mort, 0.0)
         outros_m_prox = max(outros_m - outros_m * mort, 0.0)
+
+        # Reposição 1:1 — a recria repõe comprando bezerro desmamado, não boi
+        # magro; a relação de troca é outra (≈9,26@ contra 12,4@).
+        custo_reposicao = (compras * TROCA_ARROBAS_BEZERRO * preco
+                           if _REPOSICAO_PRECIFICADA else 0.0)
+        custo     = custo_manutencao + custo_reposicao
+        resultado = receita - custo
 
         anos_proj.append({
             'ano': yr,
@@ -1248,6 +1265,8 @@ def _simular_recria(
             'ganho_arrobas_por_animal': round(ganho_arr, 2),
             'receita': round(receita, 2),
             'custo': round(custo, 2),
+            'custo_manutencao': round(custo_manutencao, 2),
+            'custo_reposicao':  round(custo_reposicao, 2),
             'resultado': round(resultado, 2),
             'bois_fim': 0,
             'jovens_f_fim': int(animais_prox * _frac_f + outros_f_prox),
@@ -1316,8 +1335,7 @@ def _simular_engorda(
         # Receita = arrobas totais de carcaça na saída (memorial §7)
         receita   = bois_abatidos * arrobas_saida * preco
         arrobas_media = (arrobas_saida + (peso_entrada_kg * rend) / 15.0) / 2.0
-        custo         = bois_no_ano * arrobas_media * custo_arroba * (dias_engorda / 365.0)
-        resultado = receita - custo
+        custo_manutencao = bois_no_ano * arrobas_media * custo_arroba * (dias_engorda / 365.0)
 
         bois_prox = bois * (1 + min(0.05, 0.04 * m['nat']))
         # O confinamento gira `lotes_ano` lotes: vende bois_abatidos e repõe
@@ -1326,6 +1344,13 @@ def _simular_engorda(
         compras = max(bois_prox + bois_abatidos + mortes - bois, 0.0)
         outros_f_prox = max(outros_f - outros_f * mort, 0.0)
         outros_m_prox = max(outros_m - outros_m * mort, 0.0)
+
+        # Reposição 1:1 — cada animal vendido é reposto por um boi magro
+        # comprado. Preço derivado da relação de troca sobre o boi gordo.
+        custo_reposicao = (compras * TROCA_ARROBAS_BOI_MAGRO * preco
+                           if _REPOSICAO_PRECIFICADA else 0.0)
+        custo     = custo_manutencao + custo_reposicao
+        resultado = receita - custo
 
         anos_proj.append({
             'ano': yr,
@@ -1346,6 +1371,8 @@ def _simular_engorda(
             'ganho_peso_kg': round(peso_saida_kg - peso_entrada_kg, 1),
             'receita': round(receita, 2),
             'custo': round(custo, 2),
+            'custo_manutencao': round(custo_manutencao, 2),
+            'custo_reposicao':  round(custo_reposicao, 2),
             'resultado': round(resultado, 2),
             'bois_fim': int(bois_prox),
             'jovens_f_fim': int(outros_f_prox),
