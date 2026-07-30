@@ -47,6 +47,7 @@ from services.custos_desembolso import custo_arroba_de_desembolso, COMPONENTES
 from services.reconciliacao import reconciliar
 from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
 from services.benchmarks_nacionais import avaliar_coe as _avaliar_coe
+from services.groq_narrativa import gerar_narrativa as _gerar_narrativa_groq
 
 # Configuração de logging
 logging.basicConfig(
@@ -908,6 +909,25 @@ def api_classificar():
             db.salvar_parecer(current_user.id, int(fazenda_id),
                               solicitacao=credito_inputs, parecer=parecer)
 
+    # ── Narrativa IA (Groq Llama 3.3 70B) ───────────────────────────────────────
+    # Feature flag: ativo apenas quando GROQ_API_KEY está no ambiente.
+    # Para desativar: remova GROQ_API_KEY das variáveis do Railway (sem deploy).
+    _narrativa_ia = _gerar_narrativa_groq(
+        tipo=result.get('tipo', 'CICLO_COMPLETO'),
+        confianca=result.get('confianca', 0),
+        total_rebanho=int(sum(v)),
+        receita_anual=float(_ano1.get('receita', 0)),
+        geracao_caixa_anual=geracao_caixa_anual,
+        recomendacao=parecer['conclusao'].get('recomendacao', 'ressalva'),
+        dscr=parecer['conclusao'].get('dscr'),
+        limite_credito=parecer['conclusao'].get('capacidade_maxima'),
+        coe_por_arroba=fluxo_gep.get('coe_por_arroba'),
+        consistencia_score=int(consistencia.get('score_consistencia', 100)),
+        fazenda=fazenda,
+        municipio=municipio,
+        proprietario=data.get('proprietario', ''),
+    )
+
     return jsonify({
         **result,
         'indicadores': ind,
@@ -927,6 +947,7 @@ def api_classificar():
         'registro_id': registro_id,
         'shap_explicacao': shap_explicacao,
         'projecao_anos': _projecao_anos,
+        'narrativa_ia': _narrativa_ia,
     })
 
 # ── Cache em memória para cotações (TTL 30 min) ──────────────────────────────
