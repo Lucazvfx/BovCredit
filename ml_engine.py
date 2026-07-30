@@ -496,16 +496,22 @@ def classificar(
                     f"p_bez={p_bez_h:.1%}>20% → CICLO_COMPLETO (sem bois_vendidos)"
                 )
             # Rescue ENGORDA: bois dominam o rebanho (>45%) → aceita voto ML mesmo sem bois_vendidos
-            elif ml_tipo == 'ENGORDA' and p_bois_h > 0.45:
-                tipo = 'ENGORDA'
+            elif ml_tipo in ('ENGORDA', 'RECRIA_ENGORDA') and p_bois_h > 0.45:
+                # Preserva a distinção do ML entre confinamento puro e
+                # recria/engorda — a regra confirma a terminação, não o tipo.
+                tipo = ml_tipo
                 origem_decisao = 'regra'
                 regra_aplicada = 'rescue_engorda'
-                confianca = max(prob_dict.get('ENGORDA', 0.0), 80.0)
+                confianca = max(prob_dict.get(ml_tipo, 0.0), 80.0)
                 explicacao.append(
                     f"Rescue engorda: p_bois={p_bois_h:.1%}>45% confirma terminação → ENGORDA (sem bois_vendidos)"
                 )
             else:
-                tipo = 'CRIA' if probs[0] >= probs[1] else 'RECRIA'
+                # Sem venda de boi confirmada, o rebanho é de base reprodutiva
+                # ou de recria. Escolhe entre essas por probabilidade, incluindo
+                # o sistema misto — antes o CRIA_RECRIA era forçado para CRIA.
+                _cands = ('CRIA', 'RECRIA', 'CRIA_RECRIA')
+                tipo = max(_cands, key=lambda t: probs[TIPOS.index(t)])
                 origem_decisao = 'regra'
                 regra_aplicada = 'descarte_engorda_sem_venda'
                 explicacao.append(

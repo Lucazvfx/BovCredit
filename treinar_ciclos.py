@@ -39,7 +39,7 @@ REF: dict[str, dict] = {
         # proporção do rebanho total
         'pct_matrizes_adultas': (0.35, 0.55),   # matrizes dominam
         'pct_futuras_matrizes': (0.12, 0.28),   # novilhas retenção 20-35%
-        'pct_bezerros':         (0.18, 0.32),   # alta produção (natalidade 65-80%)
+        'pct_bezerros':         (0.18, 0.40),   # ficha real do material: 36,9%
         'pct_recria_M':         (0.04, 0.16),   # poucos machos em recria
         'pct_bois_adultos':     (0.01, 0.04),   # só touros de serviço (~1:30)
         # desfrute alvo (validação)
@@ -53,14 +53,23 @@ REF: dict[str, dict] = {
         'pct_bois_adultos':     (0.00, 0.04),   # sem bois para abate
         'desfrute_range':       (0.35, 0.55),
     },
+    # ENGORDA pura / confinamento — RECALIBRADO pela ficha real do material
+    # (slide 14, MT, 1.000 cab): 85% dos animais em 13–24 meses, 10% em 25–36,
+    # ZERO de 0–12m e nenhum acima de 36 meses. Ciclo curto: entra magro em
+    # 13–24m, sai para abate a partir dos 18 meses.
+    #
+    # A faixa anterior (recria_M 10–35%, bois 50–80%) descrevia na verdade um
+    # sistema de RECRIA/ENGORDA, não confinamento — vinha do Excel, que usa
+    # outra convenção de faixa etária. A troca explica por que a engorda real
+    # só era classificada corretamente por regra determinística.
     'ENGORDA': {
-        # inclui perfil puro (confinamento) e perfil recria-engorda do Excel
-        'pct_matrizes_adultas': (0.00, 0.02),   # praticamente zero (ref Excel)
-        'pct_futuras_matrizes': (0.00, 0.03),   # quase nada
-        'pct_bezerros':         (0.00, 0.05),   # sem cria
-        'pct_recria_M':         (0.10, 0.35),   # garrotes em acabamento / compra
-        'pct_bois_adultos':     (0.50, 0.80),   # bois para abate dominam
-        'desfrute_range':       (0.60, 1.20),   # recria-engorda 60-85% / engorda 80-120%
+        'pct_matrizes_adultas': (0.00, 0.02),
+        'pct_futuras_matrizes': (0.00, 0.04),
+        'pct_bezerros':         (0.00, 0.03),   # confinamento não tem 0-12m
+        'pct_recria_M':         (0.60, 0.88),   # 13-24m dominam (entrada magra)
+        'pct_bois_adultos':     (0.04, 0.20),   # poucos em 25-36m
+        'split_recM_05':        (0.00, 0.06),
+        'desfrute_range':       (0.80, 1.20),
     },
     'CICLO_COMPLETO': {
         'pct_matrizes_adultas': (0.18, 0.32),   # matrizes presentes
@@ -74,12 +83,17 @@ REF: dict[str, dict] = {
     # RECRIA/ENGORDA — compra magro e termina. Calibrado pelo caso real de MT
     # (10.302 cab): 90,6% dos animais entre 13 e 36 meses, fêmeas 7,6% do
     # total, apenas 120 animais acima de 36 meses. Retenção "muito baixa".
+    # Calibrado pela ficha real (slide 13, MT, 10.302 cab): 8,2% de 0–12m
+    # (a reposição comprada entrando), 23,7% em 13–24m e 60,5% em 25 meses ou
+    # mais. Pipeline mais longo que o confinamento puro — o animal passa por
+    # recria antes da terminação, e há sempre um lote de reposição na porta.
     'RECRIA_ENGORDA': {
-        'pct_matrizes_adultas': (0.00, 0.02),
-        'pct_futuras_matrizes': (0.00, 0.04),
-        'pct_bezerros':         (0.02, 0.12),   # reposição comprada entrando
-        'pct_recria_M':         (0.45, 0.70),   # garrotes 13-24m dominam
-        'pct_bois_adultos':     (0.20, 0.42),   # terminação em curso
+        'pct_matrizes_adultas': (0.00, 0.03),
+        'pct_futuras_matrizes': (0.01, 0.06),
+        'pct_bezerros':         (0.05, 0.16),   # coorte de reposição — assinatura
+        'pct_recria_M':         (0.15, 0.35),
+        'pct_bois_adultos':     (0.45, 0.72),   # 25m+ dominam
+        'split_recM_05':        (0.02, 0.12),
         'desfrute_range':       (0.60, 0.85),
     },
     # CRIA+RECRIA — base de cria com compra de desmama. Calibrado pelo caso
@@ -196,7 +210,11 @@ def _gerar_amostra(ciclo: str, rng: np.random.Generator) -> np.ndarray:
     f13F = p_rec_F_total * (1 - split_recF_05)
 
     # Subdivisão da recria M entre 5-13m e 13-25m
-    split_recM_05 = rng.uniform(0.30, 0.60)
+    # Quanto da recria de machos fica na faixa de 5–13m em vez de 13–25m.
+    # Confinamento e recria/engorda recebem o animal já formado, então quase
+    # nada cai em 5–13m — sem controlar isso o gerador criava uma coorte de
+    # 0–12m inexistente nessas modalidades e poluía o sinal de compra.
+    split_recM_05 = rng.uniform(*ref.get('split_recM_05', (0.30, 0.60)))
     f05M = p_rec_M * split_recM_05
     f13M = p_rec_M * (1 - split_recM_05)
 
