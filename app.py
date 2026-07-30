@@ -716,6 +716,18 @@ def api_classificar():
         preco_boi  = _preco_boi_ref,
         preco_vaca = preco_vaca,
     )
+    # A variação de estoque precisa comparar as duas pontas pelo MESMO método.
+    # _val_ini é granular (preço por categoria) e _val_fim é agregado (peso médio
+    # dos jovens) — a diferença de método sozinha cria ~4% de variação fantasma.
+    # Para a variação, revaloriza a abertura no formato agregado.
+    _val_ini_cmp = valor_rebanho_gep(
+        matrizes = _va[6] + _va[8],
+        bois     = _va[7] + _va[9],
+        jovens_f = _va[0] + _va[2] + _va[4],
+        jovens_m = _va[1] + _va[3] + _va[5],
+        preco_boi  = _preco_boi_ref,
+        preco_vaca = preco_vaca,
+    )
     # Reposição de reprodutores: touros renovados × preço por cabeça
     # Touro reprodutor ≈ 1.5× valor do boi comercial (benchmark mercado RO/MT)
     _matrizes_ini   = _va[6] + _va[8]
@@ -744,7 +756,7 @@ def api_classificar():
     fluxo_gep = calcular_fluxo_gep(
         receita_caixa            = _ano1['receita'],
         custo_caixa              = _ano1['custo'],
-        valor_rebanho_ini        = _val_ini['valor_total'],
+        valor_rebanho_ini        = _val_ini_cmp['valor_total'],
         valor_rebanho_fim        = _val_fim['valor_total'],
         servico_divida_anual     = _servico_gep,
         reposicao_reprodutores   = _reposicao_reprodutores,

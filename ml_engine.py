@@ -1095,8 +1095,13 @@ def _simular_cria(
     _preco_vaca_cab = ((preco_vaca_arr if preco_vaca_arr is not None else preco_arroba_bezerro)
                        * m['preco']) * peso_matriz
 
+    # Rebanho rastreado por categoria — TODAS as categorias declaradas.
+    # Antes só matrizes e fêmeas jovens eram acompanhadas: os machos jovens e
+    # os bois adultos sumiam do fechamento, gerando perda patrimonial fantasma.
     matrizes    = float(va[6] + va[8])
-    fem_recria  = float(va[0] + va[2] + va[4])
+    fem_recria  = float(va[0] + va[2] + va[4])   # fêmeas 0–25m
+    mac_recria  = float(va[1] + va[3] + va[5])   # machos 0–25m
+    bois        = float(va[7] + va[9])           # touros / machos adultos
     total_ini   = float(va.sum())
 
     anos_proj = []
@@ -1106,18 +1111,35 @@ def _simular_cria(
         vez_vendidos  = desmamados * venda_bz
         machos_vend   = vez_vendidos * 0.5
         femeas_vend   = vez_vendidos * 0.5
-        bezerras_ret  = (desmamados - vez_vendidos) * 0.5
+        retidos       = desmamados - vez_vendidos
+        bezerras_ret  = retidos * 0.5
+        bezerros_ret  = retidos * 0.5
 
         descarte_mat  = round(matrizes * (desc_mat_pct / 100))
-        matrizes_prox = max(matrizes + bezerras_ret - descarte_mat, matrizes * 0.7)
-        total_prox    = int(matrizes_prox + bezerras_ret)
-        mortes        = round((matrizes + fem_recria) * mort)  # adultos: taxa adulta
+        # A reposição vem das novilhas já existentes no plantel, não das
+        # bezerras nascidas neste ano (que ainda não têm idade de cobertura).
+        promovidas    = min(fem_recria, float(descarte_mat))
+        matrizes_prox = max(matrizes + promovidas - descarte_mat, matrizes * 0.7)
+
+        # Balanço do rebanho: nada entra ou sai sem estar contabilizado.
+        mortes_cat    = lambda n: n * mort
+        fem_jov_prox  = max(fem_recria - promovidas + bezerras_ret - mortes_cat(fem_recria), 0.0)
+        mac_jov_prox  = max(mac_recria + bezerros_ret - mortes_cat(mac_recria), 0.0)
+        bois_prox     = max(bois - mortes_cat(bois), 0.0)
+        total_prox    = int(matrizes_prox + fem_jov_prox + mac_jov_prox + bois_prox)
+        # Mortes = adultos/jovens + perda pré-desmame (bezerros nascidos que
+        # não chegam à desmama, por mortalidade ou por não desmamarem).
+        mortes        = round((matrizes + fem_recria + mac_recria + bois) * mort
+                              + (nascidos - desmamados))
 
         # Receita: bezerros vendidos + descarte de matrizes (ambos geram caixa na cria)
         receita   = vez_vendidos * preco_bz + descarte_mat * _preco_vaca_cab
-        # Custo inclui touros de serviço (1:30 matrizes, pesam como bois)
-        _touros_cria = max(round(matrizes / 30.0), 1) if matrizes > 0 else 0
-        custo     = (matrizes * peso_matriz + fem_recria * peso_bezerra + _touros_cria * PESO_BOI_ARR) * custo_arroba
+        # Custo sobre o rebanho inteiro mantido no ano. Os touros de serviço já
+        # estão em `bois` quando declarados; só estima 1:30 se não houver nenhum.
+        _touros_cria = bois if bois > 0 else (max(round(matrizes / 30.0), 1) if matrizes > 0 else 0)
+        custo     = (matrizes * peso_matriz
+                     + (fem_recria + mac_recria) * peso_bezerra
+                     + _touros_cria * PESO_BOI_ARR) * custo_arroba
         resultado = receita - custo
 
         anos_proj.append({
@@ -1130,17 +1152,23 @@ def _simular_cria(
             'matrizes_descartadas': descarte_mat,
             'bezerras_vendidas': int(femeas_vend),
             'machos_vendidos': int(machos_vend),
-            'aumento_matrizes': int(bezerras_ret - descarte_mat),
+            'aumento_matrizes': int(promovidas - descarte_mat),
             'receita': round(receita, 2),
             'custo': round(custo, 2),
             'resultado': round(resultado, 2),
-            # Composição do rebanho no fim do ano — usada pelo fluxo GEP
-            'bois_fim': 0,
-            'jovens_f_fim': int(bezerras_ret),
-            'jovens_m_fim': 0,
+            # Composição do rebanho no fim do ano — usada pelo fluxo GEP.
+            # Precisa cobrir TODAS as categorias, senão a variação de estoque
+            # acusa perda de animais que na verdade continuam no plantel.
+            'bois_fim':     int(bois_prox),
+            'jovens_f_fim': int(fem_jov_prox),
+            'jovens_m_fim': int(mac_jov_prox),
+            'compras':      0,          # cria não compra animais
+            'mortes':       int(mortes),
         })
         matrizes   = matrizes_prox
-        fem_recria = bezerras_ret
+        fem_recria = fem_jov_prox
+        mac_recria = mac_jov_prox
+        bois       = bois_prox
 
     result = _montar_resultado(cenario, sc, anos_proj, total_ini, 'CRIA')
     ano1 = anos_proj[0]
@@ -1178,6 +1206,13 @@ def _simular_recria(
 
     # Animais em recria = machos e fêmeas 5–25 meses
     animais   = float(va[2] + va[3] + va[4] + va[5])
+    # Demais categorias declaradas (bezerros 0–5m, matrizes, bois): não entram
+    # no giro da recria, mas continuam no plantel e precisam ser contabilizadas.
+    outros_f  = float(va[0] + va[6] + va[8])
+    outros_m  = float(va[1] + va[7] + va[9])
+    # Proporção fêmea/macho do lote em recria, para repartir o estoque final
+    _fem_rec  = float(va[2] + va[4])
+    _frac_f   = (_fem_rec / animais) if animais > 0 else 0.0
     total_ini = float(va.sum())
 
     anos_proj = []
@@ -1192,10 +1227,16 @@ def _simular_recria(
         resultado = receita - custo
 
         animais_prox = animais * (1 + min(0.05, 0.04 * m['nat']))
+        # A recria vende o lote inteiro e repõe comprando magros. A compra é
+        # tornada explícita aqui para que o balanço de animais feche; o CUSTO
+        # dessa compra ainda NÃO é precificado (ver 'compras_precificadas').
+        compras      = max(animais_prox - (animais - animais_sai - mortes), 0.0)
+        outros_f_prox = max(outros_f - outros_f * mort, 0.0)
+        outros_m_prox = max(outros_m - outros_m * mort, 0.0)
 
         anos_proj.append({
             'ano': yr,
-            'total': int(animais_prox),
+            'total': int(animais_prox + outros_f_prox + outros_m_prox),
             'matrizes': 0,
             'bezerros': 0,
             'vendidos': int(animais_sai),
@@ -1209,10 +1250,14 @@ def _simular_recria(
             'custo': round(custo, 2),
             'resultado': round(resultado, 2),
             'bois_fim': 0,
-            'jovens_f_fim': 0,
-            'jovens_m_fim': int(animais_prox),
+            'jovens_f_fim': int(animais_prox * _frac_f + outros_f_prox),
+            'jovens_m_fim': int(animais_prox * (1 - _frac_f) + outros_m_prox),
+            'compras':      int(compras),
+            'mortes':       int(mortes),
         })
-        animais = animais_prox
+        animais  = animais_prox
+        outros_f = outros_f_prox
+        outros_m = outros_m_prox
 
     result = _montar_resultado(cenario, sc, anos_proj, total_ini, 'RECRIA')
     ano1  = anos_proj[0]
@@ -1255,6 +1300,10 @@ def _simular_engorda(
 
     # Bois em engorda = machos adultos (v[7]+v[9])
     bois      = float(va[7] + va[9])
+    # Demais categorias declaradas: fora do lote de confinamento, mas seguem
+    # no plantel — sem contá-las o fechamento acusa perda de animais inexistente.
+    outros_f  = float(va[0] + va[2] + va[4] + va[6])
+    outros_m  = float(va[1] + va[3] + va[5])
     total_ini = float(va.sum())
     lotes_ano = max(1, int(365 / max(dias_engorda, 30)))
 
@@ -1271,10 +1320,18 @@ def _simular_engorda(
         resultado = receita - custo
 
         bois_prox = bois * (1 + min(0.05, 0.04 * m['nat']))
+        # O confinamento gira `lotes_ano` lotes: vende bois_abatidos e repõe
+        # comprando magros. A compra é explicitada para o balanço de animais
+        # fechar; o CUSTO dela ainda NÃO entra no resultado (ver README/parecer).
+        compras = max(bois_prox + bois_abatidos + mortes - bois, 0.0)
+        outros_f_prox = max(outros_f - outros_f * mort, 0.0)
+        outros_m_prox = max(outros_m - outros_m * mort, 0.0)
 
         anos_proj.append({
             'ano': yr,
-            'total': int(bois_prox),
+            'total': int(bois_prox + outros_f_prox + outros_m_prox),
+            'compras': int(compras),
+            'mortes': int(mortes + (outros_f + outros_m) * mort),
             'matrizes': 0,
             'bezerros': 0,
             'vendidos': int(bois_abatidos),
@@ -1291,10 +1348,12 @@ def _simular_engorda(
             'custo': round(custo, 2),
             'resultado': round(resultado, 2),
             'bois_fim': int(bois_prox),
-            'jovens_f_fim': 0,
-            'jovens_m_fim': 0,
+            'jovens_f_fim': int(outros_f_prox),
+            'jovens_m_fim': int(outros_m_prox),
         })
-        bois = bois_prox
+        bois     = bois_prox
+        outros_f = outros_f_prox
+        outros_m = outros_m_prox
 
     result = _montar_resultado(cenario, sc, anos_proj, total_ini, 'ENGORDA')
     ano1  = anos_proj[0]
