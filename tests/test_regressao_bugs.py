@@ -55,11 +55,14 @@ def _api(client, valores, preco=344, custo=57, credito=200000, prazo=36, juros=0
 def test_bezerros_est_usa_fracao_natalidade():
     # v = [f00F,f00M, f05F,f05M, f13F,f13M, f25F,f25M, facF,facM]
     # matrizes = v[6]+v[8] = f25F+facF = 0+70 = 70  (facM=4 são bois, não matrizes)
+    # Referencia a constante em vez de fixar o número: o guard é contra a
+    # ausência da divisão por 100, não contra o valor da taxa em si.
+    from services.parametros_zootecnicos import NATALIDADE_PCT
     ind = calcular_indicadores([0, 0, 0, 0, 0, 0, 0, 0, 70, 4])
-    esperado = int(70 * 65.0 / 100)  # = 45
+    esperado = int(70 * NATALIDADE_PCT / 100)
     assert ind['bezerros_est'] == esperado, (
         f'bezerros_est={ind["bezerros_est"]}, esperado {esperado}. '
-        f'Bug produziria {int(70 * 65.0)} (sem divisão por 100).'
+        f'Bug produziria {int(70 * NATALIDADE_PCT)} (sem divisão por 100).'
     )
 
 

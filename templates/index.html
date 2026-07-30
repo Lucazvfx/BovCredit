@@ -2047,7 +2047,25 @@ function renderResult(data){
         <div>
           <div class="rhero-ey">Tipo de Exploração · ${escapeHtml(faz)} · ${escapeHtml(mun)}</div>
           <div class="rhero-tipo" style="color:${col}">${TL[tipo]}</div>
-          <div class="rhero-sub">${escapeHtml(prop)} &nbsp;·&nbsp; Confiança: ${data.confianca}%</div>
+          <div class="rhero-sub">${escapeHtml(prop)} &nbsp;·&nbsp; Confiança: ${data.confianca}%${
+            data.origem_decisao==='regra' && data.confianca_ml!==data.confianca
+              ? ` <span style="opacity:.65;font-size:.9em">(modelo ML: ${data.confianca_ml}%)</span>` : ''
+          }</div>
+          ${(()=>{
+            const chips=[];
+            if(data.origem_decisao==='regra'){
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--am);background:rgba(251,191,36,.1)">⚖ regra determinística: ${escapeHtml(data.regra_aplicada||'')}</span>`);
+            } else {
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(74,222,128,.35);color:var(--g);background:rgba(74,222,128,.1)">🧠 decidido pelo modelo ML</span>`);
+            }
+            const at=data.atipicidade;
+            if(at && at.nivel!=='tipico'){
+              const c = at.nivel==='muito_atipico' ? 'var(--rd)' : 'var(--am)';
+              const rgb = at.nivel==='muito_atipico' ? '248,113,113' : '251,191,36';
+              chips.push(`<span title="${escapeHtml(at.mensagem||'')}" style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(${rgb},.35);color:${c};background:rgba(${rgb},.1)">📊 rebanho ${at.nivel==='muito_atipico'?'muito atípico':'atípico'} · revisão recomendada</span>`);
+            }
+            return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${chips.join('')}</div>`;
+          })()}
           <div style="margin-top:22px">${confBars}</div>
         </div>
         <div class="rhero-em">${TE[tipo]}</div>
@@ -2059,14 +2077,19 @@ function renderResult(data){
       const fatores=shapData.fatores||[];
       if(!fatores.length) return '';
       const maxPct=Math.max(...fatores.map(f=>f.importancia_pct),1);
+      const porRegra = shapData.decisao_por_regra;
       return `<div class="card" style="margin-bottom:24px">
         <div class="ch"><div class="ct"><div class="cd" style="background:${col}"></div>
           Fatores da Classificação (SHAP)
           <span style="font-family:var(--fm);font-size:.56rem;opacity:.4;margin-left:8px;letter-spacing:.5px">CMN 4.966/2021</span>
         </div></div>
         <div class="cb">
+          ${porRegra ? `<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.28);border-radius:8px;padding:12px 14px;margin-bottom:16px">
+            <div style="font-family:var(--fn);font-weight:700;font-size:.7rem;letter-spacing:.5px;color:var(--am);margin-bottom:5px">⚠ DECISÃO POR REGRA DETERMINÍSTICA</div>
+            <div style="font-size:.76rem;line-height:1.6;color:var(--sb)">${escapeHtml(shapData.aviso||'')}</div>
+          </div>` : ''}
           <div style="font-family:var(--fm);font-size:.6rem;letter-spacing:.5px;opacity:.5;margin-bottom:16px;text-transform:uppercase">
-            Por que <b style="color:${col};opacity:1">${TL[tipo]}</b>? — fatores mais determinantes
+            ${porRegra ? 'Contexto do modelo' : 'Por que'} <b style="color:${col};opacity:1">${TL[tipo]}</b>? — fatores mais determinantes
           </div>
           ${fatores.map(f=>{
             const pos=f.direcao==='positivo';

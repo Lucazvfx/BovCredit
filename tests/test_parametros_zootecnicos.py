@@ -8,7 +8,13 @@ from services.parametros_zootecnicos import (
 
 
 def test_taxas_sao_ponto_medio_do_benchmark():
-    assert NATALIDADE_PCT == midpoint(55, 75) == 65.0
+    # NATALIDADE_PCT é a exceção deliberada à regra do ponto médio: o benchmark
+    # nacional é 55–75 (meio 65), mas o módulo adota 70% como valor recomendado
+    # — ver comentário em services/parametros_zootecnicos.py.
+    # ATENÇÃO: 70% é MAIS OTIMISTA que o ponto médio (mais bezerros → mais
+    # receita → DSCR maior). Revisar se o objetivo for projeção conservadora.
+    assert NATALIDADE_PCT == 70.0
+    assert midpoint(55, 75) == 65.0
     assert PRENHEZ_PCT == 62.5
     assert DESFRUTE_PCT['CICLO_COMPLETO'] == 30.0
     assert DESFRUTE_PCT['ENGORDA'] == 100.0

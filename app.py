@@ -9,7 +9,7 @@ import tempfile
 import subprocess
 from functools import wraps
 
-from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, send_from_directory, send_file, session
+from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, send_from_directory, send_file, session, abort
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -864,7 +864,11 @@ def api_classificar():
     # SHAP — explicabilidade regulatória (CMN 4.966/2021 / Marco Legal IA)
     shap_explicacao = {}
     try:
-        shap_explicacao = explicar_shap(v, result['tipo'])
+        shap_explicacao = explicar_shap(
+            v, result['tipo'],
+            origem_decisao=result.get('origem_decisao', 'ml'),
+            regra_aplicada=result.get('regra_aplicada'),
+        )
     except Exception as _e_shap:
         logger.warning(f'SHAP falhou (não crítico): {_e_shap}')
 

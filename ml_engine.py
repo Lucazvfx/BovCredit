@@ -406,8 +406,15 @@ def classificar(
 
     explicacao = []
 
+    # Rastreio de proveniência da decisão (CMN 4.966/2021 — a explicação
+    # apresentada precisa corresponder ao processo que efetivamente decidiu).
+    origem_decisao = 'ml'
+    regra_aplicada = None
+
     if _engorda_puro:
         tipo = 'ENGORDA'
+        origem_decisao = 'regra'
+        regra_aplicada = 'engorda_pura'
         confianca = max(prob_dict.get('ENGORDA', 0.0), 75.0)
         explicacao.append(
             f"Flag engorda_puro: p_matrizes={p_matrizes_h:.1%}, p_fem={_p_fem_total:.1%}, "
@@ -417,6 +424,8 @@ def classificar(
         # Exige intensidade_engorda > 5% confirmada pelo usuário;
         # touros de serviço (sem bois_vendidos informado) não ativam esta regra.
         tipo = 'CICLO_COMPLETO'
+        origem_decisao = 'regra'
+        regra_aplicada = 'indice_ciclo_completo'
         confianca = max(prob_dict.get('CICLO_COMPLETO', 0.0), 85.0)
         explicacao.append(f"Regra híbrida ativada: indice_ciclo={indice_ciclo}/4 + engorda={intensidade_engorda:.1%} → ciclo_completo")
         explicacao.append(
@@ -432,6 +441,8 @@ def classificar(
             if (ml_tipo == 'CICLO_COMPLETO' and indice_ciclo >= 3
                     and p_bois_h > 0.08 and p_matrizes_h > 0.20 and p_bez_h > 0.20):
                 tipo = 'CICLO_COMPLETO'
+                origem_decisao = 'regra'
+                regra_aplicada = 'rescue_ciclo_completo'
                 confianca = max(prob_dict.get('CICLO_COMPLETO', 0.0), 80.0)
                 explicacao.append(
                     f"Rescue ciclo_completo: indice_ciclo={indice_ciclo}/4, "
@@ -441,12 +452,16 @@ def classificar(
             # Rescue ENGORDA: bois dominam o rebanho (>45%) → aceita voto ML mesmo sem bois_vendidos
             elif ml_tipo == 'ENGORDA' and p_bois_h > 0.45:
                 tipo = 'ENGORDA'
+                origem_decisao = 'regra'
+                regra_aplicada = 'rescue_engorda'
                 confianca = max(prob_dict.get('ENGORDA', 0.0), 80.0)
                 explicacao.append(
                     f"Rescue engorda: p_bois={p_bois_h:.1%}>45% confirma terminação → ENGORDA (sem bois_vendidos)"
                 )
             else:
                 tipo = 'CRIA' if probs[0] >= probs[1] else 'RECRIA'
+                origem_decisao = 'regra'
+                regra_aplicada = 'descarte_engorda_sem_venda'
                 explicacao.append(
                     f"Regra híbrida: intensidade_engorda={intensidade_engorda:.3f} < 0.1 → {ml_tipo} descartado"
                 )
@@ -458,6 +473,8 @@ def classificar(
             if (tipo == 'CRIA' and indice_ciclo >= 3
                     and p_bois_h > 0.08 and p_matrizes_h > 0.20 and p_bez_h > 0.20):
                 tipo = 'CICLO_COMPLETO'
+                origem_decisao = 'regra'
+                regra_aplicada = 'rescue_ciclo_completo_ml_cria'
                 confianca = max(prob_dict.get('CICLO_COMPLETO', 0.0), 80.0)
                 explicacao.append(
                     f"Rescue ciclo_completo: ML=CRIA, indice_ciclo={indice_ciclo}/4, "
@@ -483,6 +500,8 @@ def classificar(
                 'CRIA' if p_matrizes_h > 0.18 else 'RECRIA'
             )
             confianca = round(float(probs[TIPOS.index(tipo)]) * 100, 1)
+            origem_decisao = 'regra'
+            regra_aplicada = 'guarda_ciclo_completo'
             explicacao.append(
                 f"Guarda CICLO_COMPLETO: indice_ciclo={indice_ciclo}/4 insuficiente "
                 f"→ revertido para {tipo}"
@@ -516,6 +535,22 @@ def classificar(
             f"(secundário {misto['tipo_secundario']} = {misto['confianca_secundaria']}%)"
         )
 
+    # Probabilidade real do modelo para a classe final — nunca inflada.
+    # Quando a decisão veio de regra determinística, este é o número que
+    # mostra o que o ML de fato pensava.
+    confianca_ml = round(float(probs[TIPOS.index(tipo)]) * 100, 1)
+
+    if origem_decisao == 'regra':
+        explicacao.append(
+            f"⚠ Decisão tomada por REGRA DETERMINÍSTICA ({regra_aplicada}), "
+            f"não pelo modelo ML. Probabilidade do ML para {tipo}: {confianca_ml}%."
+        )
+
+    try:
+        atipicidade = calcular_atipicidade(v)
+    except Exception:
+        atipicidade = None
+
     return {
         'classificacao': tipo,
         'tipo': tipo,
@@ -525,6 +560,77 @@ def classificar(
         'tipo_secundario':       (misto or {}).get('tipo_secundario'),
         'combinacao':            (misto or {}).get('combinacao', tipo),
         'confianca_secundaria':  (misto or {}).get('confianca_secundaria', 0.0),
+        # ── Proveniência e qualidade da decisão ──────────────────────────────
+        'origem_decisao':  origem_decisao,   # 'regra' | 'ml'
+        'regra_aplicada':  regra_aplicada,   # None quando origem_decisao == 'ml'
+        'confianca_ml':    confianca_ml,     # probabilidade real do modelo
+        'atipicidade':     atipicidade,      # distância à distribuição de treino
+    }
+
+
+# ==================================================================
+# 5a. ATIPICIDADE — o rebanho se parece com o conjunto de treino?
+# ==================================================================
+# O modelo foi treinado majoritariamente com amostras sintéticas geradas a
+# partir de faixas de referência. Uma probabilidade alta só é significativa
+# se o rebanho analisado estiver dentro da região coberta pelo treino.
+# Esta métrica mede a distância (z-score euclidiano) até o centro dessa
+# distribuição e a compara com os percentis observados no próprio treino.
+_ATIP_STATS = None
+
+
+def _stats_treino() -> dict | None:
+    """Estatísticas da distribuição de features do treino (lazy + cache)."""
+    global _ATIP_STATS
+    if _ATIP_STATS is not None:
+        return _ATIP_STATS
+    X_csv, _ = _carregar_dataset_csv()
+    if not X_csv:
+        return None
+    F = np.array([extrair_features(v) for v in X_csv], dtype=float)
+    mu = F.mean(axis=0)
+    sd = F.std(axis=0)
+    sd[sd < 1e-9] = 1e-9
+    dist = np.linalg.norm((F - mu) / sd, axis=1)
+    _ATIP_STATS = {
+        'mu': mu,
+        'sd': sd,
+        'p50': float(np.percentile(dist, 50)),
+        'p95': float(np.percentile(dist, 95)),
+        'p99': float(np.percentile(dist, 99)),
+        'n':   int(len(dist)),
+    }
+    return _ATIP_STATS
+
+
+def calcular_atipicidade(v: list) -> dict | None:
+    """
+    Mede o quão atípico é o rebanho frente ao conjunto de treino.
+
+    Retorna nível 'tipico' | 'atipico' | 'muito_atipico'. Em rebanhos
+    atípicos a probabilidade do modelo perde significado estatístico e o
+    caso deve ir para revisão humana.
+    """
+    s = _stats_treino()
+    if s is None:
+        return None
+    f = np.array(extrair_features(v), dtype=float)
+    d = float(np.linalg.norm((f - s['mu']) / s['sd']))
+    if d <= s['p95']:
+        nivel, msg = 'tipico', 'Rebanho dentro do padrão do conjunto de treino.'
+    elif d <= s['p99']:
+        nivel, msg = 'atipico', ('Composição incomum frente ao treino — '
+                                 'confira os dados e considere revisão manual.')
+    else:
+        nivel, msg = 'muito_atipico', ('Composição muito distante do conjunto de treino — '
+                                       'a confiança do modelo não é estatisticamente '
+                                       'significativa. Revisão humana recomendada.')
+    return {
+        'distancia':   round(d, 2),
+        'nivel':       nivel,
+        'mensagem':    msg,
+        'limiar_p95':  round(s['p95'], 2),
+        'limiar_p99':  round(s['p99'], 2),
     }
 
 
@@ -535,12 +641,20 @@ def explicar_shap(
     v: list,
     tipo_classificado: str,
     top_n: int = 8,
+    origem_decisao: str = 'ml',
+    regra_aplicada: str | None = None,
 ) -> dict:
     """
     Retorna os principais fatores que explicam a classificação via SHAP.
 
     Conformidade: CMN 4.966/2021 (modelos internos de risco) e
     PL 2.338/2023 — Marco Legal da IA (sistemas de alto risco).
+
+    IMPORTANTE: quando `origem_decisao == 'regra'`, a classificação final foi
+    determinada por uma regra determinística e NÃO pelo modelo. Nesse caso o
+    resultado é marcado com `decisao_por_regra=True` e os fatores SHAP devem
+    ser lidos como contexto do modelo, não como justificativa da decisão —
+    apresentá-los como causa seria descolar a explicação do processo real.
 
     Para cada estimador do ensemble (RF, GB, XGB, LGB) calcula SHAP values
     via TreeExplainer e devolve a média ponderada. Os valores representam a
@@ -567,7 +681,10 @@ def explicar_shap(
     classe_idx = TIPOS.index(tipo_classificado)
 
     contribs = []
-    for _, est in voting.estimators_:
+    # VotingClassifier.estimators_ é uma LISTA de estimadores já treinados
+    # (sem nomes) — os pares (nome, est) ficam em .estimators / .named_estimators_.
+    # Desempacotar como tupla aqui lançava ValueError e o SHAP nunca era gerado.
+    for est in voting.estimators_:
         try:
             exp = _shap.TreeExplainer(est)
             sv = exp.shap_values(feat_scaled)
@@ -606,12 +723,21 @@ def explicar_shap(
         reverse=True,
     )[:top_n]
 
+    por_regra = origem_decisao == 'regra'
     return {
         'classe':        tipo_classificado,
         'fatores':       fatores,
         'n_estimadores': len(contribs),
         'metodo':        'SHAP TreeExplainer — média do ensemble',
         'conformidade':  'CMN 4.966/2021 · Marco Legal IA (Lei 2.338/2023)',
+        'decisao_por_regra': por_regra,
+        'regra_aplicada':    regra_aplicada,
+        'aviso': (
+            f'A classificação final foi determinada pela regra determinística '
+            f'"{regra_aplicada}", não pelo modelo. Os fatores abaixo descrevem '
+            f'o comportamento do modelo para este rebanho e servem como contexto, '
+            f'não como justificativa da decisão.'
+        ) if por_regra else None,
     }
 
 
