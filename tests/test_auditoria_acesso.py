@@ -65,15 +65,67 @@ def test_a_trilha_nao_duplica_o_dado_sensivel():
         assert 'parecer' not in colunas
 
 
-def test_nao_existe_rota_de_escrita_nem_de_exclusao():
-    """Append-only por desenho: trilha que se edita não é trilha."""
-    rotas = {str(r.rule) for r in app.url_map.iter_rules() if 'auditoria' in str(r.rule)}
-    for r in rotas:
-        metodos = set()
-        for regra in app.url_map.iter_rules():
-            if str(regra.rule) == r:
-                metodos |= regra.methods
-        assert metodos <= {'GET', 'HEAD', 'OPTIONS'}, f'{r} aceita escrita'
+def test_a_consulta_da_trilha_e_somente_leitura():
+    """
+    Append-only por desenho: trilha que se edita não é trilha.
+
+    A rota de CONSULTA não pode aceitar escrita. A purga por retenção
+    (`/api/admin/lgpd/purgar-auditoria`) é operação distinta e legítima — ver
+    o teste seguinte para a diferença.
+    """
+    for regra in app.url_map.iter_rules():
+        if str(regra.rule) == '/api/admin/auditoria':
+            assert regra.methods <= {'GET', 'HEAD', 'OPTIONS'}, 'consulta aceita escrita'
+            return
+    pytest.fail('rota de consulta da trilha não encontrada')
+
+
+def test_nao_existe_rota_que_altere_ou_apague_evento_individual():
+    """
+    O invariante de verdade: nenhuma rota pode modificar nem remover UM
+    registro. É isso que impede alguém de apagar o rastro do próprio acesso.
+
+    Purga por retenção não viola isso e é a única exceção: apaga em bloco, por
+    corte de tempo, uniformemente — não escolhe o que sumir — e é ela própria
+    registrada na trilha.
+    """
+    suspeitas = []
+    for regra in app.url_map.iter_rules():
+        rota = str(regra.rule)
+        if 'auditoria' not in rota:
+            continue
+        if regra.methods <= {'GET', 'HEAD', 'OPTIONS'}:
+            continue
+        if rota == '/api/admin/lgpd/purgar-auditoria':
+            continue   # exceção conhecida e auditada
+        suspeitas.append(rota)
+    assert not suspeitas, f'rota que altera a trilha: {suspeitas}'
+
+
+def test_a_purga_por_retencao_e_ela_propria_auditada():
+    """Se a purga não deixasse rastro, seria o caminho para apagar o rastro."""
+    from datetime import datetime, timedelta
+    db.init_db()
+    antigo = datetime.now() - timedelta(days=900)
+    db._exec(f'''INSERT INTO auditoria_acessos (user_id, user_email, evento, created_at)
+                 VALUES ({db._PH},{db._PH},{db._PH},{db._PH})''',
+             (4242, 'antigo@x.com', 'login', antigo), commit=True)
+    db.purgar_auditoria(dias=730)
+    assert db.listar_acessos(evento='lgpd_purga_auditoria', limit=1)
+
+
+def test_a_purga_nao_escolhe_o_que_apagar():
+    """
+    Apaga por corte de tempo, uniformemente. Se aceitasse filtro por usuário ou
+    evento, viraria exatamente a ferramenta que o append-only existe para
+    impedir.
+    """
+    import inspect
+    assinatura = inspect.signature(db.purgar_auditoria)
+    assert set(assinatura.parameters) == {'dias'}, (
+        f'purgar_auditoria aceita {set(assinatura.parameters)} — '
+        f'qualquer filtro além de tempo permite apagar rastro seletivamente'
+    )
 
 
 # ── Eventos que a auditoria interna pede primeiro ───────────────────────────

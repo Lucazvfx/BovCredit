@@ -440,6 +440,65 @@ def admin():
                             JOIN usuarios u ON u.id=m.user_id ORDER BY e.nome''', fetch='all') or [],
     )
 
+@app.route('/api/admin/lgpd/inventario', methods=['GET'])
+@admin_required
+def api_lgpd_inventario():
+    """Registro das operações de tratamento (Art. 37) — o que se guarda e por quê."""
+    from services import lgpd
+    return jsonify({
+        'inventario': lgpd.resumo_inventario(),
+        'retencao_auditoria_dias': lgpd.RETENCAO_AUDITORIA_DIAS,
+        'aviso': ('Cobre as obrigações que se implementam. Base legal, '
+                  'encarregado, política de privacidade e contrato de operador '
+                  'são decisão da empresa, não do sistema.'),
+    })
+
+
+@app.route('/api/admin/lgpd/exportar/<int:uid>', methods=['GET'])
+@admin_required
+def api_lgpd_exportar(uid):
+    """Portabilidade (Art. 18, V): tudo que o sistema guarda sobre um usuário."""
+    dados = db.exportar_dados_usuario(uid)
+    if not dados:
+        return jsonify({'erro': 'Usuário não encontrado.'}), 404
+    _auditar('lgpd_exportacao', recurso='usuario', recurso_id=uid)
+    return jsonify(dados)
+
+
+@app.route('/api/admin/lgpd/anonimizar/<int:uid>', methods=['POST'])
+@admin_required
+def api_lgpd_anonimizar(uid):
+    """
+    Direito de eliminação (Art. 18). Anonimiza em vez de excluir: o registro
+    dos eventos permanece na trilha, a pessoa deixa de ser identificável.
+
+    Exige confirmação explícita no corpo — é irreversível e não há de-para.
+    """
+    if (request.json or {}).get('confirmo') is not True:
+        return jsonify({
+            'erro': 'Operação irreversível. Envie {"confirmo": true} para prosseguir.',
+            'efeito': ('A conta fica inutilizável, e-mail e nome viram pseudônimo '
+                       'estável, IP é removido da trilha e o vínculo de WhatsApp '
+                       'é apagado. Pareceres emitidos NÃO são apagados — são dado '
+                       'do cliente da consultoria.'),
+        }), 400
+    r = db.anonimizar_usuario(uid)
+    if not r.get('ok'):
+        return jsonify(r), 404
+    _auditar('lgpd_anonimizacao', recurso='usuario', recurso_id=uid,
+             detalhe='direito de eliminação (Art. 18)')
+    return jsonify(r)
+
+
+@app.route('/api/admin/lgpd/purgar-auditoria', methods=['POST'])
+@admin_required
+def api_lgpd_purgar():
+    """Retenção: descarta eventos além do prazo. Guardar IP para sempre é acúmulo sem finalidade."""
+    dias = (request.json or {}).get('dias')
+    removidos = db.purgar_auditoria(dias)
+    return jsonify({'removidos': removidos})
+
+
 @app.route('/api/admin/auditoria', methods=['GET'])
 @admin_required
 def api_admin_auditoria():

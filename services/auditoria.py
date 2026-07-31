@@ -42,6 +42,9 @@ DOC_LIDO         = 'documento_lido'
 ADMIN_ACAO       = 'admin_acao'
 WHATSAPP_VINCULO = 'whatsapp_vinculo'
 WHATSAPP_CONSULTA = 'whatsapp_consulta'
+LGPD_EXPORTACAO   = 'lgpd_exportacao'
+LGPD_ANONIMIZACAO = 'lgpd_anonimizacao'
+LGPD_PURGA        = 'lgpd_purga_auditoria'
 
 EVENTOS = {
     LOGIN:             'Entrou no sistema',
@@ -56,13 +59,16 @@ EVENTOS = {
     ADMIN_ACAO:        'Ação administrativa',
     WHATSAPP_VINCULO:  'Vinculou número de WhatsApp',
     WHATSAPP_CONSULTA: 'Consultou parecer pelo WhatsApp',
+    LGPD_EXPORTACAO:   'Exportou dados de um titular (LGPD Art. 18, V)',
+    LGPD_ANONIMIZACAO: 'Anonimizou um titular (LGPD Art. 18)',
+    LGPD_PURGA:        'Purgou a trilha além do prazo de retenção',
 }
 
 # Eventos que tocam dado de crédito de um cliente identificado. É esta lista
 # que a auditoria interna do banco pede primeiro.
 SENSIVEIS = frozenset({
     PARECER_GERADO, PARECER_PDF, HISTORICO_LIDO, PARECERES_LIDOS,
-    DOC_LIDO, WHATSAPP_CONSULTA,
+    DOC_LIDO, WHATSAPP_CONSULTA, LGPD_EXPORTACAO,
 })
 
 
