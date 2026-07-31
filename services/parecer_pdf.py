@@ -164,6 +164,53 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         story.append(Paragraph(
             '<i>Variação de estoque: riqueza criada pelo crescimento do rebanho — '
             'não é caixa, mas é valor real do ativo.</i>', ss['Subtitulo']))
+        _cd = fluxo_gep.get('compra_desmama_estimada', 0)
+        if _cd:
+            _repoe = fluxo_gep.get('repoe_compra_desmama')
+            story.append(Paragraph(
+                f"<b>Suposição — compra de desmama:</b> a coorte de 0–12 meses "
+                f"excede a produção própria em <b>{_cd} animais</b>, que só podem "
+                f"ter sido comprados. "
+                + (f"A projeção MANTÉM essa compra todo ano "
+                   f"({_fmt_moeda(fluxo_gep.get('custo_compra_desmama'))} no ano 1), "
+                   f"preservando a estrutura do rebanho."
+                   if _repoe else
+                   "A projeção assume que o produtor DEIXA de comprar: não há custo "
+                   "de aquisição, mas o rebanho converge para a produção própria — "
+                   "e é isso que explica a variação de estoque negativa.")
+                + " As duas leituras são legítimas e dão pareceres diferentes.",
+                ss['Corpo']))
+
+    # ── Praça de referência dos preços ───────────────────────────────────────
+    # Sem isto o parecer não diz sobre qual preço os números foram feitos, e
+    # quem lê não tem como conferir nada que dependa de cotação.
+    reg = parecer.get('precos_regional')
+    if reg:
+        story.append(Paragraph('Praça de Referência dos Preços', ss['SecaoTitulo']))
+        if reg.get('ajustado'):
+            linhas_p = [['Categoria', 'Indicador nacional', f"Praça {reg.get('uf')}"]]
+            for c in reg.get('categorias', []):
+                linhas_p.append([
+                    c['categoria'].replace('preco_', '').capitalize(),
+                    _fmt_moeda(c['nacional']),
+                    _fmt_moeda(c['regional']),
+                ])
+            tp = Table(linhas_p, colWidths=[6*cm, 5*cm, 5*cm])
+            tp.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EEEEEE')),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#DDDDDD')),
+                ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+            ]))
+            story.append(tp)
+            story.append(Spacer(1, 4))
+        story.append(Paragraph(reg.get('resumo', ''), ss['Corpo']))
+        story.append(Paragraph(
+            f"<i>Origem: {reg.get('origem', '')}. O indicador CEPEA/ESALQ é "
+            f"praça de {reg.get('uf_referencia', 'SP')}; o diferencial regional "
+            f"aqui aplicado é calibração de referência, a ser recalibrada com "
+            f"série própria.</i>", ss['Subtitulo']))
+        story.append(Spacer(1, 6))
 
     # ── Praça de referência dos preços ───────────────────────────────────────
     # Sem isto o parecer não diz sobre qual preço os números foram feitos, e

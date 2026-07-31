@@ -42,7 +42,7 @@ Este documento descreve o sistema **como ele está**, incluindo o que não funci
 |---|---|
 | Python (produção) | 10.476 linhas |
 | Interface (`templates/index.html`) | 3.750 linhas |
-| Testes | **417** casos em 56 arquivos |
+| Testes | **425** casos em 57 arquivos |
 | Rotas HTTP | 44, sendo 25 endpoints `/api` |
 | Modelo | ensemble de 4, 42 features, 6 classes |
 | Agências estaduais lidas | 7 |
@@ -482,6 +482,7 @@ Crie uma conta em `/cadastro`. Na primeira execução o modelo é treinado do ze
 | `SHAP_AGRUPAR_REDUNDANTES` | `0` volta a listar features duplicadas |
 | `REPOSICAO_PRECIFICADA` | `0` deixa de cobrar a compra de reposição |
 | `FRAC_VENDA_RECRIA_M` | fração dos machos 13–24m vendidos (default 0,83) |
+| `REPOR_COMPRA_DESMAMA` | `1` mantém a compra de desmama na cria; `0` (default) assume que o produtor para de comprar |
 | `SMTP_*` | envio de e-mail |
 
 Para desligar recursos sem mexer no código, veja o **`REVERTER.md`**.
