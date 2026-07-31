@@ -1088,6 +1088,7 @@ def purgar_auditoria(dias: int = None) -> int:
         registrar_acesso('lgpd_purga_auditoria',
                          detalhe=f'{removidos} registro(s) além de {dias} dias')
     return removidos
+<<<<<<< HEAD
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1158,3 +1159,5 @@ def totp_consumir_backup(user_id: int, hash_usado: str) -> None:
     ph = _PH
     _exec(f'UPDATE usuarios SET totp_backup={ph} WHERE id={ph}',
           (json.dumps(restantes), user_id), commit=True)
+=======
+>>>>>>> origin/main
