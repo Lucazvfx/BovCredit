@@ -42,7 +42,7 @@ Este documento descreve o sistema **como ele está**, incluindo o que não funci
 |---|---|
 | Python (produção) | 10.476 linhas |
 | Interface (`templates/index.html`) | 3.750 linhas |
-| Testes | **489** casos em 60 arquivos |
+| Testes | **501** casos em 61 arquivos |
 | Rotas HTTP | 44, sendo 25 endpoints `/api` |
 | Modelo | ensemble de 4, 42 features, 6 classes |
 | Agências estaduais lidas | 7 |
@@ -529,6 +529,26 @@ Crie uma conta em `/cadastro`. Na primeira execução o modelo é treinado do ze
 | `SMTP_*` | envio de e-mail |
 
 Para desligar recursos sem mexer no código, veja o **`REVERTER.md`**.
+
+### Escala — `gunicorn.conf.py`
+
+Rodava com `--workers 1`: atende cinco analistas, trava com cinquenta, porque uma classificação leva alguns segundos (simulação + SHAP) e a segunda requisição espera a primeira.
+
+Multiplicar workers ingenuamente multiplicaria duas coisas:
+
+**O modelo** — ~334 MB de RSS por processo, quase todo `gestao_model.pkl` carregado no import. `preload_app` importa uma vez no master e os workers nascem de `fork()`, com as páginas compartilhadas por copy-on-write. Medido com 2 workers:
+
+| | |
+|---|---|
+| Soma ingênua de RSS | 852 MB |
+| Memória real (PSS) | **351 MB** |
+| Baseline com 1 worker | 334 MB |
+
+O segundo worker custou ~17 MB, não +334.
+
+**O scheduler** — cada worker iniciaria o seu, e o scraper bateria N vezes na mesma fonte no mesmo minuto. Pior: com preload, a thread do APScheduler iniciada no import **não sobrevive ao `fork()`** — morreria em todos os workers, e como o master não serve requisições, o scraper nunca mais rodaria **em silêncio**. Por isso `SCHEDULER_VIA_HOOK=1` desliga o start no import e o hook `when_ready` o inicia uma única vez, no master.
+
+Ajuste por ambiente: `WEB_CONCURRENCY`, `WEB_THREADS`, `WEB_TIMEOUT`.
 
 ### Railway
 

@@ -27,8 +27,7 @@ RUN apt-get update \
 COPY --from=builder /app/.venv .venv/
 COPY . .
 
-# Espelha o Procfile. A porta vem do ambiente (Railway/Fly injetam $PORT) e o
-# timeout precisa ser folgado: se o modelo em disco não carregar, o boot cai no
-# retreino, que leva minutos e estourava o padrão de 30s do gunicorn.
+# Espelha o Procfile. Bind, workers, timeout e o hook do scheduler ficam em
+# gunicorn.conf.py — ver lá por que preload_app é obrigatório aqui.
 ENV PORT=8080
-CMD .venv/bin/gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+CMD [".venv/bin/gunicorn", "-c", "gunicorn.conf.py", "app:app"]
