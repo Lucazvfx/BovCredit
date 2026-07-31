@@ -34,6 +34,10 @@ _REPOSICAO_PRECIFICADA = os.environ.get('REPOSICAO_PRECIFICADA', '1') != '0'
 # Razão bezerra/adulto para derivar mort_bezerra quando só mort_adulto é informada
 _RAZAO_MORT_BEZERRA = MORTALIDADE_BEZERRA_PCT / MORTALIDADE_ADULTO_PCT  # 3.5
 
+# Fração dos machos de 0–24m que completa 25 meses no ano e entra na
+# terminação. A faixa cobre dois anos, então em regime metade gradua.
+_FRAC_GRADUACAO_MACHO = 0.5
+
 # ==================================================================
 # CONSTANTES GLOBAIS
 # ==================================================================
@@ -1029,10 +1033,27 @@ def calcular_ano(
 
     bezerros = matrizes * nat_pct
     bois_nec   = max(round(matrizes / max(prop_boi, 1)), 1)
-    bois_exc   = max(bois - bois_nec, 0)
-    renovacao       = round(bois_nec * renov_boi_pct)
-    machos_024_vend = max(machos_024 - renovacao, 0)
-    bois_vendidos   = bois_exc + renovacao
+    renovacao  = round(bois_nec * renov_boi_pct)
+
+    # ── Pipeline de terminação ───────────────────────────────────────────────
+    # Num ciclo completo o macho jovem NÃO é vendido: ele envelhece até a
+    # terminação. É isso que torna o ciclo "completo".
+    #
+    # Antes o modelo vendia todos os machos de 0–24m como garrote E liquidava
+    # os bois adultos no mesmo ano, sem repor. Resultado: o ano 1 vendia o
+    # estoque inteiro e o ano 2 não tinha o que vender — as vendas caíam 55% e
+    # o DSCR ia de 6,56 para −2,25, enquanto o parecer aprovava olhando só o
+    # ano 1.
+    #
+    # A faixa de 0–24m cobre dois anos, então em regime ~metade dela completa
+    # 25 meses a cada ano e entra no estoque de terminação. É aproximação:
+    # a ficha agrega as sub-faixas, e um rebanho concentrado em bezerros
+    # gradua menos que isso.
+    graduados = machos_024 * _FRAC_GRADUACAO_MACHO
+    bois_disp = bois + graduados                 # prontos ou em terminação
+    bois_vendidos   = max(bois_disp - bois_nec, 0)
+    # Garrote só é vendido se o pipeline transbordar a capacidade de terminação
+    machos_024_vend = 0.0
     desc_mat = round(matrizes * desc_mat_pct)
     bez_vend  = round(femeas_024 * venda_bez_pct)
     fem_repor = femeas_024 - bez_vend
@@ -1057,7 +1078,13 @@ def calcular_ano(
     mat_prox       = max(matrizes + aumento - mortes_mat, 0)
     bois_prox      = max(bois_nec, 1)
     femeas_024_prx = round(bezerros * 0.5 * (1 - _mort_bezerra))
-    machos_024_prx = round(bezerros * 0.5 * (1 - _mort_bezerra))
+    # Machos jovens do ano seguinte: os que ficaram na faixa (não graduaram)
+    # mais os bezerros machos nascidos. Antes contava só os nascidos, o que
+    # esvaziava o pipeline e impedia o rebanho de repor a terminação.
+    machos_024_prx = round(
+        max(machos_024 - graduados - machos_024_vend, 0) * (1 - _mort_adulto)
+        + bezerros * 0.5 * (1 - _mort_bezerra)
+    )
     total_prox     = mat_prox + femeas_024_prx + machos_024_prx + bois_prox
     # Receita por categoria: boi/vaca em R$/@ (× peso), bezerra/bezerro em
     # R$/cabeça (direto). Sem preço da categoria → cai no preço da arroba único.
@@ -1078,7 +1105,8 @@ def calcular_ano(
     return {
         'bezerros_produzidos': int(bezerros),
         'bois_necessarios':    bois_nec,
-        'bois_excedentes':     int(bois_exc),
+        'bois_excedentes':     int(max(bois_disp - bois_nec, 0)),
+        'machos_graduados':    int(graduados),
         'renovacao_bois':      renovacao,
         'bois_vendidos':       int(bois_vendidos),
         'descarte_matrizes':   desc_mat,
