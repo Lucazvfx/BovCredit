@@ -42,7 +42,7 @@ Este documento descreve o sistema **como ele está**, incluindo o que não funci
 |---|---|
 | Python (produção) | 10.476 linhas |
 | Interface (`templates/index.html`) | 3.750 linhas |
-| Testes | **463** casos em 59 arquivos |
+| Testes | **489** casos em 60 arquivos |
 | Rotas HTTP | 44, sendo 25 endpoints `/api` |
 | Modelo | ensemble de 4, 42 features, 6 classes |
 | Agências estaduais lidas | 7 |
@@ -288,6 +288,23 @@ Três regras de desenho:
 3. **Registra a referência, não o conteúdo.** Copiar o rebanho para uma segunda tabela só multiplicaria a superfície de vazamento do que se quer proteger.
 
 Consulta em `GET /api/admin/auditoria`, restrita a administrador — a trilha diz quem acessou dado de quem, então ela própria é dado sensível.
+
+### Ingestão do IBGE — `services/ibge_sidra.py`
+
+O caminho para tirar o `0 medidos` do zero:
+
+```
+desfrute(UF) = cabeças abatidas (tab. 1092) ÷ efetivo do rebanho (tab. 3939)
+```
+
+```bash
+python ingerir_ibge.py --so-mostrar    # busca e imprime
+python ingerir_ibge.py                 # grava dados/desfrute_uf.json
+```
+
+**Ressalva que vai junto com o número:** abate ÷ efetivo **não é** desfrute exato — ignora venda viva entre propriedades e inclui animal abatido em UF diferente da de origem (MT exporta boi em pé; SP abate mais do que cria). É o proxy padrão do setor e é citável, mas o parecer precisa dizer o que ele é.
+
+> **Nunca foi exercitado contra a API real.** O ambiente de desenvolvimento bloqueia saída para o IBGE (403 no proxy), então o parsing foi escrito a partir da documentação e testado com fixtures. O parser detecta o cabeçalho em vez de assumir `values[0]`, trata os marcadores do IBGE (`-`, `..`, `...`, `X`) como ausência e não como zero, e **levanta com o payload recebido** quando a forma não bate — para a primeira execução com rede falhar alto em vez de gravar lixo.
 
 ### Origem dos parâmetros — `services/proveniencia.py`
 
