@@ -42,6 +42,12 @@ _RAZAO_MORT_BEZERRA = MORTALIDADE_BEZERRA_PCT / MORTALIDADE_ADULTO_PCT  # 3.5
 # terminação. A faixa cobre dois anos, então em regime metade gradua.
 _FRAC_GRADUACAO_MACHO = 0.5
 
+# Fração dos machos de 13–24m que atinge o peso de saída dentro do ano e é
+# vendida ("venda conforme peso"). Calibrado na ficha real de recria de 700
+# cabeças: 195 de 234 machos dessa faixa. É UMA amostra — o número merece
+# recalibração quando houver mais fichas; a estrutura, não.
+_FRAC_VENDA_RECRIA_M = float(os.environ.get('FRAC_VENDA_RECRIA_M', '0.83'))
+
 # ==================================================================
 # CONSTANTES GLOBAIS
 # ==================================================================
@@ -1285,7 +1291,12 @@ def _simular_cria(
         # ── Estado no fim do ano (balanço fechado) ──────────────────────────
         mortes = round((matrizes + nov_F + mac_R + bois) * mort
                        + (nascidos - desmamados))
-        matrizes_prox = max(matrizes + promovidas - descarte_mat, matrizes * 0.7)
+        # `mortes` acima já contabiliza a mortalidade das matrizes, mas o
+        # fechamento não a descontava: as matrizes mortas continuavam no
+        # plantel, e o balanço fechava com mais animais do que entrou. Todas as
+        # outras categorias (nov_F, bois) já aplicavam a perda.
+        matrizes_prox = max(matrizes * (1 - mort) + promovidas - descarte_mat,
+                            matrizes * 0.7)
         nov_F_prox    = max(retem_bez_F - retem_bez_F * mort, 0.0)
         # A safra do ano forma o estoque de 0–12m seguinte, menos o que já foi
         # antecipado para venda.
@@ -1343,12 +1354,24 @@ def _simular_recria(
     meses_recria, custo_arroba, anos,
 ):
     """
-    Receita calculada sobre o PESO TOTAL NA SAÍDA (memorial §6 e §12):
-    O comprador paga pelo peso vivo do animal ao sair, não apenas pelo ganho.
-    ganho_arr é mantido apenas como informação auxiliar no retorno.
+    Recria por coortes etárias.
 
-    Receita   = animais_sai × peso_saida_arr × preco
-    Breakeven = custo_ano1  / (animais_sai × peso_saida_arr)   [R$/arroba]
+    O modelo anterior tratava 5–25 meses como um pool único e vendia 100% dele
+    todo ano — inclusive os de 5–12 meses, que acabaram de entrar, e ainda os
+    precificava pelo peso de SAÍDA da recria. Ao mesmo tempo, tudo fora dessa
+    faixa (25–36m e >36m) caía num balde que não era vendido em ano nenhum.
+
+    Contra a ficha real de 700 cabeças (INDICADORES: desfrute-base 45%, giro
+    12–18 meses, reposição 1:1) isso projetava 443 vendas — desfrute 63%,
+    acima da própria faixa de referência 35–55% — contra as 315 da ficha.
+    Receita superestimada em ~41%, e o DSCR junto.
+
+    Agora saem os animais já terminados (25m+, integralmente) e a parcela dos
+    machos de 13–24m que atingiu o peso. Fêmeas de 13–24m e todo o 0–12m ficam
+    para evoluir — é o que a ficha chama de "permanência / evolução".
+
+    Receita = animais_sai × peso_saida_arr × preço (memorial §6). Aplicar o
+    peso de saída a todos passa a ser legítimo: só sai quem o atingiu.
     """
     va  = np.array(v, dtype=float)
     sc  = CENARIOS.get(cenario, CENARIOS['crescimento'])
@@ -1358,52 +1381,62 @@ def _simular_recria(
     preco = preco_arroba * m['preco']
     ganho_arr = max(peso_saida_arr - peso_entrada_arr, 0.0)
 
-    # Animais em recria = machos e fêmeas 5–25 meses
-    animais   = float(va[2] + va[3] + va[4] + va[5])
-    # Demais categorias declaradas (bezerros 0–5m, matrizes, bois): não entram
-    # no giro da recria, mas continuam no plantel e precisam ser contabilizadas.
-    outros_f  = float(va[0] + va[6] + va[8])
-    outros_m  = float(va[1] + va[7] + va[9])
-    # Proporção fêmea/macho do lote em recria, para repartir o estoque final
-    _fem_rec  = float(va[2] + va[4])
-    _frac_f   = (_fem_rec / animais) if animais > 0 else 0.0
+    c0_f, c0_m = float(va[0] + va[2]), float(va[1] + va[3])   # 0–12 meses
+    c1_f, c1_m = float(va[4]), float(va[5])                    # 13–24 meses
+    c2_f, c2_m = float(va[6]), float(va[7])                    # 25–36 meses
+    c3_f, c3_m = float(va[8]), float(va[9])                    # acima de 36
     total_ini = float(va.sum())
 
     anos_proj = []
     for yr in range(1, anos + 1):
-        mortes       = animais * mort
-        animais_sai  = animais - mortes
+        plantel_ini = c0_f + c0_m + c1_f + c1_m + c2_f + c2_m + c3_f + c3_m
+        mortes = plantel_ini * mort
 
-        # Receita = peso total na saída (memorial §6)
-        receita   = animais_sai * peso_saida_arr * preco
+        s = 1.0 - mort
+        c0_f, c0_m = c0_f * s, c0_m * s
+        c1_f, c1_m = c1_f * s, c1_m * s
+        c2_f, c2_m = c2_f * s, c2_m * s
+        c3_f, c3_m = c3_f * s, c3_m * s
+
+        # Saídas
+        vend_c1_m   = c1_m * _FRAC_VENDA_RECRIA_M
+        machos_sai  = c3_m + c2_m + vend_c1_m
+        femeas_sai  = c3_f + c2_f
+        animais_sai = machos_sai + femeas_sai
+
+        receita = animais_sai * peso_saida_arr * preco
         peso_medio = (peso_entrada_arr + peso_saida_arr) / 2.0
-        custo_manutencao = animais * peso_medio * custo_arroba * (meses_recria / 12.0)
+        custo_manutencao = plantel_ini * peso_medio * custo_arroba * (meses_recria / 12.0)
 
-        animais_prox = animais * (1 + min(0.05, 0.04 * m['nat']))
-        # A recria vende o lote inteiro e repõe comprando magros. A compra é
-        # tornada explícita aqui para que o balanço de animais feche; o CUSTO
-        # dessa compra ainda NÃO é precificado (ver 'compras_precificadas').
-        compras      = max(animais_prox - (animais - animais_sai - mortes), 0.0)
-        outros_f_prox = max(outros_f - outros_f * mort, 0.0)
-        outros_m_prox = max(outros_m - outros_m * mort, 0.0)
+        # Envelhecimento de quem ficou: 25m+ zerou (saiu tudo), 13–24 sobe para
+        # 25–36, 0–12 sobe para 13–24.
+        n3_f = n3_m = 0.0
+        n2_f, n2_m = c1_f, c1_m - vend_c1_m
+        n1_f, n1_m = c0_f, c0_m
 
-        # Reposição 1:1 — a recria repõe comprando bezerro desmamado, não boi
-        # magro; a relação de troca é outra (≈9,26@ contra 12,4@).
+        # Reposição 1:1 por compra, como na ficha (venda 315 → compra 315).
+        # Entra como jovem e macho: a recria compra bezerro desmamado, não boi
+        # magro, e a relação de troca é outra (≈9,26@ contra 12,4@).
+        compras = animais_sai
+        n0_f, n0_m = 0.0, compras
+
         custo_reposicao = (compras * TROCA_ARROBAS_BEZERRO * preco
                            if _REPOSICAO_PRECIFICADA else 0.0)
         custo     = custo_manutencao + custo_reposicao
         resultado = receita - custo
 
+        total_fim = n0_f + n0_m + n1_f + n1_m + n2_f + n2_m + n3_f + n3_m
         anos_proj.append({
             'ano': yr,
-            'total': int(animais_prox + outros_f_prox + outros_m_prox),
-            'matrizes': 0,
+            'total': int(round(total_fim)),
+            'matrizes': int(round(n3_f + n2_f)),
             'bezerros': 0,
-            'vendidos': int(animais_sai),
-            'bois_vendidos': int(animais_sai),
+            'vendidos': int(round(animais_sai)),
+            'bois_vendidos': int(round(animais_sai)),
             'matrizes_descartadas': 0,
             'bezerras_vendidas': 0,
-            'machos_vendidos': int(animais_sai),
+            'machos_vendidos': int(round(machos_sai)),
+            'femeas_vendidas': int(round(femeas_sai)),
             'aumento_matrizes': 0,
             'ganho_arrobas_por_animal': round(ganho_arr, 2),
             'receita': round(receita, 2),
@@ -1411,15 +1444,17 @@ def _simular_recria(
             'custo_manutencao': round(custo_manutencao, 2),
             'custo_reposicao':  round(custo_reposicao, 2),
             'resultado': round(resultado, 2),
-            'bois_fim': 0,
-            'jovens_f_fim': int(animais_prox * _frac_f + outros_f_prox),
-            'jovens_m_fim': int(animais_prox * (1 - _frac_f) + outros_m_prox),
-            'compras':      int(compras),
-            'mortes':       int(mortes),
+            'bois_fim': int(round(n3_m + n2_m)),
+            'jovens_f_fim': int(round(n0_f + n1_f)),
+            'jovens_m_fim': int(round(n0_m + n1_m)),
+            'compras':      int(round(compras)),
+            'mortes':       int(round(mortes)),
         })
-        animais  = animais_prox
-        outros_f = outros_f_prox
-        outros_m = outros_m_prox
+        c0_f, c0_m = n0_f, n0_m
+        c1_f, c1_m = n1_f, n1_m
+        c2_f, c2_m = n2_f, n2_m
+        c3_f, c3_m = n3_f, n3_m
+
 
     result = _montar_resultado(cenario, sc, anos_proj, total_ini, 'RECRIA')
     ano1  = anos_proj[0]
@@ -1464,7 +1499,12 @@ def _simular_engorda(
     bois      = float(va[7] + va[9])
     # Demais categorias declaradas: fora do lote de confinamento, mas seguem
     # no plantel — sem contá-las o fechamento acusa perda de animais inexistente.
-    outros_f  = float(va[0] + va[2] + va[4] + va[6])
+    #
+    # va[8] (fêmeas acima de 36 meses) ficava de FORA das duas listas e sumia
+    # do modelo inteiro: numa ficha de recria/engorda com 60 matrizes o
+    # fechamento perdia exatamente essas 60 cabeças, e a variação de estoque
+    # registrava uma perda patrimonial que nunca aconteceu.
+    outros_f  = float(va[0] + va[2] + va[4] + va[6] + va[8])
     outros_m  = float(va[1] + va[3] + va[5])
     total_ini = float(va.sum())
     lotes_ano = max(1, int(365 / max(dias_engorda, 30)))
@@ -1487,7 +1527,6 @@ def _simular_engorda(
         compras = max(bois_prox + bois_abatidos + mortes - bois, 0.0)
         outros_f_prox = max(outros_f - outros_f * mort, 0.0)
         outros_m_prox = max(outros_m - outros_m * mort, 0.0)
-
         # Reposição 1:1 — cada animal vendido é reposto por um boi magro
         # comprado. Preço derivado da relação de troca sobre o boi gordo.
         custo_reposicao = (compras * TROCA_ARROBAS_BOI_MAGRO * preco
