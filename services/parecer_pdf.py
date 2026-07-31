@@ -245,14 +245,51 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
                                ('LEFTPADDING', (0, 0), (-1, -1), 10)]))
         story.append(t)
         story.append(Spacer(1, 6))
-        story.append(Paragraph(
-            f"DSCR: {conclusao.get('dscr')} · Parcela mensal: "
-            f"{_fmt_moeda(conclusao.get('parcela_mensal'))}", ss['Corpo']))
+        # O DSCR do ano 1 sozinho engana: o primeiro ano liquida o estoque de
+        # animais prontos declarado na ficha. O documento que vai ao comitê
+        # precisa mostrar o ano crítico, que é o que define a recomendação.
+        _dmin = conclusao.get('dscr_minimo')
+        _dano1 = conclusao.get('dscr_ano1', conclusao.get('dscr'))
+        if _dmin is not None and _dmin != _dano1:
+            story.append(Paragraph(
+                f"DSCR no ano crítico (ano {conclusao.get('ano_critico')}): <b>{_dmin}</b> "
+                f"· no ano 1: {_dano1} · Parcela mensal: "
+                f"{_fmt_moeda(conclusao.get('parcela_mensal'))}", ss['Corpo']))
+        else:
+            story.append(Paragraph(
+                f"DSCR: {conclusao.get('dscr')} · Parcela mensal: "
+                f"{_fmt_moeda(conclusao.get('parcela_mensal'))}", ss['Corpo']))
         if conclusao.get('capacidade_maxima', 0) > 0:
             story.append(Paragraph(
                 f"Crédito máximo (DSCR ≥ 1,30): <b>{_fmt_moeda(conclusao.get('capacidade_maxima'))}</b>",
                 ss['Corpo']))
         story.append(Paragraph(conclusao.get('justificativa', ''), ss['Corpo']))
+
+        # Memória de cálculo — o comitê precisa auditar o raciocínio, não só
+        # receber o veredicto. Exigência prática sob CMN 4.966/2021.
+        memoria = conclusao.get('memoria') or []
+        if memoria:
+            story.append(Spacer(1, 8))
+            story.append(Paragraph('Memória de cálculo', ss['SecaoTitulo']))
+            linhas_m = [['#', 'Passo', 'Valor', 'Justificativa']]
+            for i, m in enumerate(memoria, 1):
+                linhas_m.append([
+                    str(i),
+                    Paragraph(f"<b>{m.get('passo','')}</b>", ss['Corpo']),
+                    Paragraph(str(m.get('valor', '')), ss['Corpo']),
+                    Paragraph(m.get('detalhe', ''), ss['Corpo']),
+                ])
+            tm = Table(linhas_m, colWidths=[0.8*cm, 4.2*cm, 3.4*cm, 7.6*cm])
+            tm.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E2535')),
+                ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
+                ('FONTSIZE',   (0, 0), (-1, -1), 7),
+                ('VALIGN',     (0, 0), (-1, -1), 'TOP'),
+                ('GRID',       (0, 0), (-1, -1), 0.25, colors.HexColor('#CCCCCC')),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ]))
+            story.append(tm)
     else:
         story.append(Paragraph(
             conclusao.get('justificativa') or 'Sem solicitação de crédito informada.', ss['Corpo']))

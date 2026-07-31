@@ -57,3 +57,43 @@ def test_gerar_pdf_com_logo_base64_invalido_nao_lanca():
 def test_gerar_pdf_sem_branding_identico_ao_atual():
     pdf = gerar_pdf_parecer(PARECER_COMPLETO, branding=None)
     assert pdf.startswith(b'%PDF')
+
+
+def test_pdf_leva_a_memoria_de_calculo_ao_comite():
+    """
+    O PDF é o que chega ao comitê de crédito. Mostrava o DSCR do ano 1 — que
+    liquida o estoque e não se repete — e omitia o raciocínio. Sob CMN
+    4.966/2021 a decisão precisa ser auditável no documento, não só na tela.
+    """
+    from services.parecer_pdf import gerar_pdf_parecer
+    memoria = [
+        {'passo': 'Prazo do crédito', 'valor': '36 meses', 'detalhe': 'Avalia 3 anos.'},
+        {'passo': 'Ano crítico', 'valor': 'ano 2 · DSCR -0.53', 'detalhe': 'Define a recomendação.'},
+        {'passo': 'Rebaixamento', 'valor': 'APROVAR → NEGAR', 'detalhe': 'O ano 1 não se repete.'},
+    ]
+    base = {
+        'identificacao': {'fazenda': 'F', 'municipio': 'M', 'proprietario': 'P'},
+        'composicao': {'total': 790, 'valores': [80, 80, 50, 50, 60, 60, 90, 40, 220, 60]},
+        'conclusao': {
+            'recomendacao': 'negar', 'dscr': 6.08, 'dscr_ano1': 6.08,
+            'dscr_minimo': -0.53, 'ano_critico': 2, 'parcela_mensal': 9748.0,
+            'justificativa': 'Cobertura cai no ano 2.', 'memoria': memoria,
+        },
+    }
+    com = gerar_pdf_parecer(base)
+    sem = gerar_pdf_parecer({**base, 'conclusao': {k: v for k, v in base['conclusao'].items()
+                                                   if k != 'memoria'}})
+    assert com[:4] == b'%PDF'
+    assert len(com) > len(sem), 'a memória precisa aparecer no documento'
+
+
+def test_pdf_de_parecer_antigo_nao_quebra():
+    """Pareceres salvos antes dos campos novos precisam continuar gerando PDF."""
+    from services.parecer_pdf import gerar_pdf_parecer
+    antigo = {
+        'identificacao': {'fazenda': 'F', 'municipio': 'M', 'proprietario': 'P'},
+        'composicao': {'total': 100, 'valores': [0] * 8 + [100, 5]},
+        'conclusao': {'recomendacao': 'aprovar', 'dscr': 2.1,
+                      'parcela_mensal': 1000.0, 'justificativa': 'ok'},
+    }
+    assert gerar_pdf_parecer(antigo)[:4] == b'%PDF'
