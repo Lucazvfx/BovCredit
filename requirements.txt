@@ -26,3 +26,7 @@ reportlab==5.0.0
 shap==0.51.0
 flask-limiter==4.1.1
 groq==1.6.0
+# Ponte para o binário do Tesseract (instalado no Dockerfile). Só o wrapper: se
+# o binário não estiver na imagem, `import pytesseract` passa e a chamada é que
+# falha — por isso os dois têm de andar juntos.
+pytesseract==0.3.13

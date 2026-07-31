@@ -15,13 +15,32 @@ RUN .venv/bin/pip install -r requirements.txt
 FROM python:3.11.15-slim
 WORKDIR /app
 
-# libgomp1 é o runtime do OpenMP. LightGBM e XGBoost o carregam em tempo de
-# execução via ctypes (não é dependência do pip, então instalar os pacotes não
-# o traz), e a imagem -slim não o inclui. Sem ele, `import lightgbm` levanta
-# OSError e o app não sobe: o pickle do modelo referencia LGBMClassifier, então
-# nem carregar do disco nem retreinar funcionavam.
+# Binários de sistema que o pip não traz — a imagem -slim não inclui nenhum:
+#
+# libgomp1        runtime do OpenMP. LightGBM e XGBoost o carregam em tempo de
+#                 execução via ctypes, então instalar os pacotes não o traz.
+#                 Sem ele, `import lightgbm` levanta OSError e o app não sobe:
+#                 o pickle do modelo referencia LGBMClassifier, logo nem
+#                 carregar do disco nem retreinar funcionavam.
+#
+# poppler-utils   fornece o `pdftotext`, primeiro estágio de
+#                 extrair_texto_pdf(). Sem o binário a chamada levanta
+#                 FileNotFoundError e a cascata cai direto no pdfplumber —
+#                 que perde o layout em coluna das fichas de IDARON e INDEA,
+#                 justamente o que os parsers usam para separar as faixas
+#                 etárias.
+#
+# tesseract-ocr   terceiro estágio: PDF escaneado (imagem, sem camada de
+# + -por          texto) não rende nada nos dois primeiros. O pacote -por traz
+#                 o modelo de português; sem ele o `lang='por+eng'` falha e o
+#                 OCR degrada para inglês, que erra acentuação e os rótulos
+#                 das categorias.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 \
+    && apt-get install -y --no-install-recommends \
+        libgomp1 \
+        poppler-utils \
+        tesseract-ocr \
+        tesseract-ocr-por \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/.venv .venv/

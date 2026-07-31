@@ -74,12 +74,12 @@ def _desfrute(ciclo, lo, hi, nota=''):
 
 
 DESFRUTE_PCT = {
-    'CRIA':           _desfrute('CRIA', 18.0, 30.0),
+    'CRIA':           _desfrute('CRIA', 18.0, 35.0),
     'RECRIA':         _desfrute('RECRIA', 35.0, 55.0),
     'ENGORDA':        _desfrute('ENGORDA', 80.0, 120.0),
-    'CICLO_COMPLETO': _desfrute('CICLO_COMPLETO', 20.0, 40.0),
+    'CICLO_COMPLETO': _desfrute('CICLO_COMPLETO', 20.0, 45.0),
     'RECRIA_ENGORDA': _desfrute('RECRIA_ENGORDA', 60.0, 85.0),
-    'CRIA_RECRIA':    _desfrute('CRIA_RECRIA', 25.0, 40.0,
+    'CRIA_RECRIA':    _desfrute('CRIA_RECRIA', 25.0, 45.0,
         nota='Sistema misto: base de cria com compra de desmama. Fica acima de '
              'uma cria pura porque o volume recriado também é comercializado.'),
 }

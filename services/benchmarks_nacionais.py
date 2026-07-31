@@ -42,12 +42,29 @@ PRENHEZ_SISTEMA = {
 }
 
 # --- Desfrute por modalidade (PPTX slides 5–6) --------------------------------
+# Tetos de CRIA e CICLO_COMPLETO revisados em julho/2026. Os anteriores (30% e
+# 40%) vinham do slide do material de treinamento e ficavam ABAIXO do que o
+# setor trata como bom desempenho — Scot Consultoria dá "acima de 35%" para
+# cria e "acima de 45%" para ciclo completo, com as propriedades mais
+# produtivas em torno de 56% e as de produtividade média em 47%.
+#
+# Uma cria fazendo 35% é boa cria, e o sistema a marcava como anomalia acima
+# do teto. Alerta que dispara em desempenho bom é alerta que o analista
+# aprende a ignorar — e aí não serve para o caso em que deveria disparar.
+#
+# As duas fontes conflitam e a divergência fica registrada aqui de propósito:
+# o slide é material interno, as faixas do setor são públicas e citáveis.
+# Onde conflitam, prevalece a pública.
+#
+# RECRIA, RECRIA_ENGORDA e ENGORDA ficam como estavam: a faixa de RECRIA é a
+# validada contra a ficha real de 700 cabeças (projeção 43,4% dentro de
+# 35–55%), e não há motivo medido para mexer.
 DESFRUTE_MODALIDADE = {
-    "CRIA": (18.0, 30.0),
+    "CRIA": (18.0, 35.0),
     "RECRIA": (35.0, 55.0),
     "RECRIA_ENGORDA": (60.0, 85.0),
     "ENGORDA": (80.0, 120.0),
-    "CICLO_COMPLETO": (20.0, 40.0),
+    "CICLO_COMPLETO": (20.0, 45.0),
 }
 
 # Escala geral de interpretação do desfrute (PPTX slide 5), independente de
@@ -438,4 +455,92 @@ def avaliar_nacional(modalidade: str, dados: dict) -> dict:
         "multifonte": multifonte,
         "desfrute": desfrute,
         "desembolso": desembolso,
+    }
+
+
+# ── Desfrute real: o que sobra depois de descontar compra e queda de estoque ──
+#
+# O sistema sempre mediu desfrute como `vendas ÷ rebanho inicial`. É a forma
+# simplificada, e é a que a ficha de referência usa (a de recria de 700 cabeças
+# declara 45%, e a projeção bate 43,4%) — por isso ela CONTINUA sendo a que se
+# compara com DESFRUTE_MODALIDADE. Trocá-la tornaria as faixas incomparáveis.
+#
+# O problema é que essa forma não distingue duas coisas muito diferentes:
+#
+#     vender a produção do ano          (o negócio funcionando)
+#     vender o próprio plantel          (o negócio sendo consumido)
+#
+# A literatura resolve isso descontando compras e a variação de estoque:
+#
+#     desfrute = [(estoque_final − estoque_inicial − compras + vendas)
+#                 ÷ estoque_inicial] × 100
+#
+# Medido na projeção de um ciclo completo de 4.250 cabeças que fechava o ano em
+# 2.494: a forma simplificada dizia 53,4% — dentro da faixa de um bom produtor.
+# A forma completa dizia 12,0%. A diferença inteira era plantel virando caixa.
+#
+# UNIDADE IMPORTA. A fórmula aceita cabeças ou arrobas. Em cabeças, recria e
+# engorda dão perto de zero por construção — compram um animal e vendem um
+# animal; o que elas produzem é PESO, não cabeça. Por isso o afastamento entre
+# as duas formas só é sinal de liquidação onde o rebanho deveria se reproduzir.
+_CICLOS_QUE_REPRODUZEM = frozenset({"CRIA", "CRIA_RECRIA", "CICLO_COMPLETO"})
+
+# Distância entre as duas formas a partir da qual a venda deixa de ser produção
+# e passa a ser plantel. Não é norma do setor — é limiar de política nosso.
+DESFRUTE_AFASTAMENTO_ALERTA = 15.0
+
+
+def calcular_desfrute(vendas: float, estoque_inicial: float,
+                      estoque_final: float | None = None,
+                      compras: float = 0.0) -> dict:
+    """Desfrute nas duas formas, na mesma unidade em que os argumentos vierem.
+
+    `simplificado` é `vendas ÷ estoque_inicial` — comparável com
+    DESFRUTE_MODALIDADE e com a ficha de referência.
+
+    `real` desconta compras e variação de estoque. Fica `None` quando
+    `estoque_final` não é informado, porque sem ele a conta não existe.
+    """
+    if estoque_inicial <= 0:
+        return {"simplificado": 0.0, "real": None, "afastamento": None}
+
+    simplificado = vendas / estoque_inicial * 100.0
+    if estoque_final is None:
+        return {"simplificado": round(simplificado, 1), "real": None,
+                "afastamento": None}
+
+    real = ((estoque_final - estoque_inicial - compras + vendas)
+            / estoque_inicial * 100.0)
+    return {
+        "simplificado": round(simplificado, 1),
+        "real":         round(real, 1),
+        "afastamento":  round(simplificado - real, 1),
+    }
+
+
+def alerta_liquidacao(modalidade: str, desfrute: dict) -> dict | None:
+    """Sinaliza venda que veio do plantel, não da produção.
+
+    Só se aplica a ciclos que reproduzem: em recria e engorda a diferença
+    entre as duas formas é estrutural (compra-se e vende-se cabeça; o produto
+    é arroba) e não indica nada.
+    """
+    if modalidade not in _CICLOS_QUE_REPRODUZEM:
+        return None
+    real = desfrute.get("real")
+    afast = desfrute.get("afastamento")
+    if real is None or afast is None or afast < DESFRUTE_AFASTAMENTO_ALERTA:
+        return None
+    return {
+        "modalidade":   modalidade,
+        "simplificado": desfrute["simplificado"],
+        "real":         real,
+        "afastamento":  afast,
+        "severidade":   "erro" if real < 0 else "alerta",
+        "mensagem": (
+            f"Desfrute aparente de {desfrute['simplificado']:.1f}% mas real de "
+            f"{real:.1f}%: {afast:.1f} pontos vieram da redução do plantel, "
+            f"não da produção do ano. Venda de rebanho não se repete no ano "
+            f"seguinte — confira o prazo do crédito contra essa projeção."
+        ),
     }

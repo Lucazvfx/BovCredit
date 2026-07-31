@@ -52,6 +52,14 @@ def extrair_texto_pdf(path: str) -> str:
         raise RuntimeError(f'Não foi possível extrair texto do PDF: {e}')
 
     # 3. OCR com Tesseract (PDF baseado em imagem / escaneado)
+    #
+    # --psm 6 ("um único bloco uniforme de texto") não é detalhe de ajuste
+    # fino: no modo automático (psm 3, o padrão) o Tesseract trata a coluna
+    # QUANTIDADE das fichas como região à parte e a descarta. Medido numa
+    # ficha real do INDEA escaneada — no padrão saem o cabeçalho, o produtor e
+    # o total, mas nenhuma linha de animal, e o parser devolve rebanho zerado
+    # com fazenda e CPF corretos. Silenciosamente errado é pior que falhar.
+    OCR_CONFIG = '--psm 6'
     try:
         import pytesseract
         import pdfplumber
@@ -63,9 +71,11 @@ def extrair_texto_pdf(path: str) -> str:
             for page in pdf.pages:
                 img = page.to_image(resolution=200).original
                 try:
-                    ocr_text += pytesseract.image_to_string(img, lang='por+eng') + '\n'
+                    ocr_text += pytesseract.image_to_string(
+                        img, lang='por+eng', config=OCR_CONFIG) + '\n'
                 except Exception:
-                    ocr_text += pytesseract.image_to_string(img, lang='eng') + '\n'
+                    ocr_text += pytesseract.image_to_string(
+                        img, lang='eng', config=OCR_CONFIG) + '\n'
         if ocr_text.strip():
             return ocr_text
     except Exception:

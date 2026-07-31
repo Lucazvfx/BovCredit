@@ -545,10 +545,13 @@ print(p['parecer']['conclusao']['memoria'])             # memória de cálculo
 ### Local
 
 ```bash
+sudo apt-get install poppler-utils tesseract-ocr tesseract-ocr-por
 pip install -r requirements.txt
 python app.py
 # http://localhost:5050
 ```
+
+Os três pacotes do `apt` são binários de sistema que o pip não traz: `pdftotext` (poppler) é o primeiro estágio da extração e o Tesseract é o terceiro. Sem eles a leitura de PDF continua rodando pelo pdfplumber — mas perde o layout em coluna das fichas e não lê nada de documento escaneado.
 
 Crie uma conta em `/cadastro`. Na primeira execução o modelo é treinado do zero, o que leva minutos — normalmente ele é carregado de `gestao_model.pkl`, versionado no repositório.
 
@@ -594,7 +597,16 @@ Ajuste por ambiente: `WEB_CONCURRENCY`, `WEB_THREADS`, `WEB_TIMEOUT`.
 
 ### Railway
 
-Push em `main` dispara deploy automático. A imagem usa `python:3.11.15` e instala `libgomp1` — LightGBM e XGBoost o carregam por `ctypes` em runtime, e a imagem `-slim` não o traz; sem ele o app não sobe.
+Push em `main` dispara deploy automático. A imagem usa `python:3.11.15` e instala quatro pacotes do `apt` que o pip não cobre, porque a `-slim` não traz nenhum:
+
+| Pacote | Por quê |
+|---|---|
+| `libgomp1` | LightGBM e XGBoost o carregam por `ctypes` em runtime; sem ele o app não sobe |
+| `poppler-utils` | fornece o `pdftotext`, primeiro estágio da extração |
+| `tesseract-ocr` | terceiro estágio: PDF escaneado, sem camada de texto |
+| `tesseract-ocr-por` | modelo de português do OCR |
+
+`tests/test_extracao_dependencias.py` lê o Dockerfile e falha se um deles sair sem que o uso correspondente saia junto — foi por não existir esse teste que a imagem rodou meses com dois dos três estágios ausentes.
 
 **Dependências fixadas em `==`.** Com faixas `>=`, cada rebuild montava um ambiente diferente sem que uma linha de código mudasse — e o modelo é um pickle, que não atravessa versão de biblioteca.
 

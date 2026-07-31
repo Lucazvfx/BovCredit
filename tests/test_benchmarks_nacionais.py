@@ -45,8 +45,11 @@ def test_multifonte_indicador_invalido():
 
 
 def test_desfrute_por_modalidade():
+    # Teto da CRIA revisado de 30% para 35% em julho/2026: o setor trata
+    # "acima de 35%" como bom desempenho, e o teto anterior marcava boa cria
+    # como anomalia. Ver DESFRUTE_MODALIDADE em benchmarks_nacionais.py.
     r = avaliar_desfrute("CRIA", 24.0)
-    assert r["faixa"] == (18.0, 30.0)
+    assert r["faixa"] == (18.0, 35.0)
     assert r["posicao"] == "dentro"
     assert r["classe"] == "baixo"  # 18–30 na escala geral de desfrute
 
