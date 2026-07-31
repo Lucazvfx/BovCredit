@@ -1408,6 +1408,16 @@ async function classificar(){
     body.preco_vaca=+document.getElementById('cot-vaca')?.value||0;
     body.preco_bezerro=+document.getElementById('cot-bezerro')?.value||0;
     body.preco_bezerra=+document.getElementById('cot-bezerra')?.value||0;
+    // Quais desses o analista realmente digitou. Só esses escapam do
+    // diferencial de praça — um preço digitado já é o da região dele, e
+    // ajustá-lo de novo descontaria duas vezes.
+    body.precos_manuais = [
+      ['preco_boi','cot-boi'], ['preco_vaca','cot-vaca'],
+      ['preco_bezerro','cot-bezerro'], ['preco_bezerra','cot-bezerra'],
+    ].filter(([_,id])=>{
+      const el=document.getElementById(id);
+      return el && el.value && el.value !== (el.dataset.auto ?? '');
+    }).map(([chave,_])=>chave);
     // Custo em R$/@ (mesmo input da projeção) e solicitação de crédito
     body.custo_componentes={};
     COMP_DESEMB.forEach(k=>{body.custo_componentes[k]=parseFloat(document.getElementById('cd-'+k)?.value)||0;});
@@ -1841,6 +1851,37 @@ const LTV_ICONE  = {suficiente:'✓', ajustada:'▲', insuficiente:'✕'};
 const LTV_ROTULO = {suficiente:'Garantia folgada', ajustada:'Cobre, sem margem',
                     insuficiente:'Não cobre o crédito'};
 
+// Selo da praça: aparece antes dos números porque explica todos eles. Sem ele
+// o analista não sabe sobre qual preço o parecer foi feito.
+function renderPraca(reg){
+  if(!reg) return '';
+  const ok = reg.ajustado;
+  const cor = ok ? 'var(--cy)' : 'var(--mu)';
+  const detalhe = ok ? `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px">
+      ${(reg.categorias||[]).map(c=>`
+        <div>
+          <div style="font-family:var(--fm);font-size:.52rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">${escapeHtml(c.categoria.replace('preco_',''))}</div>
+          <div style="font-size:.78rem"><span style="color:var(--mu);text-decoration:line-through">${fR(c.nacional)}</span>
+            <strong style="color:var(--tx);margin-left:6px">${fR(c.regional)}</strong></div>
+        </div>`).join('')}
+    </div>` : '';
+
+  return `<div style="margin-bottom:16px;padding:12px 16px;border:1px solid var(--b);border-left:3px solid ${cor};border-radius:8px;background:var(--c2)">
+    <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+      <span style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu)">Praça dos preços</span>
+      ${reg.uf?`<span style="font-family:var(--fn);font-weight:800;font-size:.95rem;color:${cor}">${escapeHtml(reg.uf)}</span>`:''}
+      ${ok?`<span style="font-family:var(--fm);font-size:.72rem;color:${cor}">${reg.basis_pct>0?'+':''}${reg.basis_pct}% vs indicador nacional</span>`:''}
+    </div>
+    <div style="font-size:.76rem;color:var(--sb);margin-top:5px;line-height:1.55">${escapeHtml(reg.resumo||'')}</div>
+    ${detalhe}
+    <div style="font-size:.68rem;color:var(--mu);margin-top:8px;font-style:italic">
+      Origem: ${escapeHtml(reg.origem||'')}. O indicador CEPEA/ESALQ é praça de ${escapeHtml(reg.uf_referencia||'SP')} —
+      o diferencial é calibração de referência, a recalibrar com série própria.
+    </div>
+  </div>`;
+}
+
 function renderGarantia(g){
   if(!g || !(g.valor_mercado > 0)) return '';
   const cor = LTV_COR[g.veredito] || '#8891A5';
@@ -2249,7 +2290,7 @@ function renderParecer(data){
   return `<div class="card" style="margin-bottom:24px">
     <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Parecer de Crédito</div>
       <button class="btn-sm" onclick="baixarPdfParecer(window._lastParecer)">⬇ Baixar PDF</button></div>
-    <div class="cb" style="display:grid;gap:0">${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
+    <div class="cb" style="display:grid;gap:0">${renderPraca(p.precos_regional)}${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
   </div>
   ${renderGarantia(p.garantia)}
   ${renderEndividamento(p.endividamento)}`;
@@ -3477,7 +3518,14 @@ async function carregarCotacaoDia(){
     const d = await r.json();
     if(!d || !d.ok) return;
     cotacaoDia = d.precos;
-    const set=(id,v)=>{const el=document.getElementById(id); if(el) el.value = (+v>0)? Math.round(+v*100)/100 : '';};
+    // Guarda o valor auto-preenchido: é o que distingue "cotação nacional que
+    // o sistema trouxe" de "preço que o analista digitou". Sem isso o servidor
+    // vê os dois iguais e nunca aplica o diferencial de praça.
+    const set=(id,v)=>{
+      const el=document.getElementById(id); if(!el) return;
+      el.value = (+v>0)? Math.round(+v*100)/100 : '';
+      el.dataset.auto = el.value;
+    };
     set('cot-boi', d.precos.boi);
     set('cot-vaca', d.precos.vaca);
     set('cot-bezerro', d.precos.bezerro);

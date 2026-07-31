@@ -165,6 +165,37 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
             '<i>Variação de estoque: riqueza criada pelo crescimento do rebanho — '
             'não é caixa, mas é valor real do ativo.</i>', ss['Subtitulo']))
 
+    # ── Praça de referência dos preços ───────────────────────────────────────
+    # Sem isto o parecer não diz sobre qual preço os números foram feitos, e
+    # quem lê não tem como conferir nada que dependa de cotação.
+    reg = parecer.get('precos_regional')
+    if reg:
+        story.append(Paragraph('Praça de Referência dos Preços', ss['SecaoTitulo']))
+        if reg.get('ajustado'):
+            linhas_p = [['Categoria', 'Indicador nacional', f"Praça {reg.get('uf')}"]]
+            for c in reg.get('categorias', []):
+                linhas_p.append([
+                    c['categoria'].replace('preco_', '').capitalize(),
+                    _fmt_moeda(c['nacional']),
+                    _fmt_moeda(c['regional']),
+                ])
+            tp = Table(linhas_p, colWidths=[6*cm, 5*cm, 5*cm])
+            tp.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EEEEEE')),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#DDDDDD')),
+                ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+            ]))
+            story.append(tp)
+            story.append(Spacer(1, 4))
+        story.append(Paragraph(reg.get('resumo', ''), ss['Corpo']))
+        story.append(Paragraph(
+            f"<i>Origem: {reg.get('origem', '')}. O indicador CEPEA/ESALQ é "
+            f"praça de {reg.get('uf_referencia', 'SP')}; o diferencial regional "
+            f"aqui aplicado é calibração de referência, a ser recalibrada com "
+            f"série própria.</i>", ss['Subtitulo']))
+        story.append(Spacer(1, 6))
+
     # ── Garantia: valor de execução, não valor de mercado ────────────────────
     garantia = parecer.get('garantia')
     if garantia and garantia.get('valor_mercado', 0) > 0:
