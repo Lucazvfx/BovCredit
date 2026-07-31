@@ -111,3 +111,27 @@ def test_desfrute_dentro_da_faixa_nao_alerta(client):
     item = _item_desfrute(d)
     assert item['faixa'] != 'acima'
     assert not item.get('alerta')
+
+
+def test_valor_avaliado_e_projetado_nao_se_contradizem(client):
+    """
+    Regressão de UI: o selo de estado avaliava o valor informado enquanto o
+    card exibia o projetado — um cartão dizia "dentro da faixa 18–30%" com
+    45,6% estampado. `valor` passa a ser sempre o número avaliado, e
+    `projetado` fica ao lado para o analista ver a divergência.
+    """
+    d = _analisa(client, REBANHOS['cria'], desfrute_pct=25)
+    dp = d['desfrute_projetado']
+    item = _item_desfrute(d)
+
+    assert dp['valor'] == pytest.approx(25, abs=0.1), 'valor deve ser o avaliado'
+    assert dp['projetado'] > 30, 'este rebanho projeta bem acima do informado'
+    assert dp['valor'] != dp['projetado'], 'o caso de teste precisa divergir'
+    # o que o painel julgou é o mesmo que o card mostra
+    assert item['valor'] == pytest.approx(dp['valor'], abs=0.1)
+
+
+def test_sem_valor_informado_avaliado_e_o_projetado(client):
+    d = _analisa(client, REBANHOS['cria'])
+    dp = d['desfrute_projetado']
+    assert dp['valor'] == pytest.approx(dp['projetado'], abs=0.1)

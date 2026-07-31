@@ -189,6 +189,29 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 .ytbl tbody tr:hover td{background:rgba(255,255,255,.02)}
 
 .tc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+
+/* ── Desfrute: KPI row + meter, com entrada elástica ───────────────────── */
+.df-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.df-tile{background:var(--c2);border:1px solid var(--b);border-radius:var(--rs);padding:14px 16px;
+  opacity:0;transform:translateY(14px) scale(.94);
+  transition:opacity .45s ease,transform .75s cubic-bezier(.22,1.62,.36,1)}
+.df-tile.in{opacity:1;transform:none}
+.df-tile-l{font-family:var(--fm);font-size:.52rem;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:7px}
+.df-tile-v{font-family:var(--fn);font-weight:900;font-size:1.5rem;letter-spacing:-.5px;line-height:1}
+.df-tile-d{font-family:var(--fm);font-size:.56rem;color:var(--sb);margin-top:5px}
+/* hero: o número que a seção lidera */
+.df-hero{font-family:var(--fn);font-weight:900;font-size:3.1rem;letter-spacing:-2px;line-height:.92}
+/* meter: trilho no tom claro da mesma rampa, preenchimento carrega a severidade */
+.df-track{position:relative;height:12px;border-radius:7px;background:rgba(255,255,255,.06);
+  border:1px solid var(--b);overflow:hidden;margin-top:6px}
+.df-fill{height:100%;width:0;border-radius:6px;
+  transition:width 1.05s cubic-bezier(.22,1.55,.36,1)}
+/* faixa de referência desenhada sobre o trilho */
+.df-band{position:absolute;top:0;bottom:0;pointer-events:none;
+  border-left:2px solid rgba(255,255,255,.85);border-right:2px solid rgba(255,255,255,.85);
+  box-shadow:inset 0 0 0 9999px rgba(255,255,255,.10)}
+.df-scale{display:flex;justify-content:space-between;font-family:var(--fm);font-size:.5rem;color:var(--mu);margin-top:5px}
+@media(max-width:600px){.df-grid{grid-template-columns:1fr}.df-hero{font-size:2.5rem}}
 .tc{border-radius:var(--rs);padding:16px;border:1px solid var(--b);background:var(--c2);position:relative}
 .tc-sel{position:absolute;top:10px;right:10px;font-family:var(--fm);font-size:.48rem;letter-spacing:1.5px;text-transform:uppercase;padding:2px 8px;border-radius:3px}
 .tc-ico{font-size:1.7rem;margin-bottom:7px;display:block}
@@ -2122,6 +2145,8 @@ function renderResult(data){
       ${_vr>0?`<div class="sc2" style="border-left:1px solid var(--g)22"><div class="sc2-l" style="color:var(--g)">Valor do Rebanho</div><div class="sc2-v" style="color:var(--g)">${fR(_vr)}</div></div>`:''}
     </div>
 
+    ${renderDesfrute(data)}
+
     <div class="card" style="margin-bottom:24px">
       <div class="ch"><div class="ct"><div class="cd" style="background:var(--g)"></div>Benchmarks · Nacional</div></div>
       <div class="cb">${benchUnificado(data)}</div>
@@ -2210,6 +2235,8 @@ function renderResult(data){
   // latência do Groq (até 20s) não atrase a análise de crédito.
   if(data.narrativa_pendente && data.narrativa_contexto) carregarNarrativa(data.narrativa_contexto);
 
+  animarDesfrute();
+
   setTimeout(()=>{
     document.querySelectorAll('.cbar-f[data-w]').forEach(el=>el.style.width=el.dataset.w+'%');
     document.querySelectorAll('.pyr-seg[data-w]').forEach(el=>el.style.width=el.dataset.w+'%');
@@ -2275,6 +2302,96 @@ function mfBloco(m,reg){
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${fonteChips(m.fontes)}</div></div>`;
 }
+// ── Desfrute: hero + meter + KPI row ─────────────────────────────────────
+// Forma escolhida por ser "uma razão contra um limite": meter, não gráfico.
+// A cor carrega estado (dentro / acima da faixa) e vem acompanhada de ícone e
+// rótulo — nunca cor sozinha.
+function renderDesfrute(data){
+  const dp = data.desfrute_projetado;
+  if(!dp) return '';
+  const item = (data.benchmarks||[]).find(b=>b && b.key==='desfrute');
+  const acima = item && item.faixa==='acima';
+  const cor   = acima ? 'var(--am)' : 'var(--g)';
+  const rgb   = acima ? '251,191,36' : '74,222,128';
+
+  // Faixa de referência da modalidade, para posicionar o meter
+  const FAIXAS = {CRIA:[18,30],RECRIA:[35,55],ENGORDA:[80,120],
+                  CICLO_COMPLETO:[20,40],RECRIA_ENGORDA:[60,85],CRIA_RECRIA:[25,40]};
+  const [lo,hi] = FAIXAS[data.tipo] || [20,40];
+  // escala do trilho: acomoda o valor quando ele estoura a faixa
+  const max  = Math.max(hi*1.35, dp.valor*1.08);
+  const pct  = v => Math.max(Math.min(v/max*100,100),0);
+  const estado = acima ? '▲ Acima da faixa' : '✓ Dentro da faixa';
+  // Quando o analista informa um desfrute, o número avaliado pode divergir do
+  // que a simulação realiza — mostrar os dois evita um selo contradizendo o valor.
+  const divergente = dp.origem==='informado' && dp.projetado != null
+                     && Math.abs(dp.projetado - dp.valor) > 0.5;
+
+  return `<div class="card" style="margin-bottom:24px">
+    <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Desfrute do Rebanho</div>
+      <span style="font-family:var(--fm);font-size:.5rem;letter-spacing:1px;padding:3px 9px;border-radius:20px;background:rgba(${rgb},.1);color:${cor};border:1px solid rgba(${rgb},.28)">${estado}</span>
+    </div>
+    <div class="cb">
+      <div style="font-size:.8rem;color:var(--sb);line-height:1.6;margin-bottom:16px">
+        Percentual do rebanho comercializado no ano — quantos animais saem para venda
+        a cada 100 cabeças mantidas. Mede o giro da operação e alimenta diretamente a
+        projeção de caixa.
+      </div>
+
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <div class="df-hero" style="color:${cor}">${dp.valor.toFixed(1)}%</div>
+        <div style="font-family:var(--fm);font-size:.62rem;color:var(--mu)">
+          ${dp.origem==='informado'
+            ? `informado pelo analista${divergente?` · a simulação projeta <b style="color:var(--sb)">${dp.projetado.toFixed(1)}%</b>`:''}`
+            : `${fN(dp.vendidos)} de ${fN(dp.rebanho)} cabeças`}
+        </div>
+      </div>
+
+      <div class="df-track" id="df-track">
+        <div class="df-fill" id="df-fill" data-w="${pct(dp.valor)}"
+             style="background:linear-gradient(90deg,rgba(${rgb},.55),${cor})"></div>
+        <!-- limites da faixa desenhados SOBRE o preenchimento, senão somem -->
+        <div class="df-band" style="left:${pct(lo)}%;width:${pct(hi)-pct(lo)}%"></div>
+      </div>
+      <div class="df-scale">
+        <span>0%</span>
+        <span style="color:var(--sb)">faixa de referência ${lo}–${hi}%</span>
+        <span>${Math.round(max)}%</span>
+      </div>
+
+      <div class="df-grid">
+        <div class="df-tile" data-df="0">
+          <div class="df-tile-l">Animais vendidos</div>
+          <div class="df-tile-v" style="color:${cor}">${fN(dp.vendidos)}</div>
+          <div class="df-tile-d">projeção do ano 1</div>
+        </div>
+        <div class="df-tile" data-df="1">
+          <div class="df-tile-l">Rebanho total</div>
+          <div class="df-tile-v cc">${fN(dp.rebanho)}</div>
+          <div class="df-tile-d">cabeças declaradas</div>
+        </div>
+        <div class="df-tile" data-df="2">
+          <div class="df-tile-l">Referência ${TL[data.tipo]||data.tipo}</div>
+          <div class="df-tile-v" style="color:var(--sb)">${lo}–${hi}%</div>
+          <div class="df-tile-d">${acima?`excede em ${(dp.valor-hi).toFixed(1)} p.p.`:'dentro do esperado'}</div>
+        </div>
+      </div>
+
+      ${acima&&item.alerta?`<div style="margin-top:12px;font-size:.76rem;line-height:1.6;color:var(--am);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:11px 14px">⚠ ${escapeHtml(item.alerta)}</div>`:''}
+    </div>
+  </div>`;
+}
+
+// Dispara a entrada elástica depois que o HTML já está no DOM.
+function animarDesfrute(){
+  const f=document.getElementById('df-fill');
+  if(f) setTimeout(()=>{f.style.width=f.dataset.w+'%'},180);
+  document.querySelectorAll('.df-tile').forEach(el=>{
+    const i=+el.dataset.df||0;
+    setTimeout(()=>el.classList.add('in'), 260 + i*110);   // escalonado
+  });
+}
+
 function regRow(b){
   const c=BENCH_COR[b.faixa]||'c';
   // 'acima' = giro acima do teto da modalidade. Não é excelência: mostra o

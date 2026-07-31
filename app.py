@@ -1016,10 +1016,15 @@ def api_classificar():
         # 'projetado' quando vem da simulação, 'informado' quando o analista
         # digitou o valor (que prevalece).
         'desfrute_projetado': {
-            'valor':    desfrute_projetado,
-            'origem':   'informado' if _opt_float(data.get('desfrute_pct')) is not None else 'projetado',
-            'vendidos': int(_vend_ano1),
-            'rebanho':  int(sum(v)),
+            # `valor` é o número que foi de fato avaliado pelo benchmark, para
+            # que o selo de estado e o número exibido nunca se contradigam.
+            # `projetado` é o que a simulação realiza — quando o analista informa
+            # um desfrute diferente, os dois aparecem lado a lado.
+            'valor':     ind_bench.get('desfrute', desfrute_projetado),
+            'projetado': desfrute_projetado,
+            'origem':    'informado' if _opt_float(data.get('desfrute_pct')) is not None else 'projetado',
+            'vendidos':  int(_vend_ano1),
+            'rebanho':   int(sum(v)),
         },
         'narrativa_pendente': (not _NARRATIVA_INLINE) and _narrativa_ativa(),
         'narrativa_contexto': _ctx_narrativa if not _NARRATIVA_INLINE else None,
