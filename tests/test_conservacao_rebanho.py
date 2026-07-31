@@ -127,3 +127,63 @@ def test_compras_sao_explicitas_onde_o_modelo_repoe():
         assert a.get('compras', 0) > 0, (
             f'{ciclo} vende {a.get("vendidos")} animais e precisa declarar as compras'
         )
+
+
+# ── Pipeline de terminação no ciclo completo ────────────────────────────────
+# O modelo vendia todos os machos de 0–24m como garrote E liquidava os bois
+# adultos no mesmo ano, sem repor. O ano 1 vendia o estoque inteiro, o ano 2
+# não tinha o que vender (queda de 55%) e o DSCR ia de 6,56 para −2,25 —
+# enquanto o parecer aprovava olhando só o ano 1.
+
+def test_ciclo_completo_retem_macho_para_terminacao():
+    """O 'completo' do ciclo completo: macho jovem vira boi, não é vendido."""
+    from ml_engine import calcular_ano
+    r = calcular_ano(matrizes=310, femeas_024=190, machos_024=190, bois=100,
+                     nat_pct=0.665, desc_mat_pct=0.08, prop_boi=30,
+                     renov_boi_pct=0.2, venda_bez_pct=0.75, mort_pct=0.03,
+                     preco_arroba=304, custo_arroba=122)
+    assert r['machos_024_vendidos'] == 0, (
+        'macho de 0–24m não é comercializado num ciclo completo — ele termina'
+    )
+    assert r['machos_graduados'] > 0, 'o pipeline precisa alimentar a terminação'
+    # o estoque de machos jovens não pode ser só os nascidos do ano
+    nascidos_m = 310 * 0.665 * 0.5
+    assert r['machos_024_prox'] > nascidos_m * 1.5, (
+        f"machos jovens no ano seguinte ({r['machos_024_prox']}) deveriam somar "
+        f"os que não graduaram aos ~{nascidos_m:.0f} nascidos"
+    )
+
+
+def test_ciclo_completo_nao_colapsa_no_ano_2():
+    """
+    Regressão: as vendas caíam 55% do ano 1 para o ano 2 porque o pipeline de
+    terminação ficava vazio. O ano 1 vende mais (liquida o estoque acumulado),
+    mas a queda não pode ser um despencar.
+    """
+    a = simular_cenario(REBANHOS['CICLO_COMPLETO'], 'conservador',
+                        ciclo='CICLO_COMPLETO', preco_arroba=320,
+                        custo_arroba=122)['anos']
+    v1 = a[0]['vendidos'] + a[0]['matrizes_descartadas']
+    v2 = a[1]['vendidos'] + a[1]['matrizes_descartadas']
+    queda = (v1 - v2) / max(v1, 1)
+    assert queda < 0.55, (
+        f'vendas caíram {queda:.0%} do ano 1 para o ano 2 — pipeline vazio'
+    )
+
+
+def test_regime_permanente_fica_na_faixa_de_desfrute():
+    """
+    Do ano 2 em diante não há mais estoque acumulado para liquidar, então o
+    desfrute precisa cair na referência da modalidade (20–40% no ciclo
+    completo). É o teste que valida o pipeline de terminação.
+    """
+    a = simular_cenario(REBANHOS['CICLO_COMPLETO'], 'conservador',
+                        ciclo='CICLO_COMPLETO', preco_arroba=320,
+                        custo_arroba=122)['anos']
+    for ano in a[1:]:
+        vend = ano['vendidos'] + ano['matrizes_descartadas']
+        desf = vend / max(ano['total'], 1) * 100
+        assert 20 <= desf <= 45, (
+            f"ano {ano['ano']}: desfrute {desf:.1f}% fora do regime esperado "
+            f"para ciclo completo (20–40%, tolerância até 45%)"
+        )
