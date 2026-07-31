@@ -3551,6 +3551,14 @@ function initChat() {
             Enviar
           </button>
         </div>
+        <div style="padding:0 14px 14px">
+          <div id="wa-linha" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px dashed var(--b);border-radius:8px">
+            <span style="font-size:.74rem;color:var(--mu)">
+              Continuar no WhatsApp — as mesmas perguntas, no celular, durante a visita.
+            </span>
+            <button class="btn-sm" onclick="gerarCodigoWhatsapp()">Vincular meu WhatsApp</button>
+          </div>
+        </div>
       </div>
     </div>`;
 
@@ -3565,6 +3573,30 @@ function initChat() {
   document.getElementById('chat-chips').innerHTML = perguntas.map(p =>
     `<button onclick="enviarChatChip(this)" style="font-family:var(--fm);font-size:.6rem;padding:5px 10px;border-radius:20px;border:1px solid var(--b);background:var(--c2);color:var(--sb);cursor:pointer;white-space:nowrap">${escapeHtml(p)}</button>`
   ).join('');
+}
+
+// O código é de uso único e curto. Só quem está logado consegue gerar um, e é
+// isso que garante que o webhook nunca responda dado de crédito a um número
+// desconhecido.
+async function gerarCodigoWhatsapp(){
+  const caixa = document.getElementById('wa-linha');
+  if(!caixa) return;
+  try{
+    const r = await fetch('/api/whatsapp/codigo', {method:'POST'});
+    const d = await lerRespostaJson(r);
+    if(!r.ok){
+      caixa.innerHTML = `<span style="font-size:.74rem;color:var(--am)">${escapeHtml(d.erro||'Canal WhatsApp não configurado.')}</span>`;
+      return;
+    }
+    caixa.innerHTML = `
+      <div style="font-size:.74rem;color:var(--sb);line-height:1.6">
+        Envie este código pelo seu WhatsApp para o número do BovCredit:
+        <div style="font-family:var(--fm);font-size:1.6rem;font-weight:800;letter-spacing:6px;color:var(--g);margin:6px 0 2px">${escapeHtml(d.codigo)}</div>
+        <span style="color:var(--mu)">Vale por ${d.validade_min} minutos e serve uma vez só.</span>
+      </div>`;
+  }catch(e){
+    caixa.innerHTML = `<span style="font-size:.74rem;color:var(--am)">Não foi possível gerar o código agora.</span>`;
+  }
 }
 
 function toggleChat() {

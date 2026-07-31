@@ -1188,6 +1188,123 @@ def api_chat():
     return jsonify({'resposta': resposta})
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# WHATSAPP — o mesmo chat do parecer, no canal onde o analista já está
+# ═══════════════════════════════════════════════════════════════════════════
+# O analista de campo não abre o sistema no meio de uma visita; abre o
+# WhatsApp. Sem WHATSAPP_TOKEN/WHATSAPP_PHONE_ID no ambiente estas rotas
+# devolvem 404 — o webhook não existe para quem não configurou.
+from services import whatsapp as _wa
+from services.groq_narrativa import gerar_resposta_chat as _gerar_resposta_chat_wa
+
+
+def _contexto_parecer_para_chat(p: dict) -> dict:
+    """Achata um parecer salvo no formato que gerar_resposta_chat espera."""
+    parecer = (p or {}).get('parecer') or {}
+    concl   = parecer.get('conclusao') or {}
+    solic   = (p or {}).get('solicitacao') or {}
+    ident   = parecer.get('identificacao') or {}
+    return {
+        'tipo':          solic.get('tipo') or parecer.get('tipo'),
+        'fazenda':       ident.get('fazenda'),
+        'municipio':     ident.get('municipio'),
+        'recomendacao':  concl.get('recomendacao'),
+        'dscr':          concl.get('dscr_minimo', concl.get('dscr')),
+        'parcela_mensal': concl.get('parcela_mensal'),
+        'geracao_caixa_anual': concl.get('geracao_caixa_anual'),
+        'capacidade_maxima':   concl.get('capacidade_maxima'),
+        'garantia':      parecer.get('garantia'),
+        'endividamento': parecer.get('endividamento'),
+        'justificativa': concl.get('justificativa'),
+    }
+
+
+def _responder_whatsapp(telefone: str, texto: str) -> str:
+    """
+    Monta a resposta a uma mensagem. Puro o suficiente para ser testado sem HTTP.
+
+    Um telefone não vinculado nunca recebe dado de crédito: a resposta é a
+    instrução de vinculação. Vincular exige um código gerado por um analista
+    logado no sistema.
+    """
+    variantes = _wa.variantes_telefone(telefone)
+    uid = db.buscar_user_por_telefone(variantes)
+
+    # Vinculação: mensagem que é só um código de 6 dígitos.
+    # Vale também para número já vinculado — o analista pode trocar de conta, e
+    # exigir desvincular antes seria um beco sem saída pelo WhatsApp.
+    limpo = texto.strip()
+    if limpo.isdigit() and len(limpo) == 6:
+        novo = db.consumir_codigo_whatsapp(limpo, _wa.normalizar_telefone(telefone))
+        if novo:
+            u = db.buscar_usuario_id(novo)
+            nome = (u or {}).get('nome', '')
+            return (f'Número vinculado a {nome}. '
+                    f'Pergunte o que quiser sobre o seu último parecer de crédito.')
+        if not uid:
+            return 'Código inválido ou expirado. Gere um novo no sistema.'
+        # Já vinculado e não era código válido: pode ser pergunta. Segue.
+
+    if not uid:
+        return ('Número não vinculado. Entre no BovCredit, gere um código de '
+                'vinculação e envie os 6 dígitos aqui.')
+
+    p = db.ultimo_parecer_do_usuario(uid)
+    if not p:
+        return ('Você ainda não tem parecer emitido. Gere um no sistema e volte '
+                'a perguntar aqui.')
+
+    resposta = _gerar_resposta_chat_wa(texto, [], _contexto_parecer_para_chat(p))
+    if not resposta:
+        return 'Não consegui responder agora. Tente novamente em instantes.'
+    return resposta
+
+
+@app.route('/webhook/whatsapp', methods=['GET'])
+def whatsapp_verificacao():
+    """Handshake que a Meta faz ao cadastrar a URL do webhook."""
+    if not _wa._feature_ativa():
+        abort(404)
+    challenge = _wa.verificar_webhook(request.args)
+    if challenge is None:
+        abort(403)
+    return challenge, 200, {'Content-Type': 'text/plain'}
+
+
+@app.route('/webhook/whatsapp', methods=['POST'])
+def whatsapp_webhook():
+    """
+    Recebe mensagens da Meta.
+
+    Responde 200 em qualquer caso depois de validada a assinatura: erro faz a
+    Meta reenviar em backoff, e a mesma pergunta seria respondida duas vezes.
+    """
+    if not _wa._feature_ativa():
+        abort(404)
+    if not _wa.validar_assinatura(request.get_data(),
+                                  request.headers.get('X-Hub-Signature-256')):
+        logger.warning('[whatsapp] assinatura inválida — requisição descartada')
+        abort(403)
+
+    for msg in _wa.extrair_mensagens(request.get_json(silent=True) or {}):
+        try:
+            resposta = _responder_whatsapp(msg['telefone'], msg['texto'])
+            _wa.enviar_mensagem(msg['telefone'], resposta)
+        except Exception:
+            logger.exception('[whatsapp] falha ao responder %s', msg.get('telefone'))
+    return jsonify({'ok': True})
+
+
+@app.route('/api/whatsapp/codigo', methods=['POST'])
+@login_required
+def api_whatsapp_codigo():
+    """Gera o código de uso único que vincula o WhatsApp do analista à conta."""
+    if not _wa._feature_ativa():
+        return jsonify({'erro': 'Canal WhatsApp não configurado.'}), 503
+    codigo = db.criar_codigo_whatsapp(int(current_user.id))
+    return jsonify({'codigo': codigo, 'validade_min': 15})
+
+
 # ── Cache em memória para cotações (TTL 30 min) ──────────────────────────────
 import time as _time
 _cotacoes_cache: dict = {}
