@@ -1746,6 +1746,21 @@ BENCHMARKS_RO = {
             'CRIA_RECRIA':     {'abaixo': 25.0, 'medio': 32.0, 'bom': 40.0},
         },
         'inverso': False,
+        # Desfrute não é "quanto maior melhor". O material de treinamento é
+        # explícito: "desfrute muito baixo pode indicar excesso de retenção e
+        # baixo retorno financeiro; desfrute muito alto pode aumentar riscos
+        # sanitários, de mercado e de custo" — IDEAL É EQUILÍBRIO.
+        #
+        # Sem isso, uma projeção que vendia 291% do rebanho era rotulada
+        # "excelente" e passava sem alarme, inflando o DSCR.
+        'teto_por_ciclo': {
+            'CRIA':            30.0,
+            'RECRIA':          55.0,
+            'ENGORDA':        120.0,
+            'CICLO_COMPLETO':  40.0,
+            'RECRIA_ENGORDA':  85.0,
+            'CRIA_RECRIA':     40.0,
+        },
     },
 }
 
@@ -1785,7 +1800,7 @@ def avaliar_benchmarks(ciclo: str, indicadores: dict) -> list:
         faixa, proximo, falta = _classificar_faixa(
             float(valor), faixas, cfg.get('inverso', False)
         )
-        resultado.append({
+        item = {
             'key': key,
             'label': cfg['label'],
             'valor': round(float(valor), 2),
@@ -1793,7 +1808,22 @@ def avaliar_benchmarks(ciclo: str, indicadores: dict) -> list:
             'faixa': faixa,
             'proximo_nivel': proximo,
             'falta': falta,
-        })
+        }
+        # Indicadores com teto: acima da faixa não é excelência, é sinal de
+        # atenção. Vale para o desfrute, onde giro excessivo eleva risco
+        # sanitário, de mercado e de custo.
+        _teto = (cfg.get('teto_por_ciclo') or {}).get(ciclo)
+        if _teto is not None and float(valor) > _teto:
+            item['faixa'] = 'acima'
+            item['proximo_nivel'] = None
+            item['falta'] = round(float(valor) - _teto, 2)
+            item['alerta'] = (
+                f'{cfg["label"]} de {float(valor):.1f}{cfg["unidade"]} supera o teto '
+                f'de referência da modalidade ({_teto:.0f}{cfg["unidade"]}). '
+                f'Giro acima do normal — confira se a projeção de vendas é '
+                f'sustentável e se há compra de animais não declarada.'
+            )
+        resultado.append(item)
     return resultado
 
 # Defaults regionais (Rondônia, médias) usados quando o usuário não informa
