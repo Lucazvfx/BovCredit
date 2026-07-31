@@ -133,3 +133,32 @@ def preset_modalidade(tipo: str, perfil: str) -> dict:
     mod = tipo if tipo in PERFIL_DESEMBOLSO else 'CICLO_COMPLETO'
     idx = 0 if perfil == 'media' else 1
     return {k: v[idx] for k, v in PERFIL_DESEMBOLSO[mod].items()}
+
+
+# ── Desembolso padrão por modalidade (R$/cab/mês) ────────────────────────────
+# Soma da coluna "média" de PERFIL_DESEMBOLSO (GEP Araguaia safra 24/25).
+# Existe porque o app usava 119 R$/@ fixo para todas as modalidades — que é o
+# valor do CICLO_COMPLETO, sistema que inclui terminação e é intensivo em
+# ração. Aplicado a uma cria extensiva superestimava o custo em ~30% e
+# produzia caixa negativo em rebanhos saudáveis.
+DESEMBOLSO_PADRAO_CAB_MES = {
+    modalidade: round(sum(faixa[0] for faixa in componentes.values()), 2)
+    for modalidade, componentes in PERFIL_DESEMBOLSO.items()
+}
+
+
+def custo_arroba_padrao(tipo: str, arrobas_por_cabeca: float = 11.7) -> float:
+    """
+    Custo padrão em R$/@·ano para a modalidade, quando o analista não informa
+    o desembolso por componente.
+
+        R$/@·ano = (R$/cab/mês × 12) ÷ arrobas por cabeça
+
+    `arrobas_por_cabeca` default 11,7 reproduz a conversão que já era usada
+    para o CICLO_COMPLETO, mantendo 119 R$/@ para essa modalidade.
+    """
+    _HERDA = {'CRIA_RECRIA': 'CRIA'}
+    tipo = _HERDA.get(tipo, tipo)
+    cab_mes = DESEMBOLSO_PADRAO_CAB_MES.get(tipo,
+                                            DESEMBOLSO_PADRAO_CAB_MES['CICLO_COMPLETO'])
+    return round(cab_mes * 12 / max(arrobas_por_cabeca, 1.0), 2)

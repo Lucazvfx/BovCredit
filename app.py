@@ -43,7 +43,9 @@ from services.benchmarks_nacionais import avaliar_nacional, avaliar_zootecnico, 
 from services.parecer_credito import montar_parecer
 from services.parecer_pdf import gerar_pdf_parecer
 from services.pesos_rebanho import arrobas_categorias
-from services.custos_desembolso import custo_arroba_de_desembolso, COMPONENTES
+from services.custos_desembolso import (
+    custo_arroba_de_desembolso, COMPONENTES, custo_arroba_padrao,
+)
 from services.reconciliacao import reconciliar
 from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
 from services.benchmarks_nacionais import avaliar_coe as _avaliar_coe
@@ -640,10 +642,15 @@ def api_classificar():
                 consistencia['score_consistencia'] = max(0, consistencia['score_consistencia'] - penalidade)
 
     # Custo real por componentes (desembolso R$/cab/mês) → custo_arroba exato.
-    # Se não vierem componentes, usa custo_arroba do campo único.
-    # Default 119 R$/@·ano = R$119,14/cab/mês (GEP Inttegra 2025 CICLO_COMPLETO média)
-    # × 12 ÷ 11,7@/cab (peso médio real do rebanho CICLO_COMPLETO com jovens).
-    custo_arroba = float(data.get('custo_arroba', 119) or 119)
+    # Se não vierem componentes, usa custo_arroba do campo único; e se o
+    # analista também não informar isso, o padrão segue a MODALIDADE detectada.
+    #
+    # Antes o default era 119 R$/@ para qualquer ciclo — o valor do
+    # CICLO_COMPLETO, que inclui terminação e é intensivo em ração. Aplicado a
+    # uma cria extensiva (GEP: R$90,88/cab/mês contra R$119,14) superestimava
+    # o custo em ~30% e levava rebanhos saudáveis a caixa negativo.
+    _custo_padrao_ciclo = custo_arroba_padrao(result.get('tipo', 'CICLO_COMPLETO'))
+    custo_arroba = float(data.get('custo_arroba') or _custo_padrao_ciclo)
     custo_desembolso = None
     componentes = data.get('custo_componentes') or {}
     desembolso_cab_mes = sum(float(componentes.get(k, 0) or 0) for k, _ in COMPONENTES)
@@ -766,10 +773,14 @@ def api_classificar():
     # Arrobas reais por categoria com pesos corretos por ciclo.
     _ciclo_tipo = result.get('tipo', 'CICLO_COMPLETO')
     if _ciclo_tipo in ('CRIA', 'CRIA_RECRIA'):
-        # Machos vendidos na cria são bezerros desmamados (~6@), não bois nem garrotes
+        # A cria comercializa quatro categorias com pesos bem diferentes:
+        # bezerros/bezerras desmamados (~6@), fêmeas excedentes do estoque de
+        # novilhas (7,67@) e vacas de descarte (15,33@). Tratar tudo como
+        # bezerro subestimava as arrobas vendidas e inflava o COE.
         _arr_bois   = 0.0
         _arr_vacas  = float(_ano1.get('matrizes_descartadas', 0)) * 15.33
-        _arr_bezv   = float(_ano1.get('bezerras_vendidas', 0)) * 6.00
+        _arr_bezv   = (float(_ano1.get('bezerras_vendidas', 0)) * 6.00
+                       + float(_ano1.get('femeas_excedentes', 0)) * 7.67)
         _arr_machos = float(_ano1.get('machos_vendidos', 0)) * 6.67  # bezerros machos
     elif _ciclo_tipo == 'RECRIA':
         # Peso de saída variável; fallback receita/preco captura arrobas corretas

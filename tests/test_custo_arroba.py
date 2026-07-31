@@ -33,11 +33,16 @@ def test_simular_cria_custo_arroba():
     # pastavam de graça no modelo. E estimava touros por 1:30 mesmo quando o
     # rebanho já declarava bois — cobrando touros que não existiam e ignorando
     # os que existiam. Agora o custo cobre o rebanho efetivamente mantido.
-    matrizes   = 30 + 40                 # v[6] + v[8]
-    fem_recria = 10 + 8 + 6              # v[0] + v[2] + v[4]
-    mac_recria = 10 + 8 + 6              # v[1] + v[3] + v[5]
-    touros     = 2 + 3                   # v[7] + v[9] — bois declarados
-    esperado = (matrizes*17 + (fem_recria + mac_recria)*8 + touros*20.53) * 57
+    # O rebanho é mantido por COORTE, e cada uma pesa diferente: bezerros
+    # 0–12m no peso de bezerra informado, novilhas 13–24m e machos 13–36m no
+    # peso de fêmea jovem (7,67@), touros no peso de boi.
+    from services.parametros_zootecnicos import PESO_JOVEM_F_ARR, PESO_BOI_ARR
+    matrizes = 30 + 40                   # v[6] + v[8]
+    bez      = (10 + 10) + (8 + 8)       # 0–12m: v[0]+v[1]+v[2]+v[3]
+    nov_mac  = 6 + (6 + 2)               # v[4] + (v[5] + v[7])
+    touros   = 3                         # v[9] — bois declarados
+    esperado = (matrizes*17 + bez*8 + nov_mac*PESO_JOVEM_F_ARR
+                + touros*PESO_BOI_ARR) * 57
     assert abs(ano1['custo'] - esperado) < 1.0
     assert r['preco_breakeven_unidade'] == 'R$/arroba'
 
