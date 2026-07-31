@@ -972,3 +972,119 @@ def contar_acessos() -> int:
         return int(row['n'])
     except (TypeError, KeyError, IndexError):
         return int(tuple(row)[0])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# LGPD — anonimização, portabilidade e retenção
+# ═══════════════════════════════════════════════════════════════════════════
+# Ver services/lgpd.py para o porquê de anonimizar em vez de excluir.
+
+def anonimizar_usuario(user_id: int) -> dict:
+    """
+    Atende o direito de eliminação (Art. 18) sem quebrar a trilha de auditoria.
+
+    Os campos que identificam a pessoa viram pseudônimo estável; o registro dos
+    eventos permanece. A conta fica inutilizável — a senha vira um hash de
+    valor aleatório que ninguém conhece.
+
+    O PARECER NÃO É APAGADO. Ele é dado do cliente da consultoria, tem valor
+    probatório para a instituição e prazo próprio de guarda; o vínculo com o
+    analista é que deixa de identificar uma pessoa.
+
+    Idempotente: rodar duas vezes não muda nada na segunda.
+    """
+    import secrets
+    from services.lgpd import pseudonimo, e_anonimo
+
+    ph = _PH
+    u = buscar_usuario_id(user_id)
+    if not u:
+        return {'ok': False, 'erro': 'usuário não encontrado'}
+    if e_anonimo(u.get('email')):
+        return {'ok': True, 'ja_anonimo': True, 'user_id': user_id,
+                'tabelas': {}}
+
+    pseudo = pseudonimo(u['email'])
+    tocadas = {}
+
+    _exec(f'''UPDATE usuarios SET email={ph}, nome={ph}, senha_hash={ph},
+                     nome_consultoria={ph}, security_question=NULL,
+                     security_answer_hash=NULL
+              WHERE id={ph}''',
+          (pseudo + '@anonimizado.local', pseudo,
+           generate_password_hash(secrets.token_urlsafe(32)), '', user_id),
+          commit=True)
+    tocadas['usuarios'] = 1
+
+    _ensure_auditoria_table()
+    _exec(f'UPDATE auditoria_acessos SET user_email={ph}, ip=NULL WHERE user_id={ph}',
+          (pseudo, user_id), commit=True)
+    tocadas['auditoria_acessos'] = 'pseudonimizado'
+
+    _ensure_whatsapp_tables()
+    _exec(f'DELETE FROM whatsapp_vinculos WHERE user_id={ph}', (user_id,), commit=True)
+    _exec(f'DELETE FROM whatsapp_codigos WHERE user_id={ph}', (user_id,), commit=True)
+    tocadas['whatsapp'] = 'removido'
+
+    try:
+        _exec(f'DELETE FROM reset_tokens WHERE email={ph}', (u['email'],), commit=True)
+        tocadas['reset_tokens'] = 'removido'
+    except Exception:
+        pass
+
+    registrar_acesso('lgpd_anonimizacao', user_id=user_id, user_email=pseudo,
+                     recurso='usuario', recurso_id=user_id,
+                     detalhe='direito de eliminação (Art. 18)')
+    return {'ok': True, 'ja_anonimo': False, 'user_id': user_id,
+            'pseudonimo': pseudo, 'tabelas': tocadas}
+
+
+def exportar_dados_usuario(user_id: int) -> dict:
+    """
+    Portabilidade (Art. 18, V): tudo que o sistema guarda sobre um usuário.
+
+    Inclui a trilha de acesso dele — é dado sobre ele, e omitir seria entregar
+    uma portabilidade parcial.
+    """
+    u = buscar_usuario_id(user_id)
+    if not u:
+        return {}
+    ph = _PH
+    conta = {k: v for k, v in u.items()
+             if k not in ('senha_hash', 'security_answer_hash', 'logo_base64')}
+    return {
+        'conta':     conta,
+        'empresas':  _exec(f'''SELECT e.id, e.nome FROM empresas e
+                               JOIN empresa_membros m ON m.empresa_id=e.id
+                               WHERE m.user_id={ph}''', (user_id,), fetch='all') or [],
+        'fazendas':  _exec(f'SELECT * FROM fazendas WHERE user_id={ph}',
+                           (user_id,), fetch='all') or [],
+        'auditoria': listar_acessos(user_id=user_id, limit=5000),
+        'aviso': ('Pareceres e registros de rebanho são dados dos clientes da '
+                  'consultoria, não do usuário, e não entram nesta exportação.'),
+    }
+
+
+def purgar_auditoria(dias: int = None) -> int:
+    """
+    Retenção da trilha: descarta eventos mais antigos que `dias`.
+
+    Guardar e-mail e IP indefinidamente é acúmulo sem finalidade — e a
+    finalidade declarada (investigação de incidente) tem prazo. Devolve quantos
+    registros foram removidos.
+    """
+    from services.lgpd import RETENCAO_AUDITORIA_DIAS
+    dias = RETENCAO_AUDITORIA_DIAS if dias is None else int(dias)
+    if dias <= 0:
+        return 0
+    _ensure_auditoria_table()
+    corte = datetime.now() - timedelta(days=dias)
+    ph = _PH
+    antes = contar_acessos()
+    _exec(f'DELETE FROM auditoria_acessos WHERE created_at < {ph}',
+          (corte,), commit=True)
+    removidos = antes - contar_acessos()
+    if removidos:
+        registrar_acesso('lgpd_purga_auditoria',
+                         detalhe=f'{removidos} registro(s) além de {dias} dias')
+    return removidos

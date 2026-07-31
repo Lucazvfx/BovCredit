@@ -42,7 +42,7 @@ Este documento descreve o sistema **como ele está**, incluindo o que não funci
 |---|---|
 | Python (produção) | 10.476 linhas |
 | Interface (`templates/index.html`) | 3.750 linhas |
-| Testes | **501** casos em 61 arquivos |
+| Testes | **529** casos em 62 arquivos |
 | Rotas HTTP | 44, sendo 25 endpoints `/api` |
 | Modelo | ensemble de 4, 42 features, 6 classes |
 | Agências estaduais lidas | 7 |
@@ -305,6 +305,27 @@ python ingerir_ibge.py                 # grava dados/desfrute_uf.json
 **Ressalva que vai junto com o número:** abate ÷ efetivo **não é** desfrute exato — ignora venda viva entre propriedades e inclui animal abatido em UF diferente da de origem (MT exporta boi em pé; SP abate mais do que cria). É o proxy padrão do setor e é citável, mas o parecer precisa dizer o que ele é.
 
 > **Nunca foi exercitado contra a API real.** O ambiente de desenvolvimento bloqueia saída para o IBGE (403 no proxy), então o parsing foi escrito a partir da documentação e testado com fixtures. O parser detecta o cabeçalho em vez de assumir `values[0]`, trata os marcadores do IBGE (`-`, `..`, `...`, `X`) como ausência e não como zero, e **levanta com o payload recebido** quando a forma não bate — para a primeira execução com rede falhar alto em vez de gravar lixo.
+
+### LGPD como código — `services/lgpd.py`
+
+Cobre as obrigações que se **implementam**. Não cobre as que se **escrevem** — base legal, encarregado (DPO), política de privacidade, contrato de operador são decisão da empresa.
+
+**A tensão que o desenho resolve.** A trilha de auditoria é append-only por decisão explícita: uma trilha que se edita não é trilha. Mas o Art. 18 dá ao titular direito à eliminação, e a trilha guarda e-mail e IP.
+
+Os dois não se atendem apagando linhas. A resolução é **anonimizar, não excluir**: o evento permanece (quem auditou continua sabendo que às 14h32 alguém consultou o parecer 412), a pessoa deixa de ser identificável.
+
+O pseudônimo é **estável** de propósito — trocar por `NULL` destruiria a capacidade de reconstruir uma sessão, e *"o mesmo usuário fez 40 consultas em 3 minutos"* é exatamente o que uma investigação de vazamento precisa ver.
+
+| Rota (admin) | O quê |
+|---|---|
+| `GET /api/admin/lgpd/inventario` | Registro das operações de tratamento (Art. 37) |
+| `GET /api/admin/lgpd/exportar/<id>` | Portabilidade (Art. 18, V) |
+| `POST /api/admin/lgpd/anonimizar/<id>` | Direito de eliminação (Art. 18) |
+| `POST /api/admin/lgpd/purgar-auditoria` | Retenção — default 730 dias |
+
+**Pareceres não são apagados.** São dado do *cliente da consultoria*, com valor probatório e prazo próprio de guarda. Anonimizar um analista não destrói o documento que ele emitiu.
+
+A purga por retenção é a única exceção ao append-only, e é limitada por desenho: apaga em bloco por corte de tempo, não aceita filtro por usuário ou evento — um teste inspeciona a assinatura da função para garantir isso — e ela própria fica registrada na trilha.
 
 ### Origem dos parâmetros — `services/proveniencia.py`
 
@@ -630,7 +651,7 @@ Do roteiro padrão dos 5 C's de crédito, dois seguem descobertos:
 - **Caráter** — sem consulta a Serasa, SPC, CADIN, protestos ou ações judiciais
 - **Capital** — sem balanço nem patrimônio líquido; o endividamento é **declarado**, não verificado no SCR
 
-E para venda a banco, o checklist de procurement ainda tem buracos: **sem SSO/SAML**, **sem 2FA**, **sem tratamento de LGPD** (retenção, exclusão, anonimização) e **1 worker** no gunicorn — arquitetura que atende uma consultoria, não 500 analistas.
+E para venda a banco, o checklist de procurement ainda tem buracos: **sem SSO/SAML** e **sem 2FA**. O restante — log de auditoria, LGPD e escala — está coberto.
 
 ---
 
