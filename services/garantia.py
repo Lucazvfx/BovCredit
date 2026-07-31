@@ -14,6 +14,8 @@ Módulo puro — não importa Flask nem DB.
 """
 from __future__ import annotations
 
+from services.proveniencia import politica
+
 # ── Política de crédito, não zootecnia ──────────────────────────────────────
 # Estes números são parâmetros de política, no mesmo sentido de DSCR_APROVAR em
 # parecer_credito.py: são ajustáveis pela instituição e não descrevem fato
@@ -32,20 +34,28 @@ from __future__ import annotations
 #
 # Jovens agregados (0-24m) ficam em 45%, média ponderada das duas faixas, e só
 # aparecem quando a valoração vem do simulador, que não separa cria de recria.
+def _des(v, cat, motivo):
+    return politica(v, 'Política de deságio da instituição',
+                    rotulo=f'Deságio — {cat}', nota=motivo)
+
+
 DESAGIO_PADRAO = {
-    'bois':      0.25,
-    'garrotes':  0.35,
-    'matrizes':  0.35,
-    'novilhas':  0.40,
-    'bezerras':  0.50,
-    'bezerros':  0.50,
-    'jovens_f':  0.45,
-    'jovens_m':  0.45,
+    'bois':      _des(0.25, 'boi (25m+)',        'Cotação pública diária; vende na semana.'),
+    'garrotes':  _des(0.35, 'garrote (13-24m)',  'Falta terminação; mercado menor.'),
+    'matrizes':  _des(0.35, 'matriz',            'Valor depende da vida reprodutiva restante.'),
+    'novilhas':  _des(0.40, 'novilha (13-24m)',  'Ainda não pariu; valor é expectativa.'),
+    'bezerras':  _des(0.50, 'bezerra (0-12m)',   'Dois anos até terminação; maior mortalidade.'),
+    'bezerros':  _des(0.50, 'bezerro (0-12m)',   'Dois anos até terminação; maior mortalidade.'),
+    'jovens_f':  _des(0.45, 'jovem fêmea 0-24m', 'Média ponderada das duas faixas.'),
+    'jovens_m':  _des(0.45, 'jovem macho 0-24m', 'Média ponderada das duas faixas.'),
 }
 
 # Teto de LTV sobre o valor JÁ deságiado.
-LTV_APROVAR  = 0.60   # até aqui, garantia folgada
-LTV_RESSALVA = 0.80   # entre 60% e 80%, cobre mas sem margem
+LTV_APROVAR  = politica(0.60, 'Política de crédito da instituição',
+                        rotulo='LTV folgado', nota='Até aqui, garantia folgada.')
+LTV_RESSALVA = politica(0.80, 'Política de crédito da instituição',
+                        rotulo='LTV ajustado',
+                        nota='Entre 60% e 80% cobre, mas sem margem para queda de preço.')
 
 _ROTULOS = {
     'bois':     'Bois (25m+)',

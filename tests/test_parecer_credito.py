@@ -54,7 +54,8 @@ def test_montar_parecer_ordena_e_conclui():
     assert list(p['secoes']) == ['identificacao', 'composicao', 'indicadores',
                                  'consistencia', 'financeiro', 'precos_regional',
                                  'fluxo_gep', 'garantia', 'endividamento',
-                                 'sensibilidade', 'shap_explicacao', 'conclusao']
+                                 'sensibilidade', 'shap_explicacao',
+                                 'proveniencia', 'conclusao']
 
 
 def test_erro_consistencia_rebaixa_para_ressalva():

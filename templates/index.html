@@ -2025,6 +2025,55 @@ function renderEndividamento(e){
   </div>`;
 }
 
+// ================== ORIGEM DOS PARÂMETROS ==================
+// Medição se cita, política se discute, referência se questiona, declaração se
+// confere. Antes disso todos apareciam iguais na tela — eram só números.
+const PROV_COR = {medido:'#4ADE80', referencia:'#FBBF24', politica:'#A78BFA', declarado:'#8891A5'};
+
+function renderProveniencia(pv){
+  if(!pv || !(pv.parametros||[]).length) return '';
+  const r = pv.resumo || {}, c = r.contagem || {};
+  const chips = ['medido','referencia','politica','declarado'].map(o=>`
+    <div style="display:flex;align-items:center;gap:7px">
+      <span style="width:9px;height:9px;border-radius:50%;background:${PROV_COR[o]};flex-shrink:0"></span>
+      <span style="font-family:var(--fn);font-weight:800;font-size:1.05rem">${c[o]||0}</span>
+      <span style="font-size:.74rem;color:var(--sb)">${escapeHtml((r.rotulos||{})[o]||o)}</span>
+    </div>`).join('');
+
+  const linhas = pv.parametros.map(d=>`
+    <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:7px 10px;color:var(--sb)">${escapeHtml(d.rotulo||'—')}</td>
+      <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${d.valor}</td>
+      <td style="padding:7px 10px;white-space:nowrap">
+        <span style="width:8px;height:8px;border-radius:50%;background:${PROV_COR[d.origem]};display:inline-block;margin-right:6px"></span>
+        <span style="color:${PROV_COR[d.origem]};font-size:.74rem">${escapeHtml(d.origem_rotulo)}</span>
+      </td>
+      <td style="padding:7px 10px;color:var(--mu);font-size:.74rem">${escapeHtml(d.fonte||'—')}</td>
+    </tr>`).join('');
+
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="ch"><div class="ct"><div class="cd" style="background:${c.medido?PROV_COR.medido:PROV_COR.referencia}"></div>Origem dos Parâmetros</div></div>
+    <div class="cb">
+      <p style="font-size:.78rem;color:var(--sb);line-height:1.6;margin-bottom:12px">
+        ${r.total||0} parâmetros sustentam este parecer. Nem todos têm o mesmo peso:
+        <strong style="color:${PROV_COR.medido}">medição se cita</strong>,
+        <strong style="color:${PROV_COR.politica}">política se discute</strong>,
+        <strong style="color:${PROV_COR.referencia}">referência se questiona</strong>,
+        <strong style="color:${PROV_COR.declarado}">declaração se confere</strong>.
+      </p>
+      <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:14px">${chips}</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:520px">
+          <thead><tr style="border-bottom:1px solid var(--b)">
+            ${['Parâmetro','Valor','Origem','Fonte'].map((h,i)=>`<th style="padding:7px 10px;text-align:${i===1?'right':'left'};font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">${h}</th>`).join('')}
+          </tr></thead>
+          <tbody>${linhas}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
 // ================== RENDER RESULTADO ==================
 function renderParecer(data){
   const p=data.parecer; if(!p) return '';
@@ -2301,7 +2350,8 @@ function renderParecer(data){
     <div class="cb" style="display:grid;gap:0">${renderPraca(p.precos_regional)}${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
   </div>
   ${renderGarantia(p.garantia)}
-  ${renderEndividamento(p.endividamento)}`;
+  ${renderEndividamento(p.endividamento)}
+  ${renderProveniencia(p.proveniencia)}`;
 }
 
 function renderResult(data){

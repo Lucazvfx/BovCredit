@@ -42,7 +42,7 @@ Este documento descreve o sistema **como ele está**, incluindo o que não funci
 |---|---|
 | Python (produção) | 10.476 linhas |
 | Interface (`templates/index.html`) | 3.750 linhas |
-| Testes | **425** casos em 57 arquivos |
+| Testes | **445** casos em 58 arquivos |
 | Rotas HTTP | 44, sendo 25 endpoints `/api` |
 | Modelo | ensemble de 4, 42 features, 6 classes |
 | Agências estaduais lidas | 7 |
@@ -274,6 +274,18 @@ Teto por modalidade — acima disso, alerta:
 ### Memória de cálculo
 
 Passo, valor e explicação em todo resultado. É o que torna o parecer defensável diante do comitê e do BACEN, onde um score opaco não é.
+
+### Origem dos parâmetros — `services/proveniencia.py`
+
+Um deságio de 35% é **política** (a instituição escolheu, e pode mudar). Um desfrute de 21,7% seria **medição** (o IBGE apurou, e se cita). Uma natalidade de 70% é **referência** (bibliografia, não apurada nesta fazenda). Um custo digitado é **declaração** (informada, não verificada).
+
+Antes todos apareciam iguais na tela — eram só números. Agora cada parâmetro carrega origem, fonte, ano e UF, e o parecer traz a tabela completa:
+
+> 26 parâmetros sustentam este parecer: **0 medidos**, 13 de referência, 13 de política e 0 declarados.
+
+`Parametro` herda de `float`, então o motor de simulação inteiro segue fazendo aritmética sem saber que o número tem etiqueta. Trocar referência por medição é trocar o registro — nenhuma fórmula muda.
+
+**O zero em "medidos" é honesto e é a régua:** hoje o projeto não tem nenhuma série apurada por terceiro. Um teste guarda isso e falha no dia em que alguém marcar algo como medido sem fonte real.
 
 ---
 

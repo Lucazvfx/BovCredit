@@ -15,9 +15,13 @@ Módulo puro — não importa Flask nem DB.
 """
 from __future__ import annotations
 
+from services.proveniencia import politica
+
 # Fração da geração de caixa anual que o serviço da dívida TOTAL pode consumir
 # antes de acender alerta. Política de crédito, ajustável.
-COMPROMETIMENTO_ALERTA = 0.70
+COMPROMETIMENTO_ALERTA = politica(
+    0.70, 'Política de crédito da instituição',
+    rotulo='Comprometimento máximo de renda')
 
 
 def _num(v, default=0.0) -> float:
