@@ -48,6 +48,39 @@ _RAZAO_MORT_BEZERRA = MORTALIDADE_BEZERRA_PCT / MORTALIDADE_ADULTO_PCT  # 3.5
 # terminação. A faixa cobre dois anos, então em regime metade gradua.
 _FRAC_GRADUACAO_MACHO = 0.5
 
+# Participação mínima de matrizes para um rebanho poder ser chamado de CRIA.
+# Cria é produzir bezerro, e bezerro vem de vaca: sem base reprodutiva o
+# rebanho pode ser predominantemente fêmea e ainda assim não ser cria — é o
+# caso da recria de fêmeas, que compra fêmea jovem para engordar ou para virar
+# matriz depois.
+#
+# O valor já era usado em `indice_ciclo`; virou constante nomeada quando passou
+# a valer também na guarda de classificação, para não haver dois limiares
+# soltos que alguém pudesse mudar só de um lado.
+P_MATRIZES_CRIA = 0.18
+
+# Razão mínima entre fêmeas ACIMA de 36 meses e fêmeas de 25–36 meses para o
+# rebanho poder ser chamado de cria.
+#
+# `matrizes` no classificador soma as duas faixas (va[6] + va[8]), o que é
+# defensável — fêmea de 25–36m já está em idade de cobertura. Mas a soma
+# esconde a forma da pirâmide, e é a forma que distingue cria de recria de
+# fêmeas:
+#
+#   vaca de cria vive de oito a dez anos e SE ACUMULA acima dos 36 meses
+#   fêmea de recria é vendida ANTES de parir, e a faixa acima de 36m fica vazia
+#
+# Medido em rebanhos reais e sintéticos (fac_F ÷ f25_F):
+#
+#   Fazenda Vale do Coco (recria de fêmeas)     0,02   ← 209 fêmeas 25–36m, 5 acima
+#   ficha real de recria, 700 cabeças           1,31
+#   cria do teste de conservação                1,89
+#   cria sintética de 1.705 cabeças             5,00
+#
+# A separação é de duas ordens de grandeza. 0,50 fica no meio do vazio: bem
+# acima do caso truncado e bem abaixo da menor cria observada.
+RAZAO_MATRIZ_MADURA_CRIA = 0.50
+
 # Fração dos machos de 13–24m que atinge o peso de saída dentro do ano e é
 # vendida ("venda conforme peso"). Calibrado na ficha real de recria de 700
 # cabeças: 195 de 234 machos dessa faixa. É UMA amostra — o número merece
@@ -487,7 +520,7 @@ def classificar(
     p_bez_h = bezerros_0_24 / total
 
     indice_ciclo = (
-        int(p_matrizes_h > 0.18) +
+        int(p_matrizes_h > P_MATRIZES_CRIA) +
         int(p_mac_13_24_h > 0.10) +
         int(p_bois_h > 0.10) +   # threshold 10% (antes 12%) — captura terminação típica
         int(p_bez_h > 0.12)
@@ -600,7 +633,7 @@ def classificar(
         if ml_tipo == 'CICLO_COMPLETO' and indice_ciclo <= 1:
             alt_idx = int(np.argsort(probs)[-2])
             tipo = TIPOS[alt_idx] if TIPOS[alt_idx] != 'CICLO_COMPLETO' else (
-                'CRIA' if p_matrizes_h > 0.18 else 'RECRIA'
+                'CRIA' if p_matrizes_h >= P_MATRIZES_CRIA else 'RECRIA'
             )
             confianca = round(float(probs[TIPOS.index(tipo)]) * 100, 1)
             origem_decisao = 'regra'
@@ -613,6 +646,43 @@ def classificar(
             tipo = ml_tipo
             explicacao.append("Classificação via modelo ML (ensemble RF+GB)")
         explicacao.append(f"Confiança: {confianca}%")
+
+    # ── Cria sem vaca não é cria ────────────────────────────────────────────
+    # Guarda única, depois de TODAS as regras, porque há mais de um caminho que
+    # chega em CRIA e nenhum deles perguntava se havia base reprodutiva. Duas
+    # regras diferentes (`guarda_ciclo_completo` e `descarte_engorda_sem_venda`)
+    # escolhiam CRIA por probabilidade e seguiam adiante.
+    #
+    # Caso real que motivou isto — Fazenda Vale do Coco, 753 cabeças,
+    # reportado por analista em campo: rebanho quase todo fêmea, com 150 de
+    # 0–12m, 374 de 13–24m, 209 de 25–36m e apenas CINCO acima de 36 meses.
+    # Saía CRIA, e cinco matrizes não parem 700 cabeças.
+    #
+    # `matrizes` soma 25–36m e >36m, o que é defensável (aos 25 meses a fêmea
+    # já cobre) mas esconde a FORMA da pirâmide — e é a forma que distingue:
+    #
+    #   vaca de cria vive de 8 a 10 anos e SE ACUMULA acima dos 36 meses
+    #   fêmea de recria é vendida ANTES de parir, e essa faixa fica vazia
+    #
+    # Medido (fêmeas >36m ÷ fêmeas 25–36m): Vale do Coco 0,02 · ficha real de
+    # recria 1,31 · cria de teste 1,89 · cria sintética 5,00. Duas ordens de
+    # grandeza de separação.
+    _f25_F, _fac_F = float(va[6]), float(va[8])
+    _razao_madura = (_fac_F / _f25_F) if _f25_F > 0 else float('inf')
+    if tipo in ('CRIA', 'CRIA_RECRIA') and (
+            p_matrizes_h < P_MATRIZES_CRIA
+            or _razao_madura < RAZAO_MATRIZ_MADURA_CRIA):
+        _antes = tipo
+        tipo = 'RECRIA'
+        confianca = round(float(probs[TIPOS.index(tipo)]) * 100, 1)
+        origem_decisao = 'regra'
+        regra_aplicada = 'cria_sem_base_reprodutiva'
+        explicacao.append(
+            f"{_antes} descartado: matrizes são {p_matrizes_h:.1%} do rebanho e "
+            f"há {_fac_F:.0f} fêmeas acima de 36m para {_f25_F:.0f} de 25–36m "
+            f"(razão {_razao_madura:.2f}, mínimo {RAZAO_MATRIZ_MADURA_CRIA:.2f}). "
+            f"Sem vaca que fique, é recria de fêmeas — não cria."
+        )
 
     explicacao.append(
         f"Variáveis chave — matrizes={matrizes:.0f}, bois_25_36={bois_25_36:.0f}, "
