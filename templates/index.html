@@ -422,8 +422,30 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
         <div class="field"><label>Prazo (meses)</label><input type="number" id="credito_prazo" min="1" placeholder="Ex: 24"></div>
         <div class="field"><label>Carência (meses)</label><input type="number" id="credito_carencia" min="0" value="0"></div>
         <div class="field"><label title="Plano Safra 2026/27: Custeio empresarial 12,5% · Moderfrota empresarial 12,5% · Pronamp custeio 9,0% · Pronamp Moderfrota 11,5% · RenovAgro/PCA pastagens 8,0–9,5%">Juros (% a.a.) ℹ</label><input type="number" id="credito_juros" min="0" step="0.1" placeholder="Ex: 12,5 (Moderfrota 2026/27)"></div>
-        <div class="field"><label>Dívidas mensais (R$/mês)</label><input type="number" id="dividas_mensais" min="0" value="0"></div>
         <div class="field"><label>Finalidade</label><select id="credito_finalidade"><option value="custeio">Custeio</option><option value="investimento">Investimento</option></select></div>
+      </div>
+
+      <!-- Endividamento existente: era um número solto digitado sem origem, e
+           todo o DSCR se apoiava nele. Discriminado por credor, vira declaração
+           assinável e confrontável com o SCR. -->
+      <div style="margin-top:16px;border-top:1px solid var(--b);padding-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+          <div>
+            <div style="font-family:var(--fm);font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--sb)">Endividamento existente</div>
+            <div style="font-size:.72rem;color:var(--mu);margin-top:3px">Operações do produtor em outras instituições. Entram no DSCR.</div>
+          </div>
+          <button class="btn-sm" onclick="addCredor()">+ Adicionar credor</button>
+        </div>
+        <div id="dividas-lista"></div>
+        <div id="dividas-vazio" style="font-size:.75rem;color:var(--mu);padding:10px 0">
+          Nenhuma dívida declarada — o parecer assumirá ausência de endividamento e recomendará conferir o SCR.
+        </div>
+        <div class="fgrid" style="margin-top:10px">
+          <div class="field">
+            <label title="Use apenas se não souber discriminar por credor. O parecer marcará a origem como não discriminada.">Ou informe só o total mensal (R$/mês) ℹ</label>
+            <input type="number" id="dividas_mensais" min="0" value="0" oninput="syncDividasVazio()">
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1283,6 +1305,44 @@ function buildTable(){
   });
   upd();
 }
+// ================== ENDIVIDAMENTO (inventário por credor) ==================
+let _credorSeq = 0;
+function addCredor(inst='', saldo='', parcela=''){
+  const id = ++_credorSeq;
+  const row = document.createElement('div');
+  row.className = 'credor-row';
+  row.id = 'credor-' + id;
+  row.style.cssText = 'display:grid;grid-template-columns:2fr 1.2fr 1.2fr auto;gap:8px;align-items:end;margin-bottom:8px';
+  row.innerHTML = `
+    <div class="field" style="margin:0"><label>Instituição</label>
+      <input type="text" class="cr-inst" value="${inst}" placeholder="Ex: Banco do Brasil"></div>
+    <div class="field" style="margin:0"><label>Saldo devedor (R$)</label>
+      <input type="number" class="cr-saldo" min="0" step="1000" value="${saldo}"></div>
+    <div class="field" style="margin:0"><label>Parcela (R$/mês)</label>
+      <input type="number" class="cr-parcela" min="0" step="100" value="${parcela}" oninput="syncDividasVazio()"></div>
+    <button class="btn-sm" title="Remover" onclick="this.parentElement.remove();syncDividasVazio()"
+            style="height:34px;padding:0 12px">✕</button>`;
+  document.getElementById('dividas-lista').appendChild(row);
+  syncDividasVazio();
+}
+function coletarDividas(){
+  return [...document.querySelectorAll('.credor-row')].map(r=>({
+    instituicao:    r.querySelector('.cr-inst').value.trim(),
+    saldo_devedor:  +r.querySelector('.cr-saldo').value || 0,
+    parcela_mensal: +r.querySelector('.cr-parcela').value || 0,
+  })).filter(d => d.parcela_mensal > 0 || d.saldo_devedor > 0);
+}
+function syncDividasVazio(){
+  const temLinha = coletarDividas().length > 0;
+  const temTotal = (+document.getElementById('dividas_mensais').value || 0) > 0;
+  document.getElementById('dividas-vazio').style.display = (temLinha || temTotal) ? 'none' : '';
+  // O campo agregado só faz sentido quando nada foi discriminado — o backend
+  // já dá precedência ao inventário, e deixar os dois ativos sugere que somam.
+  const agg = document.getElementById('dividas_mensais');
+  agg.disabled = temLinha;
+  agg.parentElement.style.opacity = temLinha ? .45 : 1;
+}
+
 function getVals(){
   const bezF=parseFloat(document.getElementById('bez_F').value)||0;
   const bezM=parseFloat(document.getElementById('bez_M').value)||0;
@@ -1366,6 +1426,7 @@ async function classificar(){
     body.carencia_meses=+document.getElementById('credito_carencia').value||0;
     body.juros_aa=(+document.getElementById('credito_juros').value||0)/100;
     body.dividas_mensais=+document.getElementById('dividas_mensais').value||0;
+    body.dividas=coletarDividas();
     body.credito_finalidade=document.getElementById('credito_finalidade').value;
     const natV=document.getElementById('c-nat').value;
     const boisvV=document.getElementById('c-boisv').value;
@@ -1772,6 +1833,157 @@ async function classificarPDF(v,meta){
   await classificar();
 }
 
+// ================== GARANTIA E ENDIVIDAMENTO ==================
+// Status, não série: cada cor vem acompanhada de ícone e rótulo, para que o
+// significado nunca dependa só da cor.
+const LTV_COR    = {suficiente:'#4ADE80', ajustada:'#FBBF24', insuficiente:'#F87171'};
+const LTV_ICONE  = {suficiente:'✓', ajustada:'▲', insuficiente:'✕'};
+const LTV_ROTULO = {suficiente:'Garantia folgada', ajustada:'Cobre, sem margem',
+                    insuficiente:'Não cobre o crédito'};
+
+function renderGarantia(g){
+  if(!g || !(g.valor_mercado > 0)) return '';
+  const cor = LTV_COR[g.veredito] || '#8891A5';
+
+  // Meter: uma razão contra um limite. O trilho é um passo mais claro da mesma
+  // cor do preenchimento, para que o estado se leia na barra inteira; as marcas
+  // de política ficam sobre ele. Acima de 100% a barra satura e o número diz o
+  // resto — esticar a escala esconderia a gravidade.
+  const pct = g.ltv == null ? null : Math.min(g.ltv, 100);
+  const meter = g.ltv == null ? '' : `
+    <div style="margin:14px 0 6px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+        <span style="font-family:var(--fm);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu)">LTV sobre valor de execução</span>
+        <span style="font-family:var(--fn);font-weight:900;font-size:1.3rem;color:${cor}">${g.ltv.toFixed(1)}%</span>
+      </div>
+      <div style="position:relative;height:10px;border-radius:5px;background:${cor}22;overflow:hidden">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:${cor};border-radius:5px;
+                    transition:width .7s cubic-bezier(.22,1.62,.36,1)"></div>
+      </div>
+      <div style="position:relative;height:14px;margin-top:2px">
+        <span style="position:absolute;left:${g.ltv_aprovar_pct}%;transform:translateX(-50%);font-family:var(--fm);font-size:.52rem;color:var(--mu)">│${g.ltv_aprovar_pct}%</span>
+        <span style="position:absolute;left:${g.ltv_ressalva_pct}%;transform:translateX(-50%);font-family:var(--fm);font-size:.52rem;color:var(--mu)">│${g.ltv_ressalva_pct}%</span>
+      </div>
+      <div style="margin-top:8px;font-size:.8rem;color:${cor}">
+        <strong>${LTV_ICONE[g.veredito]||''} ${LTV_ROTULO[g.veredito]||''}</strong>
+        <span style="color:var(--sb)"> — ${g.justificativa||''}</span>
+      </div>
+    </div>`;
+
+  // Seis categorias que todas carregam significado → tabela, não gráfico.
+  const linhas = (g.composicao||[]).map(l=>`
+    <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:7px 10px;color:var(--sb)">${l.rotulo}</td>
+      <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${fR(l.valor_mercado)}</td>
+      <td style="padding:7px 10px;text-align:right;color:var(--mu);font-variant-numeric:tabular-nums">−${l.desagio_pct.toFixed(0)}%</td>
+      <td style="padding:7px 10px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">${fR(l.valor_garantia)}</td>
+    </tr>`).join('');
+
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Garantia — Valor de Execução</div></div>
+    <div class="cb">
+      <p style="font-size:.78rem;color:var(--sb);line-height:1.6;margin-bottom:4px">
+        Rebanho em penhor não se realiza pela cotação do dia. Entre a inadimplência e o caixa
+        há apreensão, transporte, risco sanitário e venda forçada. O deságio por categoria
+        reflete quão rápido cada uma vira dinheiro — boi pronto para abate vende na semana,
+        bezerro leva dois anos até a terminação.
+      </p>
+      ${meter}
+      <div style="overflow-x:auto;margin-top:12px">
+        <table style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:440px">
+          <thead><tr style="border-bottom:1px solid var(--b)">
+            <th style="padding:7px 10px;text-align:left;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Categoria</th>
+            <th style="padding:7px 10px;text-align:right;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Mercado</th>
+            <th style="padding:7px 10px;text-align:right;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Deságio</th>
+            <th style="padding:7px 10px;text-align:right;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Execução</th>
+          </tr></thead>
+          <tbody>${linhas}</tbody>
+          <tfoot><tr style="border-top:1px solid var(--b)">
+            <td style="padding:8px 10px;font-weight:800">Total</td>
+            <td style="padding:8px 10px;text-align:right;font-variant-numeric:tabular-nums">${fR(g.valor_mercado)}</td>
+            <td style="padding:8px 10px;text-align:right;color:var(--mu);font-variant-numeric:tabular-nums">−${g.desagio_medio_pct.toFixed(1)}%</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:800;color:${cor};font-variant-numeric:tabular-nums">${fR(g.valor_garantia)}</td>
+          </tr></tfoot>
+        </table>
+      </div>
+      ${g.credito_maximo_garantia > 0 ? `<div style="margin-top:12px;padding:10px 14px;background:var(--c2);border:1px solid var(--b);border-radius:var(--rs);font-size:.78rem;color:var(--sb)">
+        Crédito máximo pela garantia: <strong style="color:var(--g)">${fR(g.credito_maximo_garantia)}</strong>.
+        O limite pela capacidade de pagamento é outro — vale o menor dos dois.
+      </div>` : ''}
+      ${renderMemoria(g,'gar')}
+    </div>
+  </div>`;
+}
+
+function renderEndividamento(e){
+  if(!e) return '';
+  const critico = e.alerta === 'critico';
+  const cor = critico ? '#F87171' : (e.alerta === 'ok' ? '#4ADE80' : '#FBBF24');
+  const icone = critico ? '✕' : (e.alerta === 'ok' ? '✓' : '▲');
+
+  const linhas = (e.itens||[]).map(i=>`
+    <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:7px 10px;color:${i.discriminado?'var(--sb)':'var(--mu)'}">${i.instituicao}</td>
+      <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${i.saldo_devedor?fR(i.saldo_devedor):'—'}</td>
+      <td style="padding:7px 10px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">${fR(i.parcela_mensal)}</td>
+    </tr>`).join('');
+
+  const tabela = (e.itens||[]).length ? `
+    <div style="overflow-x:auto;margin-top:10px">
+      <table style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:380px">
+        <thead><tr style="border-bottom:1px solid var(--b)">
+          <th style="padding:7px 10px;text-align:left;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Credor</th>
+          <th style="padding:7px 10px;text-align:right;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Saldo devedor</th>
+          <th style="padding:7px 10px;text-align:right;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Parcela/mês</th>
+        </tr></thead>
+        <tbody>${linhas}</tbody>
+        <tfoot>
+          <tr style="border-top:1px solid var(--b)">
+            <td style="padding:7px 10px;font-weight:700">Total existente</td>
+            <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${e.saldo_devedor_total?fR(e.saldo_devedor_total):'—'}</td>
+            <td style="padding:7px 10px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">${fR(e.parcela_existente_mensal)}</td>
+          </tr>
+          ${e.parcela_nova_mensal>0?`
+          <tr><td style="padding:7px 10px;color:var(--sb)">(+) Crédito em análise</td><td></td>
+            <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${fR(e.parcela_nova_mensal)}</td></tr>
+          <tr style="border-top:1px solid var(--b)"><td style="padding:8px 10px;font-weight:800">(=) Serviço total mensal</td><td></td>
+            <td style="padding:8px 10px;text-align:right;font-weight:800;color:${cor};font-variant-numeric:tabular-nums">${fR(e.parcela_total_mensal)}</td></tr>`:''}
+        </tfoot>
+      </table>
+    </div>` : '';
+
+  const barra = e.comprometimento_pct == null ? '' : `
+    <div style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+        <span style="font-family:var(--fm);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu)">Comprometimento da geração de caixa</span>
+        <span style="font-family:var(--fn);font-weight:900;font-size:1.3rem;color:${cor}">${e.comprometimento_pct.toFixed(0)}%</span>
+      </div>
+      <div style="position:relative;height:10px;border-radius:5px;background:${cor}22;overflow:hidden">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:${Math.min(e.comprometimento_pct,100)}%;background:${cor};border-radius:5px;
+                    transition:width .7s cubic-bezier(.22,1.62,.36,1)"></div>
+      </div>
+      <div style="position:relative;height:14px;margin-top:2px">
+        <span style="position:absolute;left:${e.limite_alerta_pct}%;transform:translateX(-50%);font-family:var(--fm);font-size:.52rem;color:var(--mu)">│limite ${e.limite_alerta_pct}%</span>
+      </div>
+    </div>`;
+
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Endividamento do Proponente</div></div>
+    <div class="cb">
+      ${tabela}
+      ${barra}
+      <div style="margin-top:10px;font-size:.8rem;color:${critico?cor:'var(--sb)'}">
+        <strong>${icone}</strong> ${e.justificativa||''}
+      </div>
+      <div style="margin-top:8px;font-size:.72rem;color:var(--mu);font-style:italic">
+        Origem: ${e.origem||'declarado'}. Endividamento declarado pelo proponente não substitui
+        consulta ao SCR do Banco Central.
+      </div>
+      ${renderMemoria(e,'end')}
+    </div>
+  </div>`;
+}
+
 // ================== RENDER RESULTADO ==================
 function renderParecer(data){
   const p=data.parecer; if(!p) return '';
@@ -1780,14 +1992,17 @@ function renderParecer(data){
   const LBL={aprovar:'APROVAR',ressalva:'APROVAR COM RESSALVA',negar:'NEGAR'};
   const cor={aprovar:'#4ADE80',ressalva:'#FBBF24',negar:'#F87171'}[c.recomendacao]||'#8891A5';
   const capMax = c.capacidade_maxima;
-  const _vrLtv = (data.fluxo_gep||{}).valor_rebanho_ini || 0;
-  const _creditoLtv = +document.getElementById('credito_valor')?.value || 0;
-  const ltv = (_vrLtv > 0 && _creditoLtv > 0) ? (_creditoLtv / _vrLtv * 100) : null;
+  // O LTV vem do servidor, calculado sobre o valor de EXECUÇÃO (com deságio por
+  // categoria). Antes era calculado aqui contra o valor de mercado cheio, o que
+  // superestimava a cobertura — rebanho em penhor não se realiza pela cotação
+  // do dia.
+  const gar = p.garantia || {};
+  const ltv = (gar.ltv != null) ? gar.ltv : null;
 
   // Veredicto em banner grande com faixa KPI
   const concl = c.recomendacao ? (() => {
     const ncols = 3 + (capMax > 0 ? 1 : 0) + (ltv !== null ? 1 : 0);
-    const ltvCor = ltv <= 50 ? '#4ADE80' : ltv <= 80 ? '#FBBF24' : '#F87171';
+    const ltvCor = LTV_COR[gar.veredito] || '#8891A5';
     return `<div style="border-radius:12px;overflow:hidden;border:1px solid ${cor}33;margin-bottom:16px">
       <div style="background:${cor}15;padding:26px 24px 20px;text-align:center">
         <div style="font-family:var(--fn);font-weight:900;font-size:3.2rem;letter-spacing:-1px;line-height:1;color:${cor}">${LBL[c.recomendacao]||c.recomendacao}</div>
@@ -1805,8 +2020,9 @@ function renderParecer(data){
             ? `<div style="font-family:var(--fm);font-size:.5rem;color:var(--mu);margin-top:3px">ano 1: ${c.dscr_ano1}</div>` : ''}
         </div>
         ${ltv !== null ? `<div style="background:var(--c);padding:13px 14px;text-align:center">
-          <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">LTV</div>
+          <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">LTV · execução</div>
           <div style="font-family:var(--fn);font-weight:900;font-size:1.8rem;letter-spacing:-.5px;color:${ltvCor}">${ltv.toFixed(1)}%</div>
+          <div style="font-family:var(--fm);font-size:.5rem;color:var(--mu);margin-top:3px">${LTV_ICONE[gar.veredito]||''} ${gar.veredito||''}</div>
         </div>` : ''}
         <div style="background:var(--c);padding:13px 14px;text-align:center">
           <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Parcela/Mês</div>
@@ -2034,7 +2250,9 @@ function renderParecer(data){
     <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Parecer de Crédito</div>
       <button class="btn-sm" onclick="baixarPdfParecer(window._lastParecer)">⬇ Baixar PDF</button></div>
     <div class="cb" style="display:grid;gap:0">${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
-  </div>`;
+  </div>
+  ${renderGarantia(p.garantia)}
+  ${renderEndividamento(p.endividamento)}`;
 }
 
 function renderResult(data){
@@ -2416,7 +2634,9 @@ async function lerRespostaJson(res, contexto){
 // ── Memória de cálculo: por que a recomendação é essa ────────────────────
 // O analista precisa auditar o raciocínio, não só receber o veredicto.
 // Recolhido por padrão para não competir com o número principal.
-function renderMemoria(c){
+// `chave` distingue as memórias na mesma página (conclusão, garantia,
+// endividamento). Sem ela os IDs colidiriam e só a primeira abriria.
+function renderMemoria(c, chave='concl'){
   const mem = c.memoria;
   if(!mem || !mem.length) return '';
   const rebaixado = c.rebaixado_no_prazo;
@@ -2435,17 +2655,17 @@ function renderMemoria(c){
     </div>`;
   }).join('');
   return `<div style="margin-top:12px">
-    <div onclick="toggleMemoria()" style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border:1px solid var(--b);border-radius:8px;background:var(--c2)">
+    <div onclick="toggleMemoria('${chave}')" style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border:1px solid var(--b);border-radius:8px;background:var(--c2)">
       <span style="font-family:var(--fn);font-weight:700;font-size:.68rem;letter-spacing:1.2px;text-transform:uppercase;color:${rebaixado?'var(--am)':'var(--sb)'}">
         ${rebaixado?'⚠ ':''}Por que este resultado — memória de cálculo
       </span>
-      <span id="mem-ico" style="font-family:var(--fm);font-size:.62rem;color:var(--mu)">▼ ver</span>
+      <span id="mem-ico-${chave}" style="font-family:var(--fm);font-size:.62rem;color:var(--mu)">▼ ver</span>
     </div>
-    <div id="mem-body" style="display:none;padding:4px 14px 6px;border:1px solid var(--b);border-top:none;border-radius:0 0 8px 8px;background:var(--c2)">${passos}</div>
+    <div id="mem-body-${chave}" style="display:none;padding:4px 14px 6px;border:1px solid var(--b);border-top:none;border-radius:0 0 8px 8px;background:var(--c2)">${passos}</div>
   </div>`;
 }
-function toggleMemoria(){
-  const b=document.getElementById('mem-body'), i=document.getElementById('mem-ico');
+function toggleMemoria(chave='concl'){
+  const b=document.getElementById('mem-body-'+chave), i=document.getElementById('mem-ico-'+chave);
   if(!b) return;
   const abrir = b.style.display==='none';
   b.style.display = abrir?'':'none';
@@ -3331,6 +3551,14 @@ function initChat() {
             Enviar
           </button>
         </div>
+        <div style="padding:0 14px 14px">
+          <div id="wa-linha" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px dashed var(--b);border-radius:8px">
+            <span style="font-size:.74rem;color:var(--mu)">
+              Continuar no WhatsApp — as mesmas perguntas, no celular, durante a visita.
+            </span>
+            <button class="btn-sm" onclick="gerarCodigoWhatsapp()">Vincular meu WhatsApp</button>
+          </div>
+        </div>
       </div>
     </div>`;
 
@@ -3345,6 +3573,30 @@ function initChat() {
   document.getElementById('chat-chips').innerHTML = perguntas.map(p =>
     `<button onclick="enviarChatChip(this)" style="font-family:var(--fm);font-size:.6rem;padding:5px 10px;border-radius:20px;border:1px solid var(--b);background:var(--c2);color:var(--sb);cursor:pointer;white-space:nowrap">${escapeHtml(p)}</button>`
   ).join('');
+}
+
+// O código é de uso único e curto. Só quem está logado consegue gerar um, e é
+// isso que garante que o webhook nunca responda dado de crédito a um número
+// desconhecido.
+async function gerarCodigoWhatsapp(){
+  const caixa = document.getElementById('wa-linha');
+  if(!caixa) return;
+  try{
+    const r = await fetch('/api/whatsapp/codigo', {method:'POST'});
+    const d = await lerRespostaJson(r);
+    if(!r.ok){
+      caixa.innerHTML = `<span style="font-size:.74rem;color:var(--am)">${escapeHtml(d.erro||'Canal WhatsApp não configurado.')}</span>`;
+      return;
+    }
+    caixa.innerHTML = `
+      <div style="font-size:.74rem;color:var(--sb);line-height:1.6">
+        Envie este código pelo seu WhatsApp para o número do BovCredit:
+        <div style="font-family:var(--fm);font-size:1.6rem;font-weight:800;letter-spacing:6px;color:var(--g);margin:6px 0 2px">${escapeHtml(d.codigo)}</div>
+        <span style="color:var(--mu)">Vale por ${d.validade_min} minutos e serve uma vez só.</span>
+      </div>`;
+  }catch(e){
+    caixa.innerHTML = `<span style="font-size:.74rem;color:var(--am)">Não foi possível gerar o código agora.</span>`;
+  }
 }
 
 function toggleChat() {

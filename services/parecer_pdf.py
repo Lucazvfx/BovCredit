@@ -165,6 +165,91 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
             '<i>Variação de estoque: riqueza criada pelo crescimento do rebanho — '
             'não é caixa, mas é valor real do ativo.</i>', ss['Subtitulo']))
 
+    # ── Garantia: valor de execução, não valor de mercado ────────────────────
+    garantia = parecer.get('garantia')
+    if garantia and garantia.get('valor_mercado', 0) > 0:
+        story.append(Paragraph('Garantia — Valor de Execução', ss['SecaoTitulo']))
+        linhas_g = [['Categoria', 'Valor de mercado', 'Deságio', 'Valor de execução']]
+        for linha in garantia.get('composicao', []):
+            linhas_g.append([
+                linha['rotulo'],
+                _fmt_moeda(linha['valor_mercado']),
+                f"{linha['desagio_pct']:.0f}%".replace('.', ','),
+                _fmt_moeda(linha['valor_garantia']),
+            ])
+        linhas_g.append([
+            'Total',
+            _fmt_moeda(garantia.get('valor_mercado')),
+            f"{garantia.get('desagio_medio_pct', 0):.1f}%".replace('.', ','),
+            _fmt_moeda(garantia.get('valor_garantia')),
+        ])
+        tg = Table(linhas_g, colWidths=[6*cm, 4*cm, 2.2*cm, 4*cm])
+        tg.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EEEEEE')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#DDDDDD')),
+            ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E8F5E9')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ]))
+        story.append(tg)
+        story.append(Spacer(1, 4))
+        if garantia.get('ltv') is not None:
+            _cor_ltv = {'suficiente': '#2E7D32', 'ajustada': '#F9A825',
+                        'insuficiente': '#C62828'}.get(garantia.get('veredito'), '#333333')
+            story.append(Paragraph(
+                f"<b>LTV {garantia['ltv']:.1f}%</b> sobre o valor de execução — "
+                f"<font color='{_cor_ltv}'><b>{(garantia.get('veredito') or '').upper()}</b></font>. "
+                f"Crédito máximo pela garantia: {_fmt_moeda(garantia.get('credito_maximo_garantia'))}.",
+                ss['Corpo']))
+        story.append(Paragraph(
+            '<i>Rebanho em penhor não se realiza pela cotação do dia: entre a '
+            'inadimplência e o caixa há apreensão, transporte, risco sanitário e '
+            'venda forçada. O deságio por categoria reflete quão rápido cada uma '
+            'vira dinheiro.</i>', ss['Subtitulo']))
+        story.append(Spacer(1, 6))
+
+    # ── Endividamento total ──────────────────────────────────────────────────
+    endiv = parecer.get('endividamento')
+    if endiv and (endiv.get('itens') or endiv.get('alerta') is None):
+        story.append(Paragraph('Endividamento do Proponente', ss['SecaoTitulo']))
+        if endiv.get('itens'):
+            linhas_e = [['Credor', 'Saldo devedor', 'Parcela mensal']]
+            for it in endiv['itens']:
+                linhas_e.append([
+                    it['instituicao'],
+                    _fmt_moeda(it['saldo_devedor']) if it['saldo_devedor'] else '—',
+                    _fmt_moeda(it['parcela_mensal']),
+                ])
+            linhas_e.append(['Total existente',
+                             _fmt_moeda(endiv.get('saldo_devedor_total')) if endiv.get('saldo_devedor_total') else '—',
+                             _fmt_moeda(endiv.get('parcela_existente_mensal'))])
+            if endiv.get('parcela_nova_mensal', 0) > 0:
+                linhas_e.append(['(+) Crédito em análise', '—',
+                                 _fmt_moeda(endiv['parcela_nova_mensal'])])
+                linhas_e.append(['(=) Serviço total mensal', '—',
+                                 _fmt_moeda(endiv.get('parcela_total_mensal'))])
+            te = Table(linhas_e, colWidths=[7.2*cm, 4.4*cm, 4.4*cm])
+            te.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EEEEEE')),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#DDDDDD')),
+                ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E8F5E9')),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ]))
+            story.append(te)
+            story.append(Spacer(1, 4))
+        _cor_e = '#C62828' if endiv.get('alerta') == 'critico' else '#333333'
+        story.append(Paragraph(
+            f"<font color='{_cor_e}'>{endiv.get('justificativa', '')}</font>",
+            ss['Subtitulo']))
+        story.append(Paragraph(
+            f"<i>Origem: {endiv.get('origem', 'declarado')}. Endividamento "
+            f"declarado pelo proponente não substitui consulta ao SCR do Banco "
+            f"Central.</i>", ss['Subtitulo']))
+        story.append(Spacer(1, 6))
+
     sensibilidade = parecer.get('sensibilidade') or []
     if sensibilidade:
         story.append(Paragraph('Sensibilidade de Preço', ss['SecaoTitulo']))

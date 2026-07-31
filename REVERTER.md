@@ -14,6 +14,9 @@ próximo restart.
 | `NARRATIVA_INLINE` | `0` | `1` | Volta a gerar a narrativa dentro de `/api/classificar` (bloqueante, até 20s mais lento). |
 | `SHAP_AGRUPAR_REDUNDANTES` | `1` | `0` | Volta o SHAP a listar as 40 features separadas, com duplicatas. |
 | `REPOSICAO_PRECIFICADA` | `1` | `0` | Deixa de cobrar a compra de reposição 1:1 em recria/engorda. A compra continua no balanço de animais, mas volta a custar zero — o DSCR dessas operações sobe ~4×. |
+| `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_ID` | ausentes | **remover** | Desliga o canal WhatsApp. Sem elas, `/webhook/whatsapp` devolve 404 — a rota não existe para quem não configurou. |
+| `WHATSAPP_APP_SECRET` | ausente | — | **Obrigatória quando o canal está ligado.** Sem ela toda requisição ao webhook é recusada (falha fechado): não há como distinguir a Meta de um impostor. |
+| `WHATSAPP_VERIFY_TOKEN` | ausente | — | Segredo do handshake de cadastro do webhook na Meta. |
 
 ## Por reversão de commit
 
@@ -36,6 +39,13 @@ Estes arquivos são autocontidos — apagá-los remove o recurso inteiro:
 
 - `services/groq_narrativa.py` — narrativa e chat IA
   (remover também o import e as rotas `/api/chat` e `/api/narrativa` em `app.py`)
+- `services/whatsapp.py` — canal WhatsApp
+  (remover também as rotas `/webhook/whatsapp` e `/api/whatsapp/codigo` em `app.py`)
+- `services/garantia.py` — deságio e LTV sobre o valor de execução
+  (o parecer aceita `garantia=None` e volta ao comportamento anterior)
+- `services/endividamento.py` — inventário de dívidas por credor
+  (o parecer aceita `endividamento=None`; o campo único `dividas_mensais`
+  continua funcionando sozinho)
 
 ## O que NÃO é revertível por flag
 

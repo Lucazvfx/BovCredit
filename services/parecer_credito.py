@@ -200,7 +200,7 @@ def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list,
 def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
                    consistencia, financeiro, geracao_caixa_anual, credito,
                    fluxo_gep=None, sensibilidade=None, shap_explicacao=None,
-                   projecao_anos=None) -> dict:
+                   projecao_anos=None, garantia=None, endividamento=None) -> dict:
     def _f(v, default=0.0):
         try: return float(v or default)
         except (TypeError, ValueError): return default
@@ -220,28 +220,64 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
     conclusao = avaliar_capacidade_no_prazo(
         conclusao, projecao_anos or [], _i(credito.get('prazo_meses')))
 
+    # ── Rebaixamentos ───────────────────────────────────────────────────────
+    # Capacidade de pagamento, garantia, endividamento e consistência são
+    # perguntas independentes: o fluxo pode cobrir a parcela e mesmo assim o
+    # rebanho não cobrir o principal numa execução. Vale a pior das respostas.
+    #
+    # Cada motivo é registrado na memória mesmo quando a recomendação já caiu
+    # por outro — o comitê precisa ver TODOS os problemas, não só o primeiro
+    # que disparou. Só a transição da recomendação é condicional.
+    _g = garantia or {}
+    _e = endividamento or {}
     erros = (consistencia or {}).get('resumo', {}).get('erros', 0)
-    if erros and conclusao['recomendacao'] == 'aprovar':
-        conclusao = dict(conclusao, recomendacao='ressalva',
-                         justificativa=conclusao['justificativa']
-                         + f' Rebaixado: {erros} erro(s) de consistência no rebanho declarado invalidam a projeção.')
-        conclusao.setdefault('memoria', []).append({
-            'passo':   'Rebaixamento por consistência',
-            'valor':   f'{erros} erro(s)',
-            'detalhe': 'Divergências no rebanho declarado invalidam a base da '
-                       'projeção, então a recomendação cai para ressalva.',
-        })
+
+    _motivos = []
+    if _g.get('veredito') == 'insuficiente':
+        _motivos.append((
+            f'garantia insuficiente (LTV {_g.get("ltv")}% sobre o valor de execução)',
+            {'passo':   'Rebaixamento por garantia',
+             'valor':   f'LTV {_g.get("ltv")}%',
+             'detalhe': 'A capacidade de pagamento cobre a parcela, mas o rebanho '
+                        'deságiado não cobre o principal numa execução. As duas '
+                        'perguntas são independentes e vale a pior.'}))
+    if _e.get('alerta') == 'critico':
+        _motivos.append((
+            f'endividamento total compromete {_e.get("comprometimento_pct")}% '
+            f'da geração de caixa',
+            {'passo':   'Rebaixamento por endividamento',
+             'valor':   f'{_e.get("comprometimento_pct")}%',
+             'detalhe': 'Somado o serviço das dívidas já existentes, a operação '
+                        'passa a consumir mais caixa do que a política admite.'}))
+    if erros:
+        _motivos.append((
+            f'{erros} erro(s) de consistência no rebanho declarado invalidam a projeção',
+            {'passo':   'Rebaixamento por consistência',
+             'valor':   f'{erros} erro(s)',
+             'detalhe': 'Divergências no rebanho declarado invalidam a base da '
+                        'projeção, então a recomendação cai para ressalva.'}))
+
+    if _motivos:
+        if conclusao['recomendacao'] == 'aprovar':
+            conclusao = dict(
+                conclusao, recomendacao='ressalva',
+                justificativa=conclusao['justificativa'] + ' Rebaixado: '
+                + '; '.join(m[0] for m in _motivos) + '.')
+        conclusao.setdefault('memoria', []).extend(m[1] for m in _motivos)
 
     return {
         'secoes': ['identificacao', 'composicao', 'indicadores',
-                   'consistencia', 'financeiro', 'fluxo_gep', 'sensibilidade',
-                   'shap_explicacao', 'conclusao'],
+                   'consistencia', 'financeiro', 'fluxo_gep', 'garantia',
+                   'endividamento', 'sensibilidade', 'shap_explicacao',
+                   'conclusao'],
         'identificacao': identificacao,
         'composicao': composicao,
         'indicadores': {'valores': indicadores, 'benchmarks': benchmarks},
         'consistencia': consistencia,
         'financeiro': financeiro,
         'fluxo_gep': fluxo_gep,
+        'garantia': garantia,
+        'endividamento': endividamento,
         'sensibilidade': sensibilidade,
         'shap_explicacao': shap_explicacao or {},
         'conclusao': conclusao,

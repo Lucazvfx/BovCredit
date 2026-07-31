@@ -3,7 +3,7 @@ Fluxo de Gestão — Camada de persistência
 Usa PostgreSQL (via DATABASE_URL) em produção e SQLite localmente.
 """
 import json, os
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from contextlib import contextmanager
 
@@ -780,3 +780,101 @@ def contar_confirmados() -> int:
         return int(row['n'])
     except (TypeError, KeyError, IndexError):
         return int(tuple(row)[0])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# WHATSAPP — vínculo telefone → usuário
+# ═══════════════════════════════════════════════════════════════════════════
+# O webhook recebe um número de telefone e nada mais. Sem um vínculo explícito,
+# responder qualquer pergunta sobre um parecer seria entregar dado de crédito
+# de um cliente a quem souber o número do bot. O vínculo é criado pelo próprio
+# analista, logado no sistema, com um código de uso único e prazo curto.
+
+def _ensure_whatsapp_tables():
+    _exec(f'''
+        CREATE TABLE IF NOT EXISTS whatsapp_vinculos (
+            telefone   TEXT PRIMARY KEY,
+            user_id    INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT {_NOW}
+        )
+    ''', commit=True)
+    _exec(f'''
+        CREATE TABLE IF NOT EXISTS whatsapp_codigos (
+            codigo     TEXT PRIMARY KEY,
+            user_id    INTEGER NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            used       INTEGER DEFAULT 0
+        )
+    ''', commit=True)
+
+
+def criar_codigo_whatsapp(user_id: int, ttl_min: int = 15) -> str:
+    """Código curto de uso único para o analista vincular o próprio número."""
+    import random
+    _ensure_whatsapp_tables()
+    codigo = f'{random.randint(0, 999999):06d}'
+    expira = datetime.now() + timedelta(minutes=ttl_min)
+    ph = _PH
+    _exec(f'DELETE FROM whatsapp_codigos WHERE user_id={ph}', (user_id,), commit=True)
+    _exec(f'INSERT INTO whatsapp_codigos (codigo, user_id, expires_at) VALUES ({ph},{ph},{ph})',
+          (codigo, user_id, expira), commit=True)
+    return codigo
+
+
+def consumir_codigo_whatsapp(codigo: str, telefone: str):
+    """
+    Troca um código válido pelo vínculo. Devolve o user_id ou None.
+
+    Uso único e com prazo: um código vazado depois de usado não serve, e um
+    código esquecido numa conversa expira sozinho.
+    """
+    _ensure_whatsapp_tables()
+    ph = _PH
+    row = _exec(f'SELECT user_id, expires_at, used FROM whatsapp_codigos WHERE codigo={ph}',
+                ((codigo or '').strip(),), fetch='one')
+    if not row or row['used']:
+        return None
+    exp = row['expires_at']
+    if isinstance(exp, str):
+        exp = datetime.fromisoformat(exp)
+    if exp < datetime.now():
+        return None
+    uid = int(row['user_id'])
+    _exec(f'UPDATE whatsapp_codigos SET used=1 WHERE codigo={ph}', (codigo,), commit=True)
+    _exec(f'DELETE FROM whatsapp_vinculos WHERE telefone={ph}', (telefone,), commit=True)
+    _exec(f'INSERT INTO whatsapp_vinculos (telefone, user_id) VALUES ({ph},{ph})',
+          (telefone, uid), commit=True)
+    return uid
+
+
+def buscar_user_por_telefone(telefones: list):
+    """Resolve um telefone (em suas variantes) para o usuário vinculado."""
+    _ensure_whatsapp_tables()
+    if not telefones:
+        return None
+    ph = _PH
+    marcadores = ','.join([ph] * len(telefones))
+    row = _exec(f'SELECT user_id FROM whatsapp_vinculos WHERE telefone IN ({marcadores})',
+                tuple(telefones), fetch='one')
+    return int(row['user_id']) if row else None
+
+
+def ultimo_parecer_do_usuario(user_id: int):
+    """O parecer mais recente do analista — o contexto que o chat responde."""
+    ph = _PH
+    row = _exec(
+        f'''SELECT id, solicitacao, parecer, recomendacao, dscr, created_at
+            FROM pareceres WHERE user_id={ph}
+            ORDER BY created_at DESC, id DESC LIMIT 1''',
+        (user_id,), fetch='one')
+    if not row:
+        return None
+    out = dict(row)
+    for k in ('solicitacao', 'parecer'):
+        if isinstance(out.get(k), str):
+            try:
+                out[k] = json.loads(out[k])
+            except (ValueError, TypeError):
+                out[k] = {}
+    out['created_at'] = str(out.get('created_at', ''))
+    return out

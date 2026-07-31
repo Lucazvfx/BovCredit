@@ -52,7 +52,8 @@ def test_montar_parecer_ordena_e_conclui():
                  'juros_aa': 0.10, 'carencia_meses': 0, 'dividas_mensais': 0})
     assert p['conclusao']['recomendacao'] == 'aprovar'
     assert list(p['secoes']) == ['identificacao', 'composicao', 'indicadores',
-                                 'consistencia', 'financeiro', 'fluxo_gep', 'sensibilidade',
+                                 'consistencia', 'financeiro', 'fluxo_gep',
+                                 'garantia', 'endividamento', 'sensibilidade',
                                  'shap_explicacao', 'conclusao']
 
 
