@@ -697,6 +697,30 @@ def api_classificar():
         preco_bezerra_cab=preco_bezerra, preco_bezerro_cab=preco_bezerro)
     geracao_caixa_anual = _cx['anos'][0]['resultado']
 
+    # ── Desfrute PROJETADO pela própria simulação ────────────────────────────
+    # O sistema calculava o desfrute implicitamente (pelas vendas do ano 1) mas
+    # nunca o confrontava com a própria referência: `desfrute` só entrava no
+    # painel se o analista o digitasse à mão. Uma projeção que vende o dobro do
+    # normal passava sem alarme e inflava o DSCR.
+    #
+    # Aqui ele é calculado e devolvido ao painel de benchmarks, que já sabe
+    # avaliar por modalidade (CRIA 18–30%, CICLO_COMPLETO 20–40%, etc.).
+    _ano1_desf   = _cx['anos'][0]
+    _vend_ano1   = (_ano1_desf.get('vendidos', 0)
+                    + _ano1_desf.get('matrizes_descartadas', 0))
+    desfrute_projetado = round(_vend_ano1 / max(sum(v), 1) * 100, 1)
+    if ind_bench.get('desfrute') is None:
+        ind_bench['desfrute'] = desfrute_projetado
+        # Reavalia com o desfrute preenchido — as duas chamadas abaixo rodaram
+        # antes da simulação existir e não tinham como conhecê-lo.
+        benchmarks = avaliar_benchmarks(result['tipo'], ind_bench)
+        painel_nacional = avaliar_nacional(result['tipo'], {
+            'prenhez':    _opt_float(data.get('taxa_prenhez_pct')),
+            'natalidade': ind_bench.get('natalidade'),
+            'desfrute':   desfrute_projetado,
+            'desembolso': _opt_float(data.get('desembolso_cab_mes')),
+        })
+
     # ── Fluxo de caixa completo — metodologia GEP Araguaia ──────────────────
     # Calcula variação de estoque do rebanho (ativo que valoriza ou deprecia).
     # Diferencial: nenhum sistema de crédito rural calcula isso automaticamente.
@@ -988,6 +1012,15 @@ def api_classificar():
         'narrativa_ia': _narrativa_ia,
         # Contexto para o frontend pedir a narrativa de forma assíncrona,
         # sem atrasar a entrega do parecer.
+        # Desfrute que a projeção de fato realiza, com a origem explícita:
+        # 'projetado' quando vem da simulação, 'informado' quando o analista
+        # digitou o valor (que prevalece).
+        'desfrute_projetado': {
+            'valor':    desfrute_projetado,
+            'origem':   'informado' if _opt_float(data.get('desfrute_pct')) is not None else 'projetado',
+            'vendidos': int(_vend_ano1),
+            'rebanho':  int(sum(v)),
+        },
         'narrativa_pendente': (not _NARRATIVA_INLINE) and _narrativa_ativa(),
         'narrativa_contexto': _ctx_narrativa if not _NARRATIVA_INLINE else None,
     })

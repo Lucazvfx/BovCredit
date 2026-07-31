@@ -2245,7 +2245,7 @@ function renderResult(data){
 
 function mr(k,v,c){return`<div class="mrow"><span class="mk">${k}</span><span class="mv ${c}">${v}</span></div>`}
 function mr2(k,v,c,bold){const w=bold?'font-weight:700;':'';return`<div class="mrow" style="${w}"><span class="mk">${k}</span><span class="mv ${c||''}">${v}</span></div>`}
-const BENCH_COR={excelente:'g',bom:'g',medio:'a',abaixo:'r'};
+const BENCH_COR={excelente:'g',bom:'g',medio:'a',abaixo:'r',acima:'a'};
 // ===== Benchmarks unificado (regional RO + nacional multi-fonte) =====
 // Sem repetir indicadores: natalidade e desfrute aparecem uma vez,
 // mesclando a faixa nacional (multi-fonte) com o corte regional de Rondônia.
@@ -2277,6 +2277,13 @@ function mfBloco(m,reg){
 }
 function regRow(b){
   const c=BENCH_COR[b.faixa]||'c';
+  // 'acima' = giro acima do teto da modalidade. Não é excelência: mostra o
+  // quanto excedeu e o motivo, em vez de "faltam X para o próximo nível".
+  if(b.faixa==='acima'){
+    const det=`<span style="opacity:.6;font-size:.62rem">(+${b.falta}${b.unidade} sobre o teto)</span>`;
+    const linha=mr(b.label, `${b.valor}${b.unidade} · ACIMA DA FAIXA ${det}`, c);
+    return linha + (b.alerta ? `<div style="font-size:.72rem;line-height:1.5;color:var(--am);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:9px 12px;margin:2px 0 10px">⚠ ${escapeHtml(b.alerta)}</div>` : '');
+  }
   const prox=b.proximo_nivel?` <span style="opacity:.5;font-size:.62rem">(faltam ${b.falta}${b.unidade} p/ ${b.proximo_nivel.toUpperCase()})</span>`:'';
   return mr(b.label, `${b.valor}${b.unidade} · ${b.faixa.toUpperCase()}${prox}`, c);
 }
