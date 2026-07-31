@@ -49,6 +49,7 @@ from services.custos_desembolso import (
 from services.reconciliacao import reconciliar
 from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
 from services.garantia import avaliar_garantia
+from services.precos_regionais import aplicar as aplicar_preco_regional
 from services.endividamento import consolidar as consolidar_endividamento
 from services.benchmarks_nacionais import avaliar_coe as _avaliar_coe
 from services.groq_narrativa import (
@@ -708,13 +709,46 @@ def api_classificar():
 
     # Preços por categoria (cotação do dia): request → banco → None (usa arroba).
     _cot = db.obter_cotacoes_atuais() or {}
+    _preco_digitado = set()
     def _preco(chave):
-        v_ = float(data.get(chave) or _cot.get(chave.replace('preco_', '')) or 0)
+        do_request = float(data.get(chave) or 0)
+        if do_request > 0:
+            _preco_digitado.add(chave)
+            return do_request
+        v_ = float(_cot.get(chave.replace('preco_', '')) or 0)
         return v_ if v_ > 0 else None
-    preco_boi = _preco('preco_boi')
-    preco_vaca = _preco('preco_vaca')
-    preco_bezerra = _preco('preco_bezerra')
-    preco_bezerro = _preco('preco_bezerro')
+
+    _precos_nac = {c: _preco(c) for c in
+                   ('preco_boi', 'preco_vaca', 'preco_bezerra', 'preco_bezerro')}
+
+    # ── Preço da praça ───────────────────────────────────────────────────────
+    # O indicador CEPEA/ESALQ é praça de São Paulo, e o sistema o aplicava
+    # igual no Brasil inteiro. Um LTV com preço paulista numa fazenda de RO
+    # está errado por construção — e é o LTV que decide se a garantia cobre.
+    #
+    # Só a cotação nacional recebe o diferencial: preço digitado pelo analista
+    # já é o da praça dele, e ajustar de novo descontaria duas vezes.
+    #
+    # A tela preenche os campos de cotação com o indicador nacional e os envia,
+    # então "veio no request" NÃO significa "digitado". Quando o cliente manda
+    # `precos_manuais`, ela é a autoridade sobre o que o analista alterou de
+    # fato; sem ela, mantém-se o comportamento antigo (preço enviado = manual),
+    # que é o certo para quem chama a API direto.
+    if isinstance(data.get('precos_manuais'), list):
+        _preco_digitado = {str(k) for k in data['precos_manuais']}
+    _reg = aplicar_preco_regional(
+        _precos_nac,
+        municipio=municipio,
+        uf=data.get('uf'),
+        ajustaveis=set(_precos_nac) - _preco_digitado,
+    )
+    _precos_nac = _reg['precos']
+    precos_regional = _reg['regional']
+
+    preco_boi     = _precos_nac['preco_boi']
+    preco_vaca    = _precos_nac['preco_vaca']
+    preco_bezerra = _precos_nac['preco_bezerra']
+    preco_bezerro = _precos_nac['preco_bezerro']
 
     # Geração de caixa recorrente: resultado do ano 1 no cenário conservador,
     # dentro do ciclo detectado (número mais conservador e recorrente).
@@ -1019,7 +1053,8 @@ def api_classificar():
         shap_explicacao=shap_explicacao,
         projecao_anos=_projecao_anos,
         garantia=garantia,
-        endividamento=endividamento)
+        endividamento=endividamento,
+        precos_regional=precos_regional)
 
     # Persiste no histórico da fazenda apenas quando há fazenda e solicitação.
     fazenda_id = data.get('fazenda_id')

@@ -200,7 +200,8 @@ def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list,
 def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
                    consistencia, financeiro, geracao_caixa_anual, credito,
                    fluxo_gep=None, sensibilidade=None, shap_explicacao=None,
-                   projecao_anos=None, garantia=None, endividamento=None) -> dict:
+                   projecao_anos=None, garantia=None, endividamento=None,
+                   precos_regional=None) -> dict:
     def _f(v, default=0.0):
         try: return float(v or default)
         except (TypeError, ValueError): return default
@@ -267,14 +268,15 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
 
     return {
         'secoes': ['identificacao', 'composicao', 'indicadores',
-                   'consistencia', 'financeiro', 'fluxo_gep', 'garantia',
-                   'endividamento', 'sensibilidade', 'shap_explicacao',
-                   'conclusao'],
+                   'consistencia', 'financeiro', 'precos_regional',
+                   'fluxo_gep', 'garantia', 'endividamento', 'sensibilidade',
+                   'shap_explicacao', 'conclusao'],
         'identificacao': identificacao,
         'composicao': composicao,
         'indicadores': {'valores': indicadores, 'benchmarks': benchmarks},
         'consistencia': consistencia,
         'financeiro': financeiro,
+        'precos_regional': precos_regional,
         'fluxo_gep': fluxo_gep,
         'garantia': garantia,
         'endividamento': endividamento,
