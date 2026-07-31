@@ -1088,3 +1088,73 @@ def purgar_auditoria(dias: int = None) -> int:
         registrar_acesso('lgpd_purga_auditoria',
                          detalhe=f'{removidos} registro(s) além de {dias} dias')
     return removidos
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2FA (TOTP)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _ensure_totp_colunas():
+    for col, tipo in (('totp_segredo', 'TEXT'), ('totp_ativo', 'INTEGER DEFAULT 0'),
+                      ('totp_contador', 'INTEGER DEFAULT 0'),
+                      ('totp_backup', 'TEXT')):
+        _add_column_safe('usuarios', col, tipo)
+
+
+def totp_estado(user_id: int) -> dict:
+    _ensure_totp_colunas()
+    ph = _PH
+    row = _exec(
+        f'SELECT totp_segredo, totp_ativo, totp_contador, totp_backup '
+        f'FROM usuarios WHERE id={ph}', (user_id,), fetch='one')
+    if not row:
+        return {'ativo': False, 'segredo': None, 'contador': 0, 'backup': []}
+    return {
+        'ativo':    bool(row.get('totp_ativo')),
+        'segredo':  row.get('totp_segredo'),
+        'contador': int(row.get('totp_contador') or 0),
+        'backup':   json.loads(row.get('totp_backup') or '[]'),
+    }
+
+
+def totp_guardar_segredo(user_id: int, segredo: str) -> None:
+    """Grava o segredo AINDA INATIVO — só ativa depois de um código válido."""
+    _ensure_totp_colunas()
+    ph = _PH
+    _exec(f'UPDATE usuarios SET totp_segredo={ph}, totp_ativo=0 WHERE id={ph}',
+          (segredo, user_id), commit=True)
+
+
+def totp_ativar(user_id: int, hashes_backup: list) -> None:
+    _ensure_totp_colunas()
+    ph = _PH
+    _exec(f'UPDATE usuarios SET totp_ativo=1, totp_backup={ph} WHERE id={ph}',
+          (json.dumps(hashes_backup), user_id), commit=True)
+
+
+def totp_desativar(user_id: int) -> None:
+    _ensure_totp_colunas()
+    ph = _PH
+    _exec(f'UPDATE usuarios SET totp_ativo=0, totp_segredo=NULL, '
+          f'totp_backup=NULL, totp_contador=0 WHERE id={ph}',
+          (user_id,), commit=True)
+
+
+def totp_registrar_uso(user_id: int, contador: int) -> None:
+    """
+    Registra o contador aceito para impedir reuso do MESMO código dentro da
+    janela de 90s. Sem isto, código interceptado vale de novo.
+    """
+    _ensure_totp_colunas()
+    ph = _PH
+    _exec(f'UPDATE usuarios SET totp_contador={ph} WHERE id={ph}',
+          (int(contador), user_id), commit=True)
+
+
+def totp_consumir_backup(user_id: int, hash_usado: str) -> None:
+    """Uso único: o hash sai da lista assim que é aceito."""
+    est = totp_estado(user_id)
+    restantes = [h for h in est['backup'] if h != hash_usado]
+    ph = _PH
+    _exec(f'UPDATE usuarios SET totp_backup={ph} WHERE id={ph}',
+          (json.dumps(restantes), user_id), commit=True)
