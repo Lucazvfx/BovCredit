@@ -104,3 +104,45 @@ def test_afastamento_pequeno_nao_alerta():
                           estoque_final=960, compras=0)
     assert d['afastamento'] < DESFRUTE_AFASTAMENTO_ALERTA
     assert alerta_liquidacao('CRIA', d) is None
+
+
+# ── Tetos de desfrute: três arquivos, um limiar ─────────────────────────────
+# O mesmo teto vive em DESFRUTE_MODALIDADE (benchmarks_nacionais), em
+# teto_por_ciclo (BENCHMARKS_RO, ml_engine) e no ponto médio derivado em
+# DESFRUTE_PCT (parametros_zootecnicos). Subir um e esquecer os outros produz
+# um parecer que alerta e não alerta ao mesmo tempo, dependendo do caminho.
+
+def test_faixa_e_teto_nao_divergem():
+    from services.benchmarks_nacionais import DESFRUTE_MODALIDADE
+    from ml_engine import BENCHMARKS_RO
+
+    tetos = BENCHMARKS_RO['desfrute']['teto_por_ciclo']
+    for modalidade, (_, hi) in DESFRUTE_MODALIDADE.items():
+        assert tetos[modalidade] == hi, (
+            f'{modalidade}: faixa termina em {hi}% mas o teto que dispara o '
+            f'alerta é {tetos[modalidade]}%'
+        )
+
+
+def test_referencia_fica_dentro_da_propria_faixa():
+    from services.benchmarks_nacionais import DESFRUTE_MODALIDADE
+    from services.parametros_zootecnicos import DESFRUTE_PCT
+
+    for modalidade, (lo, hi) in DESFRUTE_MODALIDADE.items():
+        ref = float(DESFRUTE_PCT[modalidade])
+        assert lo <= ref <= hi, (
+            f'{modalidade}: referência {ref}% fora da faixa {lo}–{hi}%'
+        )
+
+
+def test_bom_desempenho_nao_e_marcado_como_anomalia():
+    """
+    Uma cria a 35% e um ciclo completo a 45% são bom desempenho pelo setor
+    (Scot Consultoria). Antes desta revisão os tetos eram 30% e 40%, e os dois
+    casos disparavam alerta — alerta que soa em desempenho bom é alerta que o
+    analista aprende a ignorar.
+    """
+    from ml_engine import BENCHMARKS_RO
+    tetos = BENCHMARKS_RO['desfrute']['teto_por_ciclo']
+    assert tetos['CRIA'] >= 35.0
+    assert tetos['CICLO_COMPLETO'] >= 45.0

@@ -1884,13 +1884,18 @@ BENCHMARKS_RO = {
         #
         # Sem isso, uma projeção que vendia 291% do rebanho era rotulada
         # "excelente" e passava sem alarme, inflando o DSCR.
+        #
+        # CRIA e CICLO_COMPLETO subiram em julho/2026 (30→35 e 40→45) para
+        # acompanhar DESFRUTE_MODALIDADE em benchmarks_nacionais.py — ver lá o
+        # porquê e o conflito de fontes. Os dois precisam andar juntos: são o
+        # mesmo limiar lido por caminhos diferentes.
         'teto_por_ciclo': {
-            'CRIA':            30.0,
+            'CRIA':            35.0,
             'RECRIA':          55.0,
             'ENGORDA':        120.0,
-            'CICLO_COMPLETO':  40.0,
+            'CICLO_COMPLETO':  45.0,
             'RECRIA_ENGORDA':  85.0,
-            'CRIA_RECRIA':     40.0,
+            'CRIA_RECRIA':     45.0,
         },
     },
 }

@@ -42,12 +42,29 @@ PRENHEZ_SISTEMA = {
 }
 
 # --- Desfrute por modalidade (PPTX slides 5–6) --------------------------------
+# Tetos de CRIA e CICLO_COMPLETO revisados em julho/2026. Os anteriores (30% e
+# 40%) vinham do slide do material de treinamento e ficavam ABAIXO do que o
+# setor trata como bom desempenho — Scot Consultoria dá "acima de 35%" para
+# cria e "acima de 45%" para ciclo completo, com as propriedades mais
+# produtivas em torno de 56% e as de produtividade média em 47%.
+#
+# Uma cria fazendo 35% é boa cria, e o sistema a marcava como anomalia acima
+# do teto. Alerta que dispara em desempenho bom é alerta que o analista
+# aprende a ignorar — e aí não serve para o caso em que deveria disparar.
+#
+# As duas fontes conflitam e a divergência fica registrada aqui de propósito:
+# o slide é material interno, as faixas do setor são públicas e citáveis.
+# Onde conflitam, prevalece a pública.
+#
+# RECRIA, RECRIA_ENGORDA e ENGORDA ficam como estavam: a faixa de RECRIA é a
+# validada contra a ficha real de 700 cabeças (projeção 43,4% dentro de
+# 35–55%), e não há motivo medido para mexer.
 DESFRUTE_MODALIDADE = {
-    "CRIA": (18.0, 30.0),
+    "CRIA": (18.0, 35.0),
     "RECRIA": (35.0, 55.0),
     "RECRIA_ENGORDA": (60.0, 85.0),
     "ENGORDA": (80.0, 120.0),
-    "CICLO_COMPLETO": (20.0, 40.0),
+    "CICLO_COMPLETO": (20.0, 45.0),
 }
 
 # Escala geral de interpretação do desfrute (PPTX slide 5), independente de
