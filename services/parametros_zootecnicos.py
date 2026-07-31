@@ -11,6 +11,8 @@ Módulo puro — só constantes e helpers, sem I/O.
 """
 from __future__ import annotations
 
+from services.proveniencia import referencia
+
 
 def midpoint(lo: float, hi: float) -> float:
     """Ponto médio de uma faixa de benchmark."""
@@ -19,7 +21,7 @@ def midpoint(lo: float, hi: float) -> float:
 
 # ── Taxas: ponto médio do benchmark ──────────────────────────────────────────
 # Natalidade nacional (pptx): faixas 55–75; conservador recomendado = 70%.
-NATALIDADE_PCT = 70.0
+NATALIDADE_PCT = referencia(70.0, 'Benchmark nacional — faixa 60–80%', rotulo='Taxa de natalidade')
 # Prenhez — referência de MERCADO por fonte: Embrapa 50–65%, Scot ~60%,
 # CEPEA-USP 55–60%, ABCZ 65–75%, ASBIA 65%. Por sistema: extensivo 60–75%,
 # semi-intensivo 75–85%, intensivo acima de 85%.
@@ -50,25 +52,36 @@ TROCA_ARROBAS_BEZERRO   = 9.26
 
 # Sem benchmark nacional para estas — banda "médio" do benchmark regional
 # (ml_engine.BENCHMARKS_RO), documentada como tal.
-MORTALIDADE_PCT = 3.0          # BENCHMARKS_RO.mortalidade médio (taxa geral)
-MORTALIDADE_ADULTO_PCT  = 2.0  # EMBRAPA: adultos 1.5–2.5%; médio 2%
-MORTALIDADE_BEZERRA_PCT = 7.0  # EMBRAPA: bezerros pré-desmame 5–10%; médio 7%
-DESMAME_PCT = 82.0             # BENCHMARKS_RO.desmama médio
-RENDIMENTO_CARCACA_PCT = 52.0  # BENCHMARKS_RO.rend_carcaca médio (engorda)
-GANHO_ARROBA_MES = 0.7         # BENCHMARKS_RO.ganho_peso_arr médio
+MORTALIDADE_PCT = referencia(3.0, 'Benchmark regional — faixa 2–5%', rotulo='Mortalidade geral')  # BENCHMARKS_RO.mortalidade médio (taxa geral)
+MORTALIDADE_ADULTO_PCT = referencia(2.0, 'EMBRAPA — adultos 1,5–2,5%', rotulo='Mortalidade adulto')  # EMBRAPA: adultos 1.5–2.5%; médio 2%
+MORTALIDADE_BEZERRA_PCT = referencia(7.0, 'EMBRAPA — bezerros pré-desmame 5–10%', rotulo='Mortalidade bezerro')  # EMBRAPA: bezerros pré-desmame 5–10%; médio 7%
+DESMAME_PCT = referencia(82.0, 'Benchmark regional — desmama', rotulo='Taxa de desmama')  # BENCHMARKS_RO.desmama médio
+RENDIMENTO_CARCACA_PCT = referencia(52.0, 'Benchmark regional — engorda', rotulo='Rendimento de carcaça')  # BENCHMARKS_RO.rend_carcaca médio (engorda)
+GANHO_ARROBA_MES = referencia(0.7, 'Benchmark regional — ganho de peso', rotulo='Ganho @/mês')  # BENCHMARKS_RO.ganho_peso_arr médio
 RELACAO_FM = 2.2               # BENCHMARKS_RO.relacao_fm médio
 PCT_MATRIZES = 35.0            # BENCHMARKS_RO.pct_matrizes médio
 
 # Desfrute por modalidade (nacional DESFRUTE_MODALIDADE, meio de cada faixa).
+# Cada valor carrega a origem (services/proveniencia.py). São REFERÊNCIA:
+# ponto médio de faixa de bibliografia, não medição desta nem de qualquer
+# fazenda. Substituíveis por medição (IBGE PPM ÷ Abate, por UF) trocando o
+# registro — nenhuma fórmula muda, porque Parametro herda de float.
+def _desfrute(ciclo, lo, hi, nota=''):
+    return referencia(
+        midpoint(lo, hi),
+        f'Benchmark nacional — ponto médio da faixa {lo:.0f}–{hi:.0f}%',
+        rotulo=f'Desfrute de referência · {ciclo}', nota=nota)
+
+
 DESFRUTE_PCT = {
-    'CRIA': midpoint(18.0, 30.0),               # 24.0
-    'RECRIA': midpoint(35.0, 55.0),             # 45.0
-    'ENGORDA': midpoint(80.0, 120.0),           # 100.0
-    'CICLO_COMPLETO': midpoint(20.0, 40.0),     # 30.0
-    'RECRIA_ENGORDA': midpoint(60.0, 85.0),     # 72.5
-    # Sistema misto: base de cria com compra de desmama. O desfrute fica acima
-    # de uma cria pura porque o volume recriado também é comercializado.
-    'CRIA_RECRIA': midpoint(25.0, 40.0),        # 32.5
+    'CRIA':           _desfrute('CRIA', 18.0, 30.0),
+    'RECRIA':         _desfrute('RECRIA', 35.0, 55.0),
+    'ENGORDA':        _desfrute('ENGORDA', 80.0, 120.0),
+    'CICLO_COMPLETO': _desfrute('CICLO_COMPLETO', 20.0, 40.0),
+    'RECRIA_ENGORDA': _desfrute('RECRIA_ENGORDA', 60.0, 85.0),
+    'CRIA_RECRIA':    _desfrute('CRIA_RECRIA', 25.0, 40.0,
+        nota='Sistema misto: base de cria com compra de desmama. Fica acima de '
+             'uma cria pura porque o volume recriado também é comercializado.'),
 }
 
 # ── Pesos por categoria: GEP Araguaia safra 24/25 (fonte primária) ───────────

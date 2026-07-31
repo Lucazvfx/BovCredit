@@ -395,6 +395,46 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
             ss['Subtitulo']))
 
     conclusao = parecer.get('conclusao') or {}
+    # ── Proveniência dos parâmetros ──────────────────────────────────────────
+    prov = parecer.get('proveniencia') or {}
+    _params = prov.get('parametros') or []
+    if _params:
+        res = prov.get('resumo') or {}
+        cont = res.get('contagem') or {}
+        story.append(Paragraph('Origem dos Parâmetros', ss['SecaoTitulo']))
+        story.append(Paragraph(
+            f"{res.get('total', 0)} parâmetros sustentam este parecer: "
+            f"<b>{cont.get('medido', 0)} medidos</b>, "
+            f"{cont.get('referencia', 0)} de referência, "
+            f"{cont.get('politica', 0)} de política e "
+            f"{cont.get('declarado', 0)} declarados.", ss['Corpo']))
+        linhas_pv = [['Parâmetro', 'Valor', 'Origem', 'Fonte']]
+        for d in _params:
+            linhas_pv.append([
+                d['rotulo'] or '—',
+                f"{d['valor']:g}",
+                d['origem_rotulo'],
+                d['fonte'] or '—',
+            ])
+        tpv = Table(linhas_pv, colWidths=[5.4*cm, 1.8*cm, 2.2*cm, 6.6*cm],
+                    repeatRows=1)
+        tpv.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EEEEEE')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#DDDDDD')),
+            ('FONTSIZE', (0, 0), (-1, -1), 7.5),
+            ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        story.append(tpv)
+        story.append(Spacer(1, 4))
+        story.append(Paragraph(
+            '<i>Medição se cita — série apurada por terceiro. Política se discute '
+            '— é escolha da instituição, não descreve fato. Referência se '
+            'questiona — calibração de bibliografia, não apurada nesta fazenda. '
+            'Declaração se confere — informada, não verificada.</i>',
+            ss['Subtitulo']))
+        story.append(Spacer(1, 6))
+
     story.append(Paragraph('Conclusão — Capacidade de Pagamento', ss['SecaoTitulo']))
     rec = conclusao.get('recomendacao')
     if rec:

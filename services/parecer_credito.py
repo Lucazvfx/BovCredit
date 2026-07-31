@@ -4,9 +4,16 @@ Módulo puro — não importa Flask nem DB. Recebe números já computados.
 """
 from __future__ import annotations
 
-# Faixas de política de crédito (DSCR) — ajustáveis, não são benchmark zootécnico.
-DSCR_APROVAR = 1.30
-DSCR_RESSALVA = 1.00
+from services.proveniencia import politica, catalogo, resumo as _resumo_prov
+
+# Faixas de política de crédito (DSCR) — ajustáveis, não são benchmark
+# zootécnico. Marcadas como POLÍTICA na proveniência: em comitê elas se
+# discutem, não se citam.
+DSCR_APROVAR = politica(
+    1.30, 'Política de crédito da instituição', rotulo='DSCR para aprovar',
+    nota='Cobertura mínima do serviço da dívida no ano crítico do prazo.')
+DSCR_RESSALVA = politica(
+    1.00, 'Política de crédito da instituição', rotulo='DSCR para ressalva')
 
 
 def parcela_price(pv: float, juros_aa: float, n_meses: int) -> float:
@@ -266,17 +273,41 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
                 + '; '.join(m[0] for m in _motivos) + '.')
         conclusao.setdefault('memoria', []).extend(m[1] for m in _motivos)
 
+    # ── Proveniência dos parâmetros ─────────────────────────────────────────
+    # Cada número usado carrega de onde veio. Medição se cita, política se
+    # discute, referência se questiona, declaração se confere — e o comitê
+    # precisa saber qual é qual antes de decidir.
+    from services.parametros_zootecnicos import (
+        DESFRUTE_PCT, NATALIDADE_PCT, DESMAME_PCT, MORTALIDADE_PCT,
+        MORTALIDADE_ADULTO_PCT, MORTALIDADE_BEZERRA_PCT,
+        RENDIMENTO_CARCACA_PCT, GANHO_ARROBA_MES,
+    )
+    from services.garantia import DESAGIO_PADRAO, LTV_APROVAR, LTV_RESSALVA
+    from services.endividamento import COMPROMETIMENTO_ALERTA
+
+    _cat = catalogo(
+        DSCR_APROVAR, DSCR_RESSALVA,
+        LTV_APROVAR, LTV_RESSALVA, DESAGIO_PADRAO,
+        COMPROMETIMENTO_ALERTA,
+        DESFRUTE_PCT,
+        NATALIDADE_PCT, DESMAME_PCT, MORTALIDADE_PCT,
+        MORTALIDADE_ADULTO_PCT, MORTALIDADE_BEZERRA_PCT,
+        RENDIMENTO_CARCACA_PCT, GANHO_ARROBA_MES,
+    )
+    proveniencia = {'parametros': _cat, 'resumo': _resumo_prov(_cat)}
+
     return {
         'secoes': ['identificacao', 'composicao', 'indicadores',
                    'consistencia', 'financeiro', 'precos_regional',
                    'fluxo_gep', 'garantia', 'endividamento', 'sensibilidade',
-                   'shap_explicacao', 'conclusao'],
+                   'shap_explicacao', 'proveniencia', 'conclusao'],
         'identificacao': identificacao,
         'composicao': composicao,
         'indicadores': {'valores': indicadores, 'benchmarks': benchmarks},
         'consistencia': consistencia,
         'financeiro': financeiro,
         'precos_regional': precos_regional,
+        'proveniencia': proveniencia,
         'fluxo_gep': fluxo_gep,
         'garantia': garantia,
         'endividamento': endividamento,
