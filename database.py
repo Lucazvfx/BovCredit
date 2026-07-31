@@ -763,3 +763,20 @@ def incr_meta(chave: str, delta: int = 1) -> int:
 
 def reset_meta(chave: str) -> None:
     set_meta(chave, '0')
+
+def contar_confirmados() -> int:
+    """
+    Quantos registros têm classificação confirmada por um humano.
+
+    É a métrica que separa "o modelo aprendeu as faixas que escrevemos" de
+    "o modelo acerta na realidade": todo o conjunto de treino é sintético, e
+    só estes registros são casos reais rotulados.
+    """
+    row = _exec('SELECT COUNT(*) AS n FROM registros WHERE class_conf IS NOT NULL',
+                fetch='one')
+    if not row:
+        return 0
+    try:
+        return int(row['n'])
+    except (TypeError, KeyError, IndexError):
+        return int(tuple(row)[0])

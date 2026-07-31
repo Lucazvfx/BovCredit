@@ -19,7 +19,7 @@ from ml_engine import (
     treinar_modelo, classificar, calcular_indicadores,
     simular_cenario, carregar_modelo, CENARIOS,
     avaliar_benchmarks, extrair_indicadores_benchmark, calcular_breakeven_simples,
-    explicar_shap,
+    explicar_shap, TIPOS,
 )
 import database as db
 
@@ -1062,6 +1062,49 @@ def api_classificar():
         },
         'narrativa_pendente': (not _NARRATIVA_INLINE) and _narrativa_ativa(),
         'narrativa_contexto': _ctx_narrativa if not _NARRATIVA_INLINE else None,
+    })
+
+
+@app.route('/api/confirmar-ciclo', methods=['POST'])
+@login_required
+def api_confirmar_ciclo():
+    """
+    Registra a classificação que o analista confirma ou corrige.
+
+    É o único caminho pelo qual o projeto ganha dado rotulado por humano. Todo
+    o conjunto de treino é sintético, gerado a partir de faixas de referência,
+    e a acurácia medida sobre ele diz apenas que o modelo aprendeu as faixas
+    que escrevemos. Cada confirmação aqui é um caso real, e é o que permitirá
+    um dia afirmar que o modelo acerta na realidade.
+
+    O retreino consome apenas `class_conf` (db.exportar_treino), então a
+    previsão do modelo nunca realimenta a si mesma.
+    """
+    data = request.json or {}
+    registro_id = data.get('registro_id')
+    ciclo = (data.get('ciclo') or '').strip().upper()
+
+    if not registro_id:
+        return jsonify({'erro': 'Registro não informado.'}), 400
+    if ciclo not in TIPOS:
+        return jsonify({'erro': f'Ciclo inválido. Esperado um de: {", ".join(TIPOS)}'}), 400
+
+    registro = db.buscar_registro_por_id(int(registro_id))
+    if not registro:
+        return jsonify({'erro': 'Registro não encontrado.'}), 404
+
+    db.confirmar(int(registro_id), ciclo)
+    concordou = registro.get('class_ml') == ciclo
+    logger.info(
+        f'[confirmacao] registro {registro_id}: ML={registro.get("class_ml")} '
+        f'analista={ciclo} {"concorda" if concordou else "CORRIGE"}'
+    )
+    return jsonify({
+        'ok': True,
+        'ciclo': ciclo,
+        'class_ml': registro.get('class_ml'),
+        'concordou': concordou,
+        'total_confirmados': db.contar_confirmados(),
     })
 
 
