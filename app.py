@@ -923,6 +923,13 @@ def api_classificar():
     fluxo_gep['margem_por_cabeca']       = round(fluxo_gep['resultado_operacional'] / max(_total_reb, 1), 2)
     fluxo_gep['total_rebanho']           = int(_total_reb)
     fluxo_gep['n_vendidos_ano1']         = int(_n_vend_gep)
+    # Suposição sobre a compra de desmama: sai do implícito para o declarado.
+    # É ela que decide se o rebanho encolhe (e a variação de estoque fica
+    # negativa) ou se mantém a estrutura pagando a compra todo ano.
+    if _ano1.get('compra_desmama_estimada', 0) > 0:
+        fluxo_gep['compra_desmama_estimada'] = _ano1['compra_desmama_estimada']
+        fluxo_gep['custo_compra_desmama']    = _ano1.get('custo_compra_desmama', 0.0)
+        fluxo_gep['repoe_compra_desmama']    = _ano1.get('repoe_compra_desmama', False)
     if result.get('tipo') in ('CRIA', 'CICLO_COMPLETO') and _mat_ini_gep > 0:
         fluxo_gep['receita_por_matriz'] = round(fluxo_gep['receita_vendas'] / _mat_ini_gep, 2)
         fluxo_gep['n_matrizes']         = int(_mat_ini_gep)

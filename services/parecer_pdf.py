@@ -164,6 +164,22 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         story.append(Paragraph(
             '<i>Variação de estoque: riqueza criada pelo crescimento do rebanho — '
             'não é caixa, mas é valor real do ativo.</i>', ss['Subtitulo']))
+        _cd = fluxo_gep.get('compra_desmama_estimada', 0)
+        if _cd:
+            _repoe = fluxo_gep.get('repoe_compra_desmama')
+            story.append(Paragraph(
+                f"<b>Suposição — compra de desmama:</b> a coorte de 0–12 meses "
+                f"excede a produção própria em <b>{_cd} animais</b>, que só podem "
+                f"ter sido comprados. "
+                + (f"A projeção MANTÉM essa compra todo ano "
+                   f"({_fmt_moeda(fluxo_gep.get('custo_compra_desmama'))} no ano 1), "
+                   f"preservando a estrutura do rebanho."
+                   if _repoe else
+                   "A projeção assume que o produtor DEIXA de comprar: não há custo "
+                   "de aquisição, mas o rebanho converge para a produção própria — "
+                   "e é isso que explica a variação de estoque negativa.")
+                + " As duas leituras são legítimas e dão pareceres diferentes.",
+                ss['Corpo']))
 
     # ── Praça de referência dos preços ───────────────────────────────────────
     # Sem isto o parecer não diz sobre qual preço os números foram feitos, e

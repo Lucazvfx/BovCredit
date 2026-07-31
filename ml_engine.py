@@ -35,6 +35,12 @@ from services.parametros_zootecnicos import (
 # (compra aparece no balanço de animais, mas não custa nada).
 _REPOSICAO_PRECIFICADA = os.environ.get('REPOSICAO_PRECIFICADA', '1') != '0'
 
+# Na cria, o excedente da coorte 0–12m sobre a produção própria foi comprado.
+# `1` mantém a estrutura do rebanho comprando essa diferença todo ano (estoque
+# estável, custo de compra no caixa); `0` (default) assume que o produtor para
+# de comprar e o rebanho converge para a produção própria. Ver _simular_cria.
+_REPOR_COMPRA_DESMAMA = os.environ.get('REPOR_COMPRA_DESMAMA', '0') == '1'
+
 # Razão bezerra/adulto para derivar mort_bezerra quando só mort_adulto é informada
 _RAZAO_MORT_BEZERRA = MORTALIDADE_BEZERRA_PCT / MORTALIDADE_ADULTO_PCT  # 3.5
 
@@ -1282,10 +1288,35 @@ def _simular_cria(
 
         # ── Custo sobre o rebanho mantido no ano ────────────────────────────
         _touros = bois if bois > 0 else (max(round(matrizes / 30.0), 1) if matrizes > 0 else 0)
-        custo = (matrizes * peso_matriz
-                 + (bez_F + bez_M) * peso_bezerra
-                 + (nov_F + mac_R) * PESO_JOVEM_F_ARR
-                 + _touros * PESO_BOI_ARR) * custo_arroba
+        custo_manutencao = (matrizes * peso_matriz
+                            + (bez_F + bez_M) * peso_bezerra
+                            + (nov_F + mac_R) * PESO_JOVEM_F_ARR
+                            + _touros * PESO_BOI_ARR) * custo_arroba
+
+        # ── Compra de desmama ───────────────────────────────────────────────
+        # Coorte de 0–12m acima do que as matrizes entregam só pode ter sido
+        # comprada. `services.consistencia_rebanho.estimar_compra_animais` já
+        # detectava e sinalizava isso, mas o fluxo de caixa nunca debitava nada
+        # — e o modelo, ao projetar o ano seguinte só com produção própria,
+        # assumia em silêncio que o produtor PARA de comprar.
+        #
+        # Essa suposição não é neutra: é ela que faz o rebanho encolher e
+        # produz a variação de estoque negativa. As duas leituras são legítimas
+        # e dão pareceres diferentes:
+        #
+        #   não repõe (default) — rebanho converge para a produção própria;
+        #       sem custo de compra, mas o estoque perde valor
+        #   repõe               — mantém a estrutura declarada; estoque estável,
+        #       ao custo de comprar a diferença todo ano
+        #
+        # O default mantém o comportamento histórico. O que muda é que a
+        # suposição passa a ser declarada, em vez de implícita.
+        compra_desmama = max((bez_F + bez_M) - nascidos, 0.0)
+        custo_compra   = (compra_desmama * preco_bz
+                          if (_REPOR_COMPRA_DESMAMA and _REPOSICAO_PRECIFICADA)
+                          else 0.0)
+
+        custo     = custo_manutencao + custo_compra
         resultado = receita - custo
 
         # ── Estado no fim do ano (balanço fechado) ──────────────────────────
@@ -1302,6 +1333,13 @@ def _simular_cria(
         # antecipado para venda.
         bez_F_prox    = max(_desm_F - _antecip_F, 0.0)
         bez_M_prox    = max(_desm_M - _antecip_M, 0.0)
+        if _REPOR_COMPRA_DESMAMA and compra_desmama > 0:
+            # A compra recompõe a coorte jovem na proporção declarada, então a
+            # estrutura do rebanho se mantém em vez de convergir para a
+            # produção própria.
+            _frac_f_jov = (bez_F / (bez_F + bez_M)) if (bez_F + bez_M) > 0 else 0.5
+            bez_F_prox += compra_desmama * _frac_f_jov
+            bez_M_prox += compra_desmama * (1 - _frac_f_jov)
         mac_R_prox    = 0.0
         bois_prox     = max(bois - bois * mort, 0.0)
         total_prox    = int(matrizes_prox + nov_F_prox + bez_F_prox
@@ -1321,6 +1359,10 @@ def _simular_cria(
             'aumento_matrizes': int(promovidas - descarte_mat),
             'receita': round(receita, 2),
             'custo': round(custo, 2),
+            'custo_manutencao': round(custo_manutencao, 2),
+            'custo_compra_desmama': round(custo_compra, 2),
+            'compra_desmama_estimada': int(round(compra_desmama)),
+            'repoe_compra_desmama': bool(_REPOR_COMPRA_DESMAMA),
             'resultado': round(resultado, 2),
             'bois_fim':     int(bois_prox),
             'jovens_f_fim': int(nov_F_prox + bez_F_prox),

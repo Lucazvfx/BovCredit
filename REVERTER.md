@@ -13,6 +13,7 @@ próximo restart.
 | `GROQ_API_KEY` | ausente | **remover** | Desliga narrativa IA e chat. Sem ela, tudo funciona como antes. |
 | `NARRATIVA_INLINE` | `0` | `1` | Volta a gerar a narrativa dentro de `/api/classificar` (bloqueante, até 20s mais lento). |
 | `SHAP_AGRUPAR_REDUNDANTES` | `1` | `0` | Volta o SHAP a listar as 40 features separadas, com duplicatas. |
+| `REPOR_COMPRA_DESMAMA` | `0` | `1` | Na cria, mantém a estrutura do rebanho comprando todo ano a desmama que excede a produção própria. Estoque estável, ao custo da compra no caixa. `0` (default) assume que o produtor para de comprar e o rebanho converge para a produção própria — é essa suposição que produz a variação de estoque negativa. |
 | `REPOSICAO_PRECIFICADA` | `1` | `0` | Deixa de cobrar a compra de reposição 1:1 em recria/engorda. A compra continua no balanço de animais, mas volta a custar zero — o DSCR dessas operações sobe ~4×. |
 | `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_ID` | ausentes | **remover** | Desliga o canal WhatsApp. Sem elas, `/webhook/whatsapp` devolve 404 — a rota não existe para quem não configurou. |
 | `WHATSAPP_APP_SECRET` | ausente | — | **Obrigatória quando o canal está ligado.** Sem ela toda requisição ao webhook é recusada (falha fechado): não há como distinguir a Meta de um impostor. |

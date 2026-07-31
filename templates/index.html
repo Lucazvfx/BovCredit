@@ -2103,6 +2103,14 @@ function renderParecer(data){
         ${gep.servico_divida_anual > 0 ? mr2('(−) Serviço da dívida (anual)', fR(gep.servico_divida_anual), 'r') : ''}
         ${gep.fluxo_livre != null ? mr2('(=) Fluxo livre após dívida', fR(gep.fluxo_livre), gep.fluxo_livre>=0?'g':'r', true) : ''}
       </div>
+      ${gep.compra_desmama_estimada ? `<div style="margin-top:10px;padding:10px 14px;background:var(--c2);border:1px solid var(--b);border-left:3px solid var(--am);border-radius:var(--rs);font-size:.76rem;color:var(--sb);line-height:1.6">
+        <strong style="color:var(--am)">Suposição — compra de desmama.</strong>
+        A coorte de 0–12 meses excede a produção própria em <strong>${gep.compra_desmama_estimada} animais</strong>, que só podem ter sido comprados.
+        ${gep.repoe_compra_desmama
+          ? `A projeção <strong>mantém</strong> essa compra todo ano (${fR(gep.custo_compra_desmama)} no ano 1), preservando a estrutura do rebanho.`
+          : `A projeção assume que o produtor <strong>deixa de comprar</strong>: não há custo de aquisição, mas o rebanho converge para a produção própria — e é isso que explica a variação de estoque negativa.`}
+        As duas leituras são legítimas e dão pareceres diferentes.
+      </div>` : ''}
       ${(() => {
         const cb = gep.coe_benchmark;
         if(!cb) return '';
