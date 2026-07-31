@@ -45,6 +45,10 @@ WHATSAPP_CONSULTA = 'whatsapp_consulta'
 LGPD_EXPORTACAO   = 'lgpd_exportacao'
 LGPD_ANONIMIZACAO = 'lgpd_anonimizacao'
 LGPD_PURGA        = 'lgpd_purga_auditoria'
+LOGIN_2FA_FALHOU  = 'login_2fa_falhou'
+LOGIN_2FA_BACKUP  = 'login_2fa_backup'
+DOIS_FATORES_ATIVADO    = '2fa_ativado'
+DOIS_FATORES_DESATIVADO = '2fa_desativado'
 
 EVENTOS = {
     LOGIN:             'Entrou no sistema',
@@ -62,6 +66,10 @@ EVENTOS = {
     LGPD_EXPORTACAO:   'Exportou dados de um titular (LGPD Art. 18, V)',
     LGPD_ANONIMIZACAO: 'Anonimizou um titular (LGPD Art. 18)',
     LGPD_PURGA:        'Purgou a trilha além do prazo de retenção',
+    LOGIN_2FA_FALHOU:  'Segundo fator recusado',
+    LOGIN_2FA_BACKUP:  'Entrou usando código de recuperação',
+    DOIS_FATORES_ATIVADO:    'Ativou o segundo fator',
+    DOIS_FATORES_DESATIVADO: 'Desativou o segundo fator',
 }
 
 # Eventos que tocam dado de crédito de um cliente identificado. É esta lista

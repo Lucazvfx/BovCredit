@@ -42,7 +42,7 @@ Este documento descreve o sistema **como ele está**, incluindo o que não funci
 |---|---|
 | Python (produção) | 10.476 linhas |
 | Interface (`templates/index.html`) | 3.750 linhas |
-| Testes | **529** casos em 62 arquivos |
+| Testes | **567** casos em 63 arquivos |
 | Rotas HTTP | 44, sendo 25 endpoints `/api` |
 | Modelo | ensemble de 4, 42 features, 6 classes |
 | Agências estaduais lidas | 7 |
@@ -305,6 +305,27 @@ python ingerir_ibge.py                 # grava dados/desfrute_uf.json
 **Ressalva que vai junto com o número:** abate ÷ efetivo **não é** desfrute exato — ignora venda viva entre propriedades e inclui animal abatido em UF diferente da de origem (MT exporta boi em pé; SP abate mais do que cria). É o proxy padrão do setor e é citável, mas o parecer precisa dizer o que ele é.
 
 > **Nunca foi exercitado contra a API real.** O ambiente de desenvolvimento bloqueia saída para o IBGE (403 no proxy), então o parsing foi escrito a partir da documentação e testado com fixtures. O parser detecta o cabeçalho em vez de assumir `values[0]`, trata os marcadores do IBGE (`-`, `..`, `...`, `X`) como ausência e não como zero, e **levanta com o payload recebido** quando a forma não bate — para a primeira execução com rede falhar alto em vez de gravar lixo.
+
+### Segundo fator (TOTP) — `services/totp.py`
+
+RFC 6238, implementado sobre a biblioteca padrão. São ~60 linhas de HMAC; trazer um pacote adicionaria superfície de supply chain **no caminho de autenticação**, que é o último lugar onde se quer dependência de terceiro.
+
+Validado contra os **seis vetores oficiais do Apêndice B da RFC 6238** — se falhassem, nenhum aplicativo autenticador do mundo geraria o código que o servidor espera.
+
+O que costuma sair errado numa implementação caseira, e está resolvido:
+
+| Armadilha | Como |
+|---|---|
+| Reuso do código dentro da janela de 90s | Contador aceito é persistido; o mesmo código não vale de novo |
+| Comparação não constante (vaza prefixo pelo tempo) | `hmac.compare_digest` |
+| Janela larga "para o relógio do celular" | ±1 passo (±30s) — janela larga multiplica a chance de força bruta |
+| Ativar antes de confirmar | O segredo fica gravado **inativo** até um código provar que o app funciona |
+| Sessão criada antes do segundo fator | O id vai para `totp_pendente`, não para `_user_id` |
+| Etapa pendente eterna | Expira em 5 minutos |
+| Perder o celular = perder a conta | 10 códigos de recuperação, de uso único, guardados em hash |
+| Sessão sequestrada desliga o 2FA | Desativar exige a senha |
+
+Rotas: `POST /api/2fa/iniciar` · `POST /api/2fa/confirmar` · `POST /api/2fa/desativar` · `GET /api/2fa/estado`.
 
 ### LGPD como código — `services/lgpd.py`
 
@@ -651,7 +672,7 @@ Do roteiro padrão dos 5 C's de crédito, dois seguem descobertos:
 - **Caráter** — sem consulta a Serasa, SPC, CADIN, protestos ou ações judiciais
 - **Capital** — sem balanço nem patrimônio líquido; o endividamento é **declarado**, não verificado no SCR
 
-E para venda a banco, o checklist de procurement ainda tem buracos: **sem SSO/SAML** e **sem 2FA**. O restante — log de auditoria, LGPD e escala — está coberto.
+E para venda a banco, o checklist de procurement tem um buraco: **sem SSO/SAML**. O restante — log de auditoria, LGPD, escala, rate limiting e 2FA — está coberto.
 
 ---
 

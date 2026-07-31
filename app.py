@@ -51,6 +51,8 @@ from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
 from services.garantia import avaliar_garantia
 from services.precos_regionais import aplicar as aplicar_preco_regional
 from services import auditoria as _aud
+from services import totp as _totp
+import time as _time
 from services.endividamento import consolidar as consolidar_endividamento
 from services.benchmarks_nacionais import avaliar_coe as _avaliar_coe
 from services.groq_narrativa import (
@@ -336,6 +338,13 @@ def login():
         senha = request.form.get('senha', '').strip()
         u = db.verificar_senha(email, senha)
         if u:
+            # Segundo fator: a sessão só é criada depois do código. Guardar o
+            # id numa chave separada — e não em '_user_id' — é o que impede
+            # que a senha sozinha já autentique.
+            if db.totp_estado(u['id'])['ativo']:
+                session['totp_pendente'] = u['id']
+                session['totp_desde'] = _time.time()
+                return redirect(url_for('login_2fa'))
             login_user(User(u), remember=True)
             _auditar(_aud.LOGIN, email=email)
             return redirect(url_for('app_main'))
@@ -593,6 +602,122 @@ def admin_remover(uid):
     if alvo and not is_admin(alvo['email']):
         db.remover_usuario(uid)
     return redirect(url_for('admin'))
+
+@app.route('/login/2fa', methods=['GET', 'POST'])
+@limiter.limit("10 per minute; 40 per hour")
+def login_2fa():
+    """
+    Segundo fator. A senha já foi conferida; aqui falta o código.
+
+    O limite de tentativas é a defesa principal: seis dígitos são um milhão de
+    combinações, muito para chutar uma vez e pouco para tentativas ilimitadas.
+    """
+    uid = session.get('totp_pendente')
+    if not uid:
+        return redirect(url_for('login'))
+
+    # A etapa pendente expira: sessão meio-autenticada esquecida num
+    # computador compartilhado é uma senha já validada esperando alguém.
+    if _time.time() - float(session.get('totp_desde') or 0) > 300:
+        session.pop('totp_pendente', None)
+        session.pop('totp_desde', None)
+        return redirect(url_for('login'))
+
+    erro = None
+    if request.method == 'POST':
+        codigo = (request.form.get('codigo') or '').strip()
+        est = db.totp_estado(uid)
+        u = db.buscar_usuario_id(uid)
+
+        contador = _totp.verificar(est['segredo'], codigo,
+                                   contador_minimo=est['contador'] + 1)
+        if contador is not None:
+            db.totp_registrar_uso(uid, contador)
+        else:
+            h = _totp.conferir_codigo_backup(codigo, est['backup'])
+            if h:
+                db.totp_consumir_backup(uid, h)
+                _auditar(_aud.LOGIN_2FA_BACKUP, email=u['email'],
+                         detalhe=f"{len(est['backup']) - 1} código(s) restante(s)")
+            else:
+                _auditar(_aud.LOGIN_2FA_FALHOU, email=u['email'], sucesso=False)
+                erro = 'Código inválido ou já utilizado.'
+
+        if not erro:
+            session.pop('totp_pendente', None)
+            session.pop('totp_desde', None)
+            login_user(User(u), remember=True)
+            _auditar(_aud.LOGIN, email=u['email'], detalhe='com 2FA')
+            return redirect(url_for('app_main'))
+
+    return render_template('login_2fa.html', erro=erro)
+
+
+@app.route('/api/2fa/iniciar', methods=['POST'])
+@login_required
+def api_2fa_iniciar():
+    """
+    Gera o segredo e devolve a URI do QR. AINDA NÃO ATIVA — só depois de um
+    código válido, senão um erro na leitura do QR trancaria o usuário fora.
+    """
+    if db.totp_estado(current_user.id)['ativo']:
+        return jsonify({'erro': '2FA já está ativo nesta conta.'}), 400
+    segredo = _totp.gerar_segredo()
+    db.totp_guardar_segredo(current_user.id, segredo)
+    return jsonify({
+        'segredo': segredo,
+        'uri': _totp.uri_provisionamento(segredo, current_user.email),
+        'aviso': 'Confirme com um código do aplicativo para ativar.',
+    })
+
+
+@app.route('/api/2fa/confirmar', methods=['POST'])
+@login_required
+def api_2fa_confirmar():
+    """Ativa e devolve os códigos de recuperação — a ÚNICA vez que eles aparecem."""
+    est = db.totp_estado(current_user.id)
+    if est['ativo']:
+        return jsonify({'erro': '2FA já está ativo.'}), 400
+    if not est['segredo']:
+        return jsonify({'erro': 'Inicie a configuração primeiro.'}), 400
+
+    contador = _totp.verificar(est['segredo'], (request.json or {}).get('codigo'))
+    if contador is None:
+        return jsonify({'erro': 'Código inválido. Confira o relógio do aparelho.'}), 400
+
+    codigos = _totp.gerar_codigos_backup()
+    db.totp_ativar(current_user.id, [_totp.hash_codigo_backup(c) for c in codigos])
+    db.totp_registrar_uso(current_user.id, contador)
+    _auditar(_aud.DOIS_FATORES_ATIVADO)
+    return jsonify({
+        'ok': True,
+        'codigos_backup': codigos,
+        'aviso': ('Guarde estes códigos agora — eles não serão mostrados de '
+                  'novo. Cada um vale uma única vez.'),
+    })
+
+
+@app.route('/api/2fa/desativar', methods=['POST'])
+@login_required
+def api_2fa_desativar():
+    """Exige a senha: sessão sequestrada não pode desligar o segundo fator."""
+    senha = (request.json or {}).get('senha') or ''
+    if not db.verificar_senha(current_user.email, senha):
+        _auditar(_aud.DOIS_FATORES_DESATIVADO, sucesso=False,
+                 detalhe='senha incorreta')
+        return jsonify({'erro': 'Senha incorreta.'}), 403
+    db.totp_desativar(current_user.id)
+    _auditar(_aud.DOIS_FATORES_DESATIVADO)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/2fa/estado', methods=['GET'])
+@login_required
+def api_2fa_estado():
+    est = db.totp_estado(current_user.id)
+    return jsonify({'ativo': est['ativo'],
+                    'codigos_backup_restantes': len(est['backup'])})
+
 
 @app.route('/logout')
 @login_required
@@ -1499,7 +1624,6 @@ def api_whatsapp_codigo():
 
 
 # ── Cache em memória para cotações (TTL 30 min) ──────────────────────────────
-import time as _time
 _cotacoes_cache: dict = {}
 _cotacoes_cache_ts: float = 0.0
 _COTACOES_TTL = 30 * 60  # 30 minutos
