@@ -74,6 +74,11 @@ if _USE_PG:
     _PH  = '%s'
     _AI  = 'SERIAL PRIMARY KEY'
     _NOW = 'NOW()'
+    _BIN = 'BYTEA'
+
+    def _blob(b):
+        """psycopg2 não adapta `bytes` sozinho — precisa do wrapper Binary."""
+        return psycopg2.Binary(b or b'')
     _ADD_COL = 'ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {tipo}'
 
 else:
@@ -112,6 +117,11 @@ else:
     _PH  = '?'
     _AI  = 'INTEGER PRIMARY KEY AUTOINCREMENT'
     _NOW = "(datetime('now'))"
+    _BIN = 'BLOB'
+
+    def _blob(b):
+        """sqlite3 aceita `bytes` direto; sqlite3.Binary é o mesmo objeto."""
+        return sqlite3.Binary(b or b'')
     _ADD_COL = None   # handled via try/except no SQLite
 
 
@@ -1158,3 +1168,150 @@ def totp_consumir_backup(user_id: int, hash_usado: str) -> None:
     ph = _PH
     _exec(f'UPDATE usuarios SET totp_backup={ph} WHERE id={ph}',
           (json.dumps(restantes), user_id), commit=True)
+
+
+# ── Acervo de documentos lidos ───────────────────────────────────────────────
+# O PDF enviado era lido e apagado (`os.unlink` no finally de /api/ler-pdf).
+# Cada ficha real que passou pelo sistema achou um defeito que os testes
+# sintéticos não achavam — ver o cabeçalho de services/documentos.py. Guardar
+# o documento, o que o parser leu e o que o analista corrigiu é o que
+# transforma uso em cobertura de teste e em calibração.
+
+def _ensure_documentos_table():
+    _exec(f'''
+        CREATE TABLE IF NOT EXISTS documentos (
+            id           {_AI},
+            empresa_id   INTEGER,
+            user_id      INTEGER,
+            fazenda_id   INTEGER,
+            nome_arquivo TEXT,
+            sha256       TEXT NOT NULL,
+            tamanho      INTEGER DEFAULT 0,
+            conteudo     {_BIN},
+            origem       TEXT,
+            parse        TEXT,
+            valores_lidos TEXT,
+            valores_usados TEXT,
+            situacao     TEXT,
+            divergencia  TEXT,
+            revisado     INTEGER DEFAULT 0,
+            created_at   TIMESTAMP DEFAULT {_NOW}
+        )
+    ''', commit=True)
+    for sql in (
+        'CREATE INDEX IF NOT EXISTS ix_doc_sha ON documentos (sha256)',
+        'CREATE INDEX IF NOT EXISTS ix_doc_empresa ON documentos (empresa_id)',
+        'CREATE INDEX IF NOT EXISTS ix_doc_situacao ON documentos (situacao)',
+    ):
+        try:
+            _exec(sql, commit=True)
+        except Exception:
+            pass
+
+
+def registrar_documento(*, empresa_id, user_id, nome_arquivo, conteudo: bytes,
+                        sha256: str, origem: str, parse: dict,
+                        valores_lidos: list) -> int:
+    """Guarda o documento e o que o parser extraiu dele.
+
+    Deduplica por sha256 DENTRO da empresa: o mesmo produtor reenvia a mesma
+    ficha várias vezes numa análise, e N cópias idênticas só encarecem o banco.
+    Entre empresas não deduplica — o isolamento entre consultorias vale mais
+    que o byte economizado, e uma delas pode apagar o dado da outra.
+    """
+    _ensure_documentos_table()
+    ph = _PH
+    ja = _exec(
+        f'SELECT id FROM documentos WHERE sha256={ph} AND empresa_id={ph}',
+        (sha256, empresa_id), fetch='one')
+    if ja:
+        return int(ja['id'])
+
+    # O parse pode carregar chaves não serializáveis vindas dos parsers.
+    try:
+        parse_json = json.dumps(parse, ensure_ascii=False, default=str)
+    except Exception:
+        parse_json = '{}'
+
+    did = _exec(
+        f'''INSERT INTO documentos
+              (empresa_id, user_id, nome_arquivo, sha256, tamanho, conteudo,
+               origem, parse, valores_lidos)
+            VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})''',
+        (empresa_id, user_id, (nome_arquivo or '')[:255], sha256,
+         len(conteudo or b''), _blob(conteudo), origem, parse_json,
+         json.dumps(valores_lidos)),
+        fetch='lastrow', commit=True)
+    return int(did)
+
+
+def registrar_correcao(documento_id: int, valores_usados: list,
+                       comparacao: dict, fazenda_id=None) -> None:
+    """Fecha o par: o que o parser leu × o que o analista de fato usou.
+
+    É esta metade que ensina. Um documento sem a correção é depósito; com ela,
+    vira rótulo humano apontando em qual faixa o parser tropeça.
+    """
+    _ensure_documentos_table()
+    ph = _PH
+    _exec(
+        f'''UPDATE documentos
+               SET valores_usados={ph}, situacao={ph}, divergencia={ph},
+                   fazenda_id=COALESCE({ph}, fazenda_id)
+             WHERE id={ph}''',
+        (json.dumps(valores_usados),
+         comparacao.get('situacao'),
+         json.dumps(comparacao, ensure_ascii=False),
+         fazenda_id, documento_id),
+        commit=True)
+
+
+def documentos_para_revisao(limite: int = 50) -> list:
+    """Fila dos casos em que o parser errou — os que viram fixture.
+
+    Um parse que conferiu não ensina nada; o que ensina é o erro.
+    """
+    _ensure_documentos_table()
+    ph = _PH
+    return _exec(
+        f'''SELECT id, empresa_id, nome_arquivo, origem, situacao, divergencia,
+                   tamanho, created_at
+              FROM documentos
+             WHERE situacao IN ('divergencia','parser_vazio') AND revisado=0
+          ORDER BY created_at DESC
+             LIMIT {ph}''',
+        (limite,), fetch='all') or []
+
+
+def documento_conteudo(documento_id: int, empresa_id: int):
+    """Devolve o PDF guardado, restrito à empresa dona.
+
+    O filtro por empresa é a fronteira de isolamento entre consultorias — sem
+    ele o id sequencial deixaria qualquer analista baixar ficha de cliente de
+    outra empresa.
+    """
+    _ensure_documentos_table()
+    ph = _PH
+    row = _exec(
+        f'SELECT nome_arquivo, conteudo FROM documentos WHERE id={ph} AND empresa_id={ph}',
+        (documento_id, empresa_id), fetch='one')
+    if not row:
+        return None
+    return row['nome_arquivo'], bytes(row['conteudo'] or b'')
+
+
+def documento_parse(documento_id: int, empresa_id) -> list | None:
+    """Vetor que o parser extraiu do documento, restrito à empresa dona."""
+    if empresa_id is None:
+        return None
+    _ensure_documentos_table()
+    ph = _PH
+    row = _exec(
+        f'SELECT valores_lidos FROM documentos WHERE id={ph} AND empresa_id={ph}',
+        (documento_id, empresa_id), fetch='one')
+    if not row or not row.get('valores_lidos'):
+        return None
+    try:
+        return json.loads(row['valores_lidos'])
+    except (ValueError, TypeError):
+        return None
