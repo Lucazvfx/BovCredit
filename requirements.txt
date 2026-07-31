@@ -1,17 +1,28 @@
-flask>=3.0
-scikit-learn>=1.4
-numpy>=1.26
-pdfplumber>=0.11
-openpyxl>=3.1
-gunicorn>=21.2
-psycopg2-binary>=2.9
-joblib>=1.3
-flask-login>=0.6
-xgboost>=1.7
-apscheduler>=3.10
-requests>=2.31
-lightgbm>=3.3.0
-reportlab>=4.0
-shap>=0.45
-flask-limiter>=3.5
-groq>=0.9
+# Versões fixas, não faixas.
+#
+# gestao_model.pkl é um pickle do scikit-learn. Pickle não atravessa versão de
+# biblioteca: gravado com sklearn 1.9 e numpy 2.4, ele falha ao ser lido por
+# uma versão diferente. Com faixas `>=`, cada rebuild resolvia para o que
+# estivesse mais recente no PyPI naquele minuto — o ambiente de produção nunca
+# era o ambiente testado, e ninguém mudava uma linha de código para isso
+# acontecer.
+#
+# Ao subir qualquer versão aqui, regenere o modelo (python treinar_ciclos.py)
+# e rode a suíte antes de commitar.
+flask==3.1.3
+scikit-learn==1.9.0
+numpy==2.4.6
+pdfplumber==0.11.10
+openpyxl==3.1.5
+gunicorn==26.0.0
+psycopg2-binary==2.9.12
+joblib==1.5.3
+flask-login==0.6.3
+xgboost==3.2.0
+apscheduler==3.11.3
+requests==2.33.1
+lightgbm==4.7.0
+reportlab==5.0.0
+shap==0.51.0
+flask-limiter==4.1.1
+groq==1.6.0
