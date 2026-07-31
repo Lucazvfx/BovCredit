@@ -9,6 +9,8 @@ Este endpoint é o único caminho pelo qual entra dado rotulado por humano. O
 retreino consome exclusivamente `class_conf` (db.exportar_treino), de modo
 que a previsão do modelo nunca realimenta a si mesma.
 """
+import random
+
 import pytest
 
 import database as db
@@ -109,8 +111,18 @@ def test_retreino_nao_realimenta_a_propria_previsao(client):
     Invariante: o conjunto de retreino vem de `class_conf` (humano), nunca de
     `class_ml` (modelo). Se um registro não foi confirmado, não pode entrar.
     """
-    # Rebanho com valores únicos, para não colidir com outro já confirmado
-    unico = [77, 73, 41, 37, 59, 53, 91, 43, 217, 61]
+    # O banco local persiste entre execuções, então um vetor fixo seria
+    # confirmado na primeira rodada e já estaria no conjunto na segunda.
+    # Sorteia até achar um que ainda não esteja lá.
+    X0, _ = db.exportar_treino()
+    existentes = {tuple(x) for x in X0}
+    for _ in range(50):
+        unico = [random.randint(20, 300) for _ in range(10)]
+        if tuple(float(x) for x in unico) not in existentes:
+            break
+    else:
+        pytest.skip('não foi possível sortear um rebanho inédito')
+
     d = _classificar(client, unico)   # classificado, mas NÃO confirmado
     X, _ = db.exportar_treino()
     assert [float(x) for x in unico] not in X, (
