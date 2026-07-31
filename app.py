@@ -274,14 +274,36 @@ def rotina_diaria_cotacoes():
     except Exception as e:
         logger.error(f"❌ [Scraper] Erro na rotina: {e}", exc_info=True)
 
-# Em modo debug, o Reloader do Flask inicia o processo duas vezes — só inicia o
-# scheduler no processo filho (WERKZEUG_RUN_MAIN=true) ou fora do debug.
-if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+# ── Scheduler: exatamente UM, no processo inteiro ────────────────────────────
+# Com mais de um worker, cada um iniciaria o seu — e o scraper bateria N vezes
+# na mesma fonte, no mesmo minuto. Sob gunicorn quem chama é o hook
+# `when_ready` do gunicorn.conf.py, que roda uma única vez no master, antes do
+# fork dos workers. A thread do scheduler não é herdada pelos filhos (só a
+# thread que chama fork sobrevive), então ela vive no master e só lá.
+scheduler = None
+_scheduler_iniciado = False
+
+
+def iniciar_scheduler():
+    """Idempotente — chamar duas vezes não cria dois agendadores."""
+    global scheduler, _scheduler_iniciado
+    if _scheduler_iniciado:
+        return scheduler
     import threading
     scheduler = BackgroundScheduler(daemon=True)
     scheduler.add_job(rotina_diaria_cotacoes, 'cron', hour=8, minute=0)
     scheduler.start()
     threading.Thread(target=rotina_diaria_cotacoes, daemon=True).start()
+    _scheduler_iniciado = True
+    logger.info('⏰ Scheduler de cotações iniciado (pid %s)', os.getpid())
+    return scheduler
+
+
+# Fora do gunicorn (python app.py), o start é aqui mesmo. O Reloader do Flask
+# sobe o processo duas vezes em debug, daí a checagem de WERKZEUG_RUN_MAIN.
+if os.environ.get('SCHEDULER_VIA_HOOK') != '1' and (
+        os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug):
+    iniciar_scheduler()
 
 # ── Auditoria de acesso ──────────────────────────────────────────────────────
 # Sem trilha, a instituição não responde à própria auditoria interna sobre quem
