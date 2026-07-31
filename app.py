@@ -48,6 +48,8 @@ from services.custos_desembolso import (
 )
 from services.reconciliacao import reconciliar
 from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
+from services.garantia import avaliar_garantia
+from services.endividamento import consolidar as consolidar_endividamento
 from services.benchmarks_nacionais import avaliar_coe as _avaliar_coe
 from services.groq_narrativa import (
     gerar_narrativa as _gerar_narrativa_groq,
@@ -807,16 +809,29 @@ def api_classificar():
     geracao_caixa_anual -= _reposicao_reprodutores
 
     # Serviço da dívida para o fluxo GEP (mesma base do DSCR do parecer)
-    _servico_gep = 0.0
+    _parcela_nova = 0.0
     if data.get('credito_valor') and data.get('prazo_meses') and data.get('juros_aa'):
         from services.parecer_credito import parcela_price
         _n = max(int(data.get('prazo_meses', 0)) - int(data.get('carencia_meses', 0) or 0), 0)
-        _parcela = parcela_price(
+        _parcela_nova = parcela_price(
             float(data.get('credito_valor', 0)),
             float(data.get('juros_aa', 0)),
             _n,
         )
-        _servico_gep = 12 * (_parcela + float(data.get('dividas_mensais', 0) or 0))
+
+    # Endividamento existente: o campo único "dívidas mensais" passa a aceitar
+    # um inventário por credor. Consolidado aqui, antes de tudo, porque o fluxo
+    # GEP, o DSCR e o parecer precisam usar a MESMA base de serviço da dívida —
+    # duas bases diferentes foi o que já produziu contradição entre a tela e o
+    # PDF antes.
+    endividamento = consolidar_endividamento(
+        dividas                = data.get('dividas'),
+        dividas_mensais_legado = data.get('dividas_mensais', 0),
+        geracao_caixa_anual    = geracao_caixa_anual,
+        parcela_nova           = _parcela_nova,
+    )
+    _servico_gep = (12 * (_parcela_nova + endividamento['parcela_existente_mensal'])
+                    if _parcela_nova > 0 else 0.0)
     fluxo_gep = calcular_fluxo_gep(
         receita_caixa            = _ano1['receita'],
         custo_caixa              = _ano1['custo'],
@@ -880,7 +895,17 @@ def api_classificar():
 
     credito_inputs = {k: data.get(k) for k in
                       ('credito_valor', 'prazo_meses', 'juros_aa',
-                       'carencia_meses', 'dividas_mensais')}
+                       'carencia_meses')}
+    # A dívida que entra no DSCR é a consolidada, não o número solto do
+    # formulário: se o proponente discriminou credores, é a soma das parcelas.
+    credito_inputs['dividas_mensais'] = endividamento['parcela_existente_mensal']
+
+    # ── Garantia: valor de execução, não valor de mercado ────────────────────
+    # O LTV era calculado no frontend contra o valor de mercado cheio, o que
+    # superestima a cobertura: rebanho em penhor não se realiza pela cotação do
+    # dia. Passa a ser calculado aqui, com deságio por categoria, e a entrar no
+    # parecer e no PDF como qualquer outro número auditável.
+    garantia = avaliar_garantia(_val_ini, data.get('credito_valor'))
 
     # ── Sensibilidade de preço: −15% / base / +15% ───────────────────────────
     # Compensa o modificador de preço do cenário conservador (0.95) para que as
@@ -992,7 +1017,9 @@ def api_classificar():
         fluxo_gep=fluxo_gep,
         sensibilidade=sensibilidade,
         shap_explicacao=shap_explicacao,
-        projecao_anos=_projecao_anos)
+        projecao_anos=_projecao_anos,
+        garantia=garantia,
+        endividamento=endividamento)
 
     # Persiste no histórico da fazenda apenas quando há fazenda e solicitação.
     fazenda_id = data.get('fazenda_id')
