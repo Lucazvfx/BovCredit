@@ -17,7 +17,7 @@ from services.pesos_rebanho import arrobas_categorias
 from services.parametros_zootecnicos import (
     NATALIDADE_PCT, DESMAME_PCT,
     PESO_BOI_ARR, PESO_VACA_ARR, PESO_BEZERRA_ARR, PESO_GARROTE_ARR,
-    MORTALIDADE_ADULTO_PCT, MORTALIDADE_BEZERRA_PCT,
+    MORTALIDADE_ADULTO_PCT, MORTALIDADE_BEZERRA_PCT, PESO_JOVEM_F_ARR,
     TROCA_ARROBAS_BOI_MAGRO, TROCA_ARROBAS_BEZERRO,
 )
 
@@ -1163,52 +1163,88 @@ def _simular_cria(
     _preco_vaca_cab = ((preco_vaca_arr if preco_vaca_arr is not None else preco_arroba_bezerro)
                        * m['preco']) * peso_matriz
 
-    # Rebanho rastreado por categoria — TODAS as categorias declaradas.
-    # Antes só matrizes e fêmeas jovens eram acompanhadas: os machos jovens e
-    # os bois adultos sumiam do fechamento, gerando perda patrimonial fantasma.
-    matrizes    = float(va[6] + va[8])
-    fem_recria  = float(va[0] + va[2] + va[4])   # fêmeas 0–25m
-    mac_recria  = float(va[1] + va[3] + va[5])   # machos 0–25m
-    bois        = float(va[7] + va[9])           # touros / machos adultos
-    total_ini   = float(va.sum())
+    # Rebanho rastreado por COORTE, seguindo a metodologia do material de
+    # treinamento: o que se comercializa no ano é o ESTOQUE DECLARADO, não os
+    # bezerros que ainda vão nascer. Os nascidos deste ano viram o estoque de
+    # 0–12 meses do ano seguinte.
+    #
+    # Modelar como "nascem e vendem no mesmo ano" subestimava a receita pela
+    # metade em qualquer rebanho com estoque jovem relevante, e o custo era
+    # cobrado sobre o rebanho inteiro — daí o caixa negativo.
+    bez_F     = float(va[0] + va[2])   # fêmeas 0–12m
+    bez_M     = float(va[1] + va[3])   # machos 0–12m
+    nov_F     = float(va[4])           # novilhas 13–24m
+    mac_R     = float(va[5] + va[7])   # machos 13–36m (sem função na cria)
+    matrizes  = float(va[6] + va[8])
+    bois      = float(va[9])           # touros de serviço
+    total_ini = float(va.sum())
+
+    # Retenção de novilhas — referência do material para cria: 20–35%.
+    _ret_novilha = min(max(desc_mat_pct / 100, 0.20), 0.35)
 
     anos_proj = []
     for yr in range(1, anos + 1):
-        nascidos      = matrizes * nat
-        desmamados    = nascidos * desmama * (1 - mort_bez)  # mortalidade pré-desmame de bezerros
-        vez_vendidos  = desmamados * venda_bz
-        machos_vend   = vez_vendidos * 0.5
-        femeas_vend   = vez_vendidos * 0.5
-        retidos       = desmamados - vez_vendidos
-        bezerras_ret  = retidos * 0.5
-        bezerros_ret  = retidos * 0.5
+        nascidos   = matrizes * nat
+        desmamados = nascidos * desmama * (1 - mort_bez)
 
-        descarte_mat  = round(matrizes * (desc_mat_pct / 100))
-        # A reposição vem das novilhas já existentes no plantel, não das
-        # bezerras nascidas neste ano (que ainda não têm idade de cobertura).
-        promovidas    = min(fem_recria, float(descarte_mat))
-        matrizes_prox = max(matrizes + promovidas - descarte_mat, matrizes * 0.7)
+        # ── Comercialização ─────────────────────────────────────────────────
+        # A base de venda é o estoque de 0–12m declarado, mas nunca abaixo do
+        # que as matrizes entregam no ano: uma ficha sem bezerros (rebanho
+        # recém-formado ou declaração parcial) ainda comercializa os
+        # desmamados do próprio ano. O que for vendido além do estoque sai da
+        # safra corrente e é descontado do inventário de fechamento.
+        _desm_M = desmamados * 0.5
+        _desm_F = desmamados * 0.5
+        disp_M  = max(bez_M, _desm_M)
+        disp_F  = max(bez_F, _desm_F)
+        _antecip_M = max(disp_M - bez_M, 0.0)     # veio dos nascidos do ano
+        _antecip_F = max(disp_F - bez_F, 0.0)
 
-        # Balanço do rebanho: nada entra ou sai sem estar contabilizado.
-        mortes_cat    = lambda n: n * mort
-        fem_jov_prox  = max(fem_recria - promovidas + bezerras_ret - mortes_cat(fem_recria), 0.0)
-        mac_jov_prox  = max(mac_recria + bezerros_ret - mortes_cat(mac_recria), 0.0)
-        bois_prox     = max(bois - mortes_cat(bois), 0.0)
-        total_prox    = int(matrizes_prox + fem_jov_prox + mac_jov_prox + bois_prox)
-        # Mortes = adultos/jovens + perda pré-desmame (bezerros nascidos que
-        # não chegam à desmama, por mortalidade ou por não desmamarem).
-        mortes        = round((matrizes + fem_recria + mac_recria + bois) * mort
-                              + (nascidos - desmamados))
+        vende_bez_M = disp_M                      # todo macho desmamado sai
+        vende_bez_F = disp_F * venda_bz           # parte das bezerras
+        retem_bez_F = disp_F - vende_bez_F
+        promovidas  = nov_F * _ret_novilha        # novilhas → matrizes
+        vende_nov_F = max(nov_F - promovidas, 0.0)   # excedente de fêmeas
+        vende_mac_R = mac_R                       # machos de recria saem
+        descarte_mat = round(matrizes * (desc_mat_pct / 100))
 
-        # Receita: bezerros vendidos + descarte de matrizes (ambos geram caixa na cria)
-        receita   = vez_vendidos * preco_bz + descarte_mat * _preco_vaca_cab
-        # Custo sobre o rebanho inteiro mantido no ano. Os touros de serviço já
-        # estão em `bois` quando declarados; só estima 1:30 se não houver nenhum.
-        _touros_cria = bois if bois > 0 else (max(round(matrizes / 30.0), 1) if matrizes > 0 else 0)
-        custo     = (matrizes * peso_matriz
-                     + (fem_recria + mac_recria) * peso_bezerra
-                     + _touros_cria * PESO_BOI_ARR) * custo_arroba
+        machos_vend  = vende_bez_M + vende_mac_R
+        femeas_vend  = vende_bez_F
+        femeas_exced = vende_nov_F
+        vez_vendidos = machos_vend + femeas_vend + femeas_exced
+
+        # ── Receita por categoria ───────────────────────────────────────────
+        _preco_novilha_cab = ((preco_vaca_arr if preco_vaca_arr is not None
+                               else preco_arroba_bezerro) * m['preco']) * PESO_JOVEM_F_ARR
+        _preco_garrote_cab = (preco_arroba_bezerro * m['preco']) * PESO_GARROTE_ARR
+        receita = (
+            (vende_bez_M + vende_bez_F) * preco_bz
+            + vende_mac_R * _preco_garrote_cab
+            + femeas_exced * _preco_novilha_cab
+            + descarte_mat * _preco_vaca_cab
+        )
+
+        # ── Custo sobre o rebanho mantido no ano ────────────────────────────
+        _touros = bois if bois > 0 else (max(round(matrizes / 30.0), 1) if matrizes > 0 else 0)
+        custo = (matrizes * peso_matriz
+                 + (bez_F + bez_M) * peso_bezerra
+                 + (nov_F + mac_R) * PESO_JOVEM_F_ARR
+                 + _touros * PESO_BOI_ARR) * custo_arroba
         resultado = receita - custo
+
+        # ── Estado no fim do ano (balanço fechado) ──────────────────────────
+        mortes = round((matrizes + nov_F + mac_R + bois) * mort
+                       + (nascidos - desmamados))
+        matrizes_prox = max(matrizes + promovidas - descarte_mat, matrizes * 0.7)
+        nov_F_prox    = max(retem_bez_F - retem_bez_F * mort, 0.0)
+        # A safra do ano forma o estoque de 0–12m seguinte, menos o que já foi
+        # antecipado para venda.
+        bez_F_prox    = max(_desm_F - _antecip_F, 0.0)
+        bez_M_prox    = max(_desm_M - _antecip_M, 0.0)
+        mac_R_prox    = 0.0
+        bois_prox     = max(bois - bois * mort, 0.0)
+        total_prox    = int(matrizes_prox + nov_F_prox + bez_F_prox
+                            + bez_M_prox + mac_R_prox + bois_prox)
 
         anos_proj.append({
             'ano': yr,
@@ -1220,23 +1256,23 @@ def _simular_cria(
             'matrizes_descartadas': descarte_mat,
             'bezerras_vendidas': int(femeas_vend),
             'machos_vendidos': int(machos_vend),
+            'femeas_excedentes': int(femeas_exced),
             'aumento_matrizes': int(promovidas - descarte_mat),
             'receita': round(receita, 2),
             'custo': round(custo, 2),
             'resultado': round(resultado, 2),
-            # Composição do rebanho no fim do ano — usada pelo fluxo GEP.
-            # Precisa cobrir TODAS as categorias, senão a variação de estoque
-            # acusa perda de animais que na verdade continuam no plantel.
             'bois_fim':     int(bois_prox),
-            'jovens_f_fim': int(fem_jov_prox),
-            'jovens_m_fim': int(mac_jov_prox),
-            'compras':      0,          # cria não compra animais
+            'jovens_f_fim': int(nov_F_prox + bez_F_prox),
+            'jovens_m_fim': int(bez_M_prox + mac_R_prox),
+            'compras':      0,
             'mortes':       int(mortes),
         })
-        matrizes   = matrizes_prox
-        fem_recria = fem_jov_prox
-        mac_recria = mac_jov_prox
-        bois       = bois_prox
+        matrizes = matrizes_prox
+        nov_F    = nov_F_prox
+        bez_F    = bez_F_prox
+        bez_M    = bez_M_prox
+        mac_R    = mac_R_prox
+        bois     = bois_prox
 
     result = _montar_resultado(cenario, sc, anos_proj, total_ini, 'CRIA')
     ano1 = anos_proj[0]

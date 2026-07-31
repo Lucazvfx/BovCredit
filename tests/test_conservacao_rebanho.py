@@ -78,14 +78,22 @@ def test_fechamento_declara_todas_as_categorias(ciclo):
 
 
 def test_cria_nao_perde_o_rebanho_jovem():
-    """Regressão do bug original: o rebanho de cria não pode encolher 47%."""
+    """
+    Regressão do bug original: o rebanho de cria sumia sem estar vendido.
+
+    O modelo agora comercializa de fato — todo macho desmamado e as fêmeas
+    excedentes — então o plantel encolhe legitimamente ao longo do ano. O que
+    não pode acontecer é a diferença não estar explicada pelas vendas.
+    """
     v = REBANHOS['CRIA']
     a = _ano1('CRIA', v)
-    # Produziu bezerros e vendeu menos do que nasceu → não pode encolher muito
     assert a['bezerros'] > 0
-    assert a['total'] >= sum(v) * 0.90, (
-        f"rebanho de cria caiu de {sum(v)} para {a['total']} cabeças em um ano "
-        f"em que nasceram {a['bezerros']} bezerros"
+
+    saidas = a['vendidos'] + a['matrizes_descartadas'] + a.get('mortes', 0)
+    esperado = sum(v) + a['bezerros'] - saidas
+    assert abs(a['total'] - esperado) <= max(3, sum(v) * 0.02), (
+        f"rebanho caiu de {sum(v)} para {a['total']}, mas início + nascimentos "
+        f"− saídas = {esperado}: diferença sem explicação"
     )
 
 
