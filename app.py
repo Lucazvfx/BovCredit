@@ -50,6 +50,7 @@ from services.reconciliacao import reconciliar
 from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
 from services.garantia import avaliar_garantia
 from services.precos_regionais import aplicar as aplicar_preco_regional
+from services import auditoria as _aud
 from services.endividamento import consolidar as consolidar_endividamento
 from services.benchmarks_nacionais import avaliar_coe as _avaliar_coe
 from services.groq_narrativa import (
@@ -282,6 +283,25 @@ if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
     scheduler.start()
     threading.Thread(target=rotina_diaria_cotacoes, daemon=True).start()
 
+# ── Auditoria de acesso ──────────────────────────────────────────────────────
+# Sem trilha, a instituição não responde à própria auditoria interna sobre quem
+# consultou dado de crédito de qual cliente. Ver services/auditoria.py.
+def _auditar(evento, *, recurso=None, recurso_id=None, detalhe=None,
+             sucesso=True, email=None):
+    """Registra um evento. Nunca levanta — a operação vem primeiro."""
+    uid = None
+    mail = email
+    try:
+        if current_user and current_user.is_authenticated:
+            uid = int(current_user.id)
+            mail = mail or current_user.email
+    except Exception:
+        pass
+    db.registrar_acesso(evento, user_id=uid, user_email=mail, recurso=recurso,
+                        recurso_id=recurso_id, detalhe=detalhe,
+                        ip=_aud.ip_da_requisicao(request), sucesso=sucesso)
+
+
 # ── Auth routes ─────────────────────────────────────────────────────────────
 @app.route('/login', methods=['GET', 'POST'])
 @limiter.limit("10 per minute; 30 per hour")
@@ -295,7 +315,9 @@ def login():
         u = db.verificar_senha(email, senha)
         if u:
             login_user(User(u), remember=True)
+            _auditar(_aud.LOGIN, email=email)
             return redirect(url_for('app_main'))
+        _auditar(_aud.LOGIN_FALHOU, email=email, sucesso=False)
         logger.warning(f'[LOGIN] Falha de autenticação para e-mail: {email!r}')
         erro = 'E-mail ou senha incorretos.'
     return render_template('login.html', erro=erro)
@@ -396,6 +418,35 @@ def admin():
                             JOIN usuarios u ON u.id=m.user_id ORDER BY e.nome''', fetch='all') or [],
     )
 
+@app.route('/api/admin/auditoria', methods=['GET'])
+@admin_required
+def api_admin_auditoria():
+    """
+    Consulta da trilha de acesso.
+
+    Restrita a administrador: a trilha diz quem consultou dado de crédito de
+    qual cliente, então ela própria é dado sensível. Só leitura — não há rota
+    de escrita nem de exclusão, por desenho.
+    """
+    try:
+        limite = min(max(int(request.args.get('limite', 200)), 1), 1000)
+    except (TypeError, ValueError):
+        limite = 200
+    itens = db.listar_acessos(
+        limit=limite,
+        user_id=request.args.get('user_id') or None,
+        evento=request.args.get('evento') or None,
+    )
+    for i in itens:
+        i['evento_rotulo'] = _aud.rotulo(i['evento'])
+        i['sensivel'] = _aud.e_sensivel(i['evento'])
+    return jsonify({
+        'acessos': itens,
+        'total_registrado': db.contar_acessos(),
+        'eventos': _aud.EVENTOS,
+    })
+
+
 @app.route('/admin/empresas/criar', methods=['POST'])
 @admin_required
 def admin_criar_empresa():
@@ -465,6 +516,7 @@ def admin_remover(uid):
 @app.route('/logout')
 @login_required
 def logout():
+    _auditar(_aud.LOGOUT)
     logout_user()
     return redirect(url_for('login'))
 
@@ -526,6 +578,8 @@ def api_historico_fazenda(fid):
     if not f:
         return jsonify({'erro': 'Fazenda não encontrada'}), 404
     hist = db.historico_fazenda(fid)
+    _auditar(_aud.HISTORICO_LIDO, recurso='fazenda', recurso_id=fid,
+             detalhe=f'{len(hist)} registro(s)')
     return jsonify({'fazenda': dict(f), 'historico': hist})
 
 @app.route('/api/fazendas/<int:fid>/pareceres', methods=['GET'])
@@ -537,6 +591,8 @@ def api_fazenda_pareceres(fid):
     if not db.buscar_fazenda(fid, empresa_id):
         return jsonify({'erro': 'Fazenda não encontrada'}), 404
     itens = db.listar_pareceres(fazenda_id=fid)
+    _auditar(_aud.PARECERES_LIDOS, recurso='fazenda', recurso_id=fid,
+             detalhe=f'{len(itens)} parecer(es)')
     return jsonify({'pareceres': itens})
 
 @app.route('/api/empresa/perfil', methods=['GET', 'POST'])
@@ -567,6 +623,10 @@ def api_parecer_pdf():
     branding = {'nome_consultoria': e.get('nome') or '',
                 'logo_base64': e.get('logo_base64') or ''} if e else None
     pdf_bytes = gerar_pdf_parecer(parecer, branding=branding)
+    _ident = (parecer.get('identificacao') or {})
+    _auditar(_aud.PARECER_PDF, recurso='fazenda',
+             recurso_id=_ident.get('fazenda') or None,
+             detalhe=(parecer.get('conclusao') or {}).get('recomendacao'))
     return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
                      as_attachment=True, download_name='parecer_credito.pdf')
 
@@ -1071,6 +1131,14 @@ def api_classificar():
             db.salvar_parecer(current_user.id, int(fazenda_id),
                               solicitacao=credito_inputs, parecer=parecer)
 
+    # A trilha registra a REFERÊNCIA, não o rebanho: duplicar o dado numa
+    # segunda tabela só multiplicaria a superfície de vazamento do que se quer
+    # proteger. O conteúdo já está em `pareceres` e `registros`.
+    _auditar(_aud.PARECER_GERADO,
+             recurso='fazenda', recurso_id=fazenda_id or (fazenda or None),
+             detalhe=f"{result.get('tipo')} · "
+                     f"{(parecer.get('conclusao') or {}).get('recomendacao') or 'sem crédito'}")
+
     # ── Narrativa IA (Groq Llama 3.3 70B) ───────────────────────────────────────
     # Por padrão NÃO é gerada aqui: a chamada ao Groq leva até 20s e atrasaria
     # todo o parecer. O frontend busca a narrativa em /api/narrativa depois que
@@ -1164,6 +1232,8 @@ def api_confirmar_ciclo():
 
     db.confirmar(int(registro_id), ciclo)
     concordou = registro.get('class_ml') == ciclo
+    _auditar(_aud.CICLO_CONFIRMADO, recurso='registro', recurso_id=registro_id,
+             detalhe=f'ML={registro.get("class_ml")} analista={ciclo}')
     logger.info(
         f'[confirmacao] registro {registro_id}: ML={registro.get("class_ml")} '
         f'analista={ciclo} {"concorda" if concordou else "CORRIGE"}'

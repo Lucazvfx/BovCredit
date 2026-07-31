@@ -878,3 +878,97 @@ def ultimo_parecer_do_usuario(user_id: int):
                 out[k] = {}
     out['created_at'] = str(out.get('created_at', ''))
     return out
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AUDITORIA DE ACESSO — quem viu o quê, quando, de onde
+# ═══════════════════════════════════════════════════════════════════════════
+# Append-only por desenho: não existe update nem delete aqui. Uma trilha que
+# pode ser editada não é trilha. Ver services/auditoria.py.
+
+def _ensure_auditoria_table():
+    _exec(f'''
+        CREATE TABLE IF NOT EXISTS auditoria_acessos (
+            id         {_AI},
+            user_id    INTEGER,
+            user_email TEXT,
+            evento     TEXT NOT NULL,
+            recurso    TEXT,
+            recurso_id TEXT,
+            detalhe    TEXT,
+            ip         TEXT,
+            sucesso    INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT {_NOW}
+        )
+    ''', commit=True)
+    for sql in (
+        'CREATE INDEX IF NOT EXISTS ix_aud_user ON auditoria_acessos (user_id)',
+        'CREATE INDEX IF NOT EXISTS ix_aud_evento ON auditoria_acessos (evento)',
+        'CREATE INDEX IF NOT EXISTS ix_aud_data ON auditoria_acessos (created_at)',
+    ):
+        try:
+            _exec(sql, commit=True)
+        except Exception:
+            pass
+
+
+def registrar_acesso(evento: str, *, user_id=None, user_email=None,
+                     recurso=None, recurso_id=None, detalhe=None,
+                     ip=None, sucesso=True) -> None:
+    """
+    Grava um evento na trilha. NUNCA levanta.
+
+    Um parecer não pode falhar porque a auditoria caiu — e um sistema que falha
+    assim acaba com a auditoria desligada na primeira sexta-feira ruim.
+    """
+    try:
+        _ensure_auditoria_table()
+        ph = _PH
+        _exec(
+            f'''INSERT INTO auditoria_acessos
+                (user_id, user_email, evento, recurso, recurso_id, detalhe, ip, sucesso)
+                VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})''',
+            (user_id, (user_email or '')[:200], evento, recurso,
+             None if recurso_id is None else str(recurso_id)[:64],
+             (detalhe or '')[:500] or None, ip, 1 if sucesso else 0),
+            commit=True)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            'falha ao registrar auditoria (evento=%s) — operação segue',
+            evento, exc_info=True)
+
+
+def listar_acessos(*, limit: int = 200, user_id=None, evento=None,
+                   desde=None) -> list:
+    """Consulta da trilha, do mais recente para o mais antigo."""
+    _ensure_auditoria_table()
+    ph = _PH
+    onde, params = [], []
+    if user_id is not None:
+        onde.append(f'user_id={ph}'); params.append(int(user_id))
+    if evento:
+        onde.append(f'evento={ph}'); params.append(evento)
+    if desde:
+        onde.append(f'created_at>={ph}'); params.append(desde)
+    sql = 'SELECT * FROM auditoria_acessos'
+    if onde:
+        sql += ' WHERE ' + ' AND '.join(onde)
+    sql += f' ORDER BY created_at DESC, id DESC LIMIT {ph}'
+    params.append(int(limit))
+    rows = _exec(sql, tuple(params), fetch='all') or []
+    for r in rows:
+        r['created_at'] = str(r.get('created_at', ''))
+        r['sucesso'] = bool(r.get('sucesso', 1))
+    return rows
+
+
+def contar_acessos() -> int:
+    _ensure_auditoria_table()
+    row = _exec('SELECT COUNT(*) AS n FROM auditoria_acessos', fetch='one')
+    if not row:
+        return 0
+    try:
+        return int(row['n'])
+    except (TypeError, KeyError, IndexError):
+        return int(tuple(row)[0])

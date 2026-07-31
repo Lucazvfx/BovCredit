@@ -42,11 +42,11 @@ Este documento descreve o sistema **como ele está**, incluindo o que não funci
 |---|---|
 | Python (produção) | 10.476 linhas |
 | Interface (`templates/index.html`) | 3.750 linhas |
-| Testes | **445** casos em 58 arquivos |
+| Testes | **463** casos em 59 arquivos |
 | Rotas HTTP | 44, sendo 25 endpoints `/api` |
 | Modelo | ensemble de 4, 42 features, 6 classes |
 | Agências estaduais lidas | 7 |
-| Tabelas no banco | 11 |
+| Tabelas no banco | 12 |
 
 ---
 
@@ -274,6 +274,20 @@ Teto por modalidade — acima disso, alerta:
 ### Memória de cálculo
 
 Passo, valor e explicação em todo resultado. É o que torna o parecer defensável diante do comitê e do BACEN, onde um score opaco não é.
+
+### Trilha de auditoria de acesso — `services/auditoria.py`
+
+Quem viu o quê, quando, de onde. Sem isso a instituição não responde à própria auditoria interna sobre quem consultou dado de crédito de qual cliente — e essa pergunta aparece na área de compras antes de qualquer discussão sobre modelo.
+
+Registrados: login, login recusado, logout, parecer gerado, PDF baixado, histórico e pareceres consultados, ciclo confirmado, documento lido, ação administrativa, vínculo e consulta por WhatsApp.
+
+Três regras de desenho:
+
+1. **Append-only.** Não há rota de escrita nem de exclusão — trilha que se edita não é trilha.
+2. **Nunca derruba a operação.** Falha ao registrar vira log de erro no servidor. Um parecer que falha porque a auditoria caiu acaba com a auditoria desligada na primeira sexta-feira ruim.
+3. **Registra a referência, não o conteúdo.** Copiar o rebanho para uma segunda tabela só multiplicaria a superfície de vazamento do que se quer proteger.
+
+Consulta em `GET /api/admin/auditoria`, restrita a administrador — a trilha diz quem acessou dado de quem, então ela própria é dado sensível.
 
 ### Origem dos parâmetros — `services/proveniencia.py`
 
@@ -578,6 +592,8 @@ Do roteiro padrão dos 5 C's de crédito, dois seguem descobertos:
 
 - **Caráter** — sem consulta a Serasa, SPC, CADIN, protestos ou ações judiciais
 - **Capital** — sem balanço nem patrimônio líquido; o endividamento é **declarado**, não verificado no SCR
+
+E para venda a banco, o checklist de procurement ainda tem buracos: **sem SSO/SAML**, **sem 2FA**, **sem tratamento de LGPD** (retenção, exclusão, anonimização) e **1 worker** no gunicorn — arquitetura que atende uma consultoria, não 500 analistas.
 
 ---
 
