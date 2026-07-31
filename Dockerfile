@@ -1,7 +1,7 @@
-# Mesma versão de runtime.txt e do ambiente de desenvolvimento. O pickle do
-# modelo é sensível à versão do scikit-learn, e o resolvedor do pip escolhe
-# versões diferentes conforme o Python — 3.10 não recebe sklearn 1.9, então
-# uma imagem em 3.10 carregava um sklearn incompatível com gestao_model.pkl.
+# Mesma versão de runtime.txt e do ambiente de desenvolvimento. O modelo é um
+# pickle do scikit-learn, e pickle não atravessa versão de biblioteca; como o
+# resolvedor do pip escolhe versões conforme o Python, alinhar as três
+# declarações é o que garante que produção rode o ambiente testado.
 FROM python:3.11.15 AS builder
 
 ENV PYTHONUNBUFFERED=1 \
@@ -14,6 +14,16 @@ RUN .venv/bin/pip install -r requirements.txt
 
 FROM python:3.11.15-slim
 WORKDIR /app
+
+# libgomp1 é o runtime do OpenMP. LightGBM e XGBoost o carregam em tempo de
+# execução via ctypes (não é dependência do pip, então instalar os pacotes não
+# o traz), e a imagem -slim não o inclui. Sem ele, `import lightgbm` levanta
+# OSError e o app não sobe: o pickle do modelo referencia LGBMClassifier, então
+# nem carregar do disco nem retreinar funcionavam.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /app/.venv .venv/
 COPY . .
 
