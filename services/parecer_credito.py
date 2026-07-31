@@ -85,9 +85,122 @@ def avaliar_capacidade_pagamento(
             'recomendacao': rec, 'faixa': rec, 'justificativa': just}
 
 
+def _fmt_rs(v) -> str:
+    return f'R$ {v:,.0f}'.replace(',', '.')
+
+
+def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list,
+                                prazo_meses: int) -> dict:
+    """
+    Reavalia a capacidade de pagamento sobre TODOS os anos do financiamento.
+
+    O DSCR do ano 1 sozinho engana: numa pecuária o primeiro ano liquida o
+    estoque acumulado no rebanho declarado (bois prontos, machos em idade de
+    abate), enquanto os anos seguintes vendem apenas a produção corrente. Um
+    ciclo completo chegou a projetar DSCR 6,08 no ano 1 e −0,53 no ano 2 —
+    e o parecer aprovava, embora a dívida seja paga ao longo de 36 meses.
+
+    Devolve a conclusão revisada com `memoria`: a lista de passos que levaram
+    à recomendação, para o analista conferir o raciocínio em vez de receber
+    só o veredicto.
+
+    Args:
+        conclusao_ano1: saída de avaliar_capacidade_pagamento().
+        projecao_anos: lista por ano com 'ano', 'dscr', 'resultado', 'viavel'.
+        prazo_meses: prazo do crédito, que define quantos anos avaliar.
+    """
+    base = dict(conclusao_ano1)
+    if not projecao_anos or not base.get('dscr'):
+        return base
+
+    n_anos = max(1, min(-(-prazo_meses // 12), len(projecao_anos)))  # teto
+    avaliados = projecao_anos[:n_anos]
+    dscrs = [(a['ano'], a['dscr']) for a in avaliados if a.get('dscr') is not None]
+    if not dscrs:
+        return base
+
+    ano_pior, dscr_min = min(dscrs, key=lambda t: t[1])
+    dscr_medio = sum(d for _, d in dscrs) / len(dscrs)
+    n_viaveis = sum(1 for a in avaliados if a.get('viavel'))
+
+    memoria = [{
+        'passo':   'Prazo do crédito',
+        'valor':   f'{prazo_meses} meses',
+        'detalhe': f'A capacidade de pagamento é avaliada sobre {n_anos} '
+                   f'ano(s) de projeção, não apenas o primeiro.',
+    }, {
+        'passo':   'Serviço da dívida',
+        'valor':   f'{_fmt_rs(base["servico_divida_anual"])}/ano',
+        'detalhe': f'Parcela de {_fmt_rs(base["parcela_mensal"])} × 12, '
+                   f'somada a dívidas já existentes.',
+    }]
+    for ano, d in dscrs:
+        res = next((a.get('resultado') for a in avaliados if a['ano'] == ano), None)
+        nota = ('liquida o estoque de animais prontos declarado na ficha'
+                if ano == 1 else 'vende apenas a produção corrente do rebanho')
+        memoria.append({
+            'passo':   f'DSCR do ano {ano}',
+            'valor':   f'{d:.2f}',
+            'detalhe': (f'Geração de caixa de {_fmt_rs(res)} — {nota}.'
+                        if res is not None else nota),
+        })
+
+    # A recomendação segue o ANO MAIS FRACO do prazo: é nele que a operação
+    # deixa de cobrir a dívida, e a dívida vence de todo jeito.
+    if dscr_min >= DSCR_APROVAR:
+        rec = 'aprovar'
+        just = (f'Cobertura mínima {dscr_min:.2f} no ano {ano_pior} — a operação '
+                f'sustenta o serviço da dívida em todos os {n_anos} anos do prazo.')
+    elif dscr_min >= DSCR_RESSALVA:
+        rec = 'ressalva'
+        just = (f'Cobertura cai para {dscr_min:.2f} no ano {ano_pior}. A operação '
+                f'ainda cobre a dívida, mas sem folga em todo o prazo.')
+    else:
+        rec = 'negar'
+        just = (f'Cobertura cai para {dscr_min:.2f} no ano {ano_pior}, abaixo de '
+                f'1,00 — a operação deixa de cobrir a dívida antes do fim do prazo.')
+
+    rebaixado = rec != base['recomendacao']
+    memoria.append({
+        'passo':   'Ano crítico',
+        'valor':   f'ano {ano_pior} · DSCR {dscr_min:.2f}',
+        'detalhe': 'É o ano mais fraco do prazo, e é ele que define a '
+                   'recomendação — a dívida vence independentemente.',
+    })
+    memoria.append({
+        'passo':   'Anos viáveis',
+        'valor':   f'{n_viaveis} de {n_anos}',
+        'detalhe': 'Ano viável = gera caixa positivo e cobre o serviço da dívida.',
+    })
+    if rebaixado:
+        memoria.append({
+            'passo':   'Rebaixamento',
+            'valor':   f'{base["recomendacao"].upper()} → {rec.upper()}',
+            'detalhe': f'O ano 1 isolado indicava {base["recomendacao"]} '
+                       f'(DSCR {base["dscr"]:.2f}), mas ele liquida o estoque '
+                       f'acumulado e não se repete.',
+        })
+
+    base.update({
+        'recomendacao':      rec,
+        'faixa':             rec,
+        'justificativa':     just,
+        'dscr_ano1':         base['dscr'],
+        'dscr_minimo':       round(dscr_min, 2),
+        'dscr_medio':        round(dscr_medio, 2),
+        'ano_critico':       ano_pior,
+        'anos_avaliados':    n_anos,
+        'anos_viaveis':      n_viaveis,
+        'rebaixado_no_prazo': rebaixado,
+        'memoria':           memoria,
+    })
+    return base
+
+
 def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
                    consistencia, financeiro, geracao_caixa_anual, credito,
-                   fluxo_gep=None, sensibilidade=None, shap_explicacao=None) -> dict:
+                   fluxo_gep=None, sensibilidade=None, shap_explicacao=None,
+                   projecao_anos=None) -> dict:
     def _f(v, default=0.0):
         try: return float(v or default)
         except (TypeError, ValueError): return default
@@ -103,11 +216,21 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
         carencia_meses=_i(credito.get('carencia_meses')),
         dividas_mensais=_f(credito.get('dividas_mensais')))
 
+    # Reavalia sobre todos os anos do prazo — o DSCR do ano 1 isolado engana.
+    conclusao = avaliar_capacidade_no_prazo(
+        conclusao, projecao_anos or [], _i(credito.get('prazo_meses')))
+
     erros = (consistencia or {}).get('resumo', {}).get('erros', 0)
     if erros and conclusao['recomendacao'] == 'aprovar':
         conclusao = dict(conclusao, recomendacao='ressalva',
                          justificativa=conclusao['justificativa']
                          + f' Rebaixado: {erros} erro(s) de consistência no rebanho declarado invalidam a projeção.')
+        conclusao.setdefault('memoria', []).append({
+            'passo':   'Rebaixamento por consistência',
+            'valor':   f'{erros} erro(s)',
+            'detalhe': 'Divergências no rebanho declarado invalidam a base da '
+                       'projeção, então a recomendação cai para ressalva.',
+        })
 
     return {
         'secoes': ['identificacao', 'composicao', 'indicadores',

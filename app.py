@@ -958,7 +958,8 @@ def api_classificar():
         credito=credito_inputs,
         fluxo_gep=fluxo_gep,
         sensibilidade=sensibilidade,
-        shap_explicacao=shap_explicacao)
+        shap_explicacao=shap_explicacao,
+        projecao_anos=_projecao_anos)
 
     # Persiste no histórico da fazenda apenas quando há fazenda e solicitação.
     fazenda_id = data.get('fazenda_id')

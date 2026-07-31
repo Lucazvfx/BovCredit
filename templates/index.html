@@ -1786,8 +1786,14 @@ function renderParecer(data){
       </div>
       <div style="display:grid;grid-template-columns:repeat(${ncols},1fr);gap:1px;background:${cor}22">
         <div style="background:var(--c);padding:13px 14px;text-align:center">
-          <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">DSCR</div>
-          <div style="font-family:var(--fn);font-weight:900;font-size:1.8rem;letter-spacing:-.5px;color:${cor}">${c.dscr}</div>
+          <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">${
+            c.dscr_minimo!=null && c.dscr_minimo!==c.dscr_ano1 ? `DSCR · ano ${c.ano_critico}` : 'DSCR'
+          }</div>
+          <div style="font-family:var(--fn);font-weight:900;font-size:1.8rem;letter-spacing:-.5px;color:${cor}">${
+            c.dscr_minimo!=null ? c.dscr_minimo : c.dscr
+          }</div>
+          ${c.dscr_minimo!=null && c.dscr_minimo!==c.dscr_ano1
+            ? `<div style="font-family:var(--fm);font-size:.5rem;color:var(--mu);margin-top:3px">ano 1: ${c.dscr_ano1}</div>` : ''}
         </div>
         ${ltv !== null ? `<div style="background:var(--c);padding:13px 14px;text-align:center">
           <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">LTV</div>
@@ -1808,6 +1814,7 @@ function renderParecer(data){
       </div>
       <div style="padding:12px 18px;background:var(--c);border-top:1px solid var(--b)">
         <div style="font-size:.84rem;color:var(--sb)">${c.justificativa||''}</div>
+        ${renderMemoria(c)}
       </div>
     </div>`;
   })() : `<div style="padding:14px;border-radius:10px;border:1px dashed var(--b);color:var(--mu);font-size:.8rem;margin-bottom:16px">Informe a Solicitação de Crédito na aba de entrada para gerar a conclusão de capacidade de pagamento.</div>`;
@@ -1946,7 +1953,7 @@ function renderParecer(data){
   const SLBL = {aprovar:'APROVAR', ressalva:'RESSALVA', negar:'NEGAR'};
   const sensHtml = sens.length ? `
     <div>
-      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Sensibilidade de Preço — Cenário Conservador</div>
+      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Sensibilidade de Preço — Cenário Conservador<span style="font-family:var(--fm);font-size:.52rem;letter-spacing:.5px;text-transform:none;color:var(--mu);margin-left:8px">— DSCR do ano 1; a recomendação do parecer usa o ano crítico do prazo</span></div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
         ${sens.map(s=>{
           const isDown = s.variacao_pct < 0, isUp = s.variacao_pct > 0, isBase = s.variacao_pct === 0;
@@ -1982,7 +1989,7 @@ function renderParecer(data){
   const sensCusto = data.sensibilidade_custo || [];
   const sensCustoHtml = sensCusto.length ? `
     <div style="margin-top:16px">
-      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Sensibilidade de Custo — Cenário Conservador</div>
+      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Sensibilidade de Custo — Cenário Conservador<span style="font-family:var(--fm);font-size:.52rem;letter-spacing:.5px;text-transform:none;color:var(--mu);margin-left:8px">— DSCR do ano 1; a recomendação do parecer usa o ano crítico do prazo</span></div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
         ${sensCusto.map(s=>{
           const isDown=s.variacao_pct<0, isUp=s.variacao_pct>0, isBase=s.variacao_pct===0;
@@ -2302,6 +2309,45 @@ function mfBloco(m,reg){
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${fonteChips(m.fontes)}</div></div>`;
 }
+// ── Memória de cálculo: por que a recomendação é essa ────────────────────
+// O analista precisa auditar o raciocínio, não só receber o veredicto.
+// Recolhido por padrão para não competir com o número principal.
+function renderMemoria(c){
+  const mem = c.memoria;
+  if(!mem || !mem.length) return '';
+  const rebaixado = c.rebaixado_no_prazo;
+  const passos = mem.map((m,i)=>{
+    const destaque = /Rebaixamento|Ano crítico/.test(m.passo);
+    const cor = destaque ? 'var(--am)' : 'var(--sb)';
+    return `<div style="display:flex;gap:12px;padding:10px 0${i?';border-top:1px solid var(--b)':''}">
+      <div style="font-family:var(--fm);font-size:.5rem;color:var(--mu);width:18px;flex-shrink:0;padding-top:3px">${String(i+1).padStart(2,'0')}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline">
+          <span style="font-family:var(--fn);font-weight:700;font-size:.72rem;letter-spacing:.4px;color:${cor}">${escapeHtml(m.passo)}</span>
+          <span style="font-family:var(--fm);font-size:.74rem;color:${destaque?'var(--am)':'var(--tx)'};font-weight:${destaque?'700':'400'}">${escapeHtml(m.valor)}</span>
+        </div>
+        <div style="font-size:.74rem;line-height:1.55;color:var(--mu);margin-top:3px">${escapeHtml(m.detalhe)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div style="margin-top:12px">
+    <div onclick="toggleMemoria()" style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border:1px solid var(--b);border-radius:8px;background:var(--c2)">
+      <span style="font-family:var(--fn);font-weight:700;font-size:.68rem;letter-spacing:1.2px;text-transform:uppercase;color:${rebaixado?'var(--am)':'var(--sb)'}">
+        ${rebaixado?'⚠ ':''}Por que este resultado — memória de cálculo
+      </span>
+      <span id="mem-ico" style="font-family:var(--fm);font-size:.62rem;color:var(--mu)">▼ ver</span>
+    </div>
+    <div id="mem-body" style="display:none;padding:4px 14px 6px;border:1px solid var(--b);border-top:none;border-radius:0 0 8px 8px;background:var(--c2)">${passos}</div>
+  </div>`;
+}
+function toggleMemoria(){
+  const b=document.getElementById('mem-body'), i=document.getElementById('mem-ico');
+  if(!b) return;
+  const abrir = b.style.display==='none';
+  b.style.display = abrir?'':'none';
+  if(i) i.textContent = abrir?'▲ ocultar':'▼ ver';
+}
+
 // ── Desfrute: hero + meter + KPI row ─────────────────────────────────────
 // Forma escolhida por ser "uma razão contra um limite": meter, não gráfico.
 // A cor carrega estado (dentro / acima da faixa) e vem acompanhada de ícone e
