@@ -39,7 +39,10 @@ from scraper import obter_precos_arroba, _session_com_retry, _HEADERS as _SCRAPE
 
 from parsers.composicao_rebanho import ler_template
 from services.consistencia_rebanho import analisar_consistencia, analisar_consistencia_historica
-from services.benchmarks_nacionais import avaliar_nacional, avaliar_zootecnico, CICLO_CATEGORIAS
+from services.benchmarks_nacionais import (
+    avaliar_nacional, avaliar_zootecnico, CICLO_CATEGORIAS,
+    calcular_desfrute, alerta_liquidacao,
+)
 from services.parecer_credito import montar_parecer
 from services.parecer_pdf import gerar_pdf_parecer
 from services.pesos_rebanho import arrobas_categorias
@@ -1040,10 +1043,23 @@ def api_classificar():
     #
     # Aqui ele é calculado e devolvido ao painel de benchmarks, que já sabe
     # avaliar por modalidade (CRIA 18–30%, CICLO_COMPLETO 20–40%, etc.).
+    #
+    # Desde a revisão de julho/2026 o desfrute é calculado nas DUAS formas. A
+    # simplificada (vendas ÷ rebanho) segue sendo a comparada com as faixas,
+    # porque é a base delas e a da ficha de referência. A real desconta compras
+    # e variação de estoque, e é a única que separa "vendeu a produção" de
+    # "vendeu o plantel" — ver `calcular_desfrute` em benchmarks_nacionais.
     _ano1_desf   = _cx['anos'][0]
     _vend_ano1   = (_ano1_desf.get('vendidos', 0)
                     + _ano1_desf.get('matrizes_descartadas', 0))
-    desfrute_projetado = round(_vend_ano1 / max(sum(v), 1) * 100, 1)
+    desfrute = calcular_desfrute(
+        vendas=_vend_ano1,
+        estoque_inicial=sum(v),
+        estoque_final=_ano1_desf.get('total'),
+        compras=_ano1_desf.get('compras', 0),
+    )
+    desfrute_projetado = desfrute['simplificado']
+    alerta_desfrute = alerta_liquidacao(result['tipo'], desfrute)
     if ind_bench.get('desfrute') is None:
         ind_bench['desfrute'] = desfrute_projetado
         # Reavalia com o desfrute preenchido — as duas chamadas abaixo rodaram
@@ -1402,6 +1418,11 @@ def api_classificar():
             'origem':    'informado' if _opt_float(data.get('desfrute_pct')) is not None else 'projetado',
             'vendidos':  int(_vend_ano1),
             'rebanho':   int(sum(v)),
+            # Desfrute real (literatura): desconta compras e variação de
+            # estoque. É o que separa venda de produção de venda de plantel.
+            'real':          desfrute['real'],
+            'afastamento':   desfrute['afastamento'],
+            'liquidacao':    alerta_desfrute,
         },
         'narrativa_pendente': (not _NARRATIVA_INLINE) and _narrativa_ativa(),
         'narrativa_contexto': _ctx_narrativa if not _NARRATIVA_INLINE else None,
