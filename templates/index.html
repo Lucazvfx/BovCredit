@@ -2161,6 +2161,8 @@ function renderResult(data){
       ${_vr>0?`<div class="sc2" style="border-left:1px solid var(--g)22"><div class="sc2-l" style="color:var(--g)">Valor do Rebanho</div><div class="sc2-v" style="color:var(--g)">${fR(_vr)}</div></div>`:''}
     </div>
 
+    ${renderConfirmacao(data)}
+
     ${renderDesfrute(data)}
 
     <div class="card" style="margin-bottom:24px">
@@ -2318,6 +2320,74 @@ function mfBloco(m,reg){
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${fonteChips(m.fontes)}</div></div>`;
 }
+// ── Confirmação do ciclo pelo analista ───────────────────────────────────
+// Único caminho pelo qual o projeto ganha dado rotulado por humano: todo o
+// treino é sintético, e a acurácia sobre ele só diz que o modelo aprendeu as
+// faixas que escrevemos. Cada confirmação aqui é um caso real.
+function renderConfirmacao(data){
+  const rid = data.registro_id;
+  if(!rid) return '';
+  const detectado = data.tipo;
+  const porRegra  = data.origem_decisao === 'regra';
+  const opcoes = ['CRIA','RECRIA','ENGORDA','CICLO_COMPLETO','RECRIA_ENGORDA','CRIA_RECRIA'];
+
+  const botoes = opcoes.map(t=>{
+    const sel = t===detectado;
+    return `<button onclick="confirmarCiclo(${rid},'${t}')" data-ciclo="${t}"
+      class="cf-op" style="
+        font-family:var(--fn);font-weight:700;font-size:.66rem;letter-spacing:.6px;
+        padding:8px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;min-height:40px;
+        border:1px solid ${sel?TC[t]+'66':'var(--b)'};
+        background:${sel?TC[t]+'14':'var(--c2)'};
+        color:${sel?TC[t]:'var(--sb)'}">${sel?'✓ ':''}${TL[t]}</button>`;
+  }).join('');
+
+  return `<div class="card" style="margin-bottom:24px" id="card-confirm">
+    <div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Confirmar o ciclo</div>
+      <span style="font-family:var(--fm);font-size:.5rem;letter-spacing:1px;color:var(--mu)">treina o modelo</span>
+    </div>
+    <div class="cb">
+      <div style="font-size:.8rem;color:var(--sb);line-height:1.6;margin-bottom:14px">
+        O sistema detectou <b style="color:${TC[detectado]}">${TL[detectado]}</b>${
+          porRegra ? ' por regra determinística' : ` com ${data.confianca}% de confiança`
+        }. Se estiver certo, confirme. Se não, aponte o correto — sua resposta
+        é o que ensina o modelo a acertar em rebanhos reais.
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap" id="cf-botoes">${botoes}</div>
+      <div id="cf-status" style="margin-top:12px;font-size:.78rem;line-height:1.55"></div>
+    </div>
+  </div>`;
+}
+
+async function confirmarCiclo(rid, ciclo){
+  const alvo = document.getElementById('cf-status');
+  document.querySelectorAll('.cf-op').forEach(b=>b.disabled=true);
+  if(alvo) alvo.innerHTML = '<span style="font-family:var(--fm);font-size:.72rem;color:var(--mu);letter-spacing:2px">· · ·</span>';
+  try{
+    const res = await fetch('/api/confirmar-ciclo',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({registro_id: rid, ciclo}),
+    });
+    const d = await lerRespostaJson(res, 'confirmar o ciclo');
+    if(!d){ document.querySelectorAll('.cf-op').forEach(b=>b.disabled=false); return; }
+
+    const cor = d.concordou ? 'var(--g)' : 'var(--am)';
+    const msg = d.concordou
+      ? `✓ Confirmado como <b>${TL[d.ciclo]}</b>. Registrado para validação do modelo.`
+      : `✓ Corrigido para <b>${TL[d.ciclo]}</b> — o sistema havia detectado ${TL[d.class_ml]||d.class_ml}. A correção vale mais que a confirmação: é ela que ensina.`;
+    alvo.innerHTML = `<div style="color:${cor}">${msg}</div>
+      <div style="font-family:var(--fm);font-size:.62rem;color:var(--mu);margin-top:5px">
+        ${d.total_confirmados} caso(s) real(is) rotulado(s) até agora</div>`;
+    document.querySelectorAll('.cf-op').forEach(b=>{
+      b.style.opacity = b.dataset.ciclo===d.ciclo ? '1' : '.35';
+    });
+  }catch(e){
+    console.error('[confirmar-ciclo]', e);
+    showToast('Não foi possível registrar a confirmação.', true);
+    document.querySelectorAll('.cf-op').forEach(b=>b.disabled=false);
+  }
+}
+
 // ── Leitura defensiva de resposta ────────────────────────────────────────
 // Um erro no servidor devolve HTML, não JSON. Sem tratar isso, o res.json()
 // lança, a exceção sobe sem catch e a tela fica muda: o spinner some, nada
