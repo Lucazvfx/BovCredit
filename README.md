@@ -2,7 +2,9 @@
 
 > **Emita pareceres de crédito rural com metodologia, Machine Learning e PDF com a marca da sua consultoria — em minutos.**
 
-Sistema especializado em análise técnico-financeira de rebanho bovino para **consultorias de crédito rural**. A plataforma classifica automaticamente o tipo de exploração (Cria / Recria / Engorda / Ciclo Completo), projeta a geração de caixa com metodologia, audita a consistência do rebanho declarado e emite um **parecer de crédito com recomendação Aprovar / Ressalva / Negar** baseado no DSCR — tudo em uma única tela.
+Sistema de análise técnico-financeira de rebanho bovino para **consultorias de crédito rural e analistas de banco**. Classifica automaticamente a modalidade de exploração entre seis, projeta a geração de caixa ao longo de todo o prazo do financiamento, audita a consistência do rebanho declarado e emite um **parecer com recomendação Aprovar / Ressalva / Negar** — com memória de cálculo passo a passo.
+
+Este documento descreve o sistema **como ele está**, incluindo o que não funciona e o que não foi validado (§16). Levantado do código em 31/07/2026.
 
 ---
 
@@ -19,113 +21,54 @@ Sistema especializado em análise técnico-financeira de rebanho bovino para **c
 
 ---
 
-## Por que usar esta plataforma?
+## Por que usar
 
 | Problema da consultoria hoje | O que a plataforma resolve |
 |---|---|
-| Análise feita em planilha, demorada e propensa a erro | Resultado completo em menos de 1 minuto |
-| Sem metodologia padronizada entre os analistas | Metodologia padronizada aplicada de forma uniforme |
-| Rebanho declarado sem auditoria | Score de consistência + flags automáticos de inconsistência |
-| PDF genérico sem identidade da empresa | PDF com logo e nome da consultoria em cada parecer |
-| Sem histórico das fazendas analisadas | Histórico completo por fazenda com download de pareceres anteriores |
-| Cotações desatualizadas | Preços da arroba atualizados automaticamente todo dia às 8h (CEPEA/Scot) |
+| Análise em planilha, demorada e propensa a erro | Resultado completo em menos de 1 minuto |
+| Sem metodologia padronizada entre analistas | Metodologia uniforme, com memória de cálculo |
+| Rebanho declarado sem auditoria | Score de consistência, flags e reconciliação entre documentos |
+| Garantia avaliada pela cotação cheia | Deságio por categoria e LTV sobre o valor de execução |
+| Endividamento informado sem origem | Inventário por credor, confrontável com o SCR |
+| Preço nacional aplicado no Brasil inteiro | Diferencial por praça atravessando toda a cadeia |
+| PDF genérico | PDF com logo e nome da consultoria |
+| Sem histórico | Histórico por fazenda com pareceres para download |
 
 ---
 
-## Funcionalidades principais
+## 1. Números
 
-### Análise técnica do rebanho
-- **Classificação ML automática** do ciclo de produção: Cria / Recria / Engorda / Ciclo Completo via ensemble de ML com ~99,8% de acurácia
-- **Importação de PDFs** de órgãos estaduais de defesa agropecuária e GTA — extrai a composição do rebanho automaticamente
-- **Indicadores zootécnicos** calculados na hora: relação F/M, % matrizes, pirâmide etária, bezerros estimados
-- **Benchmarks nacionais e regionais** (CEPEA, Embrapa, ABCZ, Scot, ASBIA, Inttegra)
-- **Score de consistência 0–100** com flags de erros: pirâmide invertida, touro impossível, crescimento implausível, categorias desaparecidas
-
-### Financeiro e crédito
-- **Fluxo de caixa pecuário**: resultado operacional (caixa) + variação de estoque do rebanho = resultado econômico total
-- **Parecer de crédito com DSCR**, parcela Price e recomendação fundamentada
-- **Análise de sensibilidade de preço**: 3 cenários automáticos (−15% / base / +15%) — mostra se o crédito sobrevive a uma queda no boi
-- **Capacidade máxima de endividamento**: quanto o produtor pode tomar dado o DSCR-alvo
-- **Projeção financeira de 5 anos** em 4 cenários (otimista, crescimento, alta venda, conservador)
-- **Reconciliação de garantia**: cruza ficha sanitária × IR × GTA para detectar rebanho superavaliado
-
-### Para a consultoria
-- **Multiempresa**: cada consultoria tem seus dados isolados; analistas compartilham clientes dentro da mesma empresa
-- **PDF com marca própria**: logo e nome da consultoria no cabeçalho de cada parecer exportado
-- **Histórico de pareceres** por fazenda com download em PDF
-- **Retreino do modelo ML** com confirmações dos analistas — o modelo melhora com o uso
+| | |
+|---|---|
+| Python (produção) | 10.476 linhas |
+| Interface (`templates/index.html`) | 3.750 linhas |
+| Testes | **417** casos em 56 arquivos |
+| Rotas HTTP | 44, sendo 25 endpoints `/api` |
+| Modelo | ensemble de 4, 42 features, 6 classes |
+| Agências estaduais lidas | 7 |
+| Tabelas no banco | 11 |
 
 ---
 
-## Como funciona (fluxo em 3 passos)
+## 2. O fluxo de uma análise
 
-```
-1. INSERIR DADOS
-   ├── Fazenda, proprietário, município
-   ├── Composição do rebanho (manual / upload de PDF / planilha Excel)
-   ├── Solicitação de crédito (valor, prazo, juros, carência)
-   └── Cotações do dia (preenchidas automaticamente)
-
-2. CLASSIFICAR
-   ├── ML classifica o ciclo de produção
-   ├── Calcula indicadores, benchmarks e consistência
-   ├── Gera fluxo de caixa + valoração do rebanho
-   └── Emite parecer com DSCR, 3 cenários de sensibilidade de preço
-
-3. RESULTADO
-   ├── Banner APROVAR / RESSALVA / NEGAR em destaque
-   ├── KPIs: DSCR, parcela/mês, geração de caixa/ano, crédito máximo
-   ├── Fluxo de caixa com variação de estoque
-   ├── Benchmarks, pirâmide etária, indicadores, recomendações
-   └── Exportar PDF com marca da consultoria
-```
+1. **Entrada** — 10 contagens por faixa etária e sexo, digitadas, importadas de Excel ou extraídas de um PDF de declaração estadual.
+2. **Classificação** — o ensemble aponta a modalidade entre seis, com probabilidade, proveniência da decisão (regra ou ML) e índice de atipicidade.
+3. **Praça** — informado o município, o preço nacional recebe o diferencial regional. Tudo abaixo herda esse preço.
+4. **Simulação** — projeção plurianual por coortes etárias, no cenário conservador, com venda, compra, mortalidade e evolução de idade.
+5. **Fluxo de caixa** — metodologia GEP Araguaia, incluindo variação de estoque do rebanho.
+6. **Auditoria** — consistência do rebanho, reconciliação de garantia entre documentos, desfrute contra a faixa da modalidade.
+7. **Crédito** — DSCR em **todos** os anos do prazo, endividamento total, garantia pelo valor de execução.
+8. **Parecer** — recomendação, memória de cálculo, explicação SHAP, PDF com a marca da consultoria.
+9. **Confirmação** — o analista confirma ou corrige a modalidade, e isso vira dado de treino.
 
 ---
 
-## Faixas de recomendação de crédito
+## 3. Motor de classificação — `ml_engine.py`
 
-| DSCR | Recomendação | Significado |
-|---|---|---|
-| ≥ 1,30 | **APROVAR** | Produtor gera 30% mais caixa do que precisa para pagar a dívida |
-| 1,00 a 1,29 | **APROVAR COM RESSALVA** | Cobre o serviço da dívida com folga estreita |
-| < 1,00 | **NEGAR** | Geração de caixa insuficiente |
+**Ensemble de quatro modelos votando** (`VotingClassifier`, soft voting): RandomForest, GradientBoosting, XGBoost e LightGBM.
 
----
-
-## Metodologia — Fluxo de Caixa
-
-A plataforma implementa uma metodologia de fluxo de caixa para pecuária de corte, diferencial que nenhum sistema de crédito rural mainstream oferece:
-
-```
-(+) Receita de vendas
-(−) Custo operacional
-(−) Reposição de reprodutores
-(=) RESULTADO OPERACIONAL ← base do DSCR (caixa real disponível para pagar a dívida)
-
-(±) Variação de estoque do rebanho
-(=) RESULTADO ECONÔMICO TOTAL ← riqueza criada (caixa + patrimônio)
-
-(−) Serviço da dívida anual
-(=) FLUXO LIVRE
-```
-
-### Pesos e rendimentos por categoria
-
-| Categoria | Arrobas-eq | Rendimento | Referência de preço |
-|---|---|---|---|
-| Boi adulto | 20,53@ | 55% RC | preco_boi |
-| Vaca/Matriz | 15,33@ | 50% RC | preco_vaca |
-| Garrote 13–24m | 10,67@ | 50% RC | média boi+vaca |
-| Novilha 13–24m | 9,33@ | 50% RC | média boi+vaca |
-| Bezerro 0–12m | 6,67@ | 50% RC | preco_bezerro (R$/cab) |
-| Bezerra 0–12m | 6,00@ | 50% RC | preco_bezerra (R$/cab) |
-
----
-
-## Classificação por Machine Learning
-
-### Entrada
-Vetor de 10 valores representando a composição do rebanho por faixa etária e sexo:
+**Entrada:** 10 contagens → **42 features** engenheiradas.
 
 ```
 v = [fêmeas 00–04m, machos 00–04m,
@@ -135,29 +78,172 @@ v = [fêmeas 00–04m, machos 00–04m,
      fêmeas adultas, machos adultos]
 ```
 
-### Saída
+**Saída:** uma de **seis** modalidades.
 
-| Classe | Tipo | Característica |
-|---|---|---|
-| 0 | **CRIA** | Predomínio de matrizes; produção de bezerros |
-| 1 | **RECRIA** | Alta concentração 13–24m; desenvolvimento pós-desmame |
-| 2 | **ENGORDA** | Machos adultos dominam; terminação para abate |
-| 3 | **CICLO_COMPLETO** | Todas as fases integradas na mesma propriedade |
+| Modalidade | Perfil |
+|---|---|
+| `CRIA` | matrizes dominam; receita é bezerro |
+| `RECRIA` | poucos adultos, predomínio de jovens; ganho de peso intermediário |
+| `ENGORDA` | confinamento; 85% em 13–24m, saída para abate |
+| `CICLO_COMPLETO` | cria, recria e engorda integrados |
+| `RECRIA_ENGORDA` | compra magro e termina; giro alto |
+| `CRIA_RECRIA` | produção própria mais compra de desmama |
 
-### Modelo
-Ensemble **VotingClassifier** (soft voting):
-- `RandomForestClassifier` (100 estimadores)
-- `GradientBoostingClassifier`
-- `XGBClassifier`
-- `MLPClassifier` — rede neural 2 camadas ocultas
+**Acurácia: 91,2% ± 5,41** em validação cruzada, 34.902 amostras.
 
-**Acurácia típica: ~99,8%** sobre dataset de 3.902 amostras. O modelo melhora automaticamente a cada confirmação de analista.
+> **Ressalva que importa:** esse conjunto é **sintético**, gerado das faixas de referência que nós mesmos escrevemos em `treinar_ciclos.py`. O número mede que o modelo aprendeu as faixas, não que acerta na realidade. É validação circular — e é exatamente por isso que existe o botão de confirmação (§9).
+
+**Também no motor:**
+- **SHAP** (TreeExplainer) — exigência de explicabilidade da Res. CMN 4.966/2021
+- **Proveniência** da decisão: regra determinística ou ML
+- **Atipicidade**: o quanto o rebanho se afasta da distribuição de treino
+- **Agrupamento de features redundantes** no SHAP (7 pares com correlação 1,0)
 
 ---
 
-## Consistência do Rebanho
+## 4. Leitura de documentos — `pdf_parsers.py`
 
-Score de auditoria lógica de 0–100 com flags automáticos:
+1.375 linhas. **Sete agências estaduais de defesa agropecuária:**
+
+| Agência | UF | Faixas etárias |
+|---|---|---|
+| INDEA | MT | 5 (0-4 / 5-12 / 13-24 / 25-36 / 36m+) |
+| AGRODEFESA | GO | 5 |
+| IDARON | RO | 4 (0-12 / 13-24 / 25-36 / 36m+) |
+| IAGRO | MS | 4 |
+| AGED | MA | 4 |
+| ADAPEC | TO | 4 |
+| ADEPARÁ | PA | 4 |
+
+Extração em cascata: `pdftotext` → `pdfplumber` → OCR (Tesseract) para PDF escaneado. Mais um parser genérico de fallback. Múltiplos PDFs de uma vez — o sistema soma os rebanhos.
+
+**É o fosso do projeto.** Formatos diferentes por estado, órgãos que mudam layout sem avisar, PDF e papel. Não se compra de fornecedor e não se resolve com modelo — é integração acumulada.
+
+Também lê planilhas Excel (template em `/api/template/download`) e texto colado.
+
+---
+
+## 5. Simulação por coortes
+
+Quatro motores, não seis — `CRIA_RECRIA` usa o de cria, `RECRIA_ENGORDA` usa o de engorda.
+
+Cada um rastreia coortes etárias e fecha o balanço:
+
+```
+fim = início + nascimentos + compras − vendas − mortes
+```
+
+Quatro cenários: `conservador`, `crescimento`, `otimista`, `especulativo`. **O parecer usa o conservador.**
+
+---
+
+## 6. Análise financeira
+
+### Fluxo de caixa — metodologia GEP Araguaia
+
+```
+(+) Receita de vendas
+(−) Custo operacional (desembolso)
+(−) Reposição de reprodutores
+(=) RESULTADO OPERACIONAL ← base do DSCR
+
+(±) Variação de estoque do rebanho
+(=) RESULTADO ECONÔMICO TOTAL ← riqueza criada (caixa + patrimônio)
+
+(−) Serviço da dívida anual
+(=) FLUXO LIVRE
+```
+
+A **variação de estoque** — o valor criado pelo crescimento do plantel — é o diferencial: nenhum sistema de crédito rural concorrente a calcula automaticamente.
+
+### DSCR em todos os anos do prazo
+
+O DSCR do ano 1 sozinho engana: o primeiro ano liquida o estoque de animais prontos declarado na ficha; os seguintes vendem só a produção corrente. Um ciclo completo chegou a projetar **6,08 no ano 1 e −0,53 no ano 2** — e o parecer aprovava um crédito de 36 meses.
+
+Hoje a recomendação segue o **ano crítico**.
+
+### Política de crédito
+
+Ajustável — não é benchmark zootécnico.
+
+| Parâmetro | Valor |
+|---|---|
+| DSCR para aprovar | ≥ 1,30 |
+| DSCR para ressalva | ≥ 1,00 |
+| LTV folgado | ≤ 60% |
+| LTV ajustado | ≤ 80% |
+| Comprometimento de renda | ≤ 70% |
+
+**Crédito máximo** por inversão do DSCR alvo. **Sensibilidade** a preço (−15% / base / +15%) e a custo. **Breakeven** e **COE** contra referência Campo Futuro/CNA.
+
+**Custos por modalidade** — cria R$ 90,88/cab·mês contra ciclo completo R$ 119,14.
+
+### Endividamento total — `services/endividamento.py`
+
+Inventário por credor: instituição, saldo devedor, parcela. O campo único antigo continua funcionando e passa a se declarar **não discriminado**. O comprometimento soma a parcela do crédito em análise, porque a decisão é sobre a situação *depois* da operação.
+
+Ausência declarada dispara aviso para conferir o **SCR do Banco Central** — zero declarado pode ser verdade ou omissão, e o parecer não trata os dois igual.
+
+### Garantia pelo valor de execução — `services/garantia.py`
+
+Rebanho em penhor não se realiza pela cotação do dia: entre a inadimplência e o caixa há apreensão, transporte, risco sanitário e venda forçada.
+
+| Categoria | Deságio | Por quê |
+|---|---|---|
+| Boi (25m+) | 25% | cotação pública, vende na semana |
+| Garrote (13–24m) | 35% | falta terminação |
+| Matriz | 35% | valor depende da vida reprodutiva restante |
+| Novilha (13–24m) | 40% | ainda não pariu |
+| Bezerro/a (0–12m) | 50% | dois anos até terminação, maior mortalidade |
+
+O deságio médio acompanha a composição do rebanho. O LTV é medido sobre o valor de execução, não sobre o de mercado.
+
+### Rebaixamento
+
+Capacidade de pagamento, garantia, endividamento e consistência são perguntas **independentes** — vale a **pior** das respostas. Cada motivo entra na memória de cálculo mesmo quando a recomendação já caiu por outro: o comitê precisa ver todos os problemas, não só o primeiro que disparou.
+
+### Pesos e rendimentos por categoria
+
+| Categoria | Arrobas-eq | Referência de preço |
+|---|---|---|
+| Boi adulto | 20,53@ | `preco_boi` |
+| Vaca/Matriz | 15,33@ | `preco_vaca` |
+| Garrote 13–24m | 10,67@ | `preco_boi` |
+| Novilha 13–24m | 9,33@ | `preco_vaca` |
+| Bezerro 0–12m | 6,67@ | `preco_bezerro` (R$/cab) |
+| Bezerra 0–12m | 6,00@ | `preco_bezerra` (R$/cab) |
+
+### Parâmetros zootécnicos default
+
+| Parâmetro | Valor |
+|---|---|
+| Natalidade | 70% |
+| Desmame | 82% |
+| Mortalidade geral | 3% (adulto 2%, bezerra 7%) |
+| Ganho | 0,7@/mês |
+| Proporção matrizes | 35% |
+
+Desfrute de referência por modalidade: CRIA 24% · CICLO_COMPLETO 30% · CRIA_RECRIA 32,5% · RECRIA 45% · RECRIA_ENGORDA 72,5% · ENGORDA 100%.
+
+---
+
+## 7. Auditoria — onde os concorrentes não vão
+
+### Reconciliação de garantia — `services/reconciliacao.py`
+
+Cruza rebanho declarado em documentos distintos para detectar superavaliação:
+
+| Documento | Representa |
+|---|---|
+| Ficha sanitária (órgão estadual) | Piso físico — animais vacinados, não pode ser forjado |
+| Imposto de Renda | Declaração à Receita Federal |
+| GTA | Movimentações recentes |
+
+O caso real coberto por teste: **45.361 declarados contra 9.433 na ficha**.
+
+### Consistência do rebanho — `services/consistencia_rebanho.py`
+
+Score 0–100 com flags automáticos:
 
 | Flag | Tipo | Critério |
 |---|---|---|
@@ -168,250 +254,75 @@ Score de auditoria lógica de 0–100 com flags automáticos:
 | Crescimento implausível | Erro | Rebanho cresceu > 200% em 12 meses |
 | Categoria desaparecida | Alerta | Categoria com > 50 cabeças sumiu no histórico |
 
-> Se houver erros e a recomendação seria Aprovar, o sistema rebaixa automaticamente para Ressalva com justificativa.
+Há erro e a recomendação seria Aprovar? O sistema rebaixa para Ressalva com justificativa.
 
----
+### Desfrute contra a própria referência
 
-## Análise de Sensibilidade de Preço
+Teto por modalidade — acima disso, alerta:
 
-3 cenários automáticos após cada análise:
-
-| Cenário | Fator | Uso |
-|---|---|---|
-| ▼ Queda 15% | 0,85 × preço base | Mostra se o crédito sobrevive a uma queda do boi |
-| ● Base | 1,00 × preço base | Cotação do dia |
-| ▲ Alta 15% | 1,15 × preço base | Cenário favorável |
-
----
-
-## Reconciliação de Garantia
-
-Cruza rebanho declarado em diferentes documentos para detectar superavaliação:
-
-| Documento | Representa |
+| Ciclo | Teto |
 |---|---|
-| Ficha Sanitária (órgão estadual) | Piso físico — animais vacinados, não pode ser forjado |
-| Imposto de Renda | Declaração à Receita Federal |
-| GTA | Movimentações recentes |
+| CRIA | 30% |
+| CICLO_COMPLETO | 40% |
+| CRIA_RECRIA | 40% |
+| RECRIA | 55% |
+| RECRIA_ENGORDA | 85% |
+| ENGORDA | 120% |
+
+**Essa guarda já pegou um bug do nosso próprio simulador** (§15).
+
+### Memória de cálculo
+
+Passo, valor e explicação em todo resultado. É o que torna o parecer defensável diante do comitê e do BACEN, onde um score opaco não é.
 
 ---
 
-## Projeção 5 Anos — 4 Cenários
+## 8. Preço por praça — `services/precos_regionais.py`
 
-| Cenário | Estratégia |
-|---|---|
-| Otimista | IATF, suplementação, genética melhorada |
-| Crescimento Gradual | Expansão sustentável com reinvestimento |
-| Alta Venda | Maximiza venda aproveitando preço favorável |
-| Conservador | Manutenção mínima — cenário de queda de preços |
+O indicador CEPEA/ESALQ é praça de São Paulo. O sistema aplicava o mesmo preço no Brasil inteiro.
 
----
+Informado o município, o diferencial da UF é aplicado **uma vez**, no ponto onde os preços são resolvidos, e propaga para valoração, receita, fluxo, breakeven, sensibilidade e garantia.
 
-## Cotações Automáticas
+Mesmo rebanho, mesmo crédito de R$ 1,5 milhão:
 
-| Preço | Fonte | Frequência |
-|---|---|---|
-| Boi gordo (R$/@) | CEPEA/ESALQ via Notícias Agrícolas | Diária às 8h |
-| Vaca gorda (R$/@) | Scot Consultoria | Diária às 8h |
-| Bezerro/Bezerra | Referência editável | Manual |
+| Praça | Basis | Garantia | LTV | Veredito |
+|---|---|---|---|---|
+| SP | 0% | 2.070.802 | 72,4% | ajustada |
+| GO | −4% | 1.987.970 | 75,5% | ajustada |
+| MT | −7% | 1.925.846 | 77,9% | ajustada |
+| RO | −10% | 1.863.722 | 80,5% | **insuficiente** |
 
----
+> **Origem dos diferenciais:** calibração de referência, **não medição nossa**. O parecer, a tela e o PDF declaram isso por escrito. Limitação conhecida: o mercado de reposição é mais segmentado regionalmente que o de boi gordo, então o diferencial verdadeiro do bezerro costuma ser maior — aplicamos o mesmo fator por ora.
 
-## Importação de Dados
-
-### PDFs suportados
-
-| Documento | Estado | Parser |
-|---|---|---|
-| Saldo Atual da Exploração | Mato Grosso | `parsers/indea.py` |
-| Declaração de Existência | Rondônia | `parsers/idaron.py` |
-| GTA / Ficha de Declaração | Rondônia | `pdf_parsers.py` |
-
-Múltiplos PDFs podem ser enviados de uma vez — o sistema soma os rebanhos automaticamente.
-
-### Planilha Excel
-Template disponível para download em `/api/template/download`.
+**Cotações automáticas:** scraper diário às 8h — CEPEA/ESALQ (boi, bezerro) e Scot (vaca) — com faixas de sanidade que rejeitam valor absurdo e fallback para a última cotação salva.
 
 ---
 
-## Tecnologia e Arquitetura
+## 9. O loop de dado real
 
-### Stack
+Todo o treino é sintético. O **botão de confirmação de ciclo** é o único caminho por onde entra rótulo humano: o analista confirma a modalidade classificada ou aponta a correta entre as seis.
 
-| Camada | Tecnologia |
-|---|---|
-| Backend | Python 3.10 + Flask |
-| ML | scikit-learn, XGBoost, LightGBM |
-| Banco | PostgreSQL (produção) / SQLite (desenvolvimento) |
-| PDF geração | reportlab |
-| PDF leitura | pdfplumber |
-| Frontend | HTML/CSS/JS (sem framework) |
-| Scheduler | APScheduler |
-| Deploy | Railway (auto-deploy via push em `main`) |
+O invariante, coberto por teste: o retreino consome **exclusivamente** `class_conf`. Registro não confirmado não entra — o modelo nunca aprende com a própria previsão.
 
-### Estrutura de arquivos
-
-```
-app.py                        # Flask — rotas, auth, scheduler
-ml_engine.py                  # Ensemble ML + simulações financeiras
-database.py                   # Abstração SQLite/PostgreSQL
-scraper.py                    # Cotações diárias (CEPEA/Scot)
-pdf_parsers.py                # Parser de PDFs (órgãos estaduais/GTA)
-
-services/
-  fluxo_caixa_gep.py          # Valoração + DRE
-  parecer_credito.py          # Price, DSCR, crédito máximo
-  parecer_pdf.py              # Geração de PDF (reportlab)
-  consistencia_rebanho.py     # Score de consistência + flags
-  parametros_zootecnicos.py   # Benchmarks por ciclo
-  custos_desembolso.py        # Presets de custo por componente
-  pesos_rebanho.py            # Conversão cabeças → arrobas
-  benchmarks_nacionais.py     # Benchmarks multifonte
-  reconciliacao.py            # Reconciliação de documentos
-
-parsers/
-  indea.py                    # Parser MT
-  idaron.py                   # Parser RO
-
-templates/
-  index.html                  # SPA principal
-  admin.html                  # Gestão de empresas e usuários
-  login.html / cadastro.html
-
-tests/                        # pytest — 50+ arquivos de teste
-```
+A correção vale mais que a confirmação: é ela que mostra onde a faixa de referência está errada.
 
 ---
 
-## API Principal
+## 10. IA e canais
 
-| Método | Endpoint | Descrição |
-|---|---|---|
-| POST | `/api/classificar` | Classificar rebanho + gerar parecer completo |
-| POST | `/api/cenario` | Projeção de cenário (Ciclo Completo) |
-| GET | `/api/precos/live` | Cotações do dia |
-| GET/POST | `/api/empresa/perfil` | Marca da consultoria (nome + logo) |
-| POST | `/api/parecer/pdf` | Gerar PDF do parecer |
-| GET | `/api/fazendas` | Listar fazendas da empresa ativa |
-| POST | `/api/fazendas` | Criar fazenda |
-| GET | `/api/fazendas/<id>/pareceres` | Histórico de pareceres |
-| POST | `/api/ler-pdf` | Extrair composição de PDF |
-| GET | `/api/template/download` | Template Excel |
-| POST | `/api/confirmar` | Confirmar/corrigir classificação ML |
-| POST | `/api/reconciliar` | Reconciliar documentos de garantia |
+**Narrativa e chat** — Groq / Llama 3.3 70B. Gera a leitura em prosa do parecer e responde perguntas sobre ele. Assíncrono por padrão, para não somar 20s de latência à análise.
 
-### Exemplo: classificar e obter parecer
+**WhatsApp** — o mesmo chat, no canal onde o analista já está.
 
-```python
-import requests
+A regra que impede vazamento: o webhook recebe um telefone e nada mais. Sem vínculo explícito, responder sobre um parecer entregaria dado de crédito a quem descobrisse o número do bot. O vínculo exige um código de uso único, 15 minutos de validade, gerado por um analista **logado**. Número desconhecido não faz o modelo ser nem consultado.
 
-r = requests.post('http://localhost:5050/api/classificar', json={
-    # Composição: [f00F, f00M, f05F, f05M, f13F, f13M, f25F, f25M, facF, facM]
-    'valores': [300, 280, 400, 200, 900, 1200, 250, 80, 600, 40],
+Autenticidade por HMAC-SHA256 em cada POST. Sem `WHATSAPP_APP_SECRET` a requisição é **recusada**, não aceita — segredo ausente não vira "aceita tudo".
 
-    # Cotações
-    'preco_boi': 330,
-    'preco_vaca': 260,
-    'preco_bezerro': 1800,
-    'preco_bezerra': 1620,
-
-    # Crédito solicitado
-    'credito_valor': 500000,
-    'prazo_meses': 24,
-    'juros_aa': 0.10,
-    'carencia_meses': 0,
-    'dividas_mensais': 0,
-
-    # Identificação
-    'fazenda': 'Fazenda Modelo',
-    'municipio': 'Sinop - MT',
-    'proprietario': 'João da Silva',
-})
-p = r.json()
-
-print(p['classificacao'])                              # CICLO_COMPLETO
-print(p['parecer']['conclusao']['recomendacao'])       # aprovar
-print(p['parecer']['conclusao']['dscr'])               # ex.: 1.45
-print(p['parecer']['conclusao']['capacidade_maxima'])  # crédito máximo (R$)
-print(p['fluxo_gep']['resultado_operacional'])         # geração de caixa anual
-print(p['sensibilidade'])                              # 3 cenários de preço
-```
+Detalhes cobertos que quebrariam em produção: o **nono dígito** (a Meta entrega celular brasileiro sem ele, o usuário digita com), recibos de leitura que gerariam laço, e o 200 obrigatório em falha para a Meta não reenviar.
 
 ---
 
-## Parâmetros de referência
-
-### Zootécnicos (fontes: Embrapa, ABCZ, Scot, CEPEA)
-
-| Parâmetro | Valor default | Fonte |
-|---|---|---|
-| Taxa de natalidade | 65% | Embrapa/Scot/CEPEA/ABCZ |
-| Mortalidade geral | 3% | Referência setorial |
-| Taxa de desmama | 82% | Referência setorial |
-| Rendimento de carcaça | 52% | Referência setorial |
-| Proporção boi/matriz | 1:30 | Ciclo Completo padrão |
-| Renovação de bois | 20%/ano | Mercado |
-| Descarte de matrizes | 30%/ano | Mercado |
-| Peso boi adulto | 18–20@ | CEPEA/B3 |
-| Peso vaca descarte | 14–15@ | Mercado MT/RO |
-
-### Política de crédito
-
-| Parâmetro | Valor |
-|---|---|
-| DSCR mínimo para aprovar | 1,30 |
-| DSCR mínimo para ressalva | 1,00 |
-| DSCR-alvo para crédito máximo | 1,30 |
-
----
-
-## Instalação e Deploy
-
-### Rodando localmente
-
-```bash
-pip install -r requirements.txt
-python app.py
-# Acesse: http://localhost:5050
-```
-
-Crie uma conta em `/cadastro` e faça login. Na primeira execução o modelo ML é treinado automaticamente (alguns segundos).
-
-### Variáveis de ambiente
-
-| Variável | Descrição |
-|---|---|
-| `DATABASE_URL` | URL PostgreSQL. Sem ela, usa SQLite local. |
-| `SECRET_KEY` | Chave de sessão Flask (obrigatória em produção). |
-| `ADMIN_EMAILS` | E-mails de admin separados por vírgula. |
-| `ADMIN_SENHA_INICIAL` | Senha inicial dos admins (opcional). |
-
-### Deploy Railway
-
-Push em `main` dispara deploy automático:
-
-```bash
-git push origin main
-```
-
----
-
-## Testes
-
-```bash
-# Rodar todos os testes
-python -m pytest tests/ -v
-
-# Ignorar testes que precisam de arquivos locais
-python -m pytest tests/ -v \
-  --ignore=tests/test_pdf_reais_indea.py \
-  --ignore=tests/test_csrf_e_limiter.py \
-  --ignore=tests/test_benchmarks_reais.py
-```
-
----
-
-## Multiempresa e Multiusuário
+## 11. Multiempresa e multiusuário
 
 ```
 Consultoria A
@@ -428,6 +339,255 @@ Consultoria B
 - Um usuário pode ser membro de múltiplas empresas
 - Painel `/admin` para gestão de empresas, membros e permissões
 - Logo e nome da consultoria configuráveis por empresa (aparecem no PDF)
+
+---
+
+## 12. Tecnologia e arquitetura
+
+| Camada | Tecnologia |
+|---|---|
+| Backend | Python 3.11.15 + Flask |
+| ML | scikit-learn, XGBoost, LightGBM, SHAP |
+| Banco | PostgreSQL (produção) / SQLite (desenvolvimento) |
+| PDF geração | reportlab |
+| PDF leitura | pdfplumber + Tesseract (OCR) |
+| IA | Groq (Llama 3.3 70B) |
+| Frontend | HTML/CSS/JS (sem framework) |
+| Scheduler | APScheduler |
+| Deploy | Docker no Railway (auto-deploy via push em `main`) |
+
+### Estrutura
+
+```
+app.py                        # Flask — rotas, auth, scheduler
+ml_engine.py                  # Ensemble ML + simulações por coortes
+database.py                   # Abstração SQLite/PostgreSQL
+scraper.py                    # Cotações diárias
+pdf_parsers.py                # 7 agências estaduais + genérico
+treinar_ciclos.py             # Geração do conjunto de treino
+
+services/
+  fluxo_caixa_gep.py          # Valoração + DRE
+  parecer_credito.py          # Price, DSCR, ano crítico, rebaixamento
+  parecer_pdf.py              # Geração do PDF
+  garantia.py                 # Deságio por categoria e LTV
+  endividamento.py            # Inventário por credor
+  precos_regionais.py         # Diferencial por praça
+  consistencia_rebanho.py     # Score + flags
+  reconciliacao.py            # IR × GTA × ficha sanitária
+  benchmarks_nacionais.py     # Benchmarks multifonte
+  parametros_zootecnicos.py   # Parâmetros por ciclo
+  custos_desembolso.py        # Custo por componente e modalidade
+  pesos_rebanho.py            # Cabeças → arrobas
+  precos_diarios.py           # Parsing de cotações
+  groq_narrativa.py           # Narrativa e chat IA
+  whatsapp.py                 # Canal WhatsApp (Meta Cloud API)
+  importar_excel.py           # Leitura de planilha
+  email_service.py            # SMTP
+
+parsers/
+  composicao_rebanho.py       # Template Excel
+
+templates/
+  index.html                  # SPA principal
+  admin.html · login.html · cadastro.html
+
+tests/                        # pytest — 56 arquivos, 417 casos
+```
+
+### Banco de dados
+
+`usuarios` · `fazendas` · `registros` · `pareceres` · `empresas` · `empresa_membros` · `cotacao_arroba` · `meta` · `reset_tokens` · `whatsapp_vinculos` · `whatsapp_codigos`
+
+---
+
+## 13. API
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/api/classificar` | Classificar rebanho + parecer completo |
+| POST | `/api/confirmar-ciclo` | Confirmar ou corrigir a classificação |
+| POST | `/api/parecer/pdf` | Gerar PDF do parecer |
+| POST | `/api/cenario` · GET `/api/cenarios` | Projeção de cenários |
+| POST | `/api/reconciliacao` | Reconciliar documentos de garantia |
+| POST | `/api/ler-pdf` · `/api/ler-planilha` · `/api/parse-text` | Importação |
+| GET | `/api/template/download` · `/api/ficha/download` | Templates |
+| GET | `/api/precos/live` | Cotações do dia |
+| GET | `/api/noticias` | Notícias do setor |
+| POST | `/api/narrativa` · `/api/chat` | IA sobre o parecer |
+| POST | `/api/whatsapp/codigo` | Código de vínculo do WhatsApp |
+| GET/POST | `/api/fazendas` · `/api/fazendas/<id>/pareceres` | Fazendas e histórico |
+| GET/POST | `/api/empresa/perfil` · `/api/empresa/ativa` | Consultoria |
+| POST | `/api/estimativa-valor` | Valor estimado por peso e sexo |
+
+### Exemplo
+
+```python
+import requests
+
+r = requests.post('http://localhost:5050/api/classificar', json={
+    # [f00F, f00M, f05F, f05M, f13F, f13M, f25F, f25M, facF, facM]
+    'valores': [300, 280, 400, 200, 900, 1200, 250, 80, 600, 40],
+
+    'municipio': 'Sinop - MT',      # define a praça dos preços
+    'fazenda': 'Fazenda Modelo',
+    'proprietario': 'João da Silva',
+
+    'credito_valor': 500000,
+    'prazo_meses': 24,
+    'juros_aa': 0.10,
+    'carencia_meses': 0,
+    'dividas': [
+        {'instituicao': 'Banco do Brasil',
+         'saldo_devedor': 800000, 'parcela_mensal': 22000},
+    ],
+})
+p = r.json()
+
+print(p['tipo'])                                        # CICLO_COMPLETO
+print(p['parecer']['conclusao']['recomendacao'])        # aprovar
+print(p['parecer']['conclusao']['dscr_minimo'])         # DSCR do ano crítico
+print(p['parecer']['garantia']['ltv'])                  # LTV sobre execução
+print(p['parecer']['endividamento']['comprometimento_pct'])
+print(p['parecer']['precos_regional']['basis_pct'])     # diferencial da praça
+print(p['parecer']['conclusao']['memoria'])             # memória de cálculo
+```
+
+---
+
+## 14. Instalação e deploy
+
+### Local
+
+```bash
+pip install -r requirements.txt
+python app.py
+# http://localhost:5050
+```
+
+Crie uma conta em `/cadastro`. Na primeira execução o modelo é treinado do zero, o que leva minutos — normalmente ele é carregado de `gestao_model.pkl`, versionado no repositório.
+
+### Variáveis de ambiente
+
+| Variável | Efeito |
+|---|---|
+| `DATABASE_URL` | PostgreSQL; ausente = SQLite |
+| `SECRET_KEY` | sessão Flask (obrigatória em produção) |
+| `ADMIN_EMAILS` · `ADMIN_SENHA_INICIAL` | administradores |
+| `GROQ_API_KEY` | liga narrativa e chat IA |
+| `NARRATIVA_INLINE` | `1` volta a narrativa a ser bloqueante |
+| `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_ID` | ligam o canal; ausentes = rota 404 |
+| `WHATSAPP_APP_SECRET` | **obrigatória** com o canal ligado |
+| `WHATSAPP_VERIFY_TOKEN` | handshake de cadastro na Meta |
+| `SHAP_AGRUPAR_REDUNDANTES` | `0` volta a listar features duplicadas |
+| `REPOSICAO_PRECIFICADA` | `0` deixa de cobrar a compra de reposição |
+| `FRAC_VENDA_RECRIA_M` | fração dos machos 13–24m vendidos (default 0,83) |
+| `SMTP_*` | envio de e-mail |
+
+Para desligar recursos sem mexer no código, veja o **`REVERTER.md`**.
+
+### Railway
+
+Push em `main` dispara deploy automático. A imagem usa `python:3.11.15` e instala `libgomp1` — LightGBM e XGBoost o carregam por `ctypes` em runtime, e a imagem `-slim` não o traz; sem ele o app não sobe.
+
+**Dependências fixadas em `==`.** Com faixas `>=`, cada rebuild montava um ambiente diferente sem que uma linha de código mudasse — e o modelo é um pickle, que não atravessa versão de biblioteca.
+
+### Testes
+
+```bash
+python -m pytest tests/ -q --ignore=tests/test_pdf_reais_indea.py
+```
+
+Os mais significativos:
+
+| Arquivo | Casos | Cobre |
+|---|---|---|
+| `test_whatsapp` + `_rotas` | 52 | assinatura HMAC, vazamento, nono dígito |
+| `test_precos_regionais` + ponta a ponta | 40 | praça atravessando a cadeia |
+| `test_pdf_parsers` | 24 | as sete agências |
+| `test_conservacao_seis_ciclos` | 20 | balanço de animais nas seis |
+| `test_garantia` + `test_endividamento` | 25 | deságio, LTV, comprometimento |
+| `test_ficha_recria_real` | 11 | **a única validação não-sintética** |
+| `test_regressao_bugs` | 10 | bugs que não podem voltar |
+
+---
+
+## 15. A ficha real de recria
+
+Uma ficha de 700 cabeças com composição, destino declarado e projeção de venda foi a primeira validação **não-sintética** do projeto — e pegou um bug grande.
+
+O simulador tratava 5–25 meses como pool único e vendia **100% dele todo ano**, incluindo os de 5–12 meses recém-entrados, precificados pelo peso de **saída** da recria. Tudo fora dessa faixa nunca era vendido.
+
+| | Vendas | Machos | Fêmeas | Desfrute |
+|---|---|---|---|---|
+| Antes | 443 | 443 | **0** | 63,3% |
+| Agora | 304 | 203 | 101 | 43,4% |
+| **Ficha** | **315** | **211** | **104** | **45%** |
+
+Receita estava ~41% superestimada. A guarda de desfrute acusou `63,3% > 55` **sozinha**, antes de qualquer investigação.
+
+A ficha levou a mais dois vazamentos: o motor de engorda deixava `va[8]` (fêmeas acima de 36 meses) fora dos dois baldes de contabilização e elas sumiam do modelo; o de cria contava a mortalidade das matrizes mas não a descontava do fechamento.
+
+---
+
+## 16. O que está em aberto
+
+Em ordem de impacto.
+
+### Bug conhecido, não corrigido
+
+**Carência não capitaliza juros.** A parcela é calculada sobre `prazo − carência` sem crescer o principal pelos juros acumulados no período. Num crédito de R$ 1 milhão, 36 meses, 12 de carência a 12,5% a.a.:
+
+| | Parcela |
+|---|---|
+| Hoje | R$ 46.997 |
+| Correto | R$ 52.872 |
+
+**12,5% subestimada**, e o DSCR sobe na mesma proporção. Erra para o lado de aprovar. Carência é padrão em custeio pecuário.
+
+### Inconsistências
+
+- **Sensibilidade usa DSCR do ano 1**, enquanto a conclusão usa o ano crítico. Na mesma tela, o veredicto grande e os cards de cenário usam bases diferentes.
+- **`CICLO_COMPLETO`** tem desvio de balanço de −14 em 700 cabeças, no limite da tolerância de 2%. É o único motor não revisado.
+- **`_build_model()` ramifica em `DATABASE_URL`** (100 árvores em produção, 300 em dev). Hoje é inofensivo porque produção carrega o pickle; vira armadilha se o pickle falhar.
+
+### Não validado
+
+- **`CRIA_RECRIA`** segue sem validação (`xfail`)
+- **Desfrute acima do teto** em CRIA (43% vs 30), CICLO_COMPLETO (41,7% vs 40) e CRIA_RECRIA (49% vs 40) com rebanhos **sintéticos construídos para auditoria**. Pode ser bug, pode ser rebanho mal construído — só uma ficha real resolve.
+- **`FRAC_VENDA_RECRIA_M = 0,83`** vem de **uma** ficha
+- **WhatsApp** nunca exercitado contra a API real da Meta
+- **Diferenciais regionais de preço** são calibração, não medição
+
+### Ausente
+
+Do roteiro padrão dos 5 C's de crédito, dois seguem descobertos:
+
+- **Caráter** — sem consulta a Serasa, SPC, CADIN, protestos ou ações judiciais
+- **Capital** — sem balanço nem patrimônio líquido; o endividamento é **declarado**, não verificado no SCR
+
+---
+
+## 17. Onde o projeto é único
+
+Comparado às plataformas de crédito agro estabelecidas, que são **grão-primeiro e produtor-primeiro**:
+
+1. **Lê o rebanho.** Sensoriamento remoto e NDVI demarcam área de safra — não contam cabeça, não dizem idade nem sexo. Para pecuária, a garantia é viva e se move.
+2. **Sete agências estaduais parseadas.** Trabalho sujo, acumulado, sem atalho.
+3. **Audita a garantia.** Rebanho de papel contra rebanho físico é uma pergunta que a arquitetura deles não faz.
+4. **É auditável.** Memória de cálculo linha por linha, onde um score de 100+ fontes é caixa-preta — e a Res. CMN 4.966 exige que a instituição justifique.
+
+O ativo que ainda falta construir e que composto vira fosso: **série histórica de GTA**. Hoje lemos a GTA, extraímos o saldo e descartamos o resto. Cada GTA é um registro datado de movimentação; guardadas, dão trajetória documentada em vez de declarada, desfrute medido em vez de estimado, e benchmarks reais no lugar das faixas sintéticas.
+
+---
+
+## Documentos relacionados
+
+| Arquivo | Conteúdo |
+|---|---|
+| `CALCULOS.txt` | Memorial de cálculo — fórmulas passo a passo |
+| `REVERTER.md` | Como desligar cada recurso sem mexer no código |
+| `SISTEMA.txt` | **Desatualizado** (Python 3.10, porta 5050, quatro modalidades). Onde divergir deste, este vale. |
 
 ---
 
