@@ -1388,7 +1388,11 @@ async function classificar(){
     if(prenhV!=='') body.taxa_prenhez_pct=parseFloat(prenhV);
     if(desembV!=='') body.desembolso_cab_mes=parseFloat(desembV);
     const res=await fetch('/api/classificar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const data=await res.json();
+    // Um 500 devolve HTML, não JSON: sem esta checagem o res.json() lançava,
+    // a exceção subia sem catch e a tela ficava muda — o usuário via só o
+    // spinner sumir, sem resultado e sem mensagem.
+    const data = await lerRespostaJson(res, 'classificar');
+    if(!data) return;
     if(data.erro){showToast(data.erro,true);return}
     lastVals=v;
     window.lastTipo=data.tipo||data.classificacao||'CICLO_COMPLETO';
@@ -1407,6 +1411,11 @@ async function classificar(){
     if (data.classificacao) afterClassificationSync(data.classificacao);
     recalcCiclo();
     runSc();
+  }catch(e){
+    // Rede fora do ar, JSON malformado ou erro inesperado no render: sem este
+    // catch a exceção subia e a tela ficava muda.
+    console.error('[classificar]', e);
+    showToast('Não foi possível concluir a análise: ' + (e && e.message ? e.message : 'erro inesperado'), true);
   }finally{hideLoading()}
 }
 
@@ -2309,6 +2318,31 @@ function mfBloco(m,reg){
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${fonteChips(m.fontes)}</div></div>`;
 }
+// ── Leitura defensiva de resposta ────────────────────────────────────────
+// Um erro no servidor devolve HTML, não JSON. Sem tratar isso, o res.json()
+// lança, a exceção sobe sem catch e a tela fica muda: o spinner some, nada
+// aparece e o usuário não tem o que reportar. Aqui o erro vira mensagem
+// visível, com o identificador que o log do servidor registra.
+async function lerRespostaJson(res, contexto){
+  let data = null;
+  try { data = await res.json(); }
+  catch(e){ data = null; }
+
+  if(res.ok && data) return data;
+
+  if(data && (data.erro || data.mensagem)){
+    const id = data.trace_id ? ` (ref ${data.trace_id})` : '';
+    showToast(`${data.erro || data.mensagem}${id}`, true);
+  } else if(res.status === 401 || res.status === 403){
+    showToast('Sessão expirada. Faça login novamente.', true);
+    setTimeout(()=>location.href='/login', 1800);
+  } else {
+    showToast(`Falha ao ${contexto} (HTTP ${res.status}). Se persistir, informe este código ao suporte.`, true);
+  }
+  console.error(`[${contexto}] HTTP ${res.status}`, data);
+  return null;
+}
+
 // ── Memória de cálculo: por que a recomendação é essa ────────────────────
 // O analista precisa auditar o raciocínio, não só receber o veredicto.
 // Recolhido por padrão para não competir com o número principal.

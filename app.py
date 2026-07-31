@@ -105,6 +105,39 @@ def _verificar_csrf_admin():
         if not token or not _secrets.compare_digest(token, session.get('csrf_token', '')):
             abort(403)
 
+# ── Erros: resposta útil em vez de página HTML muda ──────────────────────────
+# O frontend consome JSON. Quando uma rota /api quebrava, o Flask devolvia a
+# página HTML padrão de 500, o res.json() do navegador lançava e a tela ficava
+# muda — o usuário via o spinner sumir, sem resultado e sem mensagem, e não
+# tinha o que reportar.
+#
+# Agora todo erro em /api vira JSON com um identificador curto, que também vai
+# para o log do servidor: o usuário informa a referência e ela localiza o
+# traceback exato.
+import uuid as _uuid
+from werkzeug.exceptions import HTTPException as _HTTPException
+
+
+@app.errorhandler(Exception)
+def _erro_json(e):
+    if isinstance(e, _HTTPException) and not request.path.startswith('/api'):
+        return e            # páginas seguem com o comportamento padrão do Flask
+
+    if isinstance(e, _HTTPException):
+        return jsonify({'erro': e.description or e.name,
+                        'status': e.code}), e.code
+
+    trace_id = _uuid.uuid4().hex[:8]
+    logger.exception(f'[{trace_id}] erro não tratado em {request.method} {request.path}')
+    if request.path.startswith('/api'):
+        return jsonify({
+            'erro': 'Erro interno ao processar a solicitação.',
+            'trace_id': trace_id,
+            'status': 500,
+        }), 500
+    raise e
+
+
 # ── Rate limiting (proteção contra força bruta) ───────────────────────────────
 limiter = Limiter(
     get_remote_address,
