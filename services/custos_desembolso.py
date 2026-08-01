@@ -119,11 +119,46 @@ def custo_arroba_de_desembolso(desembolso_cab_mes: float,
     return desembolso_cab_mes * 12.0 / peso_medio_arroba
 
 
+# ── O terceiro degrau: extensivo ─────────────────────────────────────────────
+#
+# PERFIL_DESEMBOLSO tem duas colunas MEDIDAS componente a componente (GEP
+# Araguaia): `média` e `top rentáveis`. Faltava o degrau de baixo — a fazenda
+# extensiva, que é tratada como média e tem o custo por arroba SUBESTIMADO,
+# porque produz menos arroba sobre a mesma estrutura.
+#
+# Este fator NÃO é uma terceira coluna de componentes. Inventar oito valores de
+# componente que ninguém mediu seria passar por apuração o que é aritmética, e
+# a camada de proveniência existe justamente para impedir isso. É um
+# multiplicador, com a derivação escrita:
+#
+#     painéis de cria não-extensivos   Altamira/PA  R$ 189,76/@
+#                                      Pelotas/RS   R$ 166,35/@   média 178,06
+#     painel de cria extensiva         Pantanal/MS  R$ 223,21/@   (0,30 UA/ha)
+#
+#     fator = 223,21 / 178,06 = 1,254
+#
+# LIMITES DESTE NÚMERO, por escrito:
+#   · sai de UM par de comparação, na modalidade CRIA. Aplicá-lo às demais é
+#     suposição, não medição
+#   · o Pantanal é um extensivo particular (planície alagável, pastagem
+#     nativa); nem todo extensivo é tão caro
+#   · com um segundo painel extensivo em outra modalidade, isto vira uma média
+#     e deixa de ser extrapolação. É o próximo dado a procurar.
+FATOR_EXTENSIVO = 1.25
+
+# Perfis reconhecidos. 'media' e 'top' são medidos; 'extensivo' é derivado.
+PERFIS = ('extensivo', 'media', 'top')
+
+
 def preset_modalidade(tipo: str, perfil: str) -> dict:
     """Devolve {componente: valor R$/cab/mês} do preset da modalidade.
 
     tipo: CRIA | RECRIA | ENGORDA | ENGORDA_CONFINAMENTO | CICLO_COMPLETO.
-    perfil: 'media' | 'top'.
+    perfil: 'extensivo' | 'media' | 'top'.
+
+    'extensivo' é a coluna média multiplicada por FATOR_EXTENSIVO — derivação
+    documentada acima. Perfil desconhecido cai em 'media', que é o
+    comportamento antigo.
     """
     # Modalidades sem perfil próprio herdam o mais próximo. RECRIA_ENGORDA
     # NÃO entra aqui: já tem perfil dedicado em PERFIL_DESEMBOLSO (GEP
@@ -131,8 +166,29 @@ def preset_modalidade(tipo: str, perfil: str) -> dict:
     _HERDA = {'CRIA_RECRIA': 'CRIA'}
     tipo = _HERDA.get(tipo, tipo)
     mod = tipo if tipo in PERFIL_DESEMBOLSO else 'CICLO_COMPLETO'
-    idx = 0 if perfil == 'media' else 1
+
+    if perfil == 'extensivo':
+        return {k: round(v[0] * FATOR_EXTENSIVO, 2)
+                for k, v in PERFIL_DESEMBOLSO[mod].items()}
+
+    idx = 1 if perfil == 'top' else 0
     return {k: v[idx] for k, v in PERFIL_DESEMBOLSO[mod].items()}
+
+
+# Nível tecnológico → perfil de custo. É o mapa que faltava: o sistema tinha os
+# perfis e não tinha critério para escolher entre eles, então aplicava sempre
+# `media` e deixava o `top` num botão que o analista clicava no olho.
+PERFIL_POR_NIVEL = {
+    'extensivo':  'extensivo',
+    'medio':      'media',
+    'intensivo':  'top',
+    'indefinido': 'media',   # sem área declarada: mantém o comportamento antigo
+}
+
+
+def perfil_do_nivel(nivel: str) -> str:
+    """Perfil de custo correspondente ao nível tecnológico."""
+    return PERFIL_POR_NIVEL.get(nivel, 'media')
 
 
 # ── Desembolso padrão por modalidade (R$/cab/mês) ────────────────────────────
@@ -154,7 +210,8 @@ DESEMBOLSO_PADRAO_CAB_MES = {
 ARROBAS_POR_CABECA_FALLBACK = 11.7
 
 
-def custo_arroba_padrao(tipo: str, arrobas_por_cabeca: float = None) -> float:
+def custo_arroba_padrao(tipo: str, arrobas_por_cabeca: float = None,
+                        nivel: str = None) -> float:
     """
     Custo padrão em R$/@·ano para a modalidade, quando o analista não informa
     o desembolso por componente.
@@ -178,11 +235,16 @@ def custo_arroba_padrao(tipo: str, arrobas_por_cabeca: float = None) -> float:
     O sistema já sabia calcular certo: `custo_arroba_de_desembolso` usa o peso
     do rebanho declarado desde sempre. Só não era chamado no caminho sem
     componentes, que é o que a maioria usa.
+
+    `nivel` é o nível tecnológico (services/nivel_tecnologico.py) e escolhe a
+    coluna do perfil. Sem ele — ou com nível indefinido, que é o caso de quem
+    não declara área — vale a coluna `media`, o comportamento anterior.
     """
     if not arrobas_por_cabeca or arrobas_por_cabeca <= 0:
         arrobas_por_cabeca = ARROBAS_POR_CABECA_FALLBACK
     _HERDA = {'CRIA_RECRIA': 'CRIA'}
     tipo = _HERDA.get(tipo, tipo)
-    cab_mes = DESEMBOLSO_PADRAO_CAB_MES.get(tipo,
-                                            DESEMBOLSO_PADRAO_CAB_MES['CICLO_COMPLETO'])
+    if tipo not in PERFIL_DESEMBOLSO:
+        tipo = 'CICLO_COMPLETO'
+    cab_mes = sum(preset_modalidade(tipo, perfil_do_nivel(nivel)).values())
     return round(cab_mes * 12 / max(arrobas_por_cabeca, 1.0), 2)

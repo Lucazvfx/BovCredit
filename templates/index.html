@@ -281,6 +281,25 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
   .ch{flex-direction:column;align-items:stretch;gap:12px;padding:14px 16px}
   .ch>div:last-child{justify-content:flex-start}
 
+  /* Cabeçalho: era ele que esticava a página para 431px num iPhone de 390.
+     A conta: logo 128px com `flex-shrink:0` + bloco da direita 289px + 28 de
+     padding. O bloco da direita cresceu porque o seletor de empresa passou de
+     9,28px para 16px de fonte (regra de `pointer: coarse`, para o Safari não
+     dar zoom ao focar) — e `select` com `min-width:auto` reserva a largura da
+     MAIOR opção, que é o nome inteiro da consultoria.
+     Consertar a fonte criou este; medir só depois é como se acha. */
+  /* Aba Ajuda: grades de 3 e 4 colunas declaradas em style inline, que só um
+     seletor com !important alcança. Precisavam de 487px em 390 de tela. */
+  .g2-help{grid-template-columns:1fr !important}
+  /* As tabelas da Ajuda são largas e não têm campo para digitar: aqui rolar
+     lateralmente é aceitável, esconder coluna não. */
+  .g2-help table, .cb>table{display:block;overflow-x:auto;max-width:100%}
+
+  header{flex-wrap:wrap;row-gap:8px}
+  .logo img{max-width:104px;height:auto}
+  .hdr-r{min-width:0;flex-wrap:wrap;justify-content:flex-end}
+  #empresa-ativa-select{max-width:52vw;min-width:0;text-overflow:ellipsis}
+
   /* typography */
   .ptitle{font-size:1.6rem}.psub{font-size:.8rem}
   .rhero-grid{grid-template-columns:1fr}.rhero{padding:18px}
@@ -472,6 +491,15 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
         <div class="field"><label>Fazenda</label><input type="text" id="f_faz" placeholder="Ex: Fazenda Santa Cruz"></div>
         <div class="field"><label>Município / Estado</label><input type="text" id="f_mun" placeholder="Ex: Juara - MT"></div>
         <div class="field"><label>Proprietário</label><input type="text" id="f_prop" placeholder="Ex: João da Silva"></div>
+        <!-- Área de pastagem: é o que permite calcular lotação (UA/ha) e
+             produtividade (@/ha/ano), e com elas o NÍVEL TECNOLÓGICO, que
+             escolhe o perfil de custo. Sem ela o sistema mantém o perfil médio
+             e diz no parecer que não classificou — nunca chuta o nível. -->
+        <div class="field">
+          <label>Área de pastagem (ha) <span style="color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">— define o nível tecnológico</span></label>
+          <input type="number" id="f_area" min="0" step="1" placeholder="Ex: 900" oninput="_previaNivel()">
+          <div id="f_area_previa" style="font-family:var(--fm);font-size:.6rem;color:var(--mu);margin-top:4px"></div>
+        </div>
       </div>
       <div class="fgrid" style="margin-top:12px;align-items:end">
         <div class="field"><label>Cliente cadastrado (opcional — habilita histórico)</label>
@@ -1447,6 +1475,38 @@ function upd(){
            +(v[1]+v[3])*pmc;        // bezerros (f00M+f05M): R$/cab
   const tval=document.getElementById('t-val');
   if(tval) tval.textContent=val>0?fR(val):'—';
+  _previaNivel();
+}
+
+// ================== NÍVEL TECNOLÓGICO ==================
+// Espelho de services/nivel_tecnologico.py — só a lotação, que é o que dá para
+// calcular antes de classificar. A produtividade depende das arrobas vendidas,
+// que só existem depois da simulação; ela volta no resultado.
+// Peso vivo por faixa, na ordem do vetor. Mesmos números de PESO_VIVO_FAIXA_KG.
+const PESO_VIVO_FAIXA=[90,100,180,200,280,320,460,560,460,560];
+const KG_POR_UA=450;
+const NIVEL_LOTACAO={media_br:0.7, intensivo:1.6};
+
+function _previaNivel(){
+  const el=document.getElementById('f_area_previa'); if(!el) return;
+  const area=parseFloat(document.getElementById('f_area')?.value)||0;
+  const v=getVals();
+  const ua=v.reduce((s,n,i)=>s+n*PESO_VIVO_FAIXA[i],0)/KG_POR_UA;
+  if(!area||area<=0||ua<=0){
+    el.textContent = ua>0
+      ? `${ua.toFixed(0)} UA no rebanho — informe a área para classificar o nível`
+      : '';
+    el.style.color='var(--mu)';
+    return;
+  }
+  const uaHa=ua/area;
+  let nivel,cor;
+  if(uaHa<NIVEL_LOTACAO.media_br){nivel='Extensivo';cor='var(--am)';}
+  else if(uaHa>=NIVEL_LOTACAO.intensivo){nivel='Intensivo';cor='var(--g)';}
+  else {nivel='Médio';cor='var(--cy)';}
+  el.innerHTML=`${ua.toFixed(0)} UA · <strong style="color:${cor}">${uaHa.toFixed(2)} UA/ha — ${nivel}</strong> `
+    +`<span style="color:var(--mu)">(média Brasil 0,7 · intensivo 1,6)</span>`;
+  el.style.color='var(--sb)';
 }
 
 // ================== EXEMPLOS ==================
@@ -1471,6 +1531,9 @@ async function classificar(){
     const body={valores:v,fazenda:document.getElementById('f_faz').value,municipio:document.getElementById('f_mun').value,proprietario:document.getElementById('f_prop').value};
     // Cliente cadastrado (opcional) — necessário para persistir o parecer no histórico
     body.fazenda_id=+document.getElementById('f_fazenda_id')?.value||null;
+    // Área de pastagem → lotação e produtividade → nível tecnológico → perfil
+    // de custo. Vai como null quando vazio, e o backend mantém o perfil médio.
+    body.area_pasto_ha=+document.getElementById('f_area')?.value||null;
     // Preços por categoria (cotação do dia, editáveis) — cada um segue seu preço
     body.preco_boi=+document.getElementById('cot-boi')?.value||0;
     body.preco_vaca=+document.getElementById('cot-vaca')?.value||0;
@@ -2228,6 +2291,35 @@ function renderParecer(data){
           : `A projeção assume que o produtor <strong>deixa de comprar</strong>: não há custo de aquisição, mas o rebanho converge para a produção própria — e é isso que explica a variação de estoque negativa.`}
         As duas leituras são legítimas e dão pareceres diferentes.
       </div>` : ''}
+      ${(() => {
+        // Nível tecnológico: mostra a lotação medida, o perfil de custo que
+        // ela escolheu e as âncoras nacionais. Sem área, diz que não
+        // classificou — em vez de sumir e deixar o analista achar que o
+        // sistema levou o nível em conta.
+        const nt = (data.nivel_tecnologico)||null;
+        if(!nt) return '';
+        const NC={extensivo:'var(--am)',medio:'var(--cy)',intensivo:'var(--g)',indefinido:'var(--mu)'};
+        const cor=NC[nt.nivel]||'var(--mu)';
+        const PERFIL={extensivo:'perfil extensivo (+25%)',media:'perfil médio',top:'perfil top rentáveis'};
+        const indef = nt.nivel==='indefinido';
+        return `<div style="margin-top:8px;background:var(--c);border-radius:8px;border:1px solid var(--b);padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:170px">
+            <div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">Nível tecnológico</div>
+            <div style="font-family:var(--fn);font-weight:800;font-size:1.3rem;color:${cor}">${nt.rotulo}</div>
+            <div style="font-family:var(--fm);font-size:.55rem;color:var(--mu)">${PERFIL[nt.perfil_custo]||''}</div>
+          </div>
+          <div style="flex:1;min-width:170px">
+            ${indef
+              ? `<div style="font-family:var(--fm);font-size:.6rem;color:var(--mu);line-height:1.5">Informe a <strong>área de pastagem</strong> para classificar. Sem ela o custo segue o perfil médio.</div>`
+              : `<div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">Lotação · Produtividade</div>
+                 <div style="font-family:var(--fn);font-weight:700;font-size:1rem;color:var(--sb)">${nt.ua_ha} UA/ha${nt.arrobas_ha_ano?` · ${nt.arrobas_ha_ano} @/ha`:''}</div>
+                 <div style="font-family:var(--fm);font-size:.55rem;color:var(--mu)">${nt.ua} UA em ${fN(nt.area_pasto_ha)} ha · média BR 0,7 UA/ha e 4,77 @/ha</div>`}
+          </div>
+        </div>
+        ${nt.divergencia?`<div class="cb" style="margin-top:6px;border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.06);font-size:.72rem;line-height:1.6">
+          <strong style="color:var(--am)">Lotação alta, produção baixa.</strong> ${nt.divergencia.texto}
+        </div>`:''}`;
+      })()}
       ${(() => {
         const cb = gep.coe_benchmark;
         if(!cb) return '';
