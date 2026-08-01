@@ -83,8 +83,16 @@ LOTACAO_INTENSIVO = referencia(
 PRODUTIVIDADE_MEDIA_BR = referencia(
     4.77, 'Rally da Pecuária 2023 — produtividade média nacional',
     rotulo='Produtividade média Brasil (@/ha/ano)')
+# O limiar de 12 @/ha/ano vinha só do Rally (público amostrado: 12,88). Ganhou
+# uma segunda confirmação, e desta vez de um PAINEL, não de matéria: Campo
+# Futuro/CNA em Naviraí/MS — 1.250 ha em integração lavoura-pecuária, mais de
+# 1.600 cabeças manejadas por ano, 884 comercializadas, semiconfinamento na
+# terminação — mede 13 @/ha/ano. É uma operação inequivocamente intensiva, e
+# cai logo acima do limiar. Duas fontes independentes, mesmo patamar.
 PRODUTIVIDADE_INTENSIVO = referencia(
-    12.0, 'Sistemas semi-intensivos — acima de 12 @/ha/ano; público do Rally: 12,88',
+    12.0,
+    'Rally da Pecuária (público amostrado 12,88 @/ha/ano) e painel Campo '
+    'Futuro/CNA em Naviraí/MS, ILP com semiconfinamento (13 @/ha/ano)',
     rotulo='Produtividade alta tecnologia (@/ha/ano)')
 
 EXTENSIVO   = 'extensivo'

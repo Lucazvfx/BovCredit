@@ -235,3 +235,28 @@ def test_a_ficha_real_muda_de_nivel_conforme_a_area():
     """
     niveis = [avaliar(FICHA_RECRIA, ha)['nivel'] for ha in (3000, 900, 300, 150)]
     assert niveis == [EXTENSIVO, EXTENSIVO, MEDIO, INTENSIVO]
+
+
+def test_o_limiar_de_produtividade_tem_duas_fontes():
+    """
+    O limiar de 12 @/ha/ano vinha só do Rally da Pecuária, que é matéria de
+    imprensa sobre um levantamento. Ganhou confirmação de um PAINEL: Campo
+    Futuro/CNA em Naviraí/MS — 1.250 ha em integração lavoura-pecuária, mais de
+    1.600 cabeças manejadas/ano, semiconfinamento na terminação — mede
+    13 @/ha/ano.
+
+    Uma operação inequivocamente intensiva caindo logo acima do limiar é a
+    checagem que se pode fazer sem ter a série própria: se Naviraí caísse
+    ABAIXO de 12, o limiar estaria alto demais e classificaria como médio quem
+    é intensivo.
+    """
+    NAVIRAI_ARROBAS_HA = 13.0
+    assert NAVIRAI_ARROBAS_HA >= float(PRODUTIVIDADE_INTENSIVO), (
+        'o limiar passou de 13 @/ha e deixaria de reconhecer um ILP com '
+        'semiconfinamento como intensivo'
+    )
+    assert float(PRODUTIVIDADE_INTENSIVO) >= NAVIRAI_ARROBAS_HA * 0.85, (
+        'o limiar caiu demais e passaria a chamar de intensivo quem não é'
+    )
+    fonte = PRODUTIVIDADE_INTENSIVO.fonte
+    assert 'Rally' in fonte and 'Naviraí' in fonte, 'as duas fontes precisam estar citadas'
