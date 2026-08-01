@@ -84,25 +84,60 @@ def test_a_taxa_de_venda_e_limitada_a_faixa_valida(cli):
         assert a['dscr_minimo'] == b['dscr_minimo'], absurdo
 
 
-def test_a_venda_nao_estabiliza_o_rebanho_de_cria():
+def test_reter_novilha_agora_estabiliza_o_plantel():
     """
-    O campo é útil, mas NÃO conserta a cria — e é importante que isso esteja
-    escrito, para ninguém dar o problema por resolvido.
+    A versão anterior deste teste registrava o defeito: `promovidas = nov_F ×
+    0,20` contra descarte de `matrizes × 0,10` repunha 2,7% e a base
+    reprodutiva perdia ~50 cabeças por ano, retendo bezerra ou não. Ele falhou
+    quando a promoção passou a mirar manutenção — que é como se sabe que a
+    correção pegou.
 
-    Mesmo retendo 100% das bezerras, as matrizes caem de 750 para 526 em cinco
-    anos. A causa é outra: `promovidas = nov_F × 0,20` enquanto o descarte é
-    `matrizes × 0,10`. Com 750 matrizes isso descarta 75 e promove 20 — a base
-    reprodutiva perde ~50 cabeças por ano, e a receita cai junto.
+    Agora a retenção MANDA, e é isso que se prende:
+
+        venda 75% das bezerras → 603 matrizes no ano 5   (-20%)
+        venda 45% .............. 740                     ( -1%)
+        venda 30% .............. 750                     (  0%)
+
+    Quando o plantel encolhe, é porque a ficha não tem novilha — razão real,
+    que o analista vê na composição — e não por causa de uma constante.
     """
     ca = custo_arroba_padrao('CRIA', 11.31)
     mat_ini = CRIA[6] + CRIA[8]
-    for vb in (75, 0):
+
+    def matrizes_ano5(vb):
         r = simular_cenario(CRIA, cenario='conservador', ciclo='CRIA',
                             preco_arroba=330.0, custo_arroba=ca, venda_bez_pct=vb)
-        assert r['anos'][4]['matrizes'] < mat_ini * 0.75, (
-            f'venda {vb}%: a base reprodutiva parou de encolher — se isso passou '
-            f'a ser verdade, a causa foi corrigida e este teste deve sair'
-        )
+        return r['anos'][4]['matrizes']
+
+    assert matrizes_ano5(30) >= mat_ini * 0.99, 'retendo bezerra o plantel tem de parar de cair'
+    assert matrizes_ano5(75) < matrizes_ano5(45) < mat_ini * 1.01
+    assert matrizes_ano5(75) > mat_ini * 0.75, (
+        'mesmo liquidando bezerra a queda não pode voltar ao patamar antigo (-45%)'
+    )
+
+
+def test_a_promocao_cobre_descarte_e_mortalidade():
+    """
+    Repor só o descarte deixava o plantel caindo pela mortalidade — 3% ao ano,
+    15% em cinco. Uma cria real repõe as duas baixas.
+
+    Âncora: o painel da Embrapa Pantanal publica reposição de descendentes
+    sobre matrizes de 14,00%/ano, e o mesmo documento a confirma por outro
+    caminho — primeira cria aos 40 meses e vida total de 12,08 anos dão 8,75
+    anos de vida produtiva, ou 11,4%/ano só para manter o plantel.
+    """
+    ca = custo_arroba_padrao('CRIA', 11.31)
+    r = simular_cenario(CRIA, cenario='conservador', ciclo='CRIA',
+                        preco_arroba=330.0, custo_arroba=ca, venda_bez_pct=30)
+    a1 = r['anos'][0]
+    descarte  = a1['matrizes_descartadas']
+    promovidas = a1['aumento_matrizes'] + descarte
+    assert promovidas > descarte, 'a promoção voltou a cobrir só o descarte'
+
+    # E a reposição fica no patamar que o painel mede para uma cria viável.
+    mat_ini = CRIA[6] + CRIA[8]
+    taxa = promovidas / mat_ini * 100
+    assert 10.0 <= taxa <= 20.0, f'{taxa:.1f}% — fora do patamar medido (14%)'
 
 
 # ── A engorda para de girar quatro vezes ────────────────────────────────────
