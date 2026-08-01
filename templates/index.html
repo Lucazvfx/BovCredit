@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>BovCredit</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="/static/favicon-cow.png">
@@ -28,7 +28,10 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{font-family:var(--fb);background:var(--bg);color:var(--tx);min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+/* min-height em dvh: no iOS `100vh` conta a tela inteira, inclusive a faixa
+   que a barra de endereço do Safari cobre, e o fundo termina atrás dela.
+   `dvh` acompanha a barra; o `vh` acima fica de fallback. */
+body{font-family:var(--fb);background:var(--bg);color:var(--tx);min-height:100vh;min-height:100dvh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 body::before{content:'';position:fixed;inset:0;background:
   radial-gradient(ellipse 60% 40% at 15% 10%,rgba(74,222,128,.05) 0%,transparent 60%),
   radial-gradient(ellipse 50% 30% at 85% 85%,rgba(34,211,238,.04) 0%,transparent 60%);
@@ -252,10 +255,31 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
   /* main */
   main{padding:20px 14px max(80px,calc(60px + env(safe-area-inset-bottom)))}
 
-  /* tab-bar: horizontal scroll, buttons never shrink */
-  .tab-bar{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:20px;flex-wrap:nowrap}
+  /* tab-bar: rola na horizontal, botões nunca encolhem.
+     Medido no iPhone 13 (390px): a barra precisa de 587px e só DUAS das cinco
+     abas cabem. A rolagem já existia, mas nada indicava que havia mais — o
+     analista não descobre uma aba que não aparece. A máscara em degradê na
+     borda direita é a dica: some quando chega ao fim. */
+  .tab-bar{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:20px;flex-wrap:nowrap;
+           -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);
+           mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);
+           scroll-snap-type:x proximity;overscroll-behavior-x:contain}
   .tab-bar::-webkit-scrollbar{display:none}
-  .tab-btn{flex-shrink:0;white-space:nowrap;padding:10px 14px;font-size:.68rem;letter-spacing:1px;min-height:44px}
+  .tab-btn{flex-shrink:0;white-space:nowrap;padding:10px 14px;font-size:.68rem;letter-spacing:1px;min-height:44px;scroll-snap-align:start}
+
+  /* Tabela de rebanho: 5 colunas precisam de 423px e o iPhone 13 tem 390.
+     A coluna de % é DERIVADA (total da faixa ÷ rebanho) e o mesmo número
+     aparece no painel de totais logo abaixo. Sai ela, não a rolagem: rolar
+     lateralmente para digitar é pior que não ver um percentual calculado. */
+  .itbl .col-pct{display:none}
+
+  /* Cabeçalho de card: `.ch` é uma linha flex com título à esquerda e grupo de
+     botões à direita. Em 390px o título fica com a largura toda e o grupo
+     desmorona numa coluna de um botão por linha — foi o que a captura no
+     iPhone mostrou no card de rebanho: dez botões empilhados ao lado de um
+     título espremido em três linhas. Empilhar de propósito resolve. */
+  .ch{flex-direction:column;align-items:stretch;gap:12px;padding:14px 16px}
+  .ch>div:last-child{justify-content:flex-start}
 
   /* typography */
   .ptitle{font-size:1.6rem}.psub{font-size:.8rem}
@@ -314,6 +338,50 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 .res-box.pos{border-color:rgba(74,222,128,.3);background:rgba(74,222,128,.06)}
 .res-box.neg{border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.06)}
 
+/* ── iOS: o zoom ao focar campo ──────────────────────────────────────────────
+   O Safari do iPhone DÁ ZOOM na página quando o campo focado tem fonte menor
+   que 16px, e depois não volta sozinho — o analista fica com a tela deslocada
+   e precisa fazer pinça para enxergar o resto. Não é preferência de design: é
+   comportamento do sistema.
+
+   Medido nesta tela num iPhone 13:
+
+       empresa-ativa-select ....  9,28px   ← e ilegível, além de dar zoom
+       campos de identificação .. 14,4px
+       campos de rebanho ........ 12,5px
+
+   `font-size:16px` no campo resolve o zoom, e `min-height:44px` dá o alvo de
+   toque que a própria Apple recomenda — abaixo disso erra-se o campo vizinho
+   na tabela de rebanho, que é densa.
+
+   O seletor é por PONTEIRO GROSSO, não por largura de tela: um iPad em
+   paisagem tem 1024px e o mesmo problema, e um monitor pequeno não tem
+   problema nenhum. Largura de viewport nunca foi a pergunta certa aqui. */
+@media (pointer: coarse) {
+  input, select, textarea,
+  .field input, .field select, input[type=number] {
+    font-size: 16px !important;
+  }
+  input, select, textarea, button, .btn-sm {
+    min-height: 44px;
+  }
+
+  /* O seletor de empresa era o pior dos dois: 9,28px de fonte e 31px de
+     altura, esta vinda de uma altura fixa no estilo do cabeçalho — por isso
+     precisa de `height:auto` junto, senão o min-height não vale de nada. */
+  #empresa-ativa-select { font-size: 16px !important; min-height: 44px; height: auto; }
+}
+
+/* ── iPhone com notch: a área segura ─────────────────────────────────────────
+   Com `viewport-fit=cover` o conteúdo passa a ocupar a tela toda, inclusive
+   sob o notch e sob a barra de gestos. Sem compensar, o cabeçalho fica
+   parcialmente escondido e o rodapé fica sob a faixa inferior. */
+@supports (padding: max(0px)) {
+  header { padding-left: max(14px, env(safe-area-inset-left));
+           padding-right: max(14px, env(safe-area-inset-right)); }
+  main   { padding-left: max(14px, env(safe-area-inset-left));
+           padding-right: max(14px, env(safe-area-inset-right)); }
+}
 </style>
 </head>
 <body>
@@ -522,7 +590,7 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
     </div>
     <div class="cb" style="padding:0">
       <table class="itbl">
-        <thead><tr><th>Faixa Etária</th><th class="c"> Fêmeas</th><th class="c"> Machos</th><th class="c">Total Faixa</th><th class="c">% Rebanho</th></tr></thead>
+        <thead><tr><th>Faixa Etária</th><th class="c"> Fêmeas</th><th class="c"> Machos</th><th class="c">Total Faixa</th><th class="c col-pct">% Rebanho</th></tr></thead>
         <tbody id="input-tbody"></tbody>
       </table>
       <div style="padding:18px">
@@ -1300,7 +1368,7 @@ function buildTable(){
       <td class="tdc"><input type="number" class="ni nf" id="${f.key}_F" value="0" min="0" oninput="upd()"></td>
       <td class="tdc"><input type="number" class="ni nm" id="${f.key}_M" value="0" min="0" oninput="upd()"></td>
       <td class="tdc tdtot" id="${f.key}_T">0</td>
-      <td class="tdc tdtot" id="${f.key}_P" style="color:var(--mu)">0%</td>
+      <td class="tdc tdtot col-pct" id="${f.key}_P" style="color:var(--mu)">0%</td>
     </tr>`;
   });
   upd();
