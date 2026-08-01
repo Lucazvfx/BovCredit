@@ -198,33 +198,54 @@ def custo_arroba_de_desembolso(desembolso_cab_mes: float,
 #
 # PERFIL_DESEMBOLSO tem duas colunas MEDIDAS componente a componente (GEP
 # Araguaia): `média` e `top rentáveis`. Faltava o degrau de baixo — a fazenda
-# extensiva, que é tratada como média e tem o custo por arroba SUBESTIMADO,
-# porque produz menos arroba sobre a mesma estrutura.
+# extensiva.
 #
-# Este fator NÃO é uma terceira coluna de componentes. Inventar oito valores de
-# componente que ninguém mediu seria passar por apuração o que é aritmética, e
-# a camada de proveniência existe justamente para impedir isso. É um
-# multiplicador, com a derivação escrita:
+# A PRIMEIRA VERSÃO DESTE FATOR ESTAVA INVERTIDA
 #
-#     painéis de cria não-extensivos   Altamira/PA  R$ 189,76/@
-#                                      Pelotas/RS   R$ 166,35/@
-#                                      Juara/MT     R$ 169,97/@   média 175,36
-#     painel de cria extensiva         Pantanal/MS  R$ 223,21/@   (0,30 UA/ha)
+# Ele nasceu de dividir o COE POR ARROBA do painel do Pantanal (R$ 223,21) pela
+# média dos outros painéis de cria (R$ 175,36), dando 1,27 — e esse fator foi
+# aplicado ao custo POR CABEÇA. São denominadores diferentes, e a inversão
+# aparece assim que se olha o painel inteiro:
 #
-#     fator = 223,21 / 175,36 = 1,273
+#     painel Pantanal, extensivo a 0,30 UA/ha
+#       custo por cabeça/mês ..... R$  42,51   ← o MENOR dos painéis
+#       COE por arroba ........... R$ 223,21   ← o MAIOR dos painéis
 #
-# Era 1,254 com dois painéis. Entrou o de Juara/MT e a derivação mudou — o
-# teste que prende o fator à conta é que apontou, que é para isso que ele
-# existe.
+# Sistema extensivo gasta POUCO por animal e colhe POUCA arroba por animal. O
+# custo por arroba sobe pela PRODUTIVIDADE, não pelo gasto. O fator de 1,27
+# fazia o extensivo gastar R$ 77,49/cab/mês contra R$ 50,12 do intensivo — uma
+# fazenda que não existe.
 #
-# LIMITES DESTE NÚMERO, por escrito:
-#   · sai de UM par de comparação, na modalidade CRIA. Aplicá-lo às demais é
-#     suposição, não medição
-#   · o Pantanal é um extensivo particular (planície alagável, pastagem
-#     nativa); nem todo extensivo é tão caro
-#   · com um segundo painel extensivo em outra modalidade, isto vira uma média
-#     e deixa de ser extrapolação. É o próximo dado a procurar.
-FATOR_EXTENSIVO = 1.27
+# A DERIVAÇÃO CORRETA
+#
+#     painel Pantanal, COE por cabeça/mês ......... R$ 42,51
+#     menos aquisição de animais (6% do COE) ...... R$ 39,96
+#       (o nosso perfil não inclui compra de animal — ela entra separada
+#        como custo_reposicao, então tem de sair dos dois lados)
+#     nosso perfil médio, operacional ............. R$ 61,02
+#
+#     fator = 39,96 / 61,02 = 0,655
+#
+# LIMITES, e este é o número mais incerto do módulo:
+#   · sai de UM par, e o par mistura duas coisas — a diferença de SISTEMA
+#     (extensivo contra médio) e a diferença de FONTE (painel Pantanal 2023
+#     contra GEP Araguaia safra 24/25). Não dá para separar com um ponto
+#   · o Pantanal é um extensivo particular: planície alagável, pastagem nativa
+#   · com um segundo painel que publique custo total E rebanho isto vira média
+#     e deixa de ser extrapolação. É o próximo dado a procurar
+#
+# DIREÇÃO DO ERRO: este fator agora ALIVIA o custo do extensivo, e portanto
+# empurra o DSCR para cima — o lado de aprovar, que é o caro num produto de
+# crédito. Vale porque cobrar mais de quem gasta menos é erro puro, e porque a
+# produtividade da simulação vem do rebanho declarado e dos índices, não do
+# nível: não há dupla contagem.
+#
+# O QUE ISTO NÃO CONSERTA: o nível continua sem mexer na PRODUÇÃO. Um extensivo
+# de verdade colhe menos arroba por cabeça, e a nossa simulação projeta as
+# mesmas arrobas nos três níveis. Enquanto isso não mudar, o COE por arroba do
+# extensivo fica SUBESTIMADO — e a correção certa exige saber quanta arroba a
+# menos um extensivo colhe, número que ainda não temos medido.
+FATOR_EXTENSIVO = 0.655
 
 # Perfis reconhecidos. 'media' e 'top' são medidos; 'extensivo' é derivado.
 PERFIS = ('extensivo', 'media', 'top')

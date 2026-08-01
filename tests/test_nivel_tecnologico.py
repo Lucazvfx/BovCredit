@@ -148,64 +148,95 @@ def test_sem_nivel_o_custo_e_o_de_antes():
 
 
 @pytest.mark.parametrize('mod', ['CRIA', 'RECRIA', 'CICLO_COMPLETO'])
-def test_o_custo_cresce_do_intensivo_para_o_extensivo(mod):
+def test_o_extensivo_e_o_que_menos_gasta_por_cabeca(mod):
     """
-    Nos ciclos que criam ou fazem crescer animal, intensificar é ficar mais
-    eficiente por cabeça: o extensivo custa mais.
+    A versão anterior deste teste prendia o CONTRÁRIO — extensivo como o mais
+    caro por cabeça — e prendia um erro.
+
+    O painel do Pantanal mostra o extensivo como ele é:
+
+        custo por cabeça/mês ..... R$  42,51   ← o MENOR dos painéis
+        COE por arroba ........... R$ 223,21   ← o MAIOR dos painéis
+
+    Sistema extensivo gasta pouco por animal e colhe pouca arroba por animal.
+    O custo por arroba sobe pela PRODUTIVIDADE, não pelo gasto. O fator antigo
+    (1,27) vinha de dividir COE por ARROBA e era aplicado ao custo por CABEÇA —
+    denominadores diferentes — e fazia o extensivo gastar mais que o intensivo.
     """
-    c = {n: custo_arroba_padrao(mod, 9.8, nivel=n)
-         for n in (INTENSIVO, MEDIO, EXTENSIVO)}
-    assert c[INTENSIVO] < c[MEDIO] < c[EXTENSIVO], (mod, c)
+    from services.custos_desembolso import preset_modalidade, desembolso_operacional
+    g = {n: desembolso_operacional(preset_modalidade(mod, p))
+         for n, p in ((EXTENSIVO, 'extensivo'), (MEDIO, 'media'), (INTENSIVO, 'top'))}
+    assert g[EXTENSIVO] < g[INTENSIVO], (mod, g)
+    assert g[EXTENSIVO] < g[MEDIO], (mod, g)
 
 
-def test_na_engorda_intensificar_custa_MAIS_por_cabeca():
+@pytest.mark.parametrize('mod', ['CRIA', 'RECRIA', 'CICLO_COMPLETO'])
+def test_o_meio_e_o_que_mais_gasta_por_cabeca(mod):
     """
-    A engorda é a exceção, e ela aparece nos próprios dados da fonte: o perfil
-    "top rentáveis" gasta MAIS insumo que o médio (R$ 102,80 contra R$ 85,20
-    por cabeça/mês), porque intensificar terminação é suplementar mais.
+    Ordem que sai dos dados: extensivo < top rentáveis < média.
+
+    O meio é o pico, e isso não é acidente da tabela — bate com o estudo
+    Embrapa/Cepea de ganhos de escala em Corumbá, que achou as propriedades
+    INTERMEDIÁRIAS com a pior margem líquida, abaixo da menor e da maior.
+
+    O extensivo gasta pouco porque faz pouco; o top gasta menos que a média
+    porque é eficiente; a média gasta muito sem a eficiência.
+    """
+    from services.custos_desembolso import preset_modalidade, desembolso_operacional
+    g = {n: desembolso_operacional(preset_modalidade(mod, p))
+         for n, p in ((EXTENSIVO, 'extensivo'), (MEDIO, 'media'), (INTENSIVO, 'top'))}
+    assert g[MEDIO] > g[INTENSIVO] > g[EXTENSIVO], (mod, g)
+
+
+def test_na_engorda_o_top_gasta_mais_insumo_que_a_media():
+    """
+    A engorda é exceção na tabela da fonte: o perfil "top rentáveis" gasta MAIS
+    insumo que o médio (R$ 102,80 contra R$ 85,20 por cabeça/mês), porque
+    intensificar terminação é suplementar mais.
 
     Isso ficava escondido enquanto as rubricas de investimento entravam na
-    conta — elas eram maiores no perfil médio e mascaravam a inversão. Separar
-    custeio de investimento expôs a propriedade real do dado.
-
-    Não é contradição: na engorda o intensivo custa mais POR CABEÇA e menos
-    POR ARROBA, porque produz mais arroba na mesma cabeça. O parecer compara
-    por arroba; este teste prende o que a fonte diz por cabeça, para ninguém
-    "corrigir" a tabela achando que há erro de digitação.
+    conta. Fica prendido aqui para ninguém "corrigir" a tabela achando que há
+    erro de digitação.
     """
-    from services.custos_desembolso import PERFIL_DESEMBOLSO, desembolso_operacional, preset_modalidade
+    from services.custos_desembolso import PERFIL_DESEMBOLSO
     assert PERFIL_DESEMBOLSO['ENGORDA']['insumos'][1] > PERFIL_DESEMBOLSO['ENGORDA']['insumos'][0]
-    oper = {p: desembolso_operacional(preset_modalidade('ENGORDA', p))
-            for p in ('extensivo', 'media', 'top')}
-    assert oper['top'] > oper['media'], oper
-    assert oper['extensivo'] > oper['top'], oper
 
 
-def test_o_perfil_extensivo_e_derivado_do_medio_e_nao_inventado():
+def test_o_fator_extensivo_sai_do_custo_por_cabeca_do_painel():
     """
-    `media` e `top` são medidos componente a componente (GEP Araguaia). O
-    extensivo é a coluna média × FATOR_EXTENSIVO, e o fator tem derivação
-    escrita: painel do Pantanal (R$ 223,21/@) ÷ média dos outros dois painéis
-    de cria (R$ 178,06/@) = 1,254.
+    O fator tem de ser derivado do mesmo DENOMINADOR em que é aplicado. Ele é
+    aplicado ao custo por cabeça, então sai do custo por cabeça do painel:
 
-    Inventar oito valores de componente que ninguém mediu seria passar por
-    apuração o que é aritmética.
+        painel Pantanal, COE/cab/mês ................ R$ 42,51
+        menos aquisição de animais (6% do COE) ...... R$ 39,96
+          (o nosso perfil não inclui compra de animal — ela entra separada,
+           então sai dos dois lados)
+        nosso perfil médio, operacional ............. R$ 61,02
+        fator ....................................... 0,655
+
+    A versão anterior dividia COE por ARROBA e aplicava por CABEÇA. Este teste
+    existe para a próxima pessoa não repetir a troca de denominador.
     """
-    media = preset_modalidade('CRIA', 'media')
-    ext   = preset_modalidade('CRIA', 'extensivo')
-    assert set(media) == set(ext)
-    for k in media:
-        assert ext[k] == pytest.approx(media[k] * FATOR_EXTENSIVO, abs=0.01)
+    from services.custos_desembolso import (
+        preset_modalidade, desembolso_operacional, FATOR_EXTENSIVO)
 
-    from services.benchmarks_nacionais import COE_PAINEIS
-    cria = COE_PAINEIS['CRIA']
-    pantanal = [p['coe_arroba'] for p in cria if p['uf'] == 'MS'][0]
-    outros = [p['coe_arroba'] for p in cria if p['uf'] != 'MS']
-    fator_medido = pantanal / (sum(outros) / len(outros))
+    painel_cab_mes = 2_375_724.79 / 4_657 / 12          # COE total ÷ rebanho
+    painel_operacional = painel_cab_mes * (1 - 0.06)    # tira aquisição de animais
+    nosso_medio = desembolso_operacional(preset_modalidade('CRIA', 'media'))
+    fator_medido = painel_operacional / nosso_medio
+
     assert abs(FATOR_EXTENSIVO - fator_medido) < 0.02, (
         f'FATOR_EXTENSIVO ({FATOR_EXTENSIVO}) descolou da derivação '
-        f'({fator_medido:.3f}) — se um painel mudou, o fator precisa mudar junto'
+        f'({fator_medido:.3f}) — se o perfil ou o painel mudou, o fator muda junto'
     )
+    assert FATOR_EXTENSIVO < 1.0, (
+        'o fator voltou a encarecer o extensivo — ver o painel do Pantanal, '
+        'que é o extensivo mais barato POR CABEÇA e o mais caro POR ARROBA'
+    )
+
+    # E o resultado bate com o painel de onde saiu.
+    ext = desembolso_operacional(preset_modalidade('CRIA', 'extensivo'))
+    assert abs(ext - painel_operacional) < 1.0, (ext, painel_operacional)
 
 
 def test_perfil_desconhecido_cai_no_medio():
