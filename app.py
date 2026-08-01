@@ -50,8 +50,10 @@ from services.benchmarks_nacionais import (
 from services.parecer_credito import montar_parecer
 from services.parecer_pdf import gerar_pdf_parecer
 from services.pesos_rebanho import arrobas_categorias
+from services.parametros_zootecnicos import natalidade_de_prenhez
 from services.nivel_tecnologico import (
-    avaliar as _avaliar_nivel, conferir_produtividade as _conferir_produtividade)
+    avaliar as _avaliar_nivel, conferir_produtividade as _conferir_produtividade,
+    gmd_do_nivel as _gmd_do_nivel)
 from services.custos_desembolso import (
     custo_arroba_de_desembolso, COMPONENTES, custo_arroba_padrao,
     perfil_do_nivel as _perfil_do_nivel,
@@ -1127,6 +1129,40 @@ def api_classificar():
     _sim_volume = {}
     if _gmd is not None and _gmd > 0:
         _sim_volume['ganho_peso_kg_dia'] = float(_gmd)
+    elif _nivel_tec.get('nivel') and _nivel_tec['nivel'] != 'indefinido':
+        # O nível deixa de mexer só no custo e passa a mexer na PRODUÇÃO. Um
+        # extensivo ganha 0,45 kg/dia (abate aos 32–36 meses), não os 0,85 do
+        # precoce que era o default de todo mundo. Ver GMD_POR_NIVEL.
+        _sim_volume['ganho_peso_kg_dia'] = _gmd_do_nivel(_nivel_tec['nivel'])
+
+    # ── Os índices reprodutivos que a ficha coleta e a projeção ignorava ─────
+    #
+    # Prenhez, natalidade, desmama e mortalidade estavam na tela desde o
+    # começo. Eram comparadas com cinco fontes no painel nacional e com o
+    # benchmark regional — e NENHUMA entrava na simulação, que rodava sempre
+    # com os defaults de PARAMS_POR_CICLO. A analista podia digitar 90% de
+    # prenhez e o fluxo de caixa não mexia um centavo.
+    #
+    # A ordem de precedência é da medição mais direta para a mais derivada:
+    #   1. natalidade declarada — é o que a projeção consome
+    #   2. prenhez declarada — convertida por perda gestacional medida (6,6%)
+    #   3. default do ciclo
+    #
+    # A desmama declarada entra separada porque é o FIM da cadeia: quando
+    # existe, ela vence natalidade e mortalidade juntas (Vieira et al. 2005).
+    _nat_decl  = _opt_float(data.get('natalidade_pct'))
+    _prenh_decl = _opt_float(data.get('taxa_prenhez_pct'))
+    if _nat_decl is not None and _nat_decl > 0:
+        _sim_volume['nat_pct'] = max(0.0, min(_nat_decl, 100.0))
+    elif _prenh_decl is not None and _prenh_decl > 0:
+        _sim_volume['nat_pct'] = max(
+            0.0, min(natalidade_de_prenhez(_prenh_decl), 100.0))
+    _desm_decl = _opt_float(data.get('desmama_pct'))
+    if _desm_decl is not None and _desm_decl > 0:
+        _sim_volume['desmama_pct'] = max(0.0, min(_desm_decl, 100.0))
+    _mort_decl = _opt_float(data.get('mortalidade_pct'))
+    if _mort_decl is not None and _mort_decl > 0:
+        _sim_volume['mort_pct'] = max(0.0, min(_mort_decl, 50.0))
     if _venda_bez is not None:
         _sim_volume['venda_bez_pct'] = max(0.0, min(float(_venda_bez), 100.0))
     if _desc_mat is not None:
@@ -1503,6 +1539,48 @@ def api_classificar():
     # ── Projeção multianual (conservador, 5 anos) ────────────────────────────
     # Cada ano: receita, custo, resultado, margem%, DSCR (se houver crédito),
     # rebanho, e sinalização de viabilidade para o analista.
+    # ── Arroba PRODUZIDA, ao lado da vendida ────────────────────────────────
+    #
+    # O benchmark EXAGRO e a Tabela 3.7 definem custo por arroba sobre a arroba
+    # PRODUZIDA, não a vendida:
+    #
+    #     @ produzidas = (estoque final − estoque inicial) + (vendas − compras)
+    #
+    # UMA HIPÓTESE MINHA QUE A MEDIÇÃO DESMENTIU. Eu disse que, em rebanho que
+    # cresce, produzida > vendida, e portanto o nosso COE por arroba estaria
+    # SUPERESTIMADO — que parte do "+31% acima da faixa" seria só denominador.
+    #
+    # É o contrário. Medido na cria de 1.775 cabeças, o estoque em arrobas
+    # ENCOLHE todo ano, e o custo por arroba produzida fica 16 a 31% ACIMA do
+    # custo por arroba vendida, não abaixo:
+    #
+    #     ano   @ vendidas   Δ estoque   @ produzidas   COE/vend   COE/prod
+    #      1        6.134      −3.653          2.482     168,35     416,16
+    #      3        3.607        −741          2.866     234,56     295,22
+    #      5        3.316        −752          2.564     229,28     296,55
+    #
+    # POR QUE NÃO TROCAMOS A MÉTRICA PRINCIPAL: no ano 1 a razão explode
+    # (+147%), porque é o ano que liquida o estoque declarado. Uma fazenda que
+    # vende mais do que produz tem produção tendendo a zero, e o custo por
+    # arroba produzida tende ao infinito — número inútil para comparar com
+    # painel, e instável justamente onde mais se olha.
+    #
+    # O QUE ELA É DE FATO, E POR ISSO ENTRA: um detector de liquidação. Quando
+    # a produção fica bem abaixo da venda, a fazenda está vendendo ESTOQUE, não
+    # safra. `calcular_desfrute` já faz isso em cabeças; aqui é em arroba, que
+    # é a unidade em que o crédito raciocina.
+    def _estoque_arrobas(_a):
+        return arrobas_categorias(
+            matrizes=float(_a.get('matrizes', 0) or 0),
+            bois=float(_a.get('bois_fim', 0) or 0),
+            jovens_f=float(_a.get('jovens_f_fim', 0) or 0),
+            jovens_m=float(_a.get('jovens_m_fim', 0) or 0))
+
+    _est_ant = arrobas_categorias(
+        matrizes=float(v[6] + v[8]), bois=float(v[9]),
+        jovens_f=float(v[0] + v[2] + v[4]),
+        jovens_m=float(v[1] + v[3] + v[5] + v[7]))
+
     _projecao_anos = []
     for _ano in _cx['anos']:
         _gc_ano = _ano['resultado'] - _reposicao_reprodutores
@@ -1512,11 +1590,19 @@ def api_classificar():
         # primeiro. Ver a nota em `_arrobas_do_ano`.
         _arr_ano = _arrobas_do_ano(_ano)
         _coe_ano = round(_ano['custo'] / _arr_ano, 2) if _arr_ano > 0 else None
+        _est_fim = _estoque_arrobas(_ano)
+        _arr_prod = _arr_ano + (_est_fim - _est_ant)
+        _est_ant = _est_fim
         _projecao_anos.append({
             'ano':         _ano['ano'],
             'receita':     round(_ano['receita'], 2),
             'custo':       round(_ano['custo'], 2),
             'arrobas_vendidas': round(_arr_ano, 1) if _arr_ano > 0 else None,
+            # Definição EXAGRO / Tabela 3.7. Pode ser NEGATIVA — e quando é, a
+            # fazenda encolheu em arroba no ano: vendeu mais do que produziu.
+            'arrobas_produzidas': round(_arr_prod, 1),
+            'producao_sobre_venda_pct': (round(_arr_prod / _arr_ano * 100, 1)
+                                         if _arr_ano > 0 else None),
             'coe_por_arroba':   _coe_ano,
             'coe_benchmark':    (_avaliar_coe(_ciclo_tipo, _coe_ano,
                                               uf=(precos_regional or {}).get('uf'))

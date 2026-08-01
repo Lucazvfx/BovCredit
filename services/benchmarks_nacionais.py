@@ -97,14 +97,79 @@ DESFRUTE_MODALIDADE = {
     "RECRIA": (60.0, 95.0),          # medido 79,68 em 1 painel (Pontes e Lacerda/MT)
     "RECRIA_ENGORDA": (34.0, 57.0),  # medido 39,63–49,64 em 5 painéis
     "ENGORDA": (80.0, 120.0),        # medido 97,52 em 1 painel; faixa mantida
-    # Piso medido (25,38 com folga). O TETO fica em 45, e não nos 41 que a
-    # folga daria, porque aqui a medição (3 painéis, 25,38–35,57%) conflita com
-    # a referência do setor ("acima de 45% é bom") — e três painéis descrevem
-    # pouco. Num limiar de ALERTA a escolha segura é a mais permissiva: alerta
-    # que dispara em desempenho bom é alerta que o analista aprende a ignorar,
-    # e aí não serve para o caso em que deveria disparar.
-    "CICLO_COMPLETO": (21.0, 45.0),
+    # Era (21,0 – 45,0), do piso de 3 painéis do Campo Futuro (25,38–35,57%)
+    # com folga, e teto pela referência do setor.
+    #
+    # ENTROU UMA SÉRIE TEMPORAL, e ela estoura a faixa nas DUAS pontas. O
+    # painel de Corinto/MG acompanha a MESMA fazenda de ciclo completo por sete
+    # anos (2005–2011), enquanto ela cresce de 1.460 para 3.980 cabeças:
+    #
+    #     2005  2006  2007  2008  2009  2010  2011
+    #     16,5  16,9  21,6  47,2  25,5  49,3  33,6
+    #
+    # Os 3 painéis do Campo Futuro são fotografias de fazendas diferentes num
+    # ano só; esta é a mesma fazenda ao longo do tempo, e mostra o que uma
+    # fotografia não mostra: o desfrute de um ciclo completo real OSCILA muito,
+    # porque retenção e venda se alternam conforme a fazenda forma ou realiza
+    # plantel. Nos anos de 16,5% ela estava retendo para crescer — e terminou o
+    # período com lucro operacional de R$ 341/ha contra R$ 4,97 no início.
+    #
+    # Uma faixa que reprovasse os dois extremos reprovaria a fazenda inteira,
+    # inclusive nos anos em que ela estava fazendo a coisa certa.
+    "CICLO_COMPLETO": (16.0, 50.0),
 }
+
+# ── A mesma fazenda por sete anos ────────────────────────────────────────────
+#
+# Tabela 3.5 do relatório de cenários para a pecuária: ciclo completo em
+# Corinto/MG, 2005 a 2011. É a única série TEMPORAL da nossa base — todo o
+# resto são fotografias de fazendas diferentes num ano só.
+#
+# O que só uma série mostra:
+#   · o desfrute oscila de 16,5% a 49,3% na mesma fazenda, sem que ela tenha
+#     virado outra coisa. Retenção e realização se alternam
+#   · a prenhez COMERCIAL começa em 54% e chega a 80% em cinco anos. O nosso
+#     87,5% medido é de rebanho experimental da Embrapa; a faixa real de uma
+#     fazenda em operação vai de 54 a 91
+#   · a mortalidade cai de 6,5% para 1,3% conforme a fazenda intensifica —
+#     não é constante da espécie, é resultado de manejo
+#   · o lucro operacional sai de R$ 4,97/ha para R$ 341/ha. É o perfil de
+#     cliente que este sistema mais reprova, e ele deu certo
+#
+# (ano, cabeças, ha, lotação cab/ha, desfrute %, prenhez %, mortalidade %,
+#  lucro operacional R$/ha, retorno sobre capital % a.a.)
+PAINEL_CORINTO_MG = [
+    (2005, 1460, 2350, 0.62, 16.5, 54.0, 6.5,   4.97,  0.79),
+    (2006, 1700, 2350, 0.72, 16.9, 56.0, 5.7,   1.72,  0.19),
+    (2007, 1700, 3070, 0.55, 21.6, 60.0, 5.2,  27.20,  3.05),
+    (2008, 1900, 3070, 0.62, 47.2, 64.0, 4.2, 167.00, 20.90),
+    (2009, 2950, 5250, 0.56, 25.5, 80.0, 2.6, 248.00, 30.10),
+    (2010, 3330, 5250, 0.64, 49.3, 79.0, 1.4, 338.00, 37.20),
+    (2011, 3980, 5250, 0.76, 33.6, 76.0, 1.3, 341.00, 28.40),
+]
+
+# ── Lotação de 71 fazendas comerciais do bioma amazônico ─────────────────────
+#
+# Benchmark EXAGRO, dados de 2013 (Tabela 3.9). O banco tem 234 fazendas em 16
+# estados; este recorte são as 71 do bioma amazônico, exclusivamente a pasto,
+# sem confinamento — que é a nossa praça.
+#
+# Serve para conferir os limiares de nivel_tecnologico.py contra fazenda
+# comercial de verdade, e não contra média nacional de bibliografia. A mediana
+# de 0,80 UA/ha sustenta o nosso limiar de 0,70 para extensivo: a metade de
+# baixo de um grupo que se submete a benchmarking fica logo acima dele.
+#
+# (estado, nº de fazendas, área média mil ha, animais mil, cab/ha, UA/ha)
+EXAGRO_LOTACAO_2013 = [
+    ("AC",  1, 11.30, 15.00, 1.30, 1.10),
+    ("MA",  1, 13.60, 14.60, 1.10, 0.70),
+    ("MT", 33,  5.73,  7.55, 1.30, 0.89),
+    ("PA", 28,  2.76,  3.14, 1.10, 0.82),
+    ("RO",  1,  2.40,  3.92, 1.60, 1.21),
+    ("TO",  7,  3.00,  2.67, 0.90, 0.56),
+]
+EXAGRO_LOTACAO_MEDIA_UA_HA   = 0.90
+EXAGRO_LOTACAO_MEDIANA_UA_HA = 0.80
 
 # Os 19 painéis, para os testes conferirem as faixas contra o dado e não
 # contra si mesmas. (município, UF, sistema, desfrute %, @/ha, lotação UA/ha)

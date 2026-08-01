@@ -273,6 +273,12 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
      lateralmente para digitar é pior que não ver um percentual calculado. */
   .itbl .col-pct{display:none}
 
+  /* Mesma razão na projeção multianual: a coluna produz/vende é a mais nova e
+     a menos essencial das sete — o número que decide (DSCR) e o que resume
+     (resultado) precisam caber sem rolagem. Ela continua na tela grande e no
+     PDF, que é onde o analista audita. */
+  .col-prod{display:none}
+
   /* Cabeçalho de card: `.ch` é uma linha flex com título à esquerda e grupo de
      botões à direita. Em 390px o título fica com a largura toda e o grupo
      desmorona numa coluna de um botão por linha — foi o que a captura no
@@ -2409,12 +2415,26 @@ function renderParecer(data){
       </div>`;
     }).join('');
 
+    // Produção sobre venda: quanto do que a fazenda vendeu no ano ela também
+    // PRODUZIU (definição EXAGRO: variação de estoque + vendas − compras, em
+    // arroba). Abaixo de 100% ela está vendendo estoque, não safra — e o ano 1
+    // fica sempre baixo de propósito, porque liquida o rebanho declarado.
+    const prodCor = a => a.producao_sobre_venda_pct == null ? 'var(--mu)'
+      : a.producao_sobre_venda_pct >= 95 ? 'var(--g)'
+      : a.producao_sobre_venda_pct >= 70 ? 'var(--am)' : 'var(--rd)';
+    const prodTitulo = a => a.arrobas_produzidas == null ? ''
+      : `Produziu ${fN(a.arrobas_produzidas)}@ e vendeu ${fN(a.arrobas_vendidas)}@. `
+        + (a.producao_sobre_venda_pct < 100
+           ? 'Abaixo de 100% a fazenda vende mais do que produz — está consumindo estoque.'
+           : 'Produz o que vende ou mais: o plantel não está sendo consumido.');
+
     const linhas = proj.map(a => {
       const mCor = a.margem_pct >= 15 ? 'var(--g)' : a.margem_pct >= 0 ? 'var(--am)' : 'var(--rd)';
       const dscrCor = a.dscr == null ? 'var(--mu)' : a.dscr >= 1.3 ? 'var(--g)' : a.dscr >= 1.0 ? 'var(--am)' : 'var(--rd)';
       return `<tr style="border-bottom:1px solid var(--b)">
         <td style="font-family:var(--fm);font-size:.72rem;padding:7px 10px">Ano ${a.ano}</td>
         <td class="r" style="padding:7px 10px">${fN(a.rebanho)}</td>
+        <td class="r col-prod" style="padding:7px 10px;color:${prodCor(a)}" title="${prodTitulo(a)}">${a.producao_sobre_venda_pct != null ? a.producao_sobre_venda_pct + '%' : '—'}</td>
         <td class="g r" style="padding:7px 10px">${fR(a.receita)}</td>
         <td class="r2 r" style="padding:7px 10px">${fR(a.custo)}</td>
         <td class="r" style="padding:7px 10px;font-weight:700;color:${a.resultado>=0?'var(--g)':'var(--rd)'}">${fR(a.resultado)}</td>
@@ -2434,6 +2454,7 @@ function renderParecer(data){
           <thead><tr style="background:var(--bg2)">
             <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:left;color:var(--mu)">Período</th>
             <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">Rebanho</th>
+            <th class="col-prod" style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)" title="Arroba produzida ÷ arroba vendida no ano. Abaixo de 100% a fazenda está vendendo estoque.">Produz/vende</th>
             <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--g)">Receita</th>
             <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--rd)">Custo</th>
             <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">Resultado</th>
@@ -2452,7 +2473,7 @@ function renderParecer(data){
   const SLBL = {aprovar:'APROVAR', ressalva:'RESSALVA', negar:'NEGAR'};
   const sensHtml = sens.length ? `
     <div>
-      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Sensibilidade de Preço — Cenário Conservador<span style="font-family:var(--fm);font-size:.52rem;letter-spacing:.5px;text-transform:none;color:var(--mu);margin-left:8px">— DSCR do ano 1; a recomendação do parecer usa o ano crítico do prazo</span></div>
+      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Sensibilidade de Preço — Cenário Conservador<span style="font-family:var(--fm);font-size:.52rem;letter-spacing:.5px;text-transform:none;color:var(--mu);margin-left:8px">— DSCR do ano crítico do prazo, o mesmo da recomendação</span></div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
         ${sens.map(s=>{
           const isDown = s.variacao_pct < 0, isUp = s.variacao_pct > 0, isBase = s.variacao_pct === 0;

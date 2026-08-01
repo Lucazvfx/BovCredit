@@ -109,6 +109,102 @@ PESO_FEMEA_REPOSICAO_KG = medido(
     nota=_NOTA_ESCOPO)
 
 
+# ── A CADEIA REPRODUTIVA, medida ano a ano no mesmo rebanho ──────────────────
+#
+# Fonte: Vieira et al. (2005), Embrapa Gado de Corte, reproduzido na Tabela 2.2
+# do relatório de cenários para a pecuária. Quatro safras, ~117 vacas expostas
+# por ano, pastagem de Brachiaria decumbens corrigida, 1,25 vaca/ha.
+#
+#     safra      prenhez   natalidade   desmama   mort. bezerro
+#     1996/97      88,2        84,0       82,4        2,00
+#     1997/98      90,8        87,5       80,8        8,00
+#     1998/99      91,4        87,1       82,8        5,00
+#     1999/00      79,7        68,1       62,8        8,00
+#     média        87,5        81,7       77,2        6,00
+#
+# O QUE ESTA TABELA PROVA, e é o motivo dela estar aqui:
+#
+#     taxa de desmama = natalidade × (1 − mortalidade de bezerro)
+#
+# A identidade fecha nas QUATRO safras com erro de até 0,4 ponto percentual —
+# inclusive na safra ruim de 1999/00, onde os três índices caem juntos. Não é
+# coincidência de um ano: é a definição. E o cabeçalho da tabela declara o
+# denominador por escrito, "Vacas expostas (Nº)".
+#
+# Ou seja: a taxa de desmama JÁ CONTÉM a natalidade e JÁ CONTÉM a morte
+# pré-desmama. Ela é o fim da cadeia, não um fator independente.
+#
+# O DEFEITO QUE ISTO ACHOU
+#
+# `_simular_cria` calculava `nascidos × desmama × (1 − mort_bez)`, descontando
+# a mesma perda três vezes:
+#
+#     nosso   70% × 82% × 93% = 53,4 desmamados por 100 matrizes
+#     Vieira                    77,2 por 100 vacas expostas
+#     Pantanal (extensivo)      58,0 (62,39% natalidade × 93%)
+#
+# A projeção "conservadora" entregava 31% menos bezerro que a Embrapa mediu, e
+# MENOS que o sistema extensivo mais pobre que já medimos. Numa cria, bezerro é
+# a receita inteira — o erro corria todo contra o produtor.
+_VIEIRA_2005 = ('Vieira et al. (2005), Embrapa Gado de Corte — desempenho '
+                'reprodutivo de 1996 a 2000, ~117 vacas expostas/ano, '
+                'pastagem corrigida a 1,25 vaca/ha (Tabela 2.2)')
+_NOTA_VIEIRA = ('Apurado em rebanho de pesquisa da Embrapa. Índices acima da '
+                'média comercial — serve para fixar a RELAÇÃO entre os elos '
+                'da cadeia, não o nível de cada um.')
+
+PRENHEZ_MEDIDA_CADEIA_PCT = medido(
+    87.5, _VIEIRA_2005, rotulo='Prenhez, média de 4 safras', nota=_NOTA_VIEIRA)
+
+NATALIDADE_MEDIDA_CADEIA_PCT = medido(
+    81.7, _VIEIRA_2005, rotulo='Natalidade, média de 4 safras', nota=_NOTA_VIEIRA)
+
+DESMAMA_MEDIDA_CADEIA_PCT = medido(
+    77.2, _VIEIRA_2005, rotulo='Desmama sobre vacas expostas, 4 safras',
+    nota=_NOTA_VIEIRA + ' Confere com natalidade × (1 − mortalidade): 76,8%.')
+
+# Perda entre a prenhez confirmada e o bezerro nascido vivo: aborto, natimorto,
+# morte perinatal. 81,7 / 87,5 = 93,4% — perde-se 6,6% das prenhezes.
+#
+# É este número que permite LIGAR o campo de taxa de prenhez da ficha, que até
+# aqui era decorativo: aparecia na tela, era comparado com cinco fontes no
+# painel nacional, e não entrava em cálculo nenhum. O analista podia digitar
+# 90% de prenhez sem mover um centavo do fluxo de caixa.
+APROVEITAMENTO_PRENHEZ_PCT = medido(
+    93.4, _VIEIRA_2005, rotulo='Natalidade sobre prenhez',
+    nota=_NOTA_VIEIRA + ' Perda gestacional de 6,6% (aborto, natimorto, morte '
+         'perinatal). Converte prenhez declarada em natalidade projetada.')
+
+
+def natalidade_de_prenhez(prenhez_pct: float) -> float:
+    """Converte prenhez declarada em natalidade projetada (Vieira et al. 2005).
+
+    A ficha coleta prenhez porque é o que o produtor mede no diagnóstico de
+    gestação. A projeção precisa de natalidade. Entre os dois há a perda
+    gestacional de 6,6%, medida.
+    """
+    return float(prenhez_pct) * float(APROVEITAMENTO_PRENHEZ_PCT) / 100.0
+
+
+def taxa_desmama_efetiva(natalidade_pct: float,
+                         mortalidade_bezerro_pct: float,
+                         desmama_declarada_pct: float | None = None) -> float:
+    """Bezerros desmamados por 100 matrizes — o fim da cadeia, sem dupla contagem.
+
+    Se o analista DECLARA a desmama da fazenda, ela vence: é medição daquele
+    rebanho, e já engloba natalidade e mortalidade por definição. Senão,
+    deriva-se pela identidade de Vieira et al. (2005).
+
+    Nunca multiplique desmama por natalidade — são o mesmo número em pontos
+    diferentes da cadeia, e multiplicá-los desconta a perda duas vezes.
+    """
+    if desmama_declarada_pct is not None:
+        return max(0.0, min(float(desmama_declarada_pct) / 100.0, 1.0))
+    nat  = max(0.0, min(float(natalidade_pct) / 100.0, 1.0))
+    mort = max(0.0, min(float(mortalidade_bezerro_pct) / 100.0, 1.0))
+    return nat * (1.0 - mort)
+
+
 # ── Segunda medição, no extremo oposto da escala de intensificação ───────────
 #
 # Os parâmetros acima vêm de UM sistema: Brasil Central, pastagem cultivada,

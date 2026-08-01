@@ -115,6 +115,20 @@ def test_o_aviso_de_custo_usa_o_ano_da_recomendacao(cli, valores):
     Antes desta correção, cria e ciclo completo NÃO recebiam o aviso de custo:
     o benchmark olhava o ano 1, onde ambos ficam dentro da faixa. A conclusão
     negava por caixa e, ao lado, dizia que o custo estava na praça.
+
+    ESTE TESTE MUDOU DE FORMA quando a cadeia reprodutiva foi corrigida.
+
+    Ele prendia "o aviso dispara na cria", e a cria deixou de disparar: com a
+    desmama sem o triplo desconto ela produz 22% mais bezerro, o custo se
+    dilui em mais arrobas e o COE do ano crítico caiu de R$ 292,74 para
+    R$ 266,37 — de +31,2% para +19,3% sobre o teto dos painéis, por baixo da
+    tolerância de 25%.
+
+    Prender o caso teria feito o teste exigir de volta um número que veio de
+    um defeito. O que ele prende agora é o MECANISMO, que é o que a correção
+    de julho instalou: quando o aviso existe, ele fala do ano da recomendação.
+    Que a cria esteja abaixo do limiar é resultado, não regra — e o teste
+    seguinte garante que o mecanismo continua vivo em alguém.
     """
     r = _resposta(cli, valores)
     p = r['parecer']
@@ -124,11 +138,31 @@ def test_o_aviso_de_custo_usa_o_ano_da_recomendacao(cli, valores):
     )
     crit = next(a for a in r['projecao_anos'] if a['ano'] == ano_critico)
     fora = p['conclusao'].get('custo_fora_da_referencia')
-    assert fora, 'o aviso sumiu — o benchmark voltou para o ano 1'
+    if fora is None:
+        # Sem aviso, a exigência é que seja por MÉRITO do ano crítico — não
+        # porque o benchmark voltou a olhar o ano 1, que é sempre mais barato.
+        assert crit['coe_por_arroba'] > r['projecao_anos'][0]['coe_por_arroba'], (
+            'o ano crítico ficou mais barato que o ano 1 — a projeção parou '
+            'de liquidar estoque no primeiro ano e este teste deve ser revisto'
+        )
+        return
     assert fora['calculado'] == pytest.approx(crit['coe_por_arroba'], abs=0.5), (
         f"o aviso usa R$ {fora['calculado']}/@ mas o ano crítico "
         f"({ano_critico}) tem R$ {crit['coe_por_arroba']}/@"
     )
+
+
+def test_o_aviso_de_custo_continua_disparando_em_alguem(cli):
+    """
+    Contrapeso do teste acima: se NENHUM caso disparar mais, o mecanismo
+    morreu sem ninguém perceber e os dois testes passariam vazios.
+
+    O ciclo completo é o caso vivo hoje (+38,3% no ano crítico).
+    """
+    p = _resposta(cli, CICLO_COMPLETO)['parecer']
+    fora = p['conclusao'].get('custo_fora_da_referencia')
+    assert fora, 'nenhuma modalidade dispara mais o aviso de custo'
+    assert fora['delta_pct'] >= 25.0
 
 
 # ── A métrica que o ebook publica e nós não tínhamos ────────────────────────

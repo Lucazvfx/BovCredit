@@ -207,6 +207,81 @@ def rotulo(nivel: str) -> str:
     return _ROTULO.get(nivel, _ROTULO[INDEFINIDO])
 
 
+# ── O nível passa a mexer na PRODUÇÃO, não só no custo ───────────────────────
+#
+# Até aqui o nível escolhia o perfil de custo e parava aí. A simulação projetava
+# as MESMAS arrobas nos três níveis, o que é falso na direção perigosa: um
+# extensivo colhe menos arroba por cabeça, então o custo POR ARROBA dele ficava
+# subestimado e o parecer o via mais barato do que ele é.
+#
+# Estava escrito neste módulo como pendência, dizendo que a correção exigia
+# saber quanta arroba a menos um extensivo colhe. O número chegou.
+#
+# Tabela 2.3 do relatório de cenários para a pecuária — manejos de
+# suplementação por idade de abate, em sistemas de ciclo completo a pasto:
+#
+#     idade ao abate   GMD (kg/dia)   manejo
+#     32–36 meses      0,50–0,40      sem creep, mineral + pasto
+#     22–26 meses      0,60–0,70      creep opcional, terminação na 2ª seca
+#     17–18 meses      0,80–0,90      creep + suplemento múltiplo
+#     13–15 meses      1,20–1,30      creep + confinamento
+#
+# *GMD medido da DESMAMA AO ABATE, que é exatamente o período que a nossa
+# engorda simula.
+#
+# O DEFAULT ANTIGO ERA DE PRECOCE. `simular_cenario` usava 0,85 kg/dia para
+# todo mundo — o valor do sistema de 17–18 meses, com creep feeding e
+# suplemento múltiplo. Aplicado a uma fazenda extensiva, projetava o boi
+# ganhando quase o dobro do que ele ganha, e a engorda terminando em metade do
+# tempo. Como a duração manda nos giros por ano, isso inflava o desfrute e o
+# DSCR — de novo do lado de aprovar.
+#
+# Confinamento não vira nível: ele não é um degrau de intensificação de pasto,
+# é outro sistema, e o nosso perfil de custo de engorda descreve pasto com
+# suplementação. Quem confina informa o GMD na ficha e vence este default.
+_TABELA_2_3 = ('Tabela 2.3, relatório de cenários para a pecuária — manejos de '
+               'suplementação por idade de abate em ciclo completo a pasto '
+               '(GMD da desmama ao abate)')
+
+GMD_POR_NIVEL = {
+    EXTENSIVO:  referencia(0.45, _TABELA_2_3 + '; abate aos 32–36 meses '
+                           '(0,40–0,50 kg/dia), sem creep, mineral e pasto',
+                           rotulo='GMD · extensivo'),
+    MEDIO:      referencia(0.65, _TABELA_2_3 + '; abate aos 22–26 meses '
+                           '(0,60–0,70 kg/dia), terminação na 2ª seca',
+                           rotulo='GMD · médio'),
+    INTENSIVO:  referencia(0.85, _TABELA_2_3 + '; abate aos 17–18 meses '
+                           '(0,80–0,90 kg/dia), creep e suplemento múltiplo',
+                           rotulo='GMD · intensivo'),
+}
+
+# Sem área declarada não se classifica — e aí a pergunta é qual GMD supor de
+# uma fazenda que não disse nada.
+#
+# O default histórico era 0,85, que a Tabela 2.3 identifica como abate aos
+# 17–18 meses com creep feeding e suplemento múltiplo. Supor precoce de quem
+# não declarou nada é a suposição mais otimista possível, e otimismo aqui vira
+# arroba projetada, que vira DSCR, que vira aprovação.
+#
+# O meio da escala é a posição honesta do desconhecido, e ainda fica otimista
+# perto da realidade nacional: 0,65 implica abate aos 22–26 meses, contra os
+# ~30+ meses da média brasileira.
+#
+# DIREÇÃO DA MUDANÇA, declarada: para BAIXO. Uma engorda sem área declarada
+# projeta 24% menos arroba do que projetava, e o DSCR cai junto — o lado de
+# reprovar, que é o barato num produto de crédito. A troca do giro truncado
+# pelo fracionário empurra na direção oposta; medido numa engorda de 780
+# cabeças, as duas juntas saem de DSCR 2,93 para 2,46.
+GMD_PADRAO_SEM_NIVEL = float(GMD_POR_NIVEL[MEDIO])
+
+
+def gmd_do_nivel(nivel: str | None) -> float:
+    """GMD em kg/dia coerente com o nível de intensificação (Tabela 2.3)."""
+    if nivel is None:
+        return GMD_PADRAO_SEM_NIVEL
+    return float(GMD_POR_NIVEL.get(nivel, GMD_PADRAO_SEM_NIVEL))
+
+
 def avaliar(valores: list, area_pasto_ha: float | None,
             arrobas_vendidas_ano: float | None = None) -> dict:
     """Classifica a fazenda e devolve os números que sustentam a classificação.
