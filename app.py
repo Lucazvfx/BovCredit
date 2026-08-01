@@ -1102,10 +1102,41 @@ def api_classificar():
     def _custo_fase(chave):
         v_ = float(data.get(chave) or 0)
         return v_ if v_ > 0 else None
+    # ── O que o analista pode corrigir na PROJEÇÃO ───────────────────────────
+    #
+    # O analista já podia sobrescrever custo, natalidade, mortalidade e desmama
+    # — tudo do lado do CUSTO. Do lado do VOLUME, não podia nada: a taxa de
+    # venda de bezerras e o descarte de matrizes vinham fixos de
+    # PARAMS_POR_CICLO e só eram ajustáveis pela rota de cenários, que não é a
+    # que emite parecer.
+    #
+    # Isso importa porque é justamente o volume que está errado hoje na cria: a
+    # projeção vende 735 bezerros por ano num rebanho que desmama 362 — o dobro
+    # do que produz — e o plantel derrete 61% em cinco anos. Sem este campo, o
+    # analista via o DSCR dos anos 2+ despencar e não tinha como corrigir.
+    #
+    # Não é o conserto do modelo: é dar ao analista o controle do número que
+    # ele conhece melhor que a projeção. Quem lê a ficha sabe quantas bezerras
+    # aquela fazenda retém.
+    _venda_bez = _opt_float(data.get('venda_bez_pct'))
+    _desc_mat  = _opt_float(data.get('desc_mat_pct'))
+    # O GMD manda na DURAÇÃO da engorda, e a duração manda em quantos giros o
+    # lote faz por ano — ver a derivação em simular_cenario. Era 90 dias fixos,
+    # que implicavam 1,28 kg/dia e quatro giros.
+    _gmd = _opt_float(data.get('ganho_peso_kg_dia'))
+    _sim_volume = {}
+    if _gmd is not None and _gmd > 0:
+        _sim_volume['ganho_peso_kg_dia'] = float(_gmd)
+    if _venda_bez is not None:
+        _sim_volume['venda_bez_pct'] = max(0.0, min(float(_venda_bez), 100.0))
+    if _desc_mat is not None:
+        _sim_volume['desc_pct'] = max(0.0, min(float(_desc_mat), 100.0))
+
     _cx = simular_cenario(
         v, 'conservador', ciclo=result['tipo'],
         preco_arroba=preco_boi or float(data.get('preco', 320)),
         custo_arroba=custo_arroba,
+        **_sim_volume,
         custo_arroba_cria=_custo_fase('custo_arroba_cria'),
         custo_arroba_recria=_custo_fase('custo_arroba_recria'),
         custo_arroba_engorda=_custo_fase('custo_arroba_engorda'),
@@ -1342,6 +1373,9 @@ def api_classificar():
             preco_vaca_arr=(preco_vaca * _fator) if preco_vaca else None,
             preco_bezerra_cab=(preco_bezerra * _fator / _preco_mod_conservador) if preco_bezerra else None,
             preco_bezerro_cab=(preco_bezerro * _fator / _preco_mod_conservador) if preco_bezerro else None,
+            # A sensibilidade tem de partir do MESMO rebanho projetado, senão
+            # compara duas fazendas diferentes e o delta deixa de ser do preço.
+            **_sim_volume,
         )
         _gc_s = _cx_s['anos'][0]['resultado'] - _reposicao_reprodutores
         _dscr_s = round(_gc_s / _servico_base, 2) if _servico_base > 0 else None
@@ -1375,6 +1409,7 @@ def api_classificar():
             custo_arroba_engorda=_custo_s('custo_arroba_engorda', _fator_c),
             preco_boi_arr=preco_boi, preco_vaca_arr=preco_vaca,
             preco_bezerra_cab=preco_bezerra, preco_bezerro_cab=preco_bezerro,
+            **_sim_volume,
         )
         _gc_c = _cx_c['anos'][0]['resultado'] - _reposicao_reprodutores
         _dscr_c = round(_gc_c / _servico_base, 2) if _servico_base > 0 else None

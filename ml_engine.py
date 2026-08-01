@@ -1359,8 +1359,51 @@ def _simular_cria(
     bois      = float(va[9])           # touros de serviço
     total_ini = float(va.sum())
 
-    # Retenção de novilhas — referência do material para cria: 20–35%.
-    _ret_novilha = min(max(desc_mat_pct / 100, 0.20), 0.35)
+    # ── Promoção de novilhas: mira a MANUTENÇÃO do plantel ───────────────────
+    #
+    # Era `promovidas = nov_F × min(max(desc_mat_pct/100, 0.20), 0.35)` — uma
+    # fração das novilhas DISPONÍVEIS, vinda do material de treinamento como
+    # faixa de retenção de 20–35%.
+    #
+    # O problema não era a faixa: era o denominador. Aplicada sobre as novilhas
+    # e não sobre as matrizes, com poucas novilhas na base, ela produzia:
+    #
+    #     promovidas = 100 novilhas × 0,20 ....... 20 cabeças
+    #     descarte   = 750 matrizes × 0,10 ....... 75 cabeças
+    #     reposição efetiva ...................... 2,7% das matrizes
+    #
+    # A base reprodutiva perdia ~50 cabeças por ano POR CONSTRUÇÃO, o plantel
+    # caía 45% em cinco anos, a receita caía junto e o DSCR dos anos 2+ desabava.
+    # Medido: nem retendo 100% das bezerras o rebanho parava de encolher.
+    #
+    # QUAL É O NÚMERO DE UMA CRIA DE VERDADE
+    #
+    # O painel da Embrapa Pantanal (CT 126, Tabela 4) publica taxa de reposição
+    # de descendentes sobre matrizes de 14,00% ao ano — e o próprio documento a
+    # confirma por outro caminho: idade da primeira cria 40 meses e vida total
+    # da vaca 12,08 anos dão 8,75 anos de vida produtiva, ou 11,4%/ano só para
+    # manter o plantel. Dois números independentes da mesma tabela.
+    #
+    # Que é reposição PRÓPRIA, e não compra, decide-se pela composição do custo
+    # no mesmo painel: aquisição de animais é 6% do COE. Repor 14% de 2.500
+    # vacas comprando seriam 350 matrizes/ano, o que não cabe em 6%.
+    #
+    # POR QUE MIRAR MANUTENÇÃO E NÃO OS 14%
+    #
+    # Os 14% são daquele sistema — primeira cria aos 40 meses, 0,30 UA/ha. Uma
+    # fazenda que emprenha novilha aos 24 meses repõe mais rápido, e transportar
+    # o número inteiro repetiria o erro de tratar medição de um sistema como
+    # constante nacional. Pior: 14% contra 10% de descarte projeta plantel
+    # CRESCENDO 4% ao ano, e projetar crescimento de rebanho infla receita
+    # futura — a direção perigosa num produto de crédito.
+    #
+    # Então a regra é: promover o necessário para repor o descarte, limitado
+    # pelas novilhas que a ficha tem. O 14% do painel entra como evidência de
+    # que uma cria viável opera nesse patamar, não como meta.
+    #
+    # A propriedade que mais importa: quando o plantel encolher no parecer, vai
+    # ser porque a ficha NÃO TEM NOVILHA — razão real, que o analista vê na
+    # composição — e não por causa de uma constante.
 
     anos_proj = []
     for yr in range(1, anos + 1):
@@ -1383,10 +1426,14 @@ def _simular_cria(
         vende_bez_M = disp_M                      # todo macho desmamado sai
         vende_bez_F = disp_F * venda_bz           # parte das bezerras
         retem_bez_F = disp_F - vende_bez_F
-        promovidas  = nov_F * _ret_novilha        # novilhas → matrizes
+        descarte_mat = round(matrizes * (desc_mat_pct / 100))
+        # Repõe o descarte E as matrizes que morrem — repor só o descarte
+        # deixava o plantel caindo pela mortalidade (3% ao ano, 15% em cinco).
+        # Se não houver novilha bastante, promove o que tem.
+        _baixas_mat = float(descarte_mat) + matrizes * mort
+        promovidas  = min(nov_F, _baixas_mat)
         vende_nov_F = max(nov_F - promovidas, 0.0)   # excedente de fêmeas
         vende_mac_R = mac_R                       # machos de recria saem
-        descarte_mat = round(matrizes * (desc_mat_pct / 100))
 
         machos_vend  = vende_bez_M + vende_mac_R
         femeas_vend  = vende_bez_F
@@ -1784,7 +1831,8 @@ def simular_cenario(
     peso_entrada_kg:    float = _PESO_ENTRADA_ENGORDA_KG,
     peso_saida_kg:      float = 520.0,  # memorial §16: 520kg
     rendimento_carcaca: float = 52.0,
-    dias_engorda:       int   = 90,
+    ganho_peso_kg_dia:  float = None,   # GMD; default = meio da faixa adequado
+    dias_engorda:       int   = None,   # None → derivado do ganho e do GMD
     peso_boi:           float = PESO_BOI_ARR,   # GEP Araguaia (20.53@)
     peso_vaca:          float = PESO_VACA_ARR,  # GEP Araguaia (15.33@)
     preco_boi_arr:      float = None,   # R$/@ boi do dia (senão usa preco_arroba)
@@ -1792,6 +1840,28 @@ def simular_cenario(
     preco_bezerra_cab:  float = None,   # R$/cabeça bezerra do dia
     preco_bezerro_cab:  float = None,   # R$/cabeça bezerro do dia
 ) -> dict:
+    # ── Duração da engorda: derivada, não fixa ───────────────────────────────
+    #
+    # `dias_engorda` era 90 fixo. Com entrada de 405 kg e saída de 520, isso
+    # implica ganho de 1,28 kg/dia — ACIMA do 1,10 medido em semiconfinamento
+    # (estudo de campo em Theobroma/RO, 100 nelores, pesagem em jejum a cada
+    # 20 dias), e o perfil de custo da ENGORDA descreve pasto com suplementação,
+    # não confinamento.
+    #
+    # O efeito era grande porque `lotes_ano = int(365/dias)`: 90 dias dá QUATRO
+    # giros por ano sobre o mesmo lote. Medido numa engorda de 736 cabeças,
+    # isso projetava desfrute de 273% contra a faixa de referência de 80–120%,
+    # e DSCR de 6,14 — o erro corria a favor de APROVAR, que é o lado caro.
+    #
+    # Agora a duração sai do ganho de peso dividido pelo GMD. O GMD default é o
+    # meio da faixa "adequado" do nosso próprio benchmark de engorda a pasto
+    # (700–1000 g/dia), e o analista pode informar o dele. Quem passa a mandar
+    # é a zootecnia, não uma constante.
+    if dias_engorda is None:
+        _gmd = max(float(ganho_peso_kg_dia or 0.85), 0.20)
+        _ganho_kg = max(float(peso_saida_kg) - float(peso_entrada_kg), 1.0)
+        dias_engorda = int(round(_ganho_kg / _gmd))
+
     # Preenche defaults a partir de PARAMS_POR_CICLO quando não passados explicitamente
     ciclo_params = PARAMS_POR_CICLO.get(ciclo, PARAMS_POR_CICLO['CICLO_COMPLETO'])
     if prop_boi      is None: prop_boi      = ciclo_params['prop_boi']
