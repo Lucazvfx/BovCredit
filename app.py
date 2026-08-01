@@ -50,8 +50,11 @@ from services.benchmarks_nacionais import (
 from services.parecer_credito import montar_parecer
 from services.parecer_pdf import gerar_pdf_parecer
 from services.pesos_rebanho import arrobas_categorias
+from services.nivel_tecnologico import (
+    avaliar as _avaliar_nivel, conferir_produtividade as _conferir_produtividade)
 from services.custos_desembolso import (
     custo_arroba_de_desembolso, COMPONENTES, custo_arroba_padrao,
+    perfil_do_nivel as _perfil_do_nivel,
 )
 from services.reconciliacao import reconciliar
 from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
@@ -1012,9 +1015,21 @@ def api_classificar():
     _total_cabecas = int(sum(v))
     _arrobas_por_cab = (_arrobas_rebanho / _total_cabecas) if _total_cabecas else 0.0
 
+    # ── Nível tecnológico ────────────────────────────────────────────────────
+    # O sistema tinha os perfis de custo (média / top) e nenhum critério para
+    # escolher entre eles: aplicava sempre `media` e deixava o `top` num botão
+    # que o analista clicava no olho. Numa cria isso vale 23% no custo, e custo
+    # errado em 23% desloca DSCR e parecer na mesma proporção.
+    #
+    # A chave é lotação e produtividade, NÃO tamanho de rebanho — ver a
+    # justificativa medida no cabeçalho de services/nivel_tecnologico.py. Sem
+    # área declarada, o nível fica indefinido e o custo segue o de antes.
+    _nivel_tec = _avaliar_nivel(v, data.get('area_pasto_ha'))
+
     _custo_padrao_ciclo = custo_arroba_padrao(
         result.get('tipo', 'CICLO_COMPLETO'),
-        arrobas_por_cabeca=_arrobas_por_cab or None)
+        arrobas_por_cabeca=_arrobas_por_cab or None,
+        nivel=_nivel_tec['nivel'])
     custo_arroba = float(data.get('custo_arroba') or _custo_padrao_ciclo)
     custo_desembolso = None
     componentes = data.get('custo_componentes') or {}
@@ -1244,12 +1259,27 @@ def api_classificar():
     if _arrobas_reais > 0:
         _coe_calc = fluxo_gep['custo_operacional'] / _arrobas_reais
         fluxo_gep['coe_por_arroba']    = round(_coe_calc, 2)
-        fluxo_gep['coe_benchmark']     = _avaliar_coe(result.get('tipo', 'CICLO_COMPLETO'), _coe_calc)
+        # A UF vem do bloco de preço da praça, que já resolveu município → UF.
+        # Sem ela o painel de referência cai no primeiro da modalidade, e um
+        # produtor de RO era confrontado com Paragominas/PA.
+        fluxo_gep['coe_benchmark']     = _avaliar_coe(
+            result.get('tipo', 'CICLO_COMPLETO'), _coe_calc,
+            uf=(precos_regional or {}).get('uf'))
         fluxo_gep['arrobas_vendidas']  = round(_arrobas_reais, 1)
     else:
         fluxo_gep['coe_por_arroba']   = None
         fluxo_gep['coe_benchmark']    = None
         fluxo_gep['arrobas_vendidas'] = None
+
+    # A produtividade em @/ha/ano só existe agora: depende das arrobas
+    # vendidas, que dependem da simulação, que precisou do custo — que é o que
+    # o nível decidiu. Por isso ela entra como CONFERÊNCIA e não reclassifica:
+    # um parecer cujo custo não corresponde ao nível exibido seria pior que
+    # nenhum nível.
+    _nivel_tec = _conferir_produtividade(
+        _nivel_tec, fluxo_gep.get('arrobas_vendidas'))
+    _nivel_tec['perfil_custo'] = _perfil_do_nivel(_nivel_tec['nivel'])
+    result['nivel_tecnologico'] = _nivel_tec
 
     # ── KPIs de custo por cabeça ──────────────────────────────────────────────
     _total_reb   = sum(_va)

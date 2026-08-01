@@ -108,6 +108,62 @@ PESO_FEMEA_REPOSICAO_KG = medido(
     rotulo='Fêmea de reposição aos 24,3 meses, só a pasto',
     nota=_NOTA_ESCOPO)
 
+
+# ── Segunda medição, no extremo oposto da escala de intensificação ───────────
+#
+# Os parâmetros acima vêm de UM sistema: Brasil Central, pastagem cultivada,
+# 1,4 UA/ha. Uma medição só não diz se o número é do sistema ou da espécie.
+#
+# O painel do Pantanal de Corumbá (Embrapa Pantanal, Circular Técnica 126,
+# out/2024, dados de 2023) mede uma cria extensiva modal de 4.657 cabeças em
+# 10.000 ha — 0,30 UA/ha, quase cinco vezes menos lotação. É o contraponto
+# útil: se um índice se mantém nos dois, é da espécie; se muda, é do manejo.
+#
+#     índice                    Brasil Central     Pantanal
+#     idade à 1ª cria           36,3 meses         40,0 meses
+#     peso desmama macho        177 kg (202 d)     180 kg (8 meses)
+#     peso desmama fêmea        162 kg             165 kg
+#     lotação                   1,4 UA/ha          0,30 UA/ha
+#
+# Os pesos à desmama praticamente não mudam; a IDADE à primeira cria, sim. É
+# consistente com o que se espera: a fêmea atinge peso de cobertura mais tarde
+# onde a oferta de pasto é menor. Isto REFORÇA a guarda de 36 meses em
+# ml_engine.py — no sistema extensivo o número real é ainda mais tardio, então
+# contar a faixa de 25–36m como matriz erra mais, não menos.
+_EMBRAPA_PANTANAL = ('EMBRAPA Pantanal — Circular Técnica 126 (2024), painel '
+                     'de cria extensiva modal no Pantanal de Corumbá/MS '
+                     '(4.657 cab, 10.000 ha, dados de 2023)')
+_NOTA_PANTANAL = ('Sistema extensivo de baixa lotação (0,30 UA/ha). Serve de '
+                  'piso da escala de intensificação, não de projeção padrão.')
+
+IDADE_PRIMEIRA_CRIA_EXTENSIVO_MESES = medido(
+    40.0, _EMBRAPA_PANTANAL, rotulo='Idade à primeira cria, sistema extensivo',
+    nota=_NOTA_PANTANAL)
+
+# Desfrute MEDIDO de uma cria real, contra a faixa de bibliografia que usamos
+# (DESFRUTE_MODALIDADE['CRIA'] = 18–35%). Cai dentro, perto do teto — o que
+# sustenta o teto de 35% adotado antes por referência.
+DESFRUTE_CRIA_MEDIDO_PCT = medido(
+    31.67, _EMBRAPA_PANTANAL, rotulo='Taxa de desfrute, cria extensiva',
+    nota=_NOTA_PANTANAL)
+
+# Natalidade medida sobre matrizes (62,39%) e sobre multíparas (64,40%). Fica
+# ABAIXO da faixa "adequado 65–75%" da bibliografia — e é uma fazenda modal,
+# não uma fazenda ruim. Registro do que o campo entrega, não do que o manual
+# recomenda.
+NATALIDADE_MATRIZES_EXTENSIVO_PCT = medido(
+    62.39, _EMBRAPA_PANTANAL, rotulo='Natalidade sobre matrizes, extensivo',
+    nota=_NOTA_PANTANAL)
+
+# Confirmação independente de um valor que era só referência: a mortalidade
+# pré-desmama medida no Pantanal é 7,00%, exatamente o meio da faixa 5–10% que
+# MORTALIDADE_BEZERRA_PCT já adotava. Não muda o número — muda o quanto se
+# pode confiar nele.
+MORTALIDADE_PRE_DESMAMA_MEDIDA_PCT = medido(
+    7.0, _EMBRAPA_PANTANAL, rotulo='Mortalidade pré-desmama medida',
+    nota=_NOTA_PANTANAL + ' Coincide com MORTALIDADE_BEZERRA_PCT (7,0%), que '
+         'até aqui era ponto médio de faixa bibliográfica.')
+
 # Desfrute por modalidade (nacional DESFRUTE_MODALIDADE, meio de cada faixa).
 # Cada valor carrega a origem (services/proveniencia.py). São REFERÊNCIA:
 # ponto médio de faixa de bibliografia, não medição desta nem de qualquer

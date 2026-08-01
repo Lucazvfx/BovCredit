@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>BovCredit</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="/static/favicon-cow.png">
@@ -28,7 +28,10 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{font-family:var(--fb);background:var(--bg);color:var(--tx);min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+/* min-height em dvh: no iOS `100vh` conta a tela inteira, inclusive a faixa
+   que a barra de endereço do Safari cobre, e o fundo termina atrás dela.
+   `dvh` acompanha a barra; o `vh` acima fica de fallback. */
+body{font-family:var(--fb);background:var(--bg);color:var(--tx);min-height:100vh;min-height:100dvh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 body::before{content:'';position:fixed;inset:0;background:
   radial-gradient(ellipse 60% 40% at 15% 10%,rgba(74,222,128,.05) 0%,transparent 60%),
   radial-gradient(ellipse 50% 30% at 85% 85%,rgba(34,211,238,.04) 0%,transparent 60%);
@@ -252,10 +255,50 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
   /* main */
   main{padding:20px 14px max(80px,calc(60px + env(safe-area-inset-bottom)))}
 
-  /* tab-bar: horizontal scroll, buttons never shrink */
-  .tab-bar{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:20px;flex-wrap:nowrap}
+  /* tab-bar: rola na horizontal, botões nunca encolhem.
+     Medido no iPhone 13 (390px): a barra precisa de 587px e só DUAS das cinco
+     abas cabem. A rolagem já existia, mas nada indicava que havia mais — o
+     analista não descobre uma aba que não aparece. A máscara em degradê na
+     borda direita é a dica: some quando chega ao fim. */
+  .tab-bar{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:20px;flex-wrap:nowrap;
+           -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);
+           mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);
+           scroll-snap-type:x proximity;overscroll-behavior-x:contain}
   .tab-bar::-webkit-scrollbar{display:none}
-  .tab-btn{flex-shrink:0;white-space:nowrap;padding:10px 14px;font-size:.68rem;letter-spacing:1px;min-height:44px}
+  .tab-btn{flex-shrink:0;white-space:nowrap;padding:10px 14px;font-size:.68rem;letter-spacing:1px;min-height:44px;scroll-snap-align:start}
+
+  /* Tabela de rebanho: 5 colunas precisam de 423px e o iPhone 13 tem 390.
+     A coluna de % é DERIVADA (total da faixa ÷ rebanho) e o mesmo número
+     aparece no painel de totais logo abaixo. Sai ela, não a rolagem: rolar
+     lateralmente para digitar é pior que não ver um percentual calculado. */
+  .itbl .col-pct{display:none}
+
+  /* Cabeçalho de card: `.ch` é uma linha flex com título à esquerda e grupo de
+     botões à direita. Em 390px o título fica com a largura toda e o grupo
+     desmorona numa coluna de um botão por linha — foi o que a captura no
+     iPhone mostrou no card de rebanho: dez botões empilhados ao lado de um
+     título espremido em três linhas. Empilhar de propósito resolve. */
+  .ch{flex-direction:column;align-items:stretch;gap:12px;padding:14px 16px}
+  .ch>div:last-child{justify-content:flex-start}
+
+  /* Cabeçalho: era ele que esticava a página para 431px num iPhone de 390.
+     A conta: logo 128px com `flex-shrink:0` + bloco da direita 289px + 28 de
+     padding. O bloco da direita cresceu porque o seletor de empresa passou de
+     9,28px para 16px de fonte (regra de `pointer: coarse`, para o Safari não
+     dar zoom ao focar) — e `select` com `min-width:auto` reserva a largura da
+     MAIOR opção, que é o nome inteiro da consultoria.
+     Consertar a fonte criou este; medir só depois é como se acha. */
+  /* Aba Ajuda: grades de 3 e 4 colunas declaradas em style inline, que só um
+     seletor com !important alcança. Precisavam de 487px em 390 de tela. */
+  .g2-help{grid-template-columns:1fr !important}
+  /* As tabelas da Ajuda são largas e não têm campo para digitar: aqui rolar
+     lateralmente é aceitável, esconder coluna não. */
+  .g2-help table, .cb>table{display:block;overflow-x:auto;max-width:100%}
+
+  header{flex-wrap:wrap;row-gap:8px}
+  .logo img{max-width:104px;height:auto}
+  .hdr-r{min-width:0;flex-wrap:wrap;justify-content:flex-end}
+  #empresa-ativa-select{max-width:52vw;min-width:0;text-overflow:ellipsis}
 
   /* typography */
   .ptitle{font-size:1.6rem}.psub{font-size:.8rem}
@@ -314,6 +357,50 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 .res-box.pos{border-color:rgba(74,222,128,.3);background:rgba(74,222,128,.06)}
 .res-box.neg{border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.06)}
 
+/* ── iOS: o zoom ao focar campo ──────────────────────────────────────────────
+   O Safari do iPhone DÁ ZOOM na página quando o campo focado tem fonte menor
+   que 16px, e depois não volta sozinho — o analista fica com a tela deslocada
+   e precisa fazer pinça para enxergar o resto. Não é preferência de design: é
+   comportamento do sistema.
+
+   Medido nesta tela num iPhone 13:
+
+       empresa-ativa-select ....  9,28px   ← e ilegível, além de dar zoom
+       campos de identificação .. 14,4px
+       campos de rebanho ........ 12,5px
+
+   `font-size:16px` no campo resolve o zoom, e `min-height:44px` dá o alvo de
+   toque que a própria Apple recomenda — abaixo disso erra-se o campo vizinho
+   na tabela de rebanho, que é densa.
+
+   O seletor é por PONTEIRO GROSSO, não por largura de tela: um iPad em
+   paisagem tem 1024px e o mesmo problema, e um monitor pequeno não tem
+   problema nenhum. Largura de viewport nunca foi a pergunta certa aqui. */
+@media (pointer: coarse) {
+  input, select, textarea,
+  .field input, .field select, input[type=number] {
+    font-size: 16px !important;
+  }
+  input, select, textarea, button, .btn-sm {
+    min-height: 44px;
+  }
+
+  /* O seletor de empresa era o pior dos dois: 9,28px de fonte e 31px de
+     altura, esta vinda de uma altura fixa no estilo do cabeçalho — por isso
+     precisa de `height:auto` junto, senão o min-height não vale de nada. */
+  #empresa-ativa-select { font-size: 16px !important; min-height: 44px; height: auto; }
+}
+
+/* ── iPhone com notch: a área segura ─────────────────────────────────────────
+   Com `viewport-fit=cover` o conteúdo passa a ocupar a tela toda, inclusive
+   sob o notch e sob a barra de gestos. Sem compensar, o cabeçalho fica
+   parcialmente escondido e o rodapé fica sob a faixa inferior. */
+@supports (padding: max(0px)) {
+  header { padding-left: max(14px, env(safe-area-inset-left));
+           padding-right: max(14px, env(safe-area-inset-right)); }
+  main   { padding-left: max(14px, env(safe-area-inset-left));
+           padding-right: max(14px, env(safe-area-inset-right)); }
+}
 </style>
 </head>
 <body>
@@ -404,6 +491,15 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
         <div class="field"><label>Fazenda</label><input type="text" id="f_faz" placeholder="Ex: Fazenda Santa Cruz"></div>
         <div class="field"><label>Município / Estado</label><input type="text" id="f_mun" placeholder="Ex: Juara - MT"></div>
         <div class="field"><label>Proprietário</label><input type="text" id="f_prop" placeholder="Ex: João da Silva"></div>
+        <!-- Área de pastagem: é o que permite calcular lotação (UA/ha) e
+             produtividade (@/ha/ano), e com elas o NÍVEL TECNOLÓGICO, que
+             escolhe o perfil de custo. Sem ela o sistema mantém o perfil médio
+             e diz no parecer que não classificou — nunca chuta o nível. -->
+        <div class="field">
+          <label>Área de pastagem (ha) <span style="color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">— define o nível tecnológico</span></label>
+          <input type="number" id="f_area" min="0" step="1" placeholder="Ex: 900" oninput="_previaNivel()">
+          <div id="f_area_previa" style="font-family:var(--fm);font-size:.6rem;color:var(--mu);margin-top:4px"></div>
+        </div>
       </div>
       <div class="fgrid" style="margin-top:12px;align-items:end">
         <div class="field"><label>Cliente cadastrado (opcional — habilita histórico)</label>
@@ -522,7 +618,7 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
     </div>
     <div class="cb" style="padding:0">
       <table class="itbl">
-        <thead><tr><th>Faixa Etária</th><th class="c"> Fêmeas</th><th class="c"> Machos</th><th class="c">Total Faixa</th><th class="c">% Rebanho</th></tr></thead>
+        <thead><tr><th>Faixa Etária</th><th class="c"> Fêmeas</th><th class="c"> Machos</th><th class="c">Total Faixa</th><th class="c col-pct">% Rebanho</th></tr></thead>
         <tbody id="input-tbody"></tbody>
       </table>
       <div style="padding:18px">
@@ -1300,7 +1396,7 @@ function buildTable(){
       <td class="tdc"><input type="number" class="ni nf" id="${f.key}_F" value="0" min="0" oninput="upd()"></td>
       <td class="tdc"><input type="number" class="ni nm" id="${f.key}_M" value="0" min="0" oninput="upd()"></td>
       <td class="tdc tdtot" id="${f.key}_T">0</td>
-      <td class="tdc tdtot" id="${f.key}_P" style="color:var(--mu)">0%</td>
+      <td class="tdc tdtot col-pct" id="${f.key}_P" style="color:var(--mu)">0%</td>
     </tr>`;
   });
   upd();
@@ -1379,6 +1475,38 @@ function upd(){
            +(v[1]+v[3])*pmc;        // bezerros (f00M+f05M): R$/cab
   const tval=document.getElementById('t-val');
   if(tval) tval.textContent=val>0?fR(val):'—';
+  _previaNivel();
+}
+
+// ================== NÍVEL TECNOLÓGICO ==================
+// Espelho de services/nivel_tecnologico.py — só a lotação, que é o que dá para
+// calcular antes de classificar. A produtividade depende das arrobas vendidas,
+// que só existem depois da simulação; ela volta no resultado.
+// Peso vivo por faixa, na ordem do vetor. Mesmos números de PESO_VIVO_FAIXA_KG.
+const PESO_VIVO_FAIXA=[90,100,180,200,280,320,460,560,460,560];
+const KG_POR_UA=450;
+const NIVEL_LOTACAO={media_br:0.7, intensivo:1.6};
+
+function _previaNivel(){
+  const el=document.getElementById('f_area_previa'); if(!el) return;
+  const area=parseFloat(document.getElementById('f_area')?.value)||0;
+  const v=getVals();
+  const ua=v.reduce((s,n,i)=>s+n*PESO_VIVO_FAIXA[i],0)/KG_POR_UA;
+  if(!area||area<=0||ua<=0){
+    el.textContent = ua>0
+      ? `${ua.toFixed(0)} UA no rebanho — informe a área para classificar o nível`
+      : '';
+    el.style.color='var(--mu)';
+    return;
+  }
+  const uaHa=ua/area;
+  let nivel,cor;
+  if(uaHa<NIVEL_LOTACAO.media_br){nivel='Extensivo';cor='var(--am)';}
+  else if(uaHa>=NIVEL_LOTACAO.intensivo){nivel='Intensivo';cor='var(--g)';}
+  else {nivel='Médio';cor='var(--cy)';}
+  el.innerHTML=`${ua.toFixed(0)} UA · <strong style="color:${cor}">${uaHa.toFixed(2)} UA/ha — ${nivel}</strong> `
+    +`<span style="color:var(--mu)">(média Brasil 0,7 · intensivo 1,6)</span>`;
+  el.style.color='var(--sb)';
 }
 
 // ================== EXEMPLOS ==================
@@ -1403,6 +1531,9 @@ async function classificar(){
     const body={valores:v,fazenda:document.getElementById('f_faz').value,municipio:document.getElementById('f_mun').value,proprietario:document.getElementById('f_prop').value};
     // Cliente cadastrado (opcional) — necessário para persistir o parecer no histórico
     body.fazenda_id=+document.getElementById('f_fazenda_id')?.value||null;
+    // Área de pastagem → lotação e produtividade → nível tecnológico → perfil
+    // de custo. Vai como null quando vazio, e o backend mantém o perfil médio.
+    body.area_pasto_ha=+document.getElementById('f_area')?.value||null;
     // Preços por categoria (cotação do dia, editáveis) — cada um segue seu preço
     body.preco_boi=+document.getElementById('cot-boi')?.value||0;
     body.preco_vaca=+document.getElementById('cot-vaca')?.value||0;
@@ -2161,23 +2292,68 @@ function renderParecer(data){
         As duas leituras são legítimas e dão pareceres diferentes.
       </div>` : ''}
       ${(() => {
+        // Nível tecnológico: mostra a lotação medida, o perfil de custo que
+        // ela escolheu e as âncoras nacionais. Sem área, diz que não
+        // classificou — em vez de sumir e deixar o analista achar que o
+        // sistema levou o nível em conta.
+        const nt = (data.nivel_tecnologico)||null;
+        if(!nt) return '';
+        const NC={extensivo:'var(--am)',medio:'var(--cy)',intensivo:'var(--g)',indefinido:'var(--mu)'};
+        const cor=NC[nt.nivel]||'var(--mu)';
+        const PERFIL={extensivo:'perfil extensivo (+25%)',media:'perfil médio',top:'perfil top rentáveis'};
+        const indef = nt.nivel==='indefinido';
+        return `<div style="margin-top:8px;background:var(--c);border-radius:8px;border:1px solid var(--b);padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:170px">
+            <div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">Nível tecnológico</div>
+            <div style="font-family:var(--fn);font-weight:800;font-size:1.3rem;color:${cor}">${nt.rotulo}</div>
+            <div style="font-family:var(--fm);font-size:.55rem;color:var(--mu)">${PERFIL[nt.perfil_custo]||''}</div>
+          </div>
+          <div style="flex:1;min-width:170px">
+            ${indef
+              ? `<div style="font-family:var(--fm);font-size:.6rem;color:var(--mu);line-height:1.5">Informe a <strong>área de pastagem</strong> para classificar. Sem ela o custo segue o perfil médio.</div>`
+              : `<div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">Lotação · Produtividade</div>
+                 <div style="font-family:var(--fn);font-weight:700;font-size:1rem;color:var(--sb)">${nt.ua_ha} UA/ha${nt.arrobas_ha_ano?` · ${nt.arrobas_ha_ano} @/ha`:''}</div>
+                 <div style="font-family:var(--fm);font-size:.55rem;color:var(--mu)">${nt.ua} UA em ${fN(nt.area_pasto_ha)} ha · média BR 0,7 UA/ha e 4,77 @/ha</div>`}
+          </div>
+        </div>
+        ${nt.divergencia?`<div class="cb" style="margin-top:6px;border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.06);font-size:.72rem;line-height:1.6">
+          <strong style="color:var(--am)">Lotação alta, produção baixa.</strong> ${nt.divergencia.texto}
+        </div>`:''}`;
+      })()}
+      ${(() => {
         const cb = gep.coe_benchmark;
         if(!cb) return '';
-        const NCOR = {excelente:'var(--g)',bom:'var(--cy)',atencao:'var(--am)',alto:'var(--rd)'};
-        const NLBL = {excelente:'Excelente',bom:'Bom',atencao:'Atenção',alto:'Acima'};
+        const NCOR = {excelente:'var(--g)',bom:'var(--cy)',dentro:'var(--cy)',atencao:'var(--am)',alto:'var(--rd)'};
+        const NLBL = {excelente:'Excelente',bom:'Bom',dentro:'Na faixa',atencao:'Atenção',alto:'Acima'};
         const cor = NCOR[cb.nivel] || 'var(--mu)';
-        const sinal = cb.delta_pct >= 0 ? '+' : '';
+        // A referência é a faixa entre os painéis publicados da modalidade.
+        // Com um painel só a faixa degenera no ponto — e aí mostra-se o ponto,
+        // porque anunciar "faixa" onde há uma medição só promete uma dispersão
+        // que ninguém apurou.
+        const temFaixa = cb.faixa_paineis && (cb.n_paineis || 1) > 1;
+        const rotuloRef = temFaixa
+          ? `Faixa Campo Futuro (${cb.n_paineis} painéis)`
+          : 'Referência Campo Futuro';
+        const valorRef = temFaixa
+          ? `${fR(cb.faixa_paineis[0])} – ${fR(cb.faixa_paineis[1])}`
+          : fR(cb.coe_referencia);
+        // Dentro da faixa o delta é zero por construção: dizer "+0% vs teto"
+        // parece precisão e é só ruído.
+        const veredito = cb.delta_pct > 0
+          ? `<span style="font-size:.8rem">+${cb.delta_pct}% ${temFaixa ? 'do teto' : 'vs ref'}</span>`
+          : '';
         return `<div style="margin-top:8px;background:var(--c);border-radius:8px;border:1px solid var(--b);padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div style="flex:1;min-width:160px">
             <div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">COE calculado (R$/@·vendida)</div>
             <div style="font-family:var(--fn);font-weight:800;font-size:1.3rem;color:${cor}">${fR(cb.coe_calculado)}</div>
+            <div style="font-family:var(--fm);font-size:.55rem;color:var(--mu)">${cb.base || ''}</div>
           </div>
           <div style="flex:1;min-width:160px">
-            <div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">Referência Campo Futuro 2025</div>
-            <div style="font-family:var(--fn);font-weight:700;font-size:1rem;color:var(--sb)">${fR(cb.coe_referencia)}<span style="font-family:var(--fm);font-size:.65rem;color:var(--mu);font-weight:400;margin-left:6px">${cb.local_ref}</span></div>
+            <div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">${rotuloRef}</div>
+            <div style="font-family:var(--fn);font-weight:700;font-size:1rem;color:var(--sb)">${valorRef}<span style="font-family:var(--fm);font-size:.65rem;color:var(--mu);font-weight:400;margin-left:6px">${temFaixa ? 'praça: ' : ''}${cb.local_ref}</span></div>
           </div>
           <div style="text-align:right">
-            <div style="font-family:var(--fn);font-weight:800;font-size:1rem;color:${cor}">${NLBL[cb.nivel]||''} <span style="font-size:.8rem">${sinal}${cb.delta_pct}% vs ref</span></div>
+            <div style="font-family:var(--fn);font-weight:800;font-size:1rem;color:${cor}">${NLBL[cb.nivel]||''} ${veredito}</div>
             <div style="font-family:var(--fm);font-size:.57rem;color:var(--mu)">${cb.fonte}</div>
           </div>
         </div>`;

@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>BovCredit — Análise de Crédito Pecuário</title>
 <meta name="description" content="Plataforma especializada em análise de crédito rural. Classifica o ciclo de produção por Machine Learning, projeta geração de caixa e emite parecer com DSCR em menos de 4 minutos.">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -326,6 +326,64 @@ footer{
 .footer-contact a:hover{text-decoration:underline}
 
 .footer-copy{font-size:10px;color:var(--b)}
+/* ── Celular ─────────────────────────────────────────────────────────────────
+   Esta página não tinha NENHUMA media query. O hero é um grid de duas colunas
+   fixas (1fr 1fr) que nunca colapsava, então num iPhone 13 a coluna da direita
+   — o card de parecer que é a prova visual do produto — ficava cortada pela
+   borda: saía "APRO[VAR]", "R$ 312.4[…]", "PARCELA/[…]".
+
+   Medido antes: elementos chegando a 551px num viewport de 466px.
+
+   Ironia que vale registrar: a landing vende análise de crédito para o
+   pecuarista, e o pecuarista abre link no celular. A página que convence
+   estava quebrada justamente em quem ela precisa convencer. */
+@media (max-width: 760px) {
+  /* O hero vira uma coluna: texto em cima, card embaixo. O card é a prova
+     do produto — some do topo, mas aparece inteiro. */
+  .hero { padding: 40px 20px 44px; grid-template-columns: 1fr; gap: 32px; }
+  .hero h1 { font-size: 34px; line-height: 1.02; letter-spacing: -.5px; }
+  .hero-sub { font-size: 15px; }
+
+  /* Grades de duas e três colunas não cabem em 390px de largura. */
+  .diff-grid, .kpi-grid, .como-steps { grid-template-columns: 1fr; }
+
+  /* Estas três a captura pegou e a medição de estouro não: cabem em 390px sem
+     passar da borda, e mesmo assim ficam ilegíveis. `.prob-grid` e
+     `.sens-grid` são texto corrido em três colunas de ~110px — sai uma
+     palavra por linha. `.num-grid` são quatro números com rótulo embaixo. */
+  .prob-grid, .sens-grid { grid-template-columns: 1fr; }
+  .num-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Fica em três: são só o valor e a seta de cada cenário, não texto. */
+  .mini-sens { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+  /* Menu: os links quebravam em duas linhas dentro do cabeçalho. */
+  nav { padding: 0 16px; }
+  .nav-links { display: none; }
+
+  section, .como, .diff, footer { padding-left: 20px; padding-right: 20px; }
+
+  /* As abas do mockup são decorativas e `width:fit-content` as fazia passar
+     2px da borda. Rolam dentro do próprio card em vez de esticar a página. */
+  .mock-tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .mock-tabs::-webkit-scrollbar { display: none; }
+  .mock-tab { flex: 0 0 auto; }
+
+  /* Nada pode ultrapassar a borda — é o que produzia o corte do card. */
+  * { min-width: 0; }
+  img, svg, table { max-width: 100%; }
+}
+
+/* iPhone com notch: `viewport-fit=cover` faz o conteúdo ir até a borda, e sem
+   compensar o texto encosta na curvatura da tela. */
+@supports (padding: max(0px)) {
+  @media (max-width: 760px) {
+    nav, .hero, section, footer {
+      padding-left: max(20px, env(safe-area-inset-left));
+      padding-right: max(20px, env(safe-area-inset-right));
+    }
+  }
+}
 </style>
 </head>
 <body>
