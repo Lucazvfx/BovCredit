@@ -986,19 +986,41 @@ def api_classificar():
     # CICLO_COMPLETO, que inclui terminação e é intensivo em ração. Aplicado a
     # uma cria extensiva (GEP: R$90,88/cab/mês contra R$119,14) superestimava
     # o custo em ~30% e levava rebanhos saudáveis a caixa negativo.
-    _custo_padrao_ciclo = custo_arroba_padrao(result.get('tipo', 'CICLO_COMPLETO'))
+    #
+    # O PESO MÉDIO vem do rebanho declarado, nos DOIS caminhos.
+    #
+    # Havia dois: quando o analista digitava os oito componentes, a conversão
+    # de R$/cab/mês para R$/@ usava o peso médio real; quando não digitava — o
+    # caminho normal — usava 11,7 @/cab fixo, herdado de uma compatibilidade
+    # retroativa ("mantendo 119 R$/@ para o CICLO_COMPLETO"), não de medição.
+    #
+    # Peso médio depende da composição, e rebanho com muito animal jovem pesa
+    # bem menos. Medido nas duas fazendas reais que temos:
+    #
+    #     Fazenda 3 Furnas (ADAPEC) .... 9,75 @/cab contra 11,7  → custo −17%
+    #     Vale do Coco ................. 9,87 @/cab contra 11,7  → custo −16%
+    #
+    # Dividir por um número maior que o real infla o denominador e REDUZ o
+    # custo por arroba — menos custo, mais caixa, DSCR maior. O erro corria a
+    # favor de aprovar.
+    _femeas_024 = float(v[0] + v[2] + v[4])
+    _machos_024 = float(v[1] + v[3] + v[5])
+    _arrobas_rebanho = arrobas_categorias(
+        matrizes=float(v[6] + v[8]), bois=float(v[7] + v[9]),
+        jovens_f=_femeas_024, jovens_m=_machos_024)
+    _total_cabecas = int(sum(v))
+    _arrobas_por_cab = (_arrobas_rebanho / _total_cabecas) if _total_cabecas else 0.0
+
+    _custo_padrao_ciclo = custo_arroba_padrao(
+        result.get('tipo', 'CICLO_COMPLETO'),
+        arrobas_por_cabeca=_arrobas_por_cab or None)
     custo_arroba = float(data.get('custo_arroba') or _custo_padrao_ciclo)
     custo_desembolso = None
     componentes = data.get('custo_componentes') or {}
     desembolso_cab_mes = sum(float(componentes.get(k, 0) or 0) for k, _ in COMPONENTES)
     if desembolso_cab_mes > 0:
-        femeas_024 = float(v[0] + v[2] + v[4])
-        machos_024 = float(v[1] + v[3] + v[5])
-        matrizes   = float(v[6] + v[8])
-        bois       = float(v[7] + v[9])
-        arrobas_rebanho = arrobas_categorias(
-            matrizes=matrizes, bois=bois, jovens_f=femeas_024, jovens_m=machos_024)
-        total_cabecas = int(sum(v))
+        arrobas_rebanho = _arrobas_rebanho
+        total_cabecas = _total_cabecas
         custo_arroba = custo_arroba_de_desembolso(
             desembolso_cab_mes, arrobas_rebanho, total_cabecas)
         custo_desembolso = {

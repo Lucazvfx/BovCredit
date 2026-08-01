@@ -147,16 +147,40 @@ DESEMBOLSO_PADRAO_CAB_MES = {
 }
 
 
-def custo_arroba_padrao(tipo: str, arrobas_por_cabeca: float = 11.7) -> float:
+# Peso médio usado só quando o rebanho não é conhecido. NÃO é medição: é o
+# número que reproduzia a conversão antiga do CICLO_COMPLETO (119 R$/@), e ele
+# só sobrevive como último recurso — em toda chamada que tem o rebanho na mão,
+# o peso vem de lá.
+ARROBAS_POR_CABECA_FALLBACK = 11.7
+
+
+def custo_arroba_padrao(tipo: str, arrobas_por_cabeca: float = None) -> float:
     """
     Custo padrão em R$/@·ano para a modalidade, quando o analista não informa
     o desembolso por componente.
 
         R$/@·ano = (R$/cab/mês × 12) ÷ arrobas por cabeça
 
-    `arrobas_por_cabeca` default 11,7 reproduz a conversão que já era usada
-    para o CICLO_COMPLETO, mantendo 119 R$/@ para essa modalidade.
+    `arrobas_por_cabeca` é o PESO MÉDIO do rebanho, e quem chama deve passá-lo
+    a partir da composição declarada. O default de 11,7 era aplicado a
+    qualquer rebanho, e peso médio depende da composição: rebanho com muito
+    animal jovem pesa bem menos.
+
+    Medido nas duas fazendas reais do projeto:
+
+        Fazenda 3 Furnas (ADAPEC) .... 9,75 @/cab contra 11,7  → custo −17%
+        Vale do Coco ................. 9,87 @/cab contra 11,7  → custo −16%
+
+    Dividir por um número maior que o real infla o denominador e REDUZ o custo
+    por arroba — menos custo, mais caixa, DSCR maior. O erro corria a favor de
+    aprovar, como a carência e como o peso de saída da recria.
+
+    O sistema já sabia calcular certo: `custo_arroba_de_desembolso` usa o peso
+    do rebanho declarado desde sempre. Só não era chamado no caminho sem
+    componentes, que é o que a maioria usa.
     """
+    if not arrobas_por_cabeca or arrobas_por_cabeca <= 0:
+        arrobas_por_cabeca = ARROBAS_POR_CABECA_FALLBACK
     _HERDA = {'CRIA_RECRIA': 'CRIA'}
     tipo = _HERDA.get(tipo, tipo)
     cab_mes = DESEMBOLSO_PADRAO_CAB_MES.get(tipo,
