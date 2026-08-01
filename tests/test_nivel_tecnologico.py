@@ -22,6 +22,7 @@ alta tecnologia acima de 1,6 UA/ha e 12 @/ha/ano.
 import pytest
 
 from services.nivel_tecnologico import (
+    PRODUTIVIDADE_MEDIA_BR,
     avaliar, classificar, conferir_produtividade, unidades_animais,
     EXTENSIVO, MEDIO, INTENSIVO, INDEFINIDO,
     LOTACAO_MEDIA_BR, LOTACAO_INTENSIVO, PRODUTIVIDADE_INTENSIVO,
@@ -260,3 +261,61 @@ def test_o_limiar_de_produtividade_tem_duas_fontes():
     )
     fonte = PRODUTIVIDADE_INTENSIVO.fonte
     assert 'Rally' in fonte and 'Naviraí' in fonte, 'as duas fontes precisam estar citadas'
+
+
+# ── A regra validada contra os 19 painéis do Campo Futuro 2022 ──────────────
+def test_os_paineis_mais_produtivos_sao_classificados_como_intensivos():
+    """
+    A primeira versão de `classificar` fazia a lotação mandar e deixava a
+    produtividade só desempatar para cima. Os 19 painéis mostraram que a regra
+    errava em dois, e errava no que importa:
+
+        Pontes e Lacerda/MT  recria    1,20 UA/ha  19,81 @/ha  → dizia MÉDIO
+        Feira de Santana/BA  engorda   0,68 UA/ha  12,71 @/ha  → dizia EXTENSIVO
+
+    São o segundo e o terceiro mais produtivos da amostra. O de Feira de Santana
+    levava o perfil de custo EXTENSIVO, 27% mais caro, sendo uma das engordas
+    mais eficientes medidas.
+
+    A causa é conceitual: lotação mede estoque parado, produtividade mede giro.
+    Num sistema que compra e vende dá para ter pouco animal no pasto e muita
+    arroba no ano — Feira de Santana entrega 18,7 @ por UA por ano, que é
+    exatamente um giro de boi terminado.
+    """
+    from services.benchmarks_nacionais import PAINEIS_DESFRUTE_2022
+    top3 = sorted(PAINEIS_DESFRUTE_2022, key=lambda p: -p[4])[:3]
+    for mun, uf, _sist, _d, arrobas_ha, ua_ha in top3:
+        assert classificar(ua_ha, arrobas_ha) == INTENSIVO, (
+            f'{mun}/{uf}: {arrobas_ha} @/ha e {ua_ha} UA/ha não classificou '
+            f'como intensivo'
+        )
+
+
+def test_nenhum_painel_medido_cai_em_extensivo_produzindo_acima_da_media():
+    """
+    Extensivo é o perfil de custo mais CARO (+27%). Aplicá-lo a quem produz
+    acima da média nacional é penalizar eficiência.
+    """
+    from services.benchmarks_nacionais import PAINEIS_DESFRUTE_2022
+    erros = [
+        f'{mun}/{uf}: {arr} @/ha com {ua} UA/ha → extensivo'
+        for mun, uf, _s, _d, arr, ua in PAINEIS_DESFRUTE_2022
+        if arr >= float(PRODUTIVIDADE_MEDIA_BR) * 1.5
+        and classificar(ua, arr) == EXTENSIVO
+    ]
+    assert not erros, 'painéis produtivos classificados como extensivos:\n  ' + '\n  '.join(erros)
+
+
+def test_a_natalidade_de_referencia_bate_com_a_mediana_medida():
+    """
+    NATALIDADE_PCT = 70% vinha de faixa bibliográfica. A mediana dos 12 painéis
+    de cria e ciclo completo do Campo Futuro 2022 é 70,12%.
+
+    É a confirmação mais limpa que apareceu: um parâmetro de referência caindo
+    em cima da mediana medida, sem ajuste.
+    """
+    import statistics
+    from services.parametros_zootecnicos import NATALIDADE_PCT
+    medidas = [70.14, 60.20, 58.94, 65.18, 66.44, 70.11, 70.71, 66.50, 70.46,
+               76.48, 81.20, 77.68]
+    assert abs(float(NATALIDADE_PCT) - statistics.median(medidas)) < 1.0
