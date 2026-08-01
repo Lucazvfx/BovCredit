@@ -74,6 +74,23 @@ INVENTARIO = {
         'finalidade': 'histórico de classificações do rebanho',
         'retencao':  'definida pela instituição',
     },
+    # O acervo guarda o DOCUMENTO original — ficha de órgão estadual, que traz
+    # nome do produtor, CPF e propriedade. É o registro mais sensível do
+    # sistema, e por isso é o que precisa estar declarado com mais precisão:
+    # não é metadado de uma leitura, é o papel do cliente inteiro.
+    #
+    # A finalidade é dupla e as duas são legítimas, mas só a primeira é do
+    # titular. A segunda (melhorar o parser) é interesse legítimo do
+    # controlador e precisa aparecer escrita — inventário que esconde
+    # finalidade secundária é o que a ANPD procura.
+    'documentos': {
+        'campos':    ['nome_arquivo', 'conteudo (PDF da ficha)', 'parse'],
+        'titular':   'cliente da consultoria (produtor)',
+        'finalidade': ('comprovação da origem do rebanho declarado no parecer; '
+                       'e correção dos leitores de documento a partir dos casos '
+                       'em que a leitura automática divergiu'),
+        'retencao':  'definida pela instituição — prazo de guarda do processo',
+    },
     'pareceres': {
         'campos':    ['parecer (identificação embutida no JSON)'],
         'titular':   'cliente da consultoria (produtor)',

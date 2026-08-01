@@ -11,7 +11,7 @@ Módulo puro — só constantes e helpers, sem I/O.
 """
 from __future__ import annotations
 
-from services.proveniencia import referencia
+from services.proveniencia import referencia, medido
 
 
 def midpoint(lo: float, hi: float) -> float:
@@ -60,6 +60,53 @@ RENDIMENTO_CARCACA_PCT = referencia(52.0, 'Benchmark regional — engorda', rotu
 GANHO_ARROBA_MES = referencia(0.7, 'Benchmark regional — ganho de peso', rotulo='Ganho @/mês')  # BENCHMARKS_RO.ganho_peso_arr médio
 RELACAO_FM = 2.2               # BENCHMARKS_RO.relacao_fm médio
 PCT_MATRIZES = 35.0            # BENCHMARKS_RO.pct_matrizes médio
+
+# ── Primeira medição de terceiro que entra no sistema ────────────────────────
+# Até aqui a camada de proveniência reportava "0 medidos": todo parâmetro era
+# referência de bibliografia, política nossa ou declaração do proponente.
+# Nenhum vinha de série apurada por terceiro e citável.
+#
+# Fonte: EMBRAPA Gado de Corte. "Desempenho produtivo nas fases de cria e
+# recria em um sistema de produção de gado de corte no Brasil Central."
+# Quatro anos de acompanhamento de 468 matrizes Nelore, pastagem cultivada,
+# lotação média de 1,4 UA/ha no período seco.
+#
+# É medição de UM sistema de produção, não da fazenda em análise nem do país.
+# Continua sendo referência no sentido de não descrever este produtor — mas é
+# apurada, tem amostra, tem método e se cita num comitê, que é o que separa
+# medição de bibliografia. A nota de cada parâmetro diz isso por escrito.
+_EMBRAPA_CRIA_RECRIA = ('EMBRAPA Gado de Corte — Desempenho produtivo nas fases '
+                        'de cria e recria, Brasil Central (468 matrizes Nelore, '
+                        '4 anos)')
+_NOTA_ESCOPO = ('Apurado em um sistema de produção da Embrapa, não nesta '
+                'fazenda. Serve de referência ancorada, não de medição do '
+                'proponente.')
+
+# O número que sustenta a guarda de classificação em ml_engine.py: a fêmea só
+# vira matriz de fato depois dos 36 meses. Contar a faixa de 25–36m como
+# matriz projeta bezerro que ainda não existe.
+IDADE_PRIMEIRA_PARICAO_MESES = medido(
+    36.3, _EMBRAPA_CRIA_RECRIA, rotulo='Idade à primeira parição',
+    nota=_NOTA_ESCOPO)
+
+TAXA_PRENHEZ_MEDIDA_PCT = medido(
+    87.5, _EMBRAPA_CRIA_RECRIA, rotulo='Taxa de prenhez do rebanho apurado',
+    nota=_NOTA_ESCOPO + ' Rebanho experimental: acima da média comercial, '
+         'por isso NÃO substitui PRENHEZ_PCT (70%), que é a projeção '
+         'conservadora usada no parecer.')
+
+PESO_DESMAMA_MACHO_KG = medido(
+    177.0, _EMBRAPA_CRIA_RECRIA, rotulo='Peso à desmama, macho (202 dias)',
+    nota=_NOTA_ESCOPO)
+
+PESO_DESMAMA_FEMEA_KG = medido(
+    162.0, _EMBRAPA_CRIA_RECRIA, rotulo='Peso à desmama, fêmea (202 dias)',
+    nota=_NOTA_ESCOPO)
+
+PESO_FEMEA_REPOSICAO_KG = medido(
+    299.0, _EMBRAPA_CRIA_RECRIA,
+    rotulo='Fêmea de reposição aos 24,3 meses, só a pasto',
+    nota=_NOTA_ESCOPO)
 
 # Desfrute por modalidade (nacional DESFRUTE_MODALIDADE, meio de cada faixa).
 # Cada valor carrega a origem (services/proveniencia.py). São REFERÊNCIA:

@@ -22,6 +22,9 @@ from ml_engine import (
     explicar_shap, TIPOS,
 )
 import database as db
+from services.documentos import (
+    impressao as doc_impressao, comparar as doc_comparar,
+)
 
 # Importações do PDF parsers (evitamos sobrescrever com definições locais)
 from pdf_parsers import (
@@ -1353,6 +1356,22 @@ def api_classificar():
             db.salvar_parecer(current_user.id, int(fazenda_id),
                               solicitacao=credito_inputs, parecer=parecer)
 
+    # Fecha o par do acervo: o que o parser leu × o que o analista de fato
+    # usou. É esta metade que ensina — o documento sozinho é depósito, o par é
+    # rótulo humano dizendo em qual faixa o parser tropeça. A fila de
+    # divergências é o que vira fixture das agências sem documento real.
+    _doc_id = data.get('documento_id')
+    if _doc_id:
+        try:
+            _doc = db.documento_parse(int(_doc_id), _resolver_empresa_ativa())
+            if _doc is not None:
+                _cmp = doc_comparar(_doc, list(v))
+                db.registrar_correcao(int(_doc_id), list(v), _cmp,
+                                      fazenda_id=fazenda_id or None)
+        except Exception as e:
+            logger.error(f'Falha ao registrar correção do documento: {e}',
+                         exc_info=True)
+
     # A trilha registra a REFERÊNCIA, não o rebanho: duplicar o dado numa
     # segunda tabela só multiplicaria a superfície de vazamento do que se quer
     # proteger. O conteúdo já está em `pareceres` e `registros`.
@@ -1950,6 +1969,34 @@ def api_ler_pdf():
             if dados['total'] == 0:
                 dados = parsear_indea(text, pdf_path=tmp_path)
         dados['origem'] = orig
+
+        # Guarda o documento e o que o parser extraiu dele. Antes o arquivo era
+        # lido e apagado no `finally`, e com ele ia embora a única evidência de
+        # como o parser se comportou naquele documento. Ver o cabeçalho de
+        # services/documentos.py: três fichas reais acharam três classes de
+        # defeito que 64 arquivos de teste sintético não acharam.
+        #
+        # Nunca derruba a leitura: o analista precisa do parse mesmo que o
+        # acervo esteja indisponível. Mesma regra da trilha de auditoria.
+        dados['documento_id'] = None
+        try:
+            _eid = _resolver_empresa_ativa()
+            if _eid is not None:
+                with open(tmp_path, 'rb') as _fh:
+                    _conteudo = _fh.read()
+                dados['documento_id'] = db.registrar_documento(
+                    empresa_id=_eid,
+                    user_id=int(current_user.id),
+                    nome_arquivo=f.filename,
+                    conteudo=_conteudo,
+                    sha256=doc_impressao(_conteudo),
+                    origem=orig,
+                    parse=dados,
+                    valores_lidos=dados.get('valores') or [],
+                )
+        except Exception as e:
+            logger.error(f'Falha ao guardar documento lido: {e}', exc_info=True)
+
         return jsonify(dados)
     except Exception as e:
         logger.error(f"Erro ao processar PDF: {e}", exc_info=True)
