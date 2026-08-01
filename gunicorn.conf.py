@@ -41,10 +41,35 @@ os.environ.setdefault('SCHEDULER_VIA_HOOK', '1')
 
 bind = f"0.0.0.0:{os.environ.get('PORT', '8080')}"
 
-# 2 é o padrão conservador para container pequeno. Suba junto com a memória
-# disponível: com preload o custo marginal por worker é bem menor que os
-# 334 MB do primeiro, mas não é zero.
-workers = int(os.environ.get('WEB_CONCURRENCY', '2'))
+# 1 worker por padrão — e a razão não é o modelo, é o SHAP.
+#
+# Com `preload_app` os ~300 MB do modelo são compartilhados por copy-on-write,
+# então o segundo worker custa quase nada em repouso. O problema é o pico POR
+# REQUISIÇÃO: cada classificação constrói os TreeExplainer dos quatro
+# estimadores do ensemble e aloca ~160 MB que só voltam ao fim da chamada.
+#
+# Medido num processo real (RSS, não marca d'água):
+#
+#     após carregar o modelo ........ 300 MB
+#     durante uma classificação ..... 459 MB
+#
+# A conta com o teto de 512 MB do contêiner:
+#
+#     1 worker classificando ..... 300 + 160 = 460 MB   cabe
+#     2 workers classificando .... 300 + 320 = 620 MB   estoura
+#
+# Duas classificações simultâneas matavam o processo por falta de memória e o
+# gateway devolvia 502 — exatamente na tela de classificar, que foi como o
+# problema apareceu em produção.
+#
+# TENTATIVA QUE NÃO FUNCIONOU, registrada para ninguém repetir: cachear os
+# TreeExplainer entre requisições PIORA. Eles não vazam — são liberados ao fim
+# da chamada. Mantê-los vivos elevou o patamar de 459 para 550 MB.
+#
+# A correção de verdade é tirar o SHAP do caminho crítico, como já foi feito
+# com a narrativa da IA: calcular sob demanda numa segunda requisição. Até lá,
+# um worker é o que cabe. Suba `WEB_CONCURRENCY` junto com a memória do plano.
+workers = int(os.environ.get('WEB_CONCURRENCY', '1'))
 threads = int(os.environ.get('WEB_THREADS', '1'))
 
 # Folgado de propósito: se o modelo em disco não carregar, o boot cai no
