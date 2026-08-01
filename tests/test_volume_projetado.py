@@ -143,13 +143,23 @@ def test_a_promocao_cobre_descarte_e_mortalidade():
 # ── A engorda para de girar quatro vezes ────────────────────────────────────
 def test_a_duracao_da_engorda_sai_do_ganho_de_peso():
     """
-    115 kg de ganho a 0,85 kg/dia são 135 dias, e 135 dias são dois giros por
+    115 kg de ganho a 0,85 kg/dia são 135 dias, e 135 dias são 2,70 giros por
     ano — não quatro. A zootecnia passa a mandar na duração.
+
+    O GIRO PASSOU A SER FRACIONÁRIO. Este teste prendia `== 2`, do
+    `int(365/dias)` de julho. A truncagem jogava fora produção real: a engorda
+    não zera em 31 de dezembro, e o lote a meio caminho na virada continua no
+    pasto — o próprio modelo o carrega no inventário de fechamento.
+
+    O estrago apareceu ao ligar o GMD ao nível tecnológico: médio (2,06) e
+    intensivo (2,70) truncavam os dois para 2, e o nível parava de distinguir
+    justamente onde deveria.
     """
     ca = custo_arroba_padrao('ENGORDA', 17.21)
     r = simular_cenario(ENGORDA, cenario='conservador', ciclo='ENGORDA',
-                        preco_arroba=330.0, custo_arroba=ca)
-    assert r['anos'][0]['lotes_por_ano'] == 2
+                        preco_arroba=330.0, custo_arroba=ca,
+                        ganho_peso_kg_dia=0.85)
+    assert r['anos'][0]['lotes_por_ano'] == pytest.approx(2.70, abs=0.02)
 
 
 def test_gmd_maior_encurta_o_ciclo_e_aumenta_os_giros():
@@ -179,13 +189,26 @@ def test_o_desfrute_da_engorda_deixou_de_ser_o_triplo_da_faixa():
 
 
 def test_gmd_absurdo_nao_produz_ciclo_impossivel():
-    """Um GMD de zero ou negativo viraria divisão por zero e giro infinito."""
+    """
+    Um GMD de zero ou negativo viraria divisão por zero e giro infinito.
+
+    O PISO DE 1 GIRO CAIU JUNTO COM A TRUNCAGEM, e cair foi o certo. Com o GMD
+    travado no mínimo de 0,20 kg/dia, ganhar 115 kg leva 575 dias — mais de um
+    ano. O animal não termina dentro do exercício, e 0,63 giro/ano é a
+    descrição correta disso. O `max(1, ...)` antigo afirmava um giro completo
+    num ano em que ele é fisicamente impossível, o que inflava a produção
+    exatamente no caso mais degradado.
+
+    O que precisa continuar valendo é que o número seja finito e positivo.
+    """
     ca = custo_arroba_padrao('ENGORDA', 17.21)
     for gmd in (0.0, -1.0, 0.01):
         r = simular_cenario(ENGORDA, cenario='conservador', ciclo='ENGORDA',
                             preco_arroba=330.0, custo_arroba=ca,
                             ganho_peso_kg_dia=gmd)
-        assert r['anos'][0]['lotes_por_ano'] >= 1
+        lotes = r['anos'][0]['lotes_por_ano']
+        assert 0 < lotes <= 12, f'{lotes} giros/ano com GMD {gmd}'
+        assert r['anos'][0]['vendidos'] >= 0
 
 
 def test_o_gmd_do_analista_chega_pela_rota(cli):

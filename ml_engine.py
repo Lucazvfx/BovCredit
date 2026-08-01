@@ -24,7 +24,9 @@ from services.parametros_zootecnicos import (
     PESO_BOI_ARR, PESO_VACA_ARR, PESO_BEZERRA_ARR, PESO_GARROTE_ARR,
     MORTALIDADE_ADULTO_PCT, MORTALIDADE_BEZERRA_PCT, PESO_JOVEM_F_ARR,
     TROCA_ARROBAS_BOI_MAGRO, TROCA_ARROBAS_BEZERRO,
+    taxa_desmama_efetiva, natalidade_de_prenhez,
 )
+from services.nivel_tecnologico import GMD_PADRAO_SEM_NIVEL as _GMD_PADRAO_SEM_NIVEL
 
 # ── Reposição 1:1 precificada ────────────────────────────────────────────────
 # Recria e engorda vendem o lote e repõem comprando animais magros. O material
@@ -1337,7 +1339,21 @@ def _simular_cria(
     mort     = (mort_pct / 100) * m['mort']
     # Taxa de bezerra pré-desmame é maior que a adulta (EMBRAPA: ~3.5× a adulta)
     mort_bez = min(mort * _RAZAO_MORT_BEZERRA, 0.25)
-    desmama  = (desmama_pct / 100)
+    # ── A cadeia reprodutiva, sem descontar a mesma perda três vezes ─────────
+    #
+    # Era: `desmamados = nascidos × desmama × (1 − mort_bez)`, com desmama
+    # default de 82%. Vieira et al. (2005) mede a cadeia inteira num só rebanho
+    # por quatro safras e mostra que `desmama = natalidade × (1 − mort_bez)` —
+    # a identidade fecha com erro de 0,4 ponto. A desmama É o fim da cadeia.
+    # Multiplicá-la pelos nascidos e ainda descontar a mortalidade descontava a
+    # perda três vezes: 70% × 82% × 93% = 53,4 bezerros por 100 matrizes,
+    # contra 77,2 medidos — e abaixo até do Pantanal extensivo (58,0).
+    #
+    # Ver a derivação e a tabela em services/parametros_zootecnicos.py.
+    taxa_desmama = taxa_desmama_efetiva(
+        natalidade_pct=nat * 100.0,
+        mortalidade_bezerro_pct=mort_bez * 100.0,
+        desmama_declarada_pct=desmama_pct)
     venda_bz = (venda_bez_pct / 100)
     preco_bz = (preco_arroba_bezerro * m['preco']) * peso_bezerra   # R$/cabeça derivado de R$/@
     # Preço da vaca descartada: usa preco_vaca_arr se informado, senão usa o mesmo preco/@ do bezerro
@@ -1409,7 +1425,7 @@ def _simular_cria(
     anos_proj = []
     for yr in range(1, anos + 1):
         nascidos   = matrizes * nat
-        desmamados = nascidos * desmama * (1 - mort_bez)
+        desmamados = matrizes * taxa_desmama
 
         # ── Comercialização ─────────────────────────────────────────────────
         # A base de venda é o estoque de 0–12m declarado, mas nunca abaixo do
@@ -1733,7 +1749,25 @@ def _simular_engorda(
     outros_f  = float(va[0] + va[2] + va[4] + va[6] + va[8])
     outros_m  = float(va[1] + va[3] + va[5])
     total_ini = float(va.sum())
-    lotes_ano = max(1, int(365 / max(dias_engorda, 30)))
+    # ── Giros por ano: fracionário, não truncado ─────────────────────────────
+    #
+    # Era `max(1, int(365/dias))`. A truncagem inteira jogava fora produção
+    # real: a engorda não zera em 31 de dezembro, e o lote a meio caminho na
+    # virada continua no pasto — o nosso próprio modelo o carrega no inventário
+    # de fechamento. Numa projeção de cinco anos, a média correta de giros é a
+    # fracionária.
+    #
+    # O tamanho do estrago aparecia ao ligar o GMD ao nível tecnológico:
+    #
+    #     extensivo   0,45 kg/dia   256 dias   1,43 giros → truncado a 1  (−30%)
+    #     médio       0,65          177        2,06       → truncado a 2  (−3%)
+    #     intensivo   0,85          135        2,70       → truncado a 2  (−26%)
+    #
+    # Médio e intensivo colapsavam no mesmo número, e o nível deixava de
+    # distinguir justamente onde deveria. Pior: o custo é cobrado por
+    # `dias_engorda/365`, então truncar os giros truncava a despesa junto e o
+    # modelo subcobrava — o erro não era conservador, era só ruído.
+    lotes_ano = 365.0 / max(float(dias_engorda), 30.0)
 
     anos_proj = []
     for yr in range(1, anos + 1):
@@ -1775,7 +1809,7 @@ def _simular_engorda(
             'aumento_matrizes': 0,
             'arrobas_por_boi': round(arrobas_saida, 2),
             'arrobas_ganho_por_boi': round(ganho_arrobas, 2),
-            'lotes_por_ano': lotes_ano,
+            'lotes_por_ano': round(lotes_ano, 2),
             'ganho_peso_kg': round(peso_saida_kg - peso_entrada_kg, 1),
             'receita': round(receita, 2),
             'custo': round(custo, 2),
@@ -1825,7 +1859,11 @@ def simular_cenario(
     ciclo:              str   = 'CICLO_COMPLETO',
     preco_bezerro:      float = 1800.0, # memorial §16: R$1.800
     preco_arroba_bezerro: float = None, # R$/@ do bezerro; default = preco_arroba
-    desmama_pct:        float = DESMAME_PCT,  # benchmark desmame (82%)
+    # None → derivada da cadeia (natalidade × sobrevivência), que é a definição.
+    # Um número aqui é DECLARAÇÃO do analista sobre aquela fazenda, e vence.
+    # Era DESMAME_PCT (82%) por default, e esse 82% entrava como FATOR sobre os
+    # nascidos — ver a correção da cadeia em _simular_cria.
+    desmama_pct:        float = None,
     peso_entrada_arr:   float = _PESO_ENTRADA_RECRIA_ARR,
     peso_saida_arr:     float = _PESO_SAIDA_RECRIA_ARR,
     meses_recria:       int   = 12,
@@ -1859,7 +1897,10 @@ def simular_cenario(
     # (700–1000 g/dia), e o analista pode informar o dele. Quem passa a mandar
     # é a zootecnia, não uma constante.
     if dias_engorda is None:
-        _gmd = max(float(ganho_peso_kg_dia or 0.85), 0.20)
+        # 0,85 era o default aqui também — ver GMD_PADRAO_SEM_NIVEL, que
+        # explica por que supor precoce de quem não declarou nada é a
+        # suposição mais otimista possível.
+        _gmd = max(float(ganho_peso_kg_dia or _GMD_PADRAO_SEM_NIVEL), 0.20)
         _ganho_kg = max(float(peso_saida_kg) - float(peso_entrada_kg), 1.0)
         dias_engorda = int(round(_ganho_kg / _gmd))
 
