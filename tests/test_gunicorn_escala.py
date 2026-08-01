@@ -144,3 +144,46 @@ def test_nem_procfile_nem_dockerfile_fixam_workers():
     """
     for nome in ('Procfile', 'Dockerfile'):
         assert '--workers' not in _raiz(nome), f'{nome} sobrepõe a configuração'
+
+
+# ── Memória por requisição: o que causou o 502 em produção ──────────────────
+# O 502 aparecia exatamente na tela de classificar. Causa: cada classificação
+# aloca ~160 MB (os TreeExplainer do SHAP, quatro estimadores) que só voltam
+# ao fim da chamada. Com o modelo compartilhado por preload:
+#
+#     1 worker classificando ..... 300 + 160 = 460 MB   cabe em 512
+#     2 workers classificando .... 300 + 320 = 620 MB   estoura
+#
+# Não é limite que se ajuste no código — é o pico por requisição contra o teto
+# do contêiner. Enquanto o SHAP estiver no caminho crítico, o default tem de
+# ser 1.
+
+def test_default_de_workers_cabe_na_memoria(conf_texto):
+    """
+    Se alguém subir o default sem tirar o SHAP do caminho crítico, o 502
+    volta. O teste falha antes do deploy em vez de na tela do analista.
+    """
+    m = re.search(r"workers\s*=\s*int\(os\.environ\.get\('WEB_CONCURRENCY',\s*'(\d+)'\)\)",
+                  conf_texto)
+    assert m, 'não achei o default de workers'
+    assert int(m.group(1)) == 1, (
+        f"default de {m.group(1)} workers: com ~160 MB de pico por "
+        f"classificação e ~300 MB de base, dois workers estouram 512 MB"
+    )
+
+
+def test_o_motivo_esta_escrito_junto(conf_texto):
+    """
+    Um número sem o porquê vira 2 de novo no primeiro reload lento. O
+    comentário precisa citar o SHAP e a conta.
+    """
+    assert 'SHAP' in conf_texto
+    assert '512' in conf_texto and '620' in conf_texto
+
+
+def test_a_tentativa_que_falhou_esta_registrada(conf_texto):
+    """
+    Cachear os TreeExplainer entre requisições PIORA (459 → 550 MB): eles não
+    vazam, são liberados ao fim da chamada. Registrado para ninguém repetir.
+    """
+    assert 'cachear' in conf_texto.lower() or 'cache' in conf_texto.lower()
