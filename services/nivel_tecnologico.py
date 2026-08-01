@@ -83,8 +83,16 @@ LOTACAO_INTENSIVO = referencia(
 PRODUTIVIDADE_MEDIA_BR = referencia(
     4.77, 'Rally da Pecuária 2023 — produtividade média nacional',
     rotulo='Produtividade média Brasil (@/ha/ano)')
+# O limiar de 12 @/ha/ano vinha só do Rally (público amostrado: 12,88). Ganhou
+# uma segunda confirmação, e desta vez de um PAINEL, não de matéria: Campo
+# Futuro/CNA em Naviraí/MS — 1.250 ha em integração lavoura-pecuária, mais de
+# 1.600 cabeças manejadas por ano, 884 comercializadas, semiconfinamento na
+# terminação — mede 13 @/ha/ano. É uma operação inequivocamente intensiva, e
+# cai logo acima do limiar. Duas fontes independentes, mesmo patamar.
 PRODUTIVIDADE_INTENSIVO = referencia(
-    12.0, 'Sistemas semi-intensivos — acima de 12 @/ha/ano; público do Rally: 12,88',
+    12.0,
+    'Rally da Pecuária (público amostrado 12,88 @/ha/ano) e painel Campo '
+    'Futuro/CNA em Naviraí/MS, ILP com semiconfinamento (13 @/ha/ano)',
     rotulo='Produtividade alta tecnologia (@/ha/ano)')
 
 EXTENSIVO   = 'extensivo'
@@ -108,32 +116,90 @@ def unidades_animais(valores: list) -> float:
     return sum(v[i] * PESO_VIVO_FAIXA_KG[i] for i in range(10)) / KG_POR_UA
 
 
+_ORDEM = {EXTENSIVO: 0, MEDIO: 1, INTENSIVO: 2}
+
+# Arrobas por UA por ano acima das quais a conta não fecha fisicamente: um boi
+# terminado sai com ~20@ e nem o confinamento gira mais que ~1,2 vez por ano.
+# Acima disto a área declarada está errada, não a fazenda é excepcional.
+ARROBAS_POR_UA_IMPLAUSIVEL = 25.0
+
+
+def nivel_por_lotacao(ua_ha: float) -> str:
+    """Nível pelo estoque de animais que a área sustenta."""
+    if ua_ha < float(LOTACAO_MEDIA_BR):
+        return EXTENSIVO
+    if ua_ha >= float(LOTACAO_INTENSIVO):
+        return INTENSIVO
+    return MEDIO
+
+
+def nivel_por_produtividade(arrobas_ha_ano: float) -> str:
+    """Nível pela arroba que a área entrega no ano."""
+    if arrobas_ha_ano < float(PRODUTIVIDADE_MEDIA_BR):
+        return EXTENSIVO
+    if arrobas_ha_ano >= float(PRODUTIVIDADE_INTENSIVO):
+        return INTENSIVO
+    return MEDIO
+
+
 def classificar(ua_ha: float | None,
                 arrobas_ha_ano: float | None = None) -> str:
-    """Nível tecnológico a partir de lotação e, quando houver, produtividade.
+    """Nível tecnológico pela lotação e pela produtividade, o MAIOR dos dois.
 
-    A lotação manda; a produtividade só desempata para cima. Uma fazenda pode
-    ter lotação alta e produzir pouco (rebanho parado, desfrute baixo), e nesse
-    caso não é intensiva coisa nenhuma — por isso exigir os DOIS para subir a
-    intensivo, e bastar um para cair a extensivo.
+    POR QUE O MAIOR, E NÃO A LOTAÇÃO MANDANDO
 
-    Sem área declarada (`ua_ha` ausente ou não positiva) devolve INDEFINIDO. O
-    sistema então mantém o perfil médio e diz no parecer que não classificou —
-    é preferível a chutar um nível.
+    A primeira versão fazia a lotação mandar e deixava a produtividade só
+    desempatar para cima. O raciocínio era que rebanho parado não é sistema
+    intensivo. Os 19 painéis do Campo Futuro 2022 mostraram que a regra erra em
+    dois deles, e erra pelo motivo que importa:
+
+        Pontes e Lacerda/MT  recria    1,20 UA/ha   19,81 @/ha  → dizia MÉDIO
+        Feira de Santana/BA  engorda   0,68 UA/ha   12,71 @/ha  → dizia EXTENSIVO
+
+    São o segundo e o terceiro mais produtivos dos dezenove. O de Feira de
+    Santana levava o perfil de custo extensivo, 27% mais caro, sendo uma das
+    engordas mais eficientes da amostra.
+
+    A razão é conceitual: LOTAÇÃO mede estoque parado, PRODUTIVIDADE mede giro.
+    Num sistema que compra e vende — recria, engorda — dá para ter pouco animal
+    no pasto e muita arroba no ano, porque o animal passa e sai. Feira de
+    Santana entrega 18,7 @ por UA por ano, que é exatamente um giro de boi
+    terminado. Não é rebanho parado: é rebanho rápido.
+
+    Então cada eixo classifica sozinho e vale o maior dos dois. O caso que a
+    regra antiga queria evitar — lotação alta com produção baixa — continua
+    coberto: ali a produtividade classifica como extensivo ou médio e não
+    promove nada, e a divergência vira aviso em `conferir_produtividade`.
+
+    Sem área declarada devolve INDEFINIDO: o sistema mantém o perfil médio e
+    diz no parecer que não classificou, em vez de chutar.
     """
     if not ua_ha or ua_ha <= 0:
         return INDEFINIDO
 
-    if ua_ha < float(LOTACAO_MEDIA_BR):
-        return EXTENSIVO
+    n_lot = nivel_por_lotacao(ua_ha)
+    if not arrobas_ha_ano or arrobas_ha_ano <= 0:
+        return n_lot
 
-    if ua_ha >= float(LOTACAO_INTENSIVO):
-        if arrobas_ha_ano is None:
-            return INTENSIVO
-        return (INTENSIVO if arrobas_ha_ano >= float(PRODUTIVIDADE_INTENSIVO)
-                else MEDIO)
+    # Produtividade implausível para a lotação declarada não classifica nada: é
+    # sinal de área errada na ficha, e promover daria o perfil de custo mais
+    # barato a uma fazenda cujo dado não fecha.
+    if arrobas_ha_ano / ua_ha > ARROBAS_POR_UA_IMPLAUSIVEL:
+        return n_lot
 
-    return MEDIO
+    n_prod = nivel_por_produtividade(arrobas_ha_ano)
+    n = max(n_lot, n_prod, key=lambda x: _ORDEM[x])
+
+    # A ASSIMETRIA, e a razão dela: produtividade PROMOVE sozinha, lotação NÃO.
+    #
+    # Produtividade mede o que saiu; se saiu arroba, saiu. Lotação mede o que
+    # está parado no pasto, e muito animal parado produzindo pouco é o caso que
+    # a versão anterior desta função existia para pegar — rebanho ocupando área
+    # sem gerar arroba. Deixar a lotação promover ali daria o perfil intensivo,
+    # que é o mais BARATO dos três, e o erro correria a favor de aprovar.
+    if n_lot == INTENSIVO and n_prod == EXTENSIVO:
+        n = MEDIO
+    return n
 
 
 def rotulo(nivel: str) -> str:

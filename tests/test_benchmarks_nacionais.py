@@ -45,13 +45,40 @@ def test_multifonte_indicador_invalido():
 
 
 def test_desfrute_por_modalidade():
-    # Teto da CRIA revisado de 30% para 35% em julho/2026: o setor trata
-    # "acima de 35%" como bom desempenho, e o teto anterior marcava boa cria
-    # como anomalia. Ver DESFRUTE_MODALIDADE em benchmarks_nacionais.py.
-    r = avaliar_desfrute("CRIA", 24.0)
-    assert r["faixa"] == (18.0, 35.0)
-    assert r["posicao"] == "dentro"
-    assert r["classe"] == "baixo"  # 18–30 na escala geral de desfrute
+    """
+    A faixa da cria foi corrigida contra os 19 painéis do Campo Futuro 2022:
+    o campo entrega 31,97–39,25% em nove painéis, e a faixa antiga (18–35%)
+    marcava como "acima" quatro criações reais.
+
+    Este teste passa a ler a fonte em vez de repetir os números — foi
+    exatamente a duplicação que fez três cópias das mesmas faixas divergirem.
+    """
+    from services.benchmarks_nacionais import DESFRUTE_MODALIDADE
+    lo, hi = DESFRUTE_MODALIDADE["CRIA"]
+
+    dentro = avaliar_desfrute("CRIA", (lo + hi) / 2)
+    assert dentro["faixa"] == (lo, hi)
+    assert dentro["posicao"] == "dentro"
+
+    # 24% fica abaixo do que qualquer painel de cria entregou — e agora o
+    # sistema diz isso, em vez de tratar como normal.
+    assert avaliar_desfrute("CRIA", 24.0)["posicao"] == "abaixo"
+
+
+def test_as_faixas_cobrem_os_19_paineis_medidos():
+    """
+    A checagem que fecha o ciclo: cada painel do Campo Futuro 2022 tem de cair
+    DENTRO da faixa da própria modalidade. Antes desta correção,
+    RECRIA_ENGORDA errava em cinco de cinco e CRIA em quatro de nove.
+    """
+    from services.benchmarks_nacionais import (
+        DESFRUTE_MODALIDADE, PAINEIS_DESFRUTE_2022)
+    fora = [
+        f'{mun}/{uf} ({sist}): {desf}% fora de {DESFRUTE_MODALIDADE[sist]}'
+        for mun, uf, sist, desf, _ha, _ua in PAINEIS_DESFRUTE_2022
+        if not (DESFRUTE_MODALIDADE[sist][0] <= desf <= DESFRUTE_MODALIDADE[sist][1])
+    ]
+    assert not fora, 'painéis medidos fora da faixa:\n  ' + '\n  '.join(fora)
 
 
 def test_desembolso_abaixo_do_top_e_excelente():

@@ -56,16 +56,79 @@ PRENHEZ_SISTEMA = {
 # o slide é material interno, as faixas do setor são públicas e citáveis.
 # Onde conflitam, prevalece a pública.
 #
-# RECRIA, RECRIA_ENGORDA e ENGORDA ficam como estavam: a faixa de RECRIA é a
-# validada contra a ficha real de 700 cabeças (projeção 43,4% dentro de
-# 35–55%), e não há motivo medido para mexer.
+# ── AGORA HÁ MOTIVO MEDIDO, E ELE VEIO DE 19 PAINÉIS ─────────────────────────
+#
+# O ebook Campo Futuro 2022 (CNA/Senar, elaboração Cepea-Esalq/USP) publica a
+# taxa de desfrute de 19 sistemas amostrados em 17 municípios de 13 estados,
+# do semiárido baiano ao bioma amazônico do Acre. É a maior amostra de campo
+# que este projeto já teve para qualquer indicador.
+#
+# Confrontadas com as faixas que estavam aqui:
+#
+#     modalidade        nossa faixa   medido           dentro
+#     CRIA                 18–35      31,97–39,25%      5 de 9
+#     RECRIA_ENGORDA       60–85      39,63–49,64%      0 de 5   ← nenhum
+#     CICLO_COMPLETO       20–45      25,38–35,57%      3 de 3
+#     RECRIA isolada       35–55      79,68%            0 de 1
+#     ENGORDA isolada     80–120      97,52%            1 de 1
+#
+# RECRIA_ENGORDA estava inteira errada: a faixa dizia 60–85% e o campo entrega
+# 40–50%. Toda recria/engorda real seria marcada como "abaixo", e o alerta que
+# deveria pegar liquidação de plantel virava ruído permanente.
+#
+# CRIA estava com o TETO baixo: quatro dos nove painéis passam de 35%, e o
+# maior faz 39,25%. Já havíamos subido esse teto uma vez por bibliografia; a
+# medição confirma a direção e diz onde parar.
+#
+# A faixa de RECRIA isolada tinha sido "validada" contra UM caso — a projeção
+# da ficha de 700 cabeças caindo em 43,4%. Um painel de recria pura
+# (Pontes e Lacerda/MT, 19,81 @/ha) mede 79,68%. Faz sentido: recria pura
+# compra e vende no mesmo ano, então gira quase todo o plantel. A validação
+# anterior confirmava a projeção contra ela mesma, não contra o campo.
+#
+# As faixas passam a ser o intervalo observado com folga de ~15% para cada
+# lado — folga, e não o mínimo e o máximo crus, porque 19 painéis descrevem a
+# dispersão mas não a esgotam.
+#
+# Fonte: Projeto Campo Futuro CNA/Senar (2022), "Ebook 2022 — Pecuária de
+# Corte", Tabela 1: Resultados de cada painel. Elaboração Cepea-Esalq/USP.
 DESFRUTE_MODALIDADE = {
-    "CRIA": (18.0, 35.0),
-    "RECRIA": (35.0, 55.0),
-    "RECRIA_ENGORDA": (60.0, 85.0),
-    "ENGORDA": (80.0, 120.0),
-    "CICLO_COMPLETO": (20.0, 45.0),
+    "CRIA": (27.0, 45.0),            # medido 31,97–39,25 em 9 painéis
+    "RECRIA": (60.0, 95.0),          # medido 79,68 em 1 painel (Pontes e Lacerda/MT)
+    "RECRIA_ENGORDA": (34.0, 57.0),  # medido 39,63–49,64 em 5 painéis
+    "ENGORDA": (80.0, 120.0),        # medido 97,52 em 1 painel; faixa mantida
+    # Piso medido (25,38 com folga). O TETO fica em 45, e não nos 41 que a
+    # folga daria, porque aqui a medição (3 painéis, 25,38–35,57%) conflita com
+    # a referência do setor ("acima de 45% é bom") — e três painéis descrevem
+    # pouco. Num limiar de ALERTA a escolha segura é a mais permissiva: alerta
+    # que dispara em desempenho bom é alerta que o analista aprende a ignorar,
+    # e aí não serve para o caso em que deveria disparar.
+    "CICLO_COMPLETO": (21.0, 45.0),
 }
+
+# Os 19 painéis, para os testes conferirem as faixas contra o dado e não
+# contra si mesmas. (município, UF, sistema, desfrute %, @/ha, lotação UA/ha)
+PAINEIS_DESFRUTE_2022 = [
+    ("Xapuri", "AC", "CRIA", 39.09, 6.77, 1.69),
+    ("Cruzeiro do Sul", "AC", "CRIA", 32.77, 3.36, 1.01),
+    ("Barreiras", "BA", "CRIA", 34.27, 1.86, 0.50),
+    ("Itamaraju", "BA", "CRIA", 32.53, 3.61, 0.86),
+    ("Altamira", "PA", "CRIA", 34.71, 3.47, 0.82),
+    ("Vila Rica", "MT", "CRIA", 39.25, 4.82, 1.10),
+    ("São Félix do Xingu", "PA", "CRIA", 37.48, 4.32, 1.05),
+    ("Juara", "MT", "CRIA", 31.97, 4.58, 1.09),
+    ("Alta Floresta", "MT", "CRIA", 38.09, 6.57, 1.53),
+    ("Barra do Garças", "MT", "RECRIA_ENGORDA", 49.62, 9.16, 0.80),
+    ("Cruzeiro do Sul", "AC", "RECRIA_ENGORDA", 39.63, 6.09, 0.65),
+    ("Itamaraju", "BA", "RECRIA_ENGORDA", 49.64, 11.40, 1.03),
+    ("Itapetinga", "BA", "RECRIA_ENGORDA", 49.25, 9.37, 0.89),
+    ("Araguaína", "TO", "RECRIA_ENGORDA", 47.94, 9.68, 0.80),
+    ("Rio Branco", "AC", "CICLO_COMPLETO", 25.38, 8.39, 1.51),
+    ("Paragominas", "PA", "CICLO_COMPLETO", 27.90, 8.56, 1.25),
+    ("Santana do Araguaia", "PA", "CICLO_COMPLETO", 35.57, 18.84, 2.19),
+    ("Pontes e Lacerda", "MT", "RECRIA", 79.68, 19.81, 1.20),
+    ("Feira de Santana", "BA", "ENGORDA", 97.52, 12.71, 0.68),
+]
 
 # Escala geral de interpretação do desfrute (PPTX slide 5), independente de
 # modalidade: (teto_exclusivo, classe).
@@ -356,6 +419,25 @@ COE_PAINEIS = {
             "coe_arroba": 166.35,
             "descricao": "250 ha . 100 matrizes . 56 animais comercializados/ano",
             "maiores_itens_pct": {"Mao de obra": 42.9, "Reposicao animais": 18.5},
+        },
+        {
+            # Primeiro painel de CRIA do Centro-Oeste — o buraco que faltava.
+            # Campo Futuro/CNA em Juara/MT (400 vacas, 266 paridas), publicado
+            # no boletim de fevereiro/2023 comparando duas opções de manejo de
+            # pastagem. Adotado o cenário de ADUBAÇÃO, que é o de menor custo
+            # dos dois e o que o próprio boletim recomenda; o de aluguel de
+            # pasto dá COE R$ 175,51/@ e COT R$ 245,54/@.
+            #
+            # Aritmética conferida: receita R$ 344,46/@ menos COE R$ 169,97 dá
+            # margem bruta de R$ 174,49 (publicada: 174,49) e menos COT
+            # R$ 240,00 dá margem líquida de R$ 104,46 (publicada: 104,46).
+            # Fecha ao centavo nas duas linhas.
+            "local": "Juara, MT", "uf": "MT", "ano": 2022,
+            "coe_arroba": 169.97,
+            "cot_arroba": 240.00,
+            "receita_arroba": 344.46,
+            "descricao": "400 vacas . 266 paridas . cria com adubação de pastagem",
+            "maiores_itens_pct": {"Manut. pastagem": 48.9, "Mao de obra": 16.0},
         },
         {
             # Único painel da base com os TRÊS níveis publicados, e o que

@@ -207,10 +207,15 @@ def custo_arroba_de_desembolso(desembolso_cab_mes: float,
 # multiplicador, com a derivação escrita:
 #
 #     painéis de cria não-extensivos   Altamira/PA  R$ 189,76/@
-#                                      Pelotas/RS   R$ 166,35/@   média 178,06
+#                                      Pelotas/RS   R$ 166,35/@
+#                                      Juara/MT     R$ 169,97/@   média 175,36
 #     painel de cria extensiva         Pantanal/MS  R$ 223,21/@   (0,30 UA/ha)
 #
-#     fator = 223,21 / 178,06 = 1,254
+#     fator = 223,21 / 175,36 = 1,273
+#
+# Era 1,254 com dois painéis. Entrou o de Juara/MT e a derivação mudou — o
+# teste que prende o fator à conta é que apontou, que é para isso que ele
+# existe.
 #
 # LIMITES DESTE NÚMERO, por escrito:
 #   · sai de UM par de comparação, na modalidade CRIA. Aplicá-lo às demais é
@@ -219,7 +224,7 @@ def custo_arroba_de_desembolso(desembolso_cab_mes: float,
 #     nativa); nem todo extensivo é tão caro
 #   · com um segundo painel extensivo em outra modalidade, isto vira uma média
 #     e deixa de ser extrapolação. É o próximo dado a procurar.
-FATOR_EXTENSIVO = 1.25
+FATOR_EXTENSIVO = 1.27
 
 # Perfis reconhecidos. 'media' e 'top' são medidos; 'extensivo' é derivado.
 PERFIS = ('extensivo', 'media', 'top')

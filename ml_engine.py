@@ -18,6 +18,7 @@ from sklearn import __version__ as _sklearn_version
 _log = logging.getLogger(__name__)
 warnings.filterwarnings('ignore')
 from services.pesos_rebanho import arrobas_categorias
+from services.benchmarks_nacionais import DESFRUTE_MODALIDADE as _FAIXAS_DESFRUTE
 from services.parametros_zootecnicos import (
     NATALIDADE_PCT, DESMAME_PCT,
     PESO_BOI_ARR, PESO_VACA_ARR, PESO_BEZERRA_ARR, PESO_GARROTE_ARR,
@@ -2098,13 +2099,13 @@ BENCHMARKS_RO = {
         # acompanhar DESFRUTE_MODALIDADE em benchmarks_nacionais.py — ver lá o
         # porquê e o conflito de fontes. Os dois precisam andar juntos: são o
         # mesmo limiar lido por caminhos diferentes.
+        # TERCEIRA cópia das mesmas faixas — havia esta, a de
+        # DESFRUTE_MODALIDADE e a de DESFRUTE_PCT. Ao corrigir as faixas contra
+        # os 19 painéis do Campo Futuro 2022, as três divergiram e os testes
+        # apontaram. Agora todas derivam de DESFRUTE_MODALIDADE.
         'teto_por_ciclo': {
-            'CRIA':            35.0,
-            'RECRIA':          55.0,
-            'ENGORDA':        120.0,
-            'CICLO_COMPLETO':  45.0,
-            'RECRIA_ENGORDA':  85.0,
-            'CRIA_RECRIA':     45.0,
+            **{mod: hi for mod, (_lo, hi) in _FAIXAS_DESFRUTE.items()},
+            'CRIA_RECRIA': _FAIXAS_DESFRUTE['CRIA'][1],
         },
     },
 }
