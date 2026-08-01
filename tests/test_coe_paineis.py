@@ -118,20 +118,47 @@ def test_a_faixa_nao_muda_com_a_praca():
 
 
 # ── A faixa não encobre custo alto de verdade ───────────────────────────────
-@pytest.mark.parametrize('modalidade,coe,minimo', [
-    ('RECRIA',         387.02, 100.0),   # a ficha real de 700 cabeças
-    ('CRIA',           249.60,  25.0),   # a cria de 1.705
-])
-def test_as_fichas_reais_continuam_sinalizadas(modalidade, coe, minimo):
+def test_a_recria_real_continua_sinalizada():
     """
     O risco de trocar ponto por faixa é afrouxar o aviso até ele nunca
-    disparar. Os dois rebanhos reais que motivaram o aviso seguem muito acima
-    do teto — a faixa absorveu ruído de praça, não custo alto.
+    disparar. A ficha real de recria de 700 cabeças roda a R$ 387,02/@ — mais
+    que o DOBRO do painel mais caro da modalidade. Nenhuma faixa plausível a
+    resgata, e é isso que este teste prende.
     """
-    r = avaliar_coe(modalidade, coe)
-    assert r['delta_pct'] >= minimo
-    assert r['delta_pct'] >= COE_DIVERGENCIA_AVISO
+    r = avaliar_coe('RECRIA', 387.02)
+    assert r['delta_pct'] >= 100.0
     assert r['nivel'] == 'alto'
+
+
+def test_a_cria_real_deixou_de_ser_desvio_quando_a_base_cresceu():
+    """
+    Este teste registra uma MUDANÇA DE CLASSIFICAÇÃO deliberada, não um
+    afrouxamento acidental — a versão anterior dele falhou quando o terceiro
+    painel entrou, e foi assim que a mudança apareceu.
+
+    A cria real de 1.705 cabeças roda a R$ 249,60/@:
+
+        contra Altamira/PA sozinha (189,76) ......... +31,5%  → avisava
+        contra a faixa de 3 painéis (166,35–223,21) . +11,8%  → não avisa
+
+    O que mudou não foi a fazenda: foi o que sabemos. O painel do Pantanal de
+    Corumbá (Embrapa CT 126) mede uma cria extensiva modal a R$ 223,21/@, com
+    lotação de 0,30 UA/ha. Uma fazenda 11,8% acima do sistema mais caro que já
+    medimos não é anomalia — é variação de sistema, e apontá-la seria o ruído
+    que o limiar de 25% existe para evitar.
+
+    Se um quarto painel mostrar cria acima de R$ 249, este número cai mais. Se
+    aparecer evidência de que R$ 223 é fora da curva, sobe. É para isso que a
+    faixa é derivada dos painéis e não escrita à mão.
+    """
+    r = avaliar_coe('CRIA', 249.60)
+    assert r['delta_pct'] == pytest.approx(11.8, abs=0.1)
+    assert r['delta_pct'] < COE_DIVERGENCIA_AVISO
+    assert r['nivel'] == 'atencao', 'deixou de avisar, mas não virou custo normal'
+
+    # E a fazenda que motivou tudo isso continua acima do teto — o aviso ficou
+    # mais exigente, não desligado.
+    assert avaliar_coe('CRIA', 223.21 * 1.30)['delta_pct'] >= COE_DIVERGENCIA_AVISO
 
 
 # ── O perímetro do custo ────────────────────────────────────────────────────
@@ -157,6 +184,51 @@ def test_a_composicao_do_painel_volta_junto():
     pa = avaliar_coe('CRIA', 178.0, uf='PA')['maiores_itens_pct']
     assert rs['Mao de obra'] == 42.9
     assert pa['Mao de obra'] == 18.2
+
+
+# ── Por que COE, e não o custo "completo" ───────────────────────────────────
+def test_o_painel_do_pantanal_guarda_os_tres_niveis():
+    """
+    Comparar custo em CT parece mais rigoroso e seria erro de crédito grave.
+    O painel do Pantanal de Corumbá publica os três níveis para a MESMA
+    fazenda modal, e a conta muda de sinal entre eles:
+
+        receita R$ 275,32/@   COE R$ 223,21/@  → margem bruta   positiva
+                              COT R$ 260,76/@  → margem líquida positiva
+                              CT  R$ 431,09/@  → prejuízo de R$ 1,66 mi/ano
+
+    Santos et al. (2014), sobre 193 propriedades modais em 13 estados que
+    concentram 90% do rebanho nacional: em mais de 90% delas a receita não
+    remunera o custo de oportunidade do capital — porque o ativo principal é a
+    TERRA, cuja valorização não entra na receita do ano.
+
+    Um analista que comparasse em CT reprovaria nove em cada dez fazendas
+    brasileiras. Crédito rural se paga com caixa, e COE é o nível do caixa.
+
+    Guardar os três aqui é o que torna essa escolha auditável em vez de
+    arbitrária — e o que impede alguém de "completar" o benchmark depois.
+    """
+    pantanal = [p for p in COE_PAINEIS['CRIA'] if p['uf'] == 'MS'][0]
+    assert pantanal['coe_arroba'] < pantanal['cot_arroba'] < pantanal['ct_arroba']
+    assert pantanal['coe_arroba'] == 223.21
+    assert pantanal['ct_arroba'] == 431.09
+
+    # A receita da fazenda cobre COE e COT, e não cobre CT. É esse cruzamento
+    # que decide qual nível serve de referência de crédito.
+    receita_arroba = 275.32
+    assert pantanal['coe_arroba'] < receita_arroba
+    assert pantanal['cot_arroba'] < receita_arroba
+    assert pantanal['ct_arroba']  > receita_arroba
+
+
+def test_a_comparacao_usa_o_nivel_coe_dos_paineis():
+    """
+    O teto da faixa da cria tem de ser o COE do Pantanal (223,21), nunca o COT
+    nem o CT. Se alguém trocar a chave lida, a faixa saltaria para 431,09 e o
+    aviso de custo praticamente nunca mais dispararia.
+    """
+    _, hi = avaliar_coe('CRIA', 200.0)['faixa_paineis']
+    assert hi == 223.21, 'a faixa deixou de ser medida em COE'
 
 
 # ── Integridade dos painéis ─────────────────────────────────────────────────

@@ -290,6 +290,27 @@ def avaliar_zootecnico(modalidade: str, indicadores: dict) -> list[dict]:
 # escrito aqui de propósito — acrescentar depreciação ao numerador "para ficar
 # mais completo" quebraria a comparação sem que nenhum teste falhasse.
 #
+# POR QUE COE, E NÃO O CUSTO "COMPLETO"
+#
+# Comparar em CT parece mais rigoroso e seria um erro de crédito grave. O
+# painel do Pantanal de Corumbá publica os três níveis para a mesma fazenda:
+#
+#     receita  R$ 275,32/@        COE  R$ 223,21/@   →  margem bruta   POSITIVA
+#                                 COT  R$ 260,76/@   →  margem líquida POSITIVA
+#                                 CT   R$ 431,09/@   →  lucro NEGATIVO em
+#                                                       R$ 1,66 milhão/ano
+#
+# Não é uma fazenda ruim: é uma fazenda modal. Santos et al. (2014), sobre 193
+# propriedades modais em 13 estados que concentram 90% do rebanho nacional,
+# acharam que em MAIS DE 90% delas a receita não remunera o custo de
+# oportunidade do capital investido — porque o ativo principal é a TERRA, cuja
+# valorização não entra na receita do ano.
+#
+# Um analista que comparasse custo em CT reprovaria nove em cada dez fazendas
+# brasileiras, e estaria medindo o preço da terra, não a capacidade de pagar.
+# O crédito rural se paga com CAIXA. COE é o nível que descreve caixa, e é por
+# isso que ele é o nosso.
+#
 # UM PAINEL NÃO É UM BENCHMARK NACIONAL
 #
 # Até aqui havia UM painel por modalidade, os três do Pará, e o sistema
@@ -335,6 +356,20 @@ COE_PAINEIS = {
             "coe_arroba": 166.35,
             "descricao": "250 ha . 100 matrizes . 56 animais comercializados/ano",
             "maiores_itens_pct": {"Mao de obra": 42.9, "Reposicao animais": 18.5},
+        },
+        {
+            # Único painel da base com os TRÊS níveis publicados, e o que
+            # justifica a escolha do nível COE — ver a nota logo abaixo.
+            # Embrapa Pantanal, Circular Técnica 126 (out/2024), dados de 2023.
+            # Metodologia painel Cepea/Famasul/Senar. Aritmética conferida: as
+            # três margens do documento reproduzem ao centavo a partir de
+            # receita R$ 2.930.387,26 e 10.643,45@ vendidas (arroba de carcaça).
+            "local": "Pantanal de Corumbá, MS", "uf": "MS", "ano": 2023,
+            "coe_arroba": 223.21,
+            "cot_arroba": 260.76,
+            "ct_arroba":  431.09,
+            "descricao": "10.000 ha . 4.657 cab . cria extensiva . 0,30 UA/ha",
+            "maiores_itens_pct": {"Mao de obra": 36.0, "Suplem. mineral": 28.0},
         },
     ],
     "RECRIA_ENGORDA": [
