@@ -1470,7 +1470,7 @@ def _simular_cria(
 
 def _simular_recria(
     v, cenario, mort_pct, preco_arroba, peso_entrada_arr, peso_saida_arr,
-    meses_recria, custo_arroba, anos,
+    meses_recria, custo_arroba, anos, preco_reposicao_cab=None,
 ):
     """
     Recria por coortes etárias.
@@ -1539,7 +1539,25 @@ def _simular_recria(
         compras = animais_sai
         n0_f, n0_m = 0.0, compras
 
-        custo_reposicao = (compras * TROCA_ARROBAS_BEZERRO * preco
+        # O MESMO animal precisa ser comprado e valorado pelo mesmo preço.
+        #
+        # O sistema precificava um bezerro desmamado de três formas: a compra
+        # pela relação de troca (9,26@ = R$ 2.963 com boi a R$ 320), o estoque
+        # de fechamento pelo peso da bezerra (6,00@ = R$ 1.920) e a cotação da
+        # interface (6,67@ × 1,05 = R$ 2.241). Nenhuma está errada em si — a
+        # relação de troca tem fonte de mercado e o peso é peso — mas usar
+        # bases diferentes nas duas pontas cria ou destrói valor no papel a
+        # cada reposição, sem que nada tenha acontecido na fazenda.
+        #
+        # Medido num caso real de 753 cabeças: R$ 1.043 por cabeça reposta,
+        # R$ 215.942 no ano 1, o bastante para inverter o sinal do resultado.
+        #
+        # Quando há cotação de bezerro do dia, ela vale para as duas pontas. A
+        # relação de troca fica como fallback — é referência de mercado, não
+        # cotação da praça, e só entra quando não há cotação.
+        _p_repo = (preco_reposicao_cab * m['preco'] if preco_reposicao_cab
+                   else TROCA_ARROBAS_BEZERRO * preco)
+        custo_reposicao = (compras * _p_repo
                            if _REPOSICAO_PRECIFICADA else 0.0)
         custo     = custo_manutencao + custo_reposicao
         resultado = receita - custo
@@ -1765,9 +1783,12 @@ def simular_cenario(
             rendimento_carcaca, _custo_engorda, dias_engorda, anos,
         )
     if ciclo == 'RECRIA':
+        # A cotação de bezerro do dia, quando existe, é a mesma dos dois lados
+        # — compra e estoque. Ver o comentário em _simular_recria.
         return _simular_recria(
             v, cenario, mort_pct, preco_arroba, peso_entrada_arr, peso_saida_arr,
             meses_recria, _custo_recria, anos,
+            preco_reposicao_cab=preco_bezerro_cab,
         )
     if ciclo == 'ENGORDA':
         return _simular_engorda(
