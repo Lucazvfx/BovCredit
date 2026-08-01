@@ -4,6 +4,8 @@ Módulo puro — não importa Flask nem DB. Recebe números já computados.
 """
 from __future__ import annotations
 
+import os
+
 from services.proveniencia import politica, catalogo, resumo as _resumo_prov
 
 # Faixas de política de crédito (DSCR) — ajustáveis, não são benchmark
@@ -16,6 +18,9 @@ DSCR_RESSALVA = politica(
     1.00, 'Política de crédito da instituição', rotulo='DSCR para ressalva')
 
 
+_CARENCIA_SEM_CAP = os.environ.get('CARENCIA_SEM_CAPITALIZACAO', '0') == '1'
+
+
 def parcela_price(pv: float, juros_aa: float, n_meses: int) -> float:
     """Parcela mensal por amortização Price. juros_aa nominal anual."""
     if n_meses <= 0 or pv <= 0:
@@ -24,6 +29,41 @@ def parcela_price(pv: float, juros_aa: float, n_meses: int) -> float:
     if i <= 0:
         return pv / n_meses
     return pv * i / (1 - (1 + i) ** (-n_meses))
+
+
+def principal_apos_carencia(pv: float, juros_aa: float,
+                            carencia_meses: int = 0) -> float:
+    """Principal no fim da carência, com os juros do período incorporados.
+
+    O sistema calculava a parcela sobre `prazo − carência` e mantinha o
+    principal parado, como se a carência fosse de graça. Não é: durante ela o
+    saldo devedor rende juros, e quem amortiza depois amortiza um saldo maior.
+
+    Medido num crédito de R$ 1.000.000, 36 meses, 12 de carência a 12,5% a.a.:
+
+        parcela antes ....... R$ 46.997
+        parcela correta ..... R$ 52.871      a parcela precisa subir 12,5%
+
+    A parcela saía 11,1% abaixo do devido e o DSCR subia na mesma proporção —
+    ou seja, o erro corria a favor de APROVAR. E carência é padrão em custeio
+    pecuário, então o caso não é raro.
+
+    A OUTRA CONVENÇÃO, que existe e não é esta
+
+    Há linhas em que o tomador PAGA os juros durante a carência, e só o
+    principal fica suspenso. Nelas o saldo não cresce e a parcela de
+    amortização é a de antes — mas há desembolso de juros nos meses da
+    carência, que este modelo também não representava.
+
+    Adotada a capitalização por ser a estrutura corrente em custeio e a mais
+    conservadora das duas: superestimar a parcela erra contra aprovar, que é o
+    lado seguro num produto de crédito. `CARENCIA_SEM_CAPITALIZACAO=1` volta ao
+    comportamento anterior.
+    """
+    if pv <= 0 or carencia_meses <= 0 or juros_aa <= 0 or _CARENCIA_SEM_CAP:
+        return max(pv, 0.0)
+    i = (1 + juros_aa) ** (1 / 12) - 1
+    return pv * (1 + i) ** carencia_meses
 
 
 def credito_maximo(
@@ -50,7 +90,13 @@ def credito_maximo(
     i = (1 + juros_aa) ** (1 / 12) - 1
     if i <= 0:
         return round(parcela_max * n, 2)
-    return round(parcela_max * (1 - (1 + i) ** (-n)) / i, 2)
+    pv_no_fim_da_carencia = parcela_max * (1 - (1 + i) ** (-n)) / i
+    # Desconta a capitalização: o valor LIBERADO hoje é menor que o saldo que
+    # será amortizado. Sem isto o crédito máximo ficaria acima do que a mesma
+    # geração de caixa aguenta, e as duas funções — que são uma o inverso da
+    # outra — passariam a discordar.
+    fator = (1 + i) ** carencia_meses if (carencia_meses > 0 and not _CARENCIA_SEM_CAP) else 1.0
+    return round(pv_no_fim_da_carencia / fator, 2)
 
 
 def avaliar_capacidade_pagamento(
@@ -62,13 +108,22 @@ def avaliar_capacidade_pagamento(
     dividas_mensais: float = 0.0,
 ) -> dict:
     n = max(prazo_meses - carencia_meses, 0)
-    parcela = parcela_price(credito_valor, juros_aa, n)
+    # O principal cresce durante a carência — ver principal_apos_carencia.
+    _pv = principal_apos_carencia(credito_valor, juros_aa, carencia_meses)
+    parcela = parcela_price(_pv, juros_aa, n)
+    _cap_carencia = ({
+        'carencia_meses':       carencia_meses,
+        'principal_liberado':   round(credito_valor, 2),
+        'principal_amortizado': round(_pv, 2),
+        'acrescimo_pct':        round((_pv / credito_valor - 1) * 100, 1),
+    } if _pv > credito_valor > 0 else None)
     servico_anual = 12 * (parcela + max(dividas_mensais, 0.0))
     cap_max = credito_maximo(geracao_caixa_anual, juros_aa, prazo_meses,
                              carencia_meses, dividas_mensais)
 
     if servico_anual <= 0:
         return {'dscr': None, 'parcela_mensal': round(parcela, 2),
+                'capitalizacao_carencia': _cap_carencia,
                 'servico_divida_anual': 0.0,
                 'geracao_caixa_anual': round(geracao_caixa_anual, 2),
                 'capacidade_maxima': cap_max,
@@ -89,6 +144,7 @@ def avaliar_capacidade_pagamento(
             'servico_divida_anual': round(servico_anual, 2),
             'geracao_caixa_anual': round(geracao_caixa_anual, 2),
             'capacidade_maxima': cap_max,
+            'capitalizacao_carencia': _cap_carencia,
             'recomendacao': rec, 'faixa': rec, 'justificativa': just}
 
 
@@ -141,6 +197,22 @@ def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list,
         'detalhe': f'Parcela de {_fmt_rs(base["parcela_mensal"])} × 12, '
                    f'somada a dívidas já existentes.',
     }]
+    # A carência não é gratuita, e o parecer precisa dizer isso: o saldo rende
+    # juros durante ela e a parcela seguinte amortiza um principal maior. Sem
+    # esta linha, o analista vê uma parcela mais alta do que a conta ingênua
+    # dele daria e não tem como saber de onde veio a diferença.
+    _cap = base.get('capitalizacao_carencia')
+    if _cap:
+        memoria.append({
+            'passo':   'Carência capitaliza juros',
+            'valor':   f'{_fmt_rs(_cap["principal_liberado"])} → '
+                       f'{_fmt_rs(_cap["principal_amortizado"])}',
+            'detalhe': f'Durante os {_cap["carencia_meses"]} meses de carência o '
+                       f'saldo rende juros e é incorporado ao principal '
+                       f'(+{_cap["acrescimo_pct"]:.1f}%). A amortização recai '
+                       f'sobre o saldo maior, então a parcela sobe na mesma '
+                       f'proporção.',
+        })
     for ano, d in dscrs:
         res = next((a.get('resultado') for a in avaliados if a['ano'] == ano), None)
         nota = ('liquida o estoque de animais prontos declarado na ficha'
