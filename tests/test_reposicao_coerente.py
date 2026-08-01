@@ -84,11 +84,20 @@ def test_a_diferenca_entre_as_duas_bases_e_material():
     sem = _ano1()
     com = _ano1(preco_bezerro_cab=COTACAO_BEZERRO)
     assert sem['compras'] == com['compras'], 'o volume não pode mudar'
+
     delta = sem['custo_reposicao'] - com['custo_reposicao']
     assert delta > 100_000, f'diferença de apenas R$ {delta:,.0f}'
-    assert sem['resultado'] < 0 < com['resultado'], (
-        'o caso precisa ser aquele em que a base inverte o sinal do resultado'
-    )
+
+    # A diferença de custo tem de aparecer INTEIRA no resultado — nada da
+    # troca de base pode se perder pelo caminho.
+    #
+    # A primeira versão deste teste prendia "o resultado inverte de sinal".
+    # Isso era artefato da configuração de peso da recria vigente na época
+    # (saída a 18@), não a propriedade em teste: quando o peso de saída foi
+    # corrigido para 13,5@, a receita caiu e os dois lados ficaram negativos
+    # sem que nada da coerência de preço tivesse mudado. A asserção abaixo
+    # mede o que o teste sempre quis medir e não depende do peso.
+    assert com['resultado'] - sem['resultado'] == pytest.approx(delta, rel=0.01)
 
 
 def test_reposicao_desligada_nao_cobra_nada():
