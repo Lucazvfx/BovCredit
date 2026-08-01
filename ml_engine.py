@@ -664,9 +664,16 @@ def classificar(
     #   vaca de cria vive de 8 a 10 anos e SE ACUMULA acima dos 36 meses
     #   fêmea de recria é vendida ANTES de parir, e essa faixa fica vazia
     #
-    # Medido (fêmeas >36m ÷ fêmeas 25–36m): Vale do Coco 0,02 · ficha real de
+        # Medido (fêmeas >36m ÷ fêmeas 25–36m): Vale do Coco 0,02 · ficha real de
     # recria 1,31 · cria de teste 1,89 · cria sintética 5,00. Duas ordens de
     # grandeza de separação.
+    #
+    # A escolha dos 36 meses como corte não é arbitrária: a Embrapa Gado de
+    # Corte apurou IDADE MÉDIA À PRIMEIRA PARIÇÃO DE 36,3 MESES em 468
+    # matrizes Nelore no Brasil Central, criadas a pasto. Ou seja, a fêmea da
+    # faixa de 25–36m ainda NÃO PARIU — contá-la como matriz projeta bezerro
+    # que ainda não existe. Ver IDADE_PRIMEIRA_PARICAO_MESES em
+    # services/parametros_zootecnicos.py, com a fonte registrada.
     _f25_F, _fac_F = float(va[6]), float(va[8])
     _razao_madura = (_fac_F / _f25_F) if _f25_F > 0 else float('inf')
     if tipo in ('CRIA', 'CRIA_RECRIA') and (

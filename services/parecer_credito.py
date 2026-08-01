@@ -281,6 +281,10 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
         DESFRUTE_PCT, NATALIDADE_PCT, DESMAME_PCT, MORTALIDADE_PCT,
         MORTALIDADE_ADULTO_PCT, MORTALIDADE_BEZERRA_PCT,
         RENDIMENTO_CARCACA_PCT, GANHO_ARROBA_MES,
+        # Primeiras medições de terceiro do projeto (Embrapa Gado de Corte).
+        IDADE_PRIMEIRA_PARICAO_MESES, TAXA_PRENHEZ_MEDIDA_PCT,
+        PESO_DESMAMA_MACHO_KG, PESO_DESMAMA_FEMEA_KG,
+        PESO_FEMEA_REPOSICAO_KG,
     )
     from services.garantia import DESAGIO_PADRAO, LTV_APROVAR, LTV_RESSALVA
     from services.endividamento import COMPROMETIMENTO_ALERTA
@@ -293,6 +297,12 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
         NATALIDADE_PCT, DESMAME_PCT, MORTALIDADE_PCT,
         MORTALIDADE_ADULTO_PCT, MORTALIDADE_BEZERRA_PCT,
         RENDIMENTO_CARCACA_PCT, GANHO_ARROBA_MES,
+        # Não substituem os parâmetros de projeção — entram para o parecer
+        # mostrar contra o que a projeção está ancorada, e para o contador de
+        # proveniência deixar de reportar "0 medidos".
+        IDADE_PRIMEIRA_PARICAO_MESES, TAXA_PRENHEZ_MEDIDA_PCT,
+        PESO_DESMAMA_MACHO_KG, PESO_DESMAMA_FEMEA_KG,
+        PESO_FEMEA_REPOSICAO_KG,
     )
     proveniencia = {'parametros': _cat, 'resumo': _resumo_prov(_cat)}
 
