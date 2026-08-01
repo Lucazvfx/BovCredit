@@ -1244,7 +1244,12 @@ def api_classificar():
     if _arrobas_reais > 0:
         _coe_calc = fluxo_gep['custo_operacional'] / _arrobas_reais
         fluxo_gep['coe_por_arroba']    = round(_coe_calc, 2)
-        fluxo_gep['coe_benchmark']     = _avaliar_coe(result.get('tipo', 'CICLO_COMPLETO'), _coe_calc)
+        # A UF vem do bloco de preço da praça, que já resolveu município → UF.
+        # Sem ela o painel de referência cai no primeiro da modalidade, e um
+        # produtor de RO era confrontado com Paragominas/PA.
+        fluxo_gep['coe_benchmark']     = _avaliar_coe(
+            result.get('tipo', 'CICLO_COMPLETO'), _coe_calc,
+            uf=(precos_regional or {}).get('uf'))
         fluxo_gep['arrobas_vendidas']  = round(_arrobas_reais, 1)
     else:
         fluxo_gep['coe_por_arroba']   = None

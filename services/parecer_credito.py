@@ -362,21 +362,44 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
     _coe = (fluxo_gep or {}).get('coe_benchmark') or {}
     _delta = _coe.get('delta_pct')
     if _delta is not None and _delta >= COE_DIVERGENCIA_AVISO:
+        # A referência é a FAIXA entre os painéis publicados da modalidade, não
+        # um ponto: com dois painéis o delta mede quanto o custo passa do teto,
+        # e uma fazenda entre eles não é apontada. Com um painel só, a faixa
+        # degenera no ponto — e o texto precisa dizer isso, senão promete uma
+        # dispersão que não existe.
+        _faixa = _coe.get('faixa_paineis')
+        _n     = _coe.get('n_paineis') or 1
+        if _faixa and _n > 1:
+            _lo, _hi = _faixa
+            _contra = (f'a faixa de R$ {_lo:.2f}–{_hi:.2f}/@ observada em '
+                       f'{_n} painéis')
+            _valor  = (f'{_delta:+.1f}% acima do teto · R$ '
+                       f'{_coe.get("coe_calculado", 0):.2f}/@ contra teto de '
+                       f'R$ {_hi:.2f}/@')
+        else:
+            _contra = (f'a referência de R$ {_coe.get("coe_referencia", 0):.2f}/@ '
+                       f'({_coe.get("local_ref") or "a praça"})')
+            _valor  = (f'{_delta:+.1f}% · R$ {_coe.get("coe_calculado", 0):.2f}/@ '
+                       f'contra R$ {_coe.get("coe_referencia", 0):.2f}/@')
+
         conclusao.setdefault('memoria', []).append({
             'passo':   'Custo acima da referência da praça',
-            'valor':   f'{_delta:+.1f}% · R$ {_coe.get("coe_calculado", 0):.2f}/@ '
-                       f'contra R$ {_coe.get("coe_referencia", 0):.2f}/@',
-            'detalhe': (f'O custo aplicado está {_delta:.1f}% acima da referência '
-                        f'{_coe.get("fonte") or "Campo Futuro/CNA"} para '
-                        f'{_coe.get("local_ref") or "a praça"}. Confira o custo antes '
-                        f'de aceitar esta conclusão: se ele estiver superestimado, '
-                        f'a geração de caixa e o DSCR estão subestimados na mesma '
-                        f'proporção.'),
+            'valor':   _valor,
+            'detalhe': (f'O custo aplicado está {_delta:.1f}% acima de {_contra} '
+                        f'({_coe.get("fonte") or "Campo Futuro/CNA"}; painel mais '
+                        f'próximo: {_coe.get("local_ref") or "n/d"}). A comparação é '
+                        f'de COE contra COE — custo de desembolso, incluindo compra '
+                        f'de animais, sem depreciação nem remuneração do capital. '
+                        f'Confira o custo antes de aceitar esta conclusão: se ele '
+                        f'estiver superestimado, a geração de caixa e o DSCR estão '
+                        f'subestimados na mesma proporção.'),
         })
         conclusao['custo_fora_da_referencia'] = {
             'delta_pct':  round(_delta, 1),
             'calculado':  _coe.get('coe_calculado'),
             'referencia': _coe.get('coe_referencia'),
+            'faixa':      _faixa,
+            'n_paineis':  _n,
             'local':      _coe.get('local_ref'),
             'fonte':      _coe.get('fonte'),
         }

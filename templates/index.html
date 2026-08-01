@@ -2231,21 +2231,37 @@ function renderParecer(data){
       ${(() => {
         const cb = gep.coe_benchmark;
         if(!cb) return '';
-        const NCOR = {excelente:'var(--g)',bom:'var(--cy)',atencao:'var(--am)',alto:'var(--rd)'};
-        const NLBL = {excelente:'Excelente',bom:'Bom',atencao:'Atenção',alto:'Acima'};
+        const NCOR = {excelente:'var(--g)',bom:'var(--cy)',dentro:'var(--cy)',atencao:'var(--am)',alto:'var(--rd)'};
+        const NLBL = {excelente:'Excelente',bom:'Bom',dentro:'Na faixa',atencao:'Atenção',alto:'Acima'};
         const cor = NCOR[cb.nivel] || 'var(--mu)';
-        const sinal = cb.delta_pct >= 0 ? '+' : '';
+        // A referência é a faixa entre os painéis publicados da modalidade.
+        // Com um painel só a faixa degenera no ponto — e aí mostra-se o ponto,
+        // porque anunciar "faixa" onde há uma medição só promete uma dispersão
+        // que ninguém apurou.
+        const temFaixa = cb.faixa_paineis && (cb.n_paineis || 1) > 1;
+        const rotuloRef = temFaixa
+          ? `Faixa Campo Futuro (${cb.n_paineis} painéis)`
+          : 'Referência Campo Futuro';
+        const valorRef = temFaixa
+          ? `${fR(cb.faixa_paineis[0])} – ${fR(cb.faixa_paineis[1])}`
+          : fR(cb.coe_referencia);
+        // Dentro da faixa o delta é zero por construção: dizer "+0% vs teto"
+        // parece precisão e é só ruído.
+        const veredito = cb.delta_pct > 0
+          ? `<span style="font-size:.8rem">+${cb.delta_pct}% ${temFaixa ? 'do teto' : 'vs ref'}</span>`
+          : '';
         return `<div style="margin-top:8px;background:var(--c);border-radius:8px;border:1px solid var(--b);padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div style="flex:1;min-width:160px">
             <div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">COE calculado (R$/@·vendida)</div>
             <div style="font-family:var(--fn);font-weight:800;font-size:1.3rem;color:${cor}">${fR(cb.coe_calculado)}</div>
+            <div style="font-family:var(--fm);font-size:.55rem;color:var(--mu)">${cb.base || ''}</div>
           </div>
           <div style="flex:1;min-width:160px">
-            <div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">Referência Campo Futuro 2025</div>
-            <div style="font-family:var(--fn);font-weight:700;font-size:1rem;color:var(--sb)">${fR(cb.coe_referencia)}<span style="font-family:var(--fm);font-size:.65rem;color:var(--mu);font-weight:400;margin-left:6px">${cb.local_ref}</span></div>
+            <div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">${rotuloRef}</div>
+            <div style="font-family:var(--fn);font-weight:700;font-size:1rem;color:var(--sb)">${valorRef}<span style="font-family:var(--fm);font-size:.65rem;color:var(--mu);font-weight:400;margin-left:6px">${temFaixa ? 'praça: ' : ''}${cb.local_ref}</span></div>
           </div>
           <div style="text-align:right">
-            <div style="font-family:var(--fn);font-weight:800;font-size:1rem;color:${cor}">${NLBL[cb.nivel]||''} <span style="font-size:.8rem">${sinal}${cb.delta_pct}% vs ref</span></div>
+            <div style="font-family:var(--fn);font-weight:800;font-size:1rem;color:${cor}">${NLBL[cb.nivel]||''} ${veredito}</div>
             <div style="font-family:var(--fm);font-size:.57rem;color:var(--mu)">${cb.fonte}</div>
           </div>
         </div>`;

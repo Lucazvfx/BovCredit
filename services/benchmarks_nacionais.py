@@ -267,32 +267,109 @@ def avaliar_zootecnico(modalidade: str, indicadores: dict) -> list[dict]:
     return resultado
 
 
-# --- COE R$/@ vendida — Campo Futuro / CNA Brasil (agosto 2025, Para) ---------
-# Paineis realizados em 3 municipios do PA. Unidade: R$/arroba VENDIDA.
-# COE = Custo Operacional Efetivo / total de arrobas comercializadas no ano.
-# O sistema converte: coe_calculado = custo_operacional / arrobas_vendidas_est
-# onde arrobas_vendidas_est ~= receita_vendas / preco_arroba_ref.
-COE_CAMPO_FUTURO = {
-    "CICLO_COMPLETO": {
-        "local": "Santana do Araguaia, PA",
-        "coe_arroba": 164.61,
-        "descricao": "5.100 cab . ciclo completo (cria + recria + engorda)",
-        "maiores_itens_pct": {"Suplem. mineral": 51.3, "Mao de obra": 16.5},
-    },
-    "CRIA": {
-        "local": "Altamira, PA",
-        "coe_arroba": 189.76,
-        "descricao": "150 matrizes . producao de bezerros",
-        "maiores_itens_pct": {"Mao de obra": 18.2, "Suplem. mineral": 15.4},
-    },
-    "RECRIA_ENGORDA": {
-        "local": "Paragominas, PA",
-        "coe_arroba": 183.50,
-        "descricao": "500 ha pastagem . recria e terminacao a pasto",
-        "maiores_itens_pct": {"Reposicao animais": 62.2, "Suplem. mineral": 10.5},
-    },
+# --- COE R$/@ vendida — Campo Futuro / CNA Brasil ----------------------------
+#
+# QUAL CUSTO É ESTE, EXATAMENTE
+#
+# A metodologia Campo Futuro/Cepea separa três níveis, e confundi-los é o erro
+# mais comum na análise de custo pecuário:
+#
+#   COE  Custo Operacional Efetivo — só o DESEMBOLSO. Tudo que o produtor paga
+#        a alguém e sai do caixa: alimentação, sanidade, mão de obra, impostos
+#        e a AQUISIÇÃO DE ANIMAIS (que costuma ser o maior item de todos numa
+#        recria/engorda).
+#   COT  Custo Operacional Total — COE + depreciação (benfeitorias, máquinas,
+#        matrizes e reprodutores) + pró-labore. Depreciação não é desembolso:
+#        o produtor não paga a ninguém, guarda para repor no fim da vida útil.
+#   CT   Custo Total — COT + remuneração do capital empatado em terra,
+#        benfeitorias, máquinas e animais.
+#
+# O NOSSO numerador é `custo_operacional` do fluxo GEP, que é custo de caixa e
+# inclui a compra de animais (`custo_manutencao + custo_reposicao` na
+# simulação). Ou seja: comparamos COE contra COE, mesmo perímetro. Isto está
+# escrito aqui de propósito — acrescentar depreciação ao numerador "para ficar
+# mais completo" quebraria a comparação sem que nenhum teste falhasse.
+#
+# UM PAINEL NÃO É UM BENCHMARK NACIONAL
+#
+# Até aqui havia UM painel por modalidade, os três do Pará, e o sistema
+# comparava a fazenda contra aquele ponto — dissesse ela ser de Rondônia ou do
+# Rio Grande do Sul. Com um segundo painel por modalidade fica visível o que um
+# ponto escondia: a MESMA metodologia, no MESMO sistema, dá números e
+# composições bem diferentes conforme a praça.
+#
+#   CRIA             Altamira/PA  R$ 189,76/@   mão de obra 18,2%
+#                    Pelotas/RS   R$ 166,35/@   mão de obra 42,9%
+#   RECRIA_ENGORDA   Paragominas/PA R$ 183,50/@ reposição 62,2%
+#                    Colorado d'Oeste/RO R$ 171,88/@ aquisição 51,6%
+#
+# O custo por arroba varia ~7% entre painéis da mesma modalidade, mas a
+# COMPOSIÇÃO varia muito mais: mão de obra pesa 18,2% na cria paraense e 42,9%
+# na gaúcha. Quem lê só o total não vê isso.
+#
+# Consequência para o parecer: a comparação passa a ser contra a FAIXA
+# observada, não contra um ponto, e só o que passa do teto da faixa conta como
+# "acima da praça". Uma fazenda entre os dois painéis não está fora de lugar
+# nenhum — está entre duas realidades igualmente reais.
+#
+# Unidade: R$/arroba VENDIDA. O sistema converte
+# `coe_calculado = custo_operacional / arrobas_vendidas`.
+COE_PAINEIS = {
+    "CICLO_COMPLETO": [
+        {
+            "local": "Santana do Araguaia, PA", "uf": "PA", "ano": 2025,
+            "coe_arroba": 164.61,
+            "descricao": "5.100 cab . ciclo completo (cria + recria + engorda)",
+            "maiores_itens_pct": {"Suplem. mineral": 51.3, "Mao de obra": 16.5},
+        },
+    ],
+    "CRIA": [
+        {
+            "local": "Altamira, PA", "uf": "PA", "ano": 2025,
+            "coe_arroba": 189.76,
+            "descricao": "150 matrizes . producao de bezerros",
+            "maiores_itens_pct": {"Mao de obra": 18.2, "Suplem. mineral": 15.4},
+        },
+        {
+            "local": "Pelotas, RS", "uf": "RS", "ano": 2024,
+            "coe_arroba": 166.35,
+            "descricao": "250 ha . 100 matrizes . 56 animais comercializados/ano",
+            "maiores_itens_pct": {"Mao de obra": 42.9, "Reposicao animais": 18.5},
+        },
+    ],
+    "RECRIA_ENGORDA": [
+        {
+            "local": "Paragominas, PA", "uf": "PA", "ano": 2025,
+            "coe_arroba": 183.50,
+            "descricao": "500 ha pastagem . recria e terminacao a pasto",
+            "maiores_itens_pct": {"Reposicao animais": 62.2, "Suplem. mineral": 10.5},
+        },
+        {
+            "local": "Colorado d'Oeste, RO", "uf": "RO", "ano": 2024,
+            "coe_arroba": 171.88,
+            "descricao": "recria e engorda em semiconfinamento . 100 cab abatidas/ano",
+            "maiores_itens_pct": {"Aquisicao animais": 51.6, "Alimentacao": 19.8},
+        },
+    ],
 }
-FONTE_COE = "Campo Futuro / CNA Brasil, agosto 2025 (Para)"
+
+# Compatibilidade: o painel de referência (o primeiro) por modalidade. Código
+# antigo que lia um ponto continua lendo um ponto.
+COE_CAMPO_FUTURO = {mod: paineis[0] for mod, paineis in COE_PAINEIS.items()}
+
+FONTE_COE = "Campo Futuro / CNA Brasil (paineis PA 2025, RO e RS 2024)"
+
+# Vizinhança por região: quando não há painel na UF da fazenda, um painel da
+# mesma região é comparação mais honesta que um do outro extremo do país. As
+# UFs sem painel caem no mais próximo pela região; sem isso, na faixa inteira.
+_REGIAO_UF = {
+    "N":  {"AC", "AM", "AP", "PA", "RO", "RR", "TO"},
+    "NE": {"AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE"},
+    "CO": {"DF", "GO", "MS", "MT"},
+    "SE": {"ES", "MG", "RJ", "SP"},
+    "S":  {"PR", "RS", "SC"},
+}
+_UF_REGIAO = {uf: reg for reg, ufs in _REGIAO_UF.items() for uf in ufs}
 
 
 def posicao_valor(valor: float, lo: float, hi: float) -> str:
@@ -387,36 +464,100 @@ def avaliar_desembolso(modalidade: str, valor_real: float) -> dict | None:
     }
 
 
-def avaliar_coe(modalidade: str, coe_calculado: float) -> dict | None:
-    """Compara o COE calculado (R$/@ vendida) com referencia Campo Futuro 2025.
+def paineis_coe(modalidade: str) -> list:
+    """Painéis Campo Futuro da modalidade, ou lista vazia se não houver.
 
-    coe_calculado = custo_operacional_anual / arrobas_vendidas_estimadas
-    Referencia e para sistemas extensivos do Para - serve como piso de
-    comparacao; sistemas mais intensivos tendem a ter COE maior.
+    RECRIA e ENGORDA isoladas caem no painel de RECRIA_ENGORDA: os painéis
+    publicados tratam as duas fases juntas, que é como a maioria das fazendas
+    de reposição opera.
     """
-    ref_key = modalidade if modalidade in COE_CAMPO_FUTURO else (
+    chave = modalidade if modalidade in COE_PAINEIS else (
         "RECRIA_ENGORDA" if modalidade in ("RECRIA", "ENGORDA") else None
     )
-    ref = COE_CAMPO_FUTURO.get(ref_key) if ref_key else None
-    if ref is None or coe_calculado <= 0:
+    return list(COE_PAINEIS.get(chave, ())) if chave else []
+
+
+def _painel_da_praca(paineis: list, uf: str | None) -> dict:
+    """Painel mais próximo da praça: mesma UF > mesma região > o primeiro.
+
+    Comparar a fazenda com o painel da própria praça não muda muito o número
+    (a dispersão entre painéis é de ~7%), mas muda o que o analista lê: um
+    parecer que confronta uma fazenda rondoniense com Paragominas/PA soa
+    errado mesmo quando o valor está certo, e um analista que desconfia da
+    referência para de usar o aviso.
+    """
+    uf = (uf or "").strip().upper()
+    if uf:
+        for p in paineis:
+            if p["uf"] == uf:
+                return p
+        regiao = _UF_REGIAO.get(uf)
+        if regiao:
+            for p in paineis:
+                if _UF_REGIAO.get(p["uf"]) == regiao:
+                    return p
+    return paineis[0]
+
+
+def avaliar_coe(modalidade: str, coe_calculado: float,
+                uf: str | None = None) -> dict | None:
+    """Compara o COE calculado (R$/@ vendida) com os painéis Campo Futuro.
+
+    `coe_calculado = custo_operacional_anual / arrobas_vendidas`. Numerador e
+    referência são ambos COE — custo de DESEMBOLSO, incluindo compra de
+    animais, sem depreciação nem remuneração do capital (ver o cabeçalho de
+    COE_PAINEIS).
+
+    A comparação é contra a FAIXA entre os painéis da modalidade, não contra um
+    ponto: `delta_pct` mede quanto o custo passa do TETO da faixa. Dentro da
+    faixa o delta é zero — a fazenda está entre dois painéis reais, e não há o
+    que apontar.
+
+    Args:
+        modalidade: CRIA, RECRIA, ENGORDA, RECRIA_ENGORDA ou CICLO_COMPLETO.
+        coe_calculado: COE da fazenda, em R$/arroba vendida.
+        uf: UF da fazenda, para escolher o painel da praça mais próxima.
+
+    Returns:
+        Dict com o comparativo, ou None se não houver painel para a
+        modalidade ou o COE calculado não for positivo.
+    """
+    paineis = paineis_coe(modalidade)
+    if not paineis or coe_calculado <= 0:
         return None
-    coe_ref = ref["coe_arroba"]
-    delta_pct = (coe_calculado - coe_ref) / coe_ref * 100
-    if coe_calculado <= coe_ref * 0.90:
+
+    ref = _painel_da_praca(paineis, uf)
+    valores = [p["coe_arroba"] for p in paineis]
+    faixa_lo, faixa_hi = min(valores), max(valores)
+
+    if coe_calculado > faixa_hi:
+        delta_pct = (coe_calculado - faixa_hi) / faixa_hi * 100
+    else:
+        delta_pct = 0.0
+
+    if coe_calculado <= faixa_lo * 0.90:
         nivel = "excelente"
-    elif coe_calculado <= coe_ref:
+    elif coe_calculado <= faixa_lo:
         nivel = "bom"
-    elif coe_calculado <= coe_ref * 1.20:
+    elif coe_calculado <= faixa_hi:
+        nivel = "dentro"          # entre dois painéis publicados
+    elif coe_calculado <= faixa_hi * 1.20:
         nivel = "atencao"
     else:
         nivel = "alto"
+
     return {
         "coe_calculado":  round(coe_calculado, 2),
-        "coe_referencia": coe_ref,
+        "coe_referencia": ref["coe_arroba"],
+        "faixa_paineis":  (faixa_lo, faixa_hi),
+        "n_paineis":      len(paineis),
         "local_ref":      ref["local"],
+        "uf_ref":         ref["uf"],
         "descricao_ref":  ref["descricao"],
+        "maiores_itens_pct": dict(ref["maiores_itens_pct"]),
         "delta_pct":      round(delta_pct, 1),
         "nivel":          nivel,
+        "base":           "COE (desembolso, inclui compra de animais)",
         "fonte":          FONTE_COE,
     }
 
