@@ -87,6 +87,47 @@ RAZAO_MATRIZ_MADURA_CRIA = 0.50
 # recalibração quando houver mais fichas; a estrutura, não.
 _FRAC_VENDA_RECRIA_M = float(os.environ.get('FRAC_VENDA_RECRIA_M', '0.83'))
 
+# ── A fronteira entre recria e engorda ───────────────────────────────────────
+#
+# O memorial §16 configurava recria de 10@ a 18@ (300 → 540 kg vivo) e engorda
+# de 300 a 520 kg. As duas COMEÇAVAM no mesmo peso e terminavam a uma arroba de
+# distância: eram a mesma fase com dois nomes, e a recria vendia o animal como
+# se o tivesse terminado.
+#
+# O argumento que dispensa fonte externa é definicional. Compre Rural, e é a
+# definição corrente: "recria ocorre da desmama até o início da reprodução nas
+# fêmeas ou até o INÍCIO DA FASE DE ENGORDA nos machos". A saída da recria É a
+# entrada da engorda — não pode haver sobreposição.
+#
+# Os números escolhidos, com as fontes:
+#
+#   entrada da recria = desmama.  Rehagro dá 6–8@; a Embrapa mediu 177 kg
+#     (macho) e 162 kg (fêmea) à desmama, que a 50% de rendimento são 5,4–5,9@.
+#     6,5@ (195 kg vivo) fica no encontro dos dois.
+#
+#   saída da recria.  Rehagro dá 13–14@ explicitamente em arroba; Premix dá
+#     360–450 kg vivo, que são 12–15@. 13,5@ (405 kg) é o centro dos dois.
+#
+#   entrada da engorda = saída da recria, por definição. Sobe de 300 para
+#     405 kg. A saída da engorda (520 kg) fica como está — é realista e
+#     nenhuma fonte a contesta.
+#
+# IMPACTO MEDIDO, ficha real de recria de 700 cabeças: a receita do ano 1 cai
+# de R$ 1.662.671 para R$ 1.247.003 (−25%) e o resultado vira de +R$ 248.719
+# para −R$ 77.174. É correção grande e vai na direção de NEGAR, ao contrário
+# dos outros defeitos conhecidos, que todos erravam a favor de aprovar.
+#
+# CONFLITO DE FONTE, declarado: o 10@/18@ vem do memorial §16, material do
+# próprio projeto — não é chute. Contra ele há cinco fontes externas e a
+# incoerência interna. A ficha real de 700 cabeças validou o VOLUME de vendas
+# (304 contra 315), nunca a receita, então a suíte não cobre esta escolha.
+#
+# Reversível: PESO_RECRIA_MEMORIAL=1 volta ao par 10@/18@ e à engorda a 300 kg.
+_PESO_MEMORIAL = os.environ.get('PESO_RECRIA_MEMORIAL', '0') == '1'
+_PESO_ENTRADA_RECRIA_ARR = 10.0 if _PESO_MEMORIAL else 6.5
+_PESO_SAIDA_RECRIA_ARR   = 18.0 if _PESO_MEMORIAL else 13.5
+_PESO_ENTRADA_ENGORDA_KG = 300.0 if _PESO_MEMORIAL else 405.0
+
 # ==================================================================
 # CONSTANTES GLOBAIS
 # ==================================================================
@@ -1470,7 +1511,7 @@ def _simular_cria(
 
 def _simular_recria(
     v, cenario, mort_pct, preco_arroba, peso_entrada_arr, peso_saida_arr,
-    meses_recria, custo_arroba, anos,
+    meses_recria, custo_arroba, anos, preco_reposicao_cab=None,
 ):
     """
     Recria por coortes etárias.
@@ -1539,7 +1580,25 @@ def _simular_recria(
         compras = animais_sai
         n0_f, n0_m = 0.0, compras
 
-        custo_reposicao = (compras * TROCA_ARROBAS_BEZERRO * preco
+        # O MESMO animal precisa ser comprado e valorado pelo mesmo preço.
+        #
+        # O sistema precificava um bezerro desmamado de três formas: a compra
+        # pela relação de troca (9,26@ = R$ 2.963 com boi a R$ 320), o estoque
+        # de fechamento pelo peso da bezerra (6,00@ = R$ 1.920) e a cotação da
+        # interface (6,67@ × 1,05 = R$ 2.241). Nenhuma está errada em si — a
+        # relação de troca tem fonte de mercado e o peso é peso — mas usar
+        # bases diferentes nas duas pontas cria ou destrói valor no papel a
+        # cada reposição, sem que nada tenha acontecido na fazenda.
+        #
+        # Medido num caso real de 753 cabeças: R$ 1.043 por cabeça reposta,
+        # R$ 215.942 no ano 1, o bastante para inverter o sinal do resultado.
+        #
+        # Quando há cotação de bezerro do dia, ela vale para as duas pontas. A
+        # relação de troca fica como fallback — é referência de mercado, não
+        # cotação da praça, e só entra quando não há cotação.
+        _p_repo = (preco_reposicao_cab * m['preco'] if preco_reposicao_cab
+                   else TROCA_ARROBAS_BEZERRO * preco)
+        custo_reposicao = (compras * _p_repo
                            if _REPOSICAO_PRECIFICADA else 0.0)
         custo     = custo_manutencao + custo_reposicao
         resultado = receita - custo
@@ -1719,10 +1778,10 @@ def simular_cenario(
     preco_bezerro:      float = 1800.0, # memorial §16: R$1.800
     preco_arroba_bezerro: float = None, # R$/@ do bezerro; default = preco_arroba
     desmama_pct:        float = DESMAME_PCT,  # benchmark desmame (82%)
-    peso_entrada_arr:   float = 10.0,   # memorial §16: 10@
-    peso_saida_arr:     float = 18.0,   # memorial §16: 18@
+    peso_entrada_arr:   float = _PESO_ENTRADA_RECRIA_ARR,
+    peso_saida_arr:     float = _PESO_SAIDA_RECRIA_ARR,
     meses_recria:       int   = 12,
-    peso_entrada_kg:    float = 300.0,  # memorial §16: 300kg
+    peso_entrada_kg:    float = _PESO_ENTRADA_ENGORDA_KG,
     peso_saida_kg:      float = 520.0,  # memorial §16: 520kg
     rendimento_carcaca: float = 52.0,
     dias_engorda:       int   = 90,
@@ -1765,9 +1824,12 @@ def simular_cenario(
             rendimento_carcaca, _custo_engorda, dias_engorda, anos,
         )
     if ciclo == 'RECRIA':
+        # A cotação de bezerro do dia, quando existe, é a mesma dos dois lados
+        # — compra e estoque. Ver o comentário em _simular_recria.
         return _simular_recria(
             v, cenario, mort_pct, preco_arroba, peso_entrada_arr, peso_saida_arr,
             meses_recria, _custo_recria, anos,
+            preco_reposicao_cab=preco_bezerro_cab,
         )
     if ciclo == 'ENGORDA':
         return _simular_engorda(
