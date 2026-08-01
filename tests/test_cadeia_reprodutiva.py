@@ -35,6 +35,30 @@ VIEIRA_2005 = [
 CRIA = [300, 280, 200, 80, 100, 40, 150, 10, 600, 15]
 
 
+@pytest.fixture(scope='module')
+def cli():
+    import database as db
+    from app import app
+    db.init_db()
+    email = 'cadeia@example.com'
+    u = db.buscar_usuario_email(email)
+    if not u:
+        db.criar_usuario(email, 'Cadeia', 'senha123')
+        u = db.buscar_usuario_email(email)
+    app.config['TESTING'] = True
+    c = app.test_client()
+    with c.session_transaction() as s:
+        s['_user_id'] = str(u['id'])
+    return c
+
+
+def _resposta_rota(cli, valores):
+    return cli.post('/api/classificar', json={
+        'valores': valores, 'preco': 330,
+        'credito_valor': sum(valores) * 1200,
+        'prazo_meses': 36, 'juros_aa': 0.125}).get_json()
+
+
 # ── A identidade, contra o dado ─────────────────────────────────────────────
 @pytest.mark.parametrize('safra,prenhez,nat,desm,mort', VIEIRA_2005,
                          ids=[r[0] for r in VIEIRA_2005])
@@ -117,3 +141,61 @@ def test_o_ano_1_nao_se_mexe_e_os_anos_de_regime_sim():
     )
     # O plantel para de derreter tão rápido.
     assert anos[4]['total'] > 1000
+
+
+# ── Reposição: requisito de manutenção, não alavanca de DSCR ────────────────
+def test_o_descarte_de_manutencao_nao_virou_default():
+    """
+    Embrapa-CPATSA (1985) estima 15% de descarte anual como o necessário para
+    MANTER o nível de produtividade, e o painel do Pantanal mede 14%. A
+    tentação é subir o nosso default de 10% para lá.
+
+    Medido, seria o pior conserto possível. Numa cria com 100 novilhas na
+    ficha, descartar 15% sobe a receita do ano 3 de R$ 1.086.594 para
+    R$ 1.200.033 e derrete o plantel de 629 para 510 matrizes — porque não há
+    novilha para repor. É vender a matriz para pagar a parcela, e o DSCR
+    melhora exatamente por isso.
+
+    Os 15% são REQUISITO. Pressupõem que a reposição exista.
+    """
+    from ml_engine import PARAMS_POR_CICLO
+    from services.parametros_zootecnicos import DESCARTE_MANUTENCAO_PCT
+    assert PARAMS_POR_CICLO['CRIA']['desc_mat_pct'] < float(DESCARTE_MANUTENCAO_PCT)
+
+    receita, matrizes = {}, {}
+    for d in (10.0, 15.0):
+        r = simular_cenario(CRIA, 'conservador', ciclo='CRIA',
+                            preco_arroba=330, custo_arroba=57, desc_pct=d)
+        receita[d] = r['anos'][2]['receita']
+        matrizes[d] = r['anos'][4]['matrizes']
+    assert receita[15.0] > receita[10.0], 'descartar mais deixou de subir a receita'
+    assert matrizes[15.0] < matrizes[10.0], (
+        'descartar mais parou de encolher o plantel — se a promoção mudou, '
+        'a decisão de não subir o default precisa ser reavaliada'
+    )
+
+
+def test_o_aviso_de_reposicao_separa_ficha_com_e_sem_novilha():
+    """
+    O requisito vira informação onde ele não é alavanca: quantas novilhas a
+    ficha tem contra quantas matrizes saem por ano.
+    """
+    from services.parametros_zootecnicos import (
+        avaliar_reposicao, REPOSICAO_MINIMA_PCT)
+
+    com = avaliar_reposicao(matrizes=750, novilhas=100, descarte_pct=10.0)
+    assert com['suficiente'] and com['sustenta_manutencao']
+    assert com['reposicao_sustentada_pct'] >= float(REPOSICAO_MINIMA_PCT)
+
+    sem = avaliar_reposicao(matrizes=750, novilhas=10, descarte_pct=10.0)
+    assert not sem['suficiente'] and not sem['sustenta_manutencao']
+
+    # Sem matriz não há o que avaliar — recria e engorda não podem quebrar.
+    assert avaliar_reposicao(matrizes=0, novilhas=0, descarte_pct=0.0) is None
+
+
+def test_o_aviso_de_reposicao_chega_na_rota(cli):
+    r = _resposta_rota(cli, CRIA)
+    assert r['reposicao_plantel']['reposicao_sustentada_pct'] > 0
+    magra = _resposta_rota(cli, [300, 280, 200, 80, 10, 40, 150, 10, 600, 15])
+    assert magra['reposicao_plantel']['suficiente'] is False

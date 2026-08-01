@@ -121,9 +121,10 @@ DESFRUTE_MODALIDADE = {
 
 # ── A mesma fazenda por sete anos ────────────────────────────────────────────
 #
-# Tabela 3.5 do relatório de cenários para a pecuária: ciclo completo em
-# Corinto/MG, 2005 a 2011. É a única série TEMPORAL da nossa base — todo o
-# resto são fotografias de fazendas diferentes num ano só.
+# Tabela 3.5 do relatório de cenários para a pecuária, fonte primária
+# Leão et al. (2012): ciclo completo em Corinto/MG, 2005 a 2011. É a única
+# série TEMPORAL da nossa base — todo o resto são fotografias de fazendas
+# diferentes num ano só.
 #
 # O que só uma série mostra:
 #   · o desfrute oscila de 16,5% a 49,3% na mesma fazenda, sem que ela tenha
@@ -131,13 +132,25 @@ DESFRUTE_MODALIDADE = {
 #   · a prenhez COMERCIAL começa em 54% e chega a 80% em cinco anos. O nosso
 #     87,5% medido é de rebanho experimental da Embrapa; a faixa real de uma
 #     fazenda em operação vai de 54 a 91
-#   · a mortalidade cai de 6,5% para 1,3% conforme a fazenda intensifica —
-#     não é constante da espécie, é resultado de manejo
+#   · a mortalidade PRÉ-DESMAMA cai de 6,5% para 1,3% conforme a fazenda
+#     intensifica — não é constante da espécie, é resultado de manejo
 #   · o lucro operacional sai de R$ 4,97/ha para R$ 341/ha. É o perfil de
 #     cliente que este sistema mais reprova, e ele deu certo
 #
-# (ano, cabeças, ha, lotação cab/ha, desfrute %, prenhez %, mortalidade %,
-#  lucro operacional R$/ha, retorno sobre capital % a.a.)
+# CORREÇÃO DE UM REGISTRO MEU. Eu havia anotado a coluna de mortalidade como
+# taxa GERAL e a comparei com o nosso default de 3%. A nota de rodapé da
+# tabela, que só apareceu na segunda foto, diz "1- até a desmama": é
+# mortalidade PRÉ-DESMAMA, e o par correto é MORTALIDADE_BEZERRA_PCT (7,0%).
+# A comparação errada fazia a fazenda parecer pior do que é no começo da série
+# e melhor do que é no fim.
+#
+# As outras duas notas de rodapé, que também só apareceram agora:
+#   2 - lucro operacional = margem líquida (receita total − COT), que é
+#       exatamente a definição da Tabela 3.7
+#   3 - o valor da TERRA não está no patrimônio do retorno sobre capital
+#
+# (ano, cabeças, ha, lotação cab/ha, desfrute %, prenhez %,
+#  mortalidade PRÉ-DESMAMA %, lucro operacional R$/ha, retorno capital % a.a.)
 PAINEL_CORINTO_MG = [
     (2005, 1460, 2350, 0.62, 16.5, 54.0, 6.5,   4.97,  0.79),
     (2006, 1700, 2350, 0.72, 16.9, 56.0, 5.7,   1.72,  0.19),
@@ -170,6 +183,65 @@ EXAGRO_LOTACAO_2013 = [
 ]
 EXAGRO_LOTACAO_MEDIA_UA_HA   = 0.90
 EXAGRO_LOTACAO_MEDIANA_UA_HA = 0.80
+
+# ── O resultado econômico das mesmas 71 fazendas (Tabelas 3.10 e 3.11) ───────
+#
+# Fonte: Exagro (2014), dados de 2013.
+#
+# ESTES VALORES SÃO NOMINAIS DE 2013 e NÃO se comparam com os nossos perfis de
+# custo, que são de 2023 (Pantanal) e da safra 24/25 (GEP Araguaia). Uma década
+# de inflação separa os dois, e comparar reais de anos diferentes sem
+# deflacionar produz conclusão inventada. Ficam registrados pelo que comparam
+# entre SI — a dispersão, o sinal e a ordem entre estados, que são
+# adimensionais e continuam valendo.
+#
+# (estado, fazendas, produção @/ha/ano, custo R$/ha, custo R$/cab/ano,
+#  receita R$/ha, resultado R$/ha, retorno sobre capital investido %)
+EXAGRO_RESULTADO_2013 = [
+    ("AC",  1,  5.90, 369, 279,  709, 102.0,  7.00),
+    ("MA",  1,  3.20, 240, 223,  317,  48.7,  5.00),
+    ("MT", 33,  6.50, 435, 327, 1220, 145.0, 11.30),
+    ("PA", 28,  6.40, 359, 345, 1280, 204.0, 15.20),
+    ("RO",  1, 10.30, 551, 337, 1770, 310.0, 17.40),
+    ("TO",  7,  3.50, 306, 398,  576,  -8.0, -6.00),
+]
+EXAGRO_PRODUCAO_MEDIANA_ARROBA_HA = 6.10
+EXAGRO_RESULTADO_MEDIANA_HA       = 158.0
+
+# Tabela 3.11 — a DISPERSÃO dentro de cada estado, que a média esconde.
+# (estado, fazendas, resultado médio R$/ha, menor, maior, mediana)
+# None onde o estado tem uma fazenda só e não há dispersão a publicar.
+EXAGRO_DISPERSAO_2013 = [
+    ("AC",  1,  103.0,   None,  None,  None),
+    ("MA",  1,   48.7,   None,  None,  None),
+    ("MT", 33,  145.0,  -94.2, 380.0, 145.0),
+    ("PA", 28,  205.0, -163.0, 536.0, 201.0),
+    ("RO",  1,  310.0,   None,  None,  None),
+    ("TO",  7,   -8.0, -270.0, 283.0,  17.3),
+]
+EXAGRO_PIOR_RESULTADO_HA  = -176.0   # média geral do menor resultado
+EXAGRO_MELHOR_RESULTADO_HA = 399.0   # média geral do maior
+
+# ── O que estas duas tabelas sustentam, e é o mais importante delas ──────────
+#
+# 1. FAZENDA COMERCIAL PERDE DINHEIRO, e não é exceção estatística. Tocantins,
+#    com 7 fazendas, fecha 2013 com resultado NEGATIVO (−R$ 8/ha) e retorno de
+#    −6,0%. Individualmente a pior fazenda perde R$ 270/ha. São propriedades
+#    que se submetem voluntariamente a benchmarking — a metade de cima do
+#    setor, não a de baixo.
+#
+#    Isso muda como se lê um parecer negativo daqui. Um modelo que reprova
+#    TODA fazenda está errado; um que reprova uma ficha fraca pode estar
+#    apenas descrevendo o setor.
+#
+# 2. CUSTO ALTO NÃO IMPLICA MENOS RENTÁVEL — e o próprio texto do relatório
+#    faz questão de dizer isso. Rondônia tem o MAIOR custo por hectare
+#    (R$ 551) e ao mesmo tempo o maior resultado (R$ 310/ha) e o maior retorno
+#    (17,4%). Tocantins tem quase o menor custo (R$ 306) e é o único negativo.
+#
+#    É a justificativa de terceiro para uma escolha que já era nossa: o
+#    desvio de custo contra o painel entra como AVISO, não como reprovação.
+#    Reprovar por custo alto reprovaria a fazenda mais rentável da amostra.
 
 # Os 19 painéis, para os testes conferirem as faixas contra o dado e não
 # contra si mesmas. (município, UF, sistema, desfrute %, @/ha, lotação UA/ha)

@@ -19,7 +19,7 @@ from ml_engine import (
     treinar_modelo, classificar, calcular_indicadores,
     simular_cenario, carregar_modelo, CENARIOS,
     avaliar_benchmarks, extrair_indicadores_benchmark, calcular_breakeven_simples,
-    explicar_shap, TIPOS,
+    explicar_shap, TIPOS, PARAMS_POR_CICLO,
 )
 import database as db
 from services import assistente as _assistente
@@ -50,7 +50,8 @@ from services.benchmarks_nacionais import (
 from services.parecer_credito import montar_parecer
 from services.parecer_pdf import gerar_pdf_parecer
 from services.pesos_rebanho import arrobas_categorias
-from services.parametros_zootecnicos import natalidade_de_prenhez
+from services.parametros_zootecnicos import (
+    natalidade_de_prenhez, avaliar_reposicao as _avaliar_reposicao)
 from services.nivel_tecnologico import (
     avaliar as _avaliar_nivel, conferir_produtividade as _conferir_produtividade,
     gmd_do_nivel as _gmd_do_nivel)
@@ -1581,6 +1582,23 @@ def api_classificar():
         jovens_f=float(v[0] + v[2] + v[4]),
         jovens_m=float(v[1] + v[3] + v[5] + v[7]))
 
+    # ── A ficha sustenta a reposição que a manutenção do plantel exige? ──────
+    #
+    # Embrapa-CPATSA (1985) estima 15% de descarte anual como o necessário para
+    # MANTER o nível de produtividade; o painel do Pantanal mede 14%. Nós
+    # projetamos com 10%, e não subimos o default de propósito: descartar mais
+    # sobe a receita e derrete o plantel quando a ficha não tem novilha —
+    # vender a matriz para pagar a parcela é o pior motivo possível para um
+    # DSCR melhorar.
+    #
+    # O requisito entra aqui, onde ele é informação em vez de alavanca: quantas
+    # novilhas a ficha tem contra quantas matrizes saem por ano.
+    _reposicao = _avaliar_reposicao(
+        matrizes=float(v[6] + v[8]), novilhas=float(v[4]),
+        descarte_pct=_sim_volume.get('desc_pct',
+                                     PARAMS_POR_CICLO.get(_ciclo_tipo, {}).get('desc_mat_pct', 10.0)),
+        mortalidade_pct=_sim_volume.get('mort_pct', 3.0))
+
     _projecao_anos = []
     for _ano in _cx['anos']:
         _gc_ano = _ano['resultado'] - _reposicao_reprodutores
@@ -1710,6 +1728,7 @@ def api_classificar():
         'registro_id': registro_id,
         'shap_explicacao': shap_explicacao,
         'projecao_anos': _projecao_anos,
+        'reposicao_plantel': _reposicao,
         'narrativa_ia': _narrativa_ia,
         # Contexto para o frontend pedir a narrativa de forma assíncrona,
         # sem atrasar a entrega do parecer.

@@ -15,7 +15,9 @@ import pytest
 from services.benchmarks_nacionais import (
     DESFRUTE_MODALIDADE, PAINEL_CORINTO_MG,
     EXAGRO_LOTACAO_2013, EXAGRO_LOTACAO_MEDIA_UA_HA,
-    EXAGRO_LOTACAO_MEDIANA_UA_HA,
+    EXAGRO_LOTACAO_MEDIANA_UA_HA, EXAGRO_RESULTADO_2013,
+    EXAGRO_DISPERSAO_2013, EXAGRO_PRODUCAO_MEDIANA_ARROBA_HA,
+    EXAGRO_PIOR_RESULTADO_HA, EXAGRO_MELHOR_RESULTADO_HA,
 )
 from services.nivel_tecnologico import (
     LOTACAO_MEDIA_BR, LOTACAO_INTENSIVO, nivel_por_lotacao, EXTENSIVO, MEDIO,
@@ -160,3 +162,92 @@ def test_a_producao_em_arroba_detecta_liquidacao():
     # E nos anos de regime a distância encolhe, mas não some: a cria continua
     # encolhendo em arroba, que é o achado, não um defeito da métrica.
     assert 60 < anos[2]['producao_sobre_venda_pct'] < 100
+
+
+# ── Tabelas 3.10 e 3.11: o resultado econômico das mesmas 71 fazendas ───────
+def test_fazenda_comercial_perde_dinheiro_e_nao_e_excecao():
+    """
+    O achado que mais muda como se lê um parecer negativo daqui.
+
+    Tocantins, com SETE fazendas, fecha 2013 com resultado negativo (−R$ 8/ha)
+    e retorno de −6,0%. Individualmente, a pior fazenda da amostra perde
+    R$ 270/ha. E são propriedades que se submetem voluntariamente a
+    benchmarking — a metade de cima do setor.
+
+    Um modelo que reprova TODA fazenda está errado. Um que reprova uma ficha
+    fraca pode estar apenas descrevendo o setor.
+    """
+    negativos = [e for e in EXAGRO_RESULTADO_2013 if e[6] < 0]
+    assert negativos, 'a amostra deixou de ter estado com resultado negativo'
+    assert any(e[1] >= 5 for e in negativos), (
+        'o estado negativo virou amostra de uma fazenda só — deixa de '
+        'sustentar a afirmação de que perder dinheiro não é exceção'
+    )
+    assert EXAGRO_PIOR_RESULTADO_HA < 0 < EXAGRO_MELHOR_RESULTADO_HA
+
+
+def test_custo_alto_nao_implica_menos_rentavel():
+    """
+    Justificativa de terceiro para uma escolha que já era nossa: o desvio de
+    custo contra o painel entra como AVISO, não como reprovação.
+
+    Rondônia tem o MAIOR custo por hectare da amostra e, ao mesmo tempo, o
+    maior resultado e o maior retorno sobre capital. Reprovar por custo alto
+    reprovaria a fazenda mais rentável do grupo.
+    """
+    mais_caro = max(EXAGRO_RESULTADO_2013, key=lambda e: e[3])
+    melhor_rci = max(EXAGRO_RESULTADO_2013, key=lambda e: e[7])
+    assert mais_caro[0] == melhor_rci[0] == 'RO', (mais_caro, melhor_rci)
+
+    from services.parecer_credito import COE_DIVERGENCIA_AVISO
+    assert COE_DIVERGENCIA_AVISO > 0, (
+        'o desvio de custo virou reprovação — ver Rondônia nesta amostra'
+    )
+
+
+def test_a_dispersao_dentro_do_estado_engole_a_media():
+    """
+    A Tabela 3.11 mostra o que a média esconde: em Mato Grosso, 33 fazendas
+    vão de −R$ 94/ha a +R$ 380/ha, com média de R$ 145. Comparar uma fazenda
+    contra a média de um estado diz muito menos do que parece.
+    """
+    for uf, n, media, menor, maior, mediana in EXAGRO_DISPERSAO_2013:
+        if menor is None:
+            assert n == 1, f'{uf} tem {n} fazendas e nenhuma dispersão publicada'
+            continue
+        assert menor < media < maior, (uf, menor, media, maior)
+        assert (maior - menor) > abs(media), (
+            f'{uf}: a amplitude deixou de superar a própria média'
+        )
+
+
+def test_a_produtividade_do_exagro_fica_entre_os_nossos_limiares():
+    """
+    Mediana de 6,10 @/ha/ano em 71 fazendas comerciais, contra os nossos
+    limiares de 4,77 (média nacional Rally) e 12,0 (intensivo). Um grupo de
+    benchmarking ficar acima da média nacional e longe do intensivo é
+    exatamente o esperado — e é o que valida os dois limiares de uma vez.
+    """
+    from services.nivel_tecnologico import (
+        PRODUTIVIDADE_MEDIA_BR, PRODUTIVIDADE_INTENSIVO)
+    assert (float(PRODUTIVIDADE_MEDIA_BR)
+            < EXAGRO_PRODUCAO_MEDIANA_ARROBA_HA
+            < float(PRODUTIVIDADE_INTENSIVO))
+
+
+def test_os_valores_de_2013_nao_viram_referencia_de_custo():
+    """
+    Guarda contra um erro que seria fácil e silencioso: usar o custo por
+    cabeça do EXAGRO (R$ 299/ano, mediana de 2013) como referência para os
+    nossos perfis, que são de 2023 e da safra 24/25.
+
+    Uma década de inflação separa os dois. O EXAGRO entra pelo que compara
+    entre SI — dispersão, sinal e ordem entre estados, que são adimensionais.
+    """
+    # Se alguém importar EXAGRO_RESULTADO_2013 dentro de custos_desembolso,
+    # este teste falha e obriga a discussão sobre deflacionar.
+    import services.custos_desembolso as cd
+    assert 'EXAGRO' not in open(cd.__file__).read(), (
+        'o EXAGRO 2013 entrou no módulo de custos — valores nominais de 2013 '
+        'não se comparam com a safra 24/25 sem deflacionar'
+    )
