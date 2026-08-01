@@ -71,6 +71,35 @@ from services.groq_narrativa import (
 # o comportamento bloqueante anterior.
 _NARRATIVA_INLINE = os.environ.get('NARRATIVA_INLINE', '0') == '1'
 
+# SHAP fora do caminho crítico, pelo mesmo motivo da narrativa — só que aqui o
+# custo é MEMÓRIA, não latência.
+#
+# Cada classificação construía os TreeExplainer dos quatro estimadores do
+# ensemble e alocava ~160 MB até o fim da chamada. Medido em processo real:
+# 300 MB com o modelo carregado, 459 MB durante uma classificação. Com dois
+# workers atendendo classificações ao mesmo tempo dava 620 MB contra um teto
+# de 512, o processo morria e o gateway devolvia 502 na tela de classificar.
+#
+# O paliativo foi descer para um worker. Tirando o SHAP daqui, o pico deixa de
+# coincidir com a classificação e dois workers voltam a caber.
+#
+# A explicabilidade NÃO é perdida: o frontend busca em /api/shap logo após
+# renderizar e funde o resultado no parecer, de modo que o PDF continua
+# saindo com os fatores — exigência da CMN 4.966/2021.
+#
+# Reversível: SHAP_INLINE=1 volta a calcular dentro de /api/classificar.
+_SHAP_INLINE = os.environ.get('SHAP_INLINE', '0') == '1'
+
+
+def _calcular_shap(valores, tipo, origem_decisao='ml', regra_aplicada=None):
+    """SHAP com a mesma guarda de sempre: falhar aqui nunca derruba o parecer."""
+    try:
+        return explicar_shap(valores, tipo, origem_decisao=origem_decisao,
+                             regra_aplicada=regra_aplicada)
+    except Exception as e:
+        logger.warning(f'SHAP falhou (não crítico): {e}')
+        return {}
+
 # Configuração de logging
 logging.basicConfig(
     level=logging.INFO,
@@ -1300,16 +1329,17 @@ def api_classificar():
             ),
         })
 
-    # SHAP — explicabilidade regulatória (CMN 4.966/2021 / Marco Legal IA)
-    shap_explicacao = {}
-    try:
-        shap_explicacao = explicar_shap(
-            v, result['tipo'],
-            origem_decisao=result.get('origem_decisao', 'ml'),
-            regra_aplicada=result.get('regra_aplicada'),
-        )
-    except Exception as _e_shap:
-        logger.warning(f'SHAP falhou (não crítico): {_e_shap}')
+    # SHAP — explicabilidade regulatória (CMN 4.966/2021 / Marco Legal IA).
+    # Por padrão NÃO é calculado aqui: são ~160 MB de pico que coincidiam com
+    # a classificação e estouravam a memória do contêiner. O frontend busca em
+    # /api/shap e funde no parecer, então o PDF continua com os fatores.
+    _shap_ctx = {
+        'valores':        list(v),
+        'tipo':           result['tipo'],
+        'origem_decisao': result.get('origem_decisao', 'ml'),
+        'regra_aplicada': result.get('regra_aplicada'),
+    }
+    shap_explicacao = _calcular_shap(**_shap_ctx) if _SHAP_INLINE else {}
 
     # ── Projeção multianual (conservador, 5 anos) ────────────────────────────
     # Cada ano: receita, custo, resultado, margem%, DSCR (se houver crédito),
@@ -1443,6 +1473,8 @@ def api_classificar():
             'afastamento':   desfrute['afastamento'],
             'liquidacao':    alerta_desfrute,
         },
+        'shap_pendente':  not _SHAP_INLINE,
+        'shap_contexto':  _shap_ctx if not _SHAP_INLINE else None,
         'narrativa_pendente': (not _NARRATIVA_INLINE) and _narrativa_ativa(),
         'narrativa_contexto': _ctx_narrativa if not _NARRATIVA_INLINE else None,
     })
@@ -1491,6 +1523,38 @@ def api_confirmar_ciclo():
         'concordou': concordou,
         'total_confirmados': db.contar_confirmados(),
     })
+
+
+@app.route('/api/shap', methods=['POST'])
+@login_required
+def api_shap():
+    """
+    Fatores SHAP da classificação, fora do caminho crítico.
+
+    Separado de /api/classificar por MEMÓRIA, não por latência: construir os
+    TreeExplainer dos quatro estimadores aloca ~160 MB, e esse pico somado ao
+    da classificação estourava o contêiner (502). Aqui ele acontece sozinho.
+
+    O frontend chama logo após renderizar o resultado e funde a resposta no
+    parecer — a explicabilidade da CMN 4.966/2021 continua no PDF.
+    """
+    ctx = (request.json or {}).get('contexto') or {}
+    valores = ctx.get('valores')
+    tipo = ctx.get('tipo')
+    if not valores or not tipo:
+        return jsonify({'erro': 'Contexto da classificação ausente.'}), 400
+    try:
+        valores = [int(x or 0) for x in valores][:10]
+    except (TypeError, ValueError):
+        return jsonify({'erro': 'Valores inválidos.'}), 400
+    if len(valores) != 10:
+        return jsonify({'erro': 'Esperados 10 valores de rebanho.'}), 400
+
+    return jsonify({'shap_explicacao': _calcular_shap(
+        valores, tipo,
+        origem_decisao=ctx.get('origem_decisao') or 'ml',
+        regra_aplicada=ctx.get('regra_aplicada'),
+    )})
 
 
 @app.route('/api/narrativa', methods=['POST'])
