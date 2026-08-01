@@ -1784,7 +1784,8 @@ def simular_cenario(
     peso_entrada_kg:    float = _PESO_ENTRADA_ENGORDA_KG,
     peso_saida_kg:      float = 520.0,  # memorial §16: 520kg
     rendimento_carcaca: float = 52.0,
-    dias_engorda:       int   = 90,
+    ganho_peso_kg_dia:  float = None,   # GMD; default = meio da faixa adequado
+    dias_engorda:       int   = None,   # None → derivado do ganho e do GMD
     peso_boi:           float = PESO_BOI_ARR,   # GEP Araguaia (20.53@)
     peso_vaca:          float = PESO_VACA_ARR,  # GEP Araguaia (15.33@)
     preco_boi_arr:      float = None,   # R$/@ boi do dia (senão usa preco_arroba)
@@ -1792,6 +1793,28 @@ def simular_cenario(
     preco_bezerra_cab:  float = None,   # R$/cabeça bezerra do dia
     preco_bezerro_cab:  float = None,   # R$/cabeça bezerro do dia
 ) -> dict:
+    # ── Duração da engorda: derivada, não fixa ───────────────────────────────
+    #
+    # `dias_engorda` era 90 fixo. Com entrada de 405 kg e saída de 520, isso
+    # implica ganho de 1,28 kg/dia — ACIMA do 1,10 medido em semiconfinamento
+    # (estudo de campo em Theobroma/RO, 100 nelores, pesagem em jejum a cada
+    # 20 dias), e o perfil de custo da ENGORDA descreve pasto com suplementação,
+    # não confinamento.
+    #
+    # O efeito era grande porque `lotes_ano = int(365/dias)`: 90 dias dá QUATRO
+    # giros por ano sobre o mesmo lote. Medido numa engorda de 736 cabeças,
+    # isso projetava desfrute de 273% contra a faixa de referência de 80–120%,
+    # e DSCR de 6,14 — o erro corria a favor de APROVAR, que é o lado caro.
+    #
+    # Agora a duração sai do ganho de peso dividido pelo GMD. O GMD default é o
+    # meio da faixa "adequado" do nosso próprio benchmark de engorda a pasto
+    # (700–1000 g/dia), e o analista pode informar o dele. Quem passa a mandar
+    # é a zootecnia, não uma constante.
+    if dias_engorda is None:
+        _gmd = max(float(ganho_peso_kg_dia or 0.85), 0.20)
+        _ganho_kg = max(float(peso_saida_kg) - float(peso_entrada_kg), 1.0)
+        dias_engorda = int(round(_ganho_kg / _gmd))
+
     # Preenche defaults a partir de PARAMS_POR_CICLO quando não passados explicitamente
     ciclo_params = PARAMS_POR_CICLO.get(ciclo, PARAMS_POR_CICLO['CICLO_COMPLETO'])
     if prop_boi      is None: prop_boi      = ciclo_params['prop_boi']
