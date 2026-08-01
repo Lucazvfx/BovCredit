@@ -2428,43 +2428,7 @@ function renderResult(data){
       </div>
     </div>
 
-    ${(()=>{
-      const shapData=data.shap_explicacao||{};
-      const fatores=shapData.fatores||[];
-      if(!fatores.length) return '';
-      const maxPct=Math.max(...fatores.map(f=>f.importancia_pct),1);
-      const porRegra = shapData.decisao_por_regra;
-      return `<div class="card" style="margin-bottom:24px">
-        <div class="ch"><div class="ct"><div class="cd" style="background:${col}"></div>
-          Fatores da Classificação (SHAP)
-          <span style="font-family:var(--fm);font-size:.56rem;opacity:.4;margin-left:8px;letter-spacing:.5px">CMN 4.966/2021</span>
-        </div></div>
-        <div class="cb">
-          ${porRegra ? `<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.28);border-radius:8px;padding:12px 14px;margin-bottom:16px">
-            <div style="font-family:var(--fn);font-weight:700;font-size:.7rem;letter-spacing:.5px;color:var(--am);margin-bottom:5px">⚠ DECISÃO POR REGRA DETERMINÍSTICA</div>
-            <div style="font-size:.76rem;line-height:1.6;color:var(--sb)">${escapeHtml(shapData.aviso||'')}</div>
-          </div>` : ''}
-          <div style="font-family:var(--fm);font-size:.6rem;letter-spacing:.5px;opacity:.5;margin-bottom:16px;text-transform:uppercase">
-            ${porRegra ? 'Contexto do modelo' : 'Por que'} <b style="color:${col};opacity:1">${TL[tipo]}</b>? — fatores mais determinantes
-          </div>
-          ${fatores.map(f=>{
-            const pos=f.direcao==='positivo';
-            const cor=pos?'#4ADE80':'#F87171';
-            const w=Math.round(f.importancia_pct/maxPct*100);
-            return `<div class="cbar">
-              <div class="cbar-l" style="width:180px;text-transform:none;font-size:.58rem;opacity:.8">${f.feature}</div>
-              <div class="cbar-t" style="height:8px">
-                <div class="cbar-f" data-w="${w}" style="background:${cor};width:0%"></div>
-              </div>
-              <div class="cbar-p" style="width:56px;color:${cor}">${pos?'+':'−'}${f.importancia_pct}%</div>
-            </div>`;
-          }).join('')}
-          <div style="font-family:var(--fm);font-size:.5rem;opacity:.28;margin-top:14px;line-height:1.6">
-            ${shapData.metodo||''}<br>${shapData.conformidade||''}
-          </div>
-        </div>
-      </div>`;
-    })()}
+    ${data.shap_pendente ? shapPlaceholderHtml() : shapCardHtml(data.shap_explicacao||{}, tipo, col)}
 
     ${renderParecer(data)}
 
@@ -2569,6 +2533,14 @@ function renderResult(data){
   // Narrativa IA: buscada depois do parecer já estar na tela, para que a
   // latência do Groq (até 20s) não atrase a análise de crédito.
   if(data.narrativa_pendente && data.narrativa_contexto) carregarNarrativa(data.narrativa_contexto);
+
+  // SHAP: buscado depois do parecer na tela. Aqui o motivo é MEMÓRIA, não
+  // latência — construir os TreeExplainer aloca ~160 MB, e esse pico somado
+  // ao da classificação estourava o contêiner (502).
+  if(data.shap_pendente && data.shap_contexto){
+    window._shapRenderCtx = {tipo: data.tipo, col: TC[data.tipo] || 'var(--g)'};
+    carregarShap(data.shap_contexto);
+  }
 
   animarDesfrute();
 
@@ -3609,6 +3581,90 @@ function usarCotacaoDia(){
 }
 
 // ================== NARRATIVA IA (assíncrona) ==================
+// Busca os fatores SHAP e os funde no parecer já renderizado.
+//
+// A fusão em window._lastParecer não é detalhe: é ele que vai para
+// /api/parecer/pdf. Sem isso o PDF sairia sem os fatores da classificação, e
+// a explicabilidade exigida pela CMN 4.966/2021 se perderia justamente no
+// documento que vai ao comitê.
+// Card dos fatores SHAP. Extraído do render principal porque agora é
+// desenhado em dois momentos: vazio no primeiro paint (o SHAP saiu do
+// caminho crítico por memória) e preenchido quando /api/shap responde.
+function shapCardHtml(shapData, tipo, col){
+      const fatores=shapData.fatores||[];
+      if(!fatores.length) return '';
+      const maxPct=Math.max(...fatores.map(f=>f.importancia_pct),1);
+      const porRegra = shapData.decisao_por_regra;
+      return `<div class="card" style="margin-bottom:24px">
+        <div class="ch"><div class="ct"><div class="cd" style="background:${col}"></div>
+          Fatores da Classificação (SHAP)
+          <span style="font-family:var(--fm);font-size:.56rem;opacity:.4;margin-left:8px;letter-spacing:.5px">CMN 4.966/2021</span>
+        </div></div>
+        <div class="cb">
+          ${porRegra ? `<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.28);border-radius:8px;padding:12px 14px;margin-bottom:16px">
+            <div style="font-family:var(--fn);font-weight:700;font-size:.7rem;letter-spacing:.5px;color:var(--am);margin-bottom:5px">⚠ DECISÃO POR REGRA DETERMINÍSTICA</div>
+            <div style="font-size:.76rem;line-height:1.6;color:var(--sb)">${escapeHtml(shapData.aviso||'')}</div>
+          </div>` : ''}
+          <div style="font-family:var(--fm);font-size:.6rem;letter-spacing:.5px;opacity:.5;margin-bottom:16px;text-transform:uppercase">
+            ${porRegra ? 'Contexto do modelo' : 'Por que'} <b style="color:${col};opacity:1">${TL[tipo]}</b>? — fatores mais determinantes
+          </div>
+          ${fatores.map(f=>{
+            const pos=f.direcao==='positivo';
+            const cor=pos?'#4ADE80':'#F87171';
+            const w=Math.round(f.importancia_pct/maxPct*100);
+            return `<div class="cbar">
+              <div class="cbar-l" style="width:180px;text-transform:none;font-size:.58rem;opacity:.8">${f.feature}</div>
+              <div class="cbar-t" style="height:8px">
+                <div class="cbar-f" data-w="${w}" style="background:${cor};width:0%"></div>
+              </div>
+              <div class="cbar-p" style="width:56px;color:${cor}">${pos?'+':'−'}${f.importancia_pct}%</div>
+            </div>`;
+          }).join('')}
+          <div style="font-family:var(--fm);font-size:.5rem;opacity:.28;margin-top:14px;line-height:1.6">
+            ${shapData.metodo||''}<br>${shapData.conformidade||''}
+          </div>
+        </div>
+      </div>`;
+}
+
+// Placeholder que reserva o lugar do card e dá âncora para a fusão.
+function shapPlaceholderHtml(){
+  return `<div class="card" id="card-shap" style="margin-bottom:24px">
+    <div class="cb" style="padding:18px 20px;font-family:var(--fm);font-size:.6rem;
+         letter-spacing:.5px;opacity:.45;text-transform:uppercase">
+      Calculando fatores da classificação (SHAP)…
+    </div></div>`;
+}
+
+// Substitui o placeholder pelo card real.
+function renderShap(shap, card){
+  const alvo = card || document.getElementById('card-shap');
+  if(!alvo) return;
+  const ctx = window._shapRenderCtx || {};
+  const html = shapCardHtml(shap, ctx.tipo, ctx.col);
+  if(!html){ alvo.remove(); return; }
+  alvo.outerHTML = html;
+  setTimeout(()=>{document.querySelectorAll('.cbar-f[data-w]')
+    .forEach(el=>el.style.width=el.dataset.w+'%');}, 60);
+}
+
+async function carregarShap(contexto){
+  const card = document.getElementById('card-shap');
+  try{
+    const r = await fetch('/api/shap', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({contexto}),
+    });
+    const d = await r.json();
+    const shap = d.shap_explicacao || {};
+    if(!(shap.fatores || []).length){ card?.remove(); return; }
+    if(window._lastParecer) window._lastParecer.shap_explicacao = shap;
+    renderShap(shap, card);
+  }catch(e){
+    card?.remove();
+  }
+}
+
 async function carregarNarrativa(contexto){
   const body = document.getElementById('narrativa-body');
   if(!body) return;
