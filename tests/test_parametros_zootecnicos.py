@@ -18,10 +18,11 @@ def test_taxas_sao_ponto_medio_do_benchmark():
     # Prenhez segue o valor de PROJEÇÃO do material de treinamento (70–75%,
     # piso da faixa), não o ponto médio das faixas de mercado (50–75 → 62,5).
     assert PRENHEZ_PCT == 70.0
-    # 32,5 = ponto médio de 20–45%. A faixa do ciclo completo subiu de
-    # 20–40 em julho/2026 para acompanhar a referência do setor
-    # ("acima de 45% é bom"), e o ponto médio acompanhou.
-    assert DESFRUTE_PCT['CICLO_COMPLETO'] == 32.5
+    # O ponto médio é DERIVADO da faixa, não escrito à mão — foi assim que
+    # três cópias das mesmas faixas divergiram. O teste confere a derivação.
+    from services.benchmarks_nacionais import DESFRUTE_MODALIDADE
+    lo, hi = DESFRUTE_MODALIDADE['CICLO_COMPLETO']
+    assert DESFRUTE_PCT['CICLO_COMPLETO'] == (lo + hi) / 2
     assert DESFRUTE_PCT['ENGORDA'] == 100.0
     assert MORTALIDADE_PCT == 3.0 and DESMAME_PCT == 82.0
     assert RENDIMENTO_CARCACA_PCT == 52.0

@@ -176,16 +176,25 @@ def _desfrute(ciclo, lo, hi, nota=''):
         rotulo=f'Desfrute de referência · {ciclo}', nota=nota)
 
 
+# As faixas vinham escritas à mão AQUI e também em DESFRUTE_MODALIDADE, em
+# benchmarks_nacionais. Duas cópias do mesmo número é como elas divergem: ao
+# corrigir as faixas contra os 19 painéis do Campo Futuro 2022, esta cópia
+# ficou para trás e três testes apontaram a referência da cria fora da própria
+# faixa. Agora há uma fonte só, e a divergência deixa de ser possível.
+from services.benchmarks_nacionais import DESFRUTE_MODALIDADE as _FAIXAS_DESFRUTE
+
 DESFRUTE_PCT = {
-    'CRIA':           _desfrute('CRIA', 18.0, 35.0),
-    'RECRIA':         _desfrute('RECRIA', 35.0, 55.0),
-    'ENGORDA':        _desfrute('ENGORDA', 80.0, 120.0),
-    'CICLO_COMPLETO': _desfrute('CICLO_COMPLETO', 20.0, 45.0),
-    'RECRIA_ENGORDA': _desfrute('RECRIA_ENGORDA', 60.0, 85.0),
-    'CRIA_RECRIA':    _desfrute('CRIA_RECRIA', 25.0, 45.0,
-        nota='Sistema misto: base de cria com compra de desmama. Fica acima de '
-             'uma cria pura porque o volume recriado também é comercializado.'),
+    ciclo: _desfrute(ciclo, lo, hi)
+    for ciclo, (lo, hi) in _FAIXAS_DESFRUTE.items()
 }
+# Sistema misto sem faixa própria em DESFRUTE_MODALIDADE: fica acima de uma
+# cria pura porque o volume recriado também é comercializado.
+DESFRUTE_PCT['CRIA_RECRIA'] = _desfrute(
+    'CRIA_RECRIA',
+    midpoint(*_FAIXAS_DESFRUTE['CRIA']),
+    midpoint(*_FAIXAS_DESFRUTE['RECRIA']),
+    nota='Sistema misto: base de cria com compra de desmama. Interpolado '
+         'entre o ponto médio da cria e o da recria.')
 
 # ── Pesos por categoria: GEP Araguaia safra 24/25 (fonte primária) ───────────
 # Derivados de: peso_kg × rendimento ÷ 15. Boi tem rendimento 55%; demais 50%.
