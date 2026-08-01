@@ -204,6 +204,13 @@ def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list,
     return base
 
 
+# Divergência do COE frente à referência da praça a partir da qual o parecer
+# avisa. Limiar de política nosso, não norma: abaixo disso a diferença cabe em
+# variação de sistema e de região; acima, o custo passa a ser candidato mais
+# provável a causa da recusa do que a fazenda.
+COE_DIVERGENCIA_AVISO = 25.0
+
+
 def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
                    consistencia, financeiro, geracao_caixa_anual, credito,
                    fluxo_gep=None, sensibilidade=None, shap_explicacao=None,
@@ -264,6 +271,43 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
              'valor':   f'{erros} erro(s)',
              'detalhe': 'Divergências no rebanho declarado invalidam a base da '
                         'projeção, então a recomendação cai para ressalva.'}))
+
+    # ── O custo que nega, mas não se apresenta ──────────────────────────────
+    #
+    # O sistema já comparava o COE calculado com a referência Campo Futuro/CNA
+    # da praça e rotulava o nível — e depois negava o crédito sem nunca dizer
+    # ao analista que o CUSTO podia ser o problema.
+    #
+    # Medido em rebanhos reais: a ficha de recria de 700 cabeças roda a
+    # R$ 387,02/@ contra referência de R$ 183,50 (+110,9%); a cria de 1.705
+    # roda +31,5%. Nos dois o parecer nega por caixa insuficiente, e a causa
+    # provável do caixa insuficiente é o custo de entrada — que o analista
+    # pode conferir e corrigir em trinta segundos, se souber que deve.
+    #
+    # Este aviso NÃO rebaixa nem altera número. Ele existe para que uma recusa
+    # por custo fora da praça não seja lida como recusa por fazenda ruim. É a
+    # diferença entre um parecer que nega e um parecer que se explica.
+    _coe = (fluxo_gep or {}).get('coe_benchmark') or {}
+    _delta = _coe.get('delta_pct')
+    if _delta is not None and _delta >= COE_DIVERGENCIA_AVISO:
+        conclusao.setdefault('memoria', []).append({
+            'passo':   'Custo acima da referência da praça',
+            'valor':   f'{_delta:+.1f}% · R$ {_coe.get("coe_calculado", 0):.2f}/@ '
+                       f'contra R$ {_coe.get("coe_referencia", 0):.2f}/@',
+            'detalhe': (f'O custo aplicado está {_delta:.1f}% acima da referência '
+                        f'{_coe.get("fonte") or "Campo Futuro/CNA"} para '
+                        f'{_coe.get("local_ref") or "a praça"}. Confira o custo antes '
+                        f'de aceitar esta conclusão: se ele estiver superestimado, '
+                        f'a geração de caixa e o DSCR estão subestimados na mesma '
+                        f'proporção.'),
+        })
+        conclusao['custo_fora_da_referencia'] = {
+            'delta_pct':  round(_delta, 1),
+            'calculado':  _coe.get('coe_calculado'),
+            'referencia': _coe.get('coe_referencia'),
+            'local':      _coe.get('local_ref'),
+            'fonte':      _coe.get('fonte'),
+        }
 
     if _motivos:
         if conclusao['recomendacao'] == 'aprovar':
