@@ -382,17 +382,37 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
             _valor  = (f'{_delta:+.1f}% · R$ {_coe.get("coe_calculado", 0):.2f}/@ '
                        f'contra R$ {_coe.get("coe_referencia", 0):.2f}/@')
 
+        # Perímetro parcial — recria ou engorda isolada contra painel que cobre
+        # as duas fases e vende boi terminado. O aviso CONTINUA, porque o que
+        # ele pede ("confira o custo") vale de todo jeito; o que muda é que o
+        # texto para de atribuir o desvio inteiro ao custo. Calar o aviso
+        # perderia o sinal que motivou o recurso; afirmar "110% acima da praça"
+        # afirmaria o que não se sabe.
+        _parcial = _coe.get('perimetro_parcial')
+        if _parcial:
+            _passo   = 'Custo alto, sem referência direta'
+            _detalhe = (
+                f'O custo aplicado está {_delta:.1f}% acima de {_contra} '
+                f'({_coe.get("fonte") or "Campo Futuro/CNA"}), mas os dois lados '
+                f'NÃO são o mesmo produto: {_parcial}. Parte do desvio é '
+                f'perímetro, e não dá para separar quanto. Confira o custo pela '
+                f'sua própria série antes de aceitar esta conclusão: se ele '
+                f'estiver superestimado, a geração de caixa e o DSCR estão '
+                f'subestimados na mesma proporção.')
+        else:
+            _passo   = 'Custo acima da referência da praça'
+            _detalhe = (
+                f'O custo aplicado está {_delta:.1f}% acima de {_contra} '
+                f'({_coe.get("fonte") or "Campo Futuro/CNA"}; painel mais '
+                f'próximo: {_coe.get("local_ref") or "n/d"}). A comparação é '
+                f'de COE contra COE — custo de desembolso operacional, incluindo '
+                f'compra de animais, sem investimento, depreciação nem '
+                f'remuneração do capital. Confira o custo antes de aceitar esta '
+                f'conclusão: se ele estiver superestimado, a geração de caixa e '
+                f'o DSCR estão subestimados na mesma proporção.')
+
         conclusao.setdefault('memoria', []).append({
-            'passo':   'Custo acima da referência da praça',
-            'valor':   _valor,
-            'detalhe': (f'O custo aplicado está {_delta:.1f}% acima de {_contra} '
-                        f'({_coe.get("fonte") or "Campo Futuro/CNA"}; painel mais '
-                        f'próximo: {_coe.get("local_ref") or "n/d"}). A comparação é '
-                        f'de COE contra COE — custo de desembolso, incluindo compra '
-                        f'de animais, sem depreciação nem remuneração do capital. '
-                        f'Confira o custo antes de aceitar esta conclusão: se ele '
-                        f'estiver superestimado, a geração de caixa e o DSCR estão '
-                        f'subestimados na mesma proporção.'),
+            'passo': _passo, 'valor': _valor, 'detalhe': _detalhe,
         })
         conclusao['custo_fora_da_referencia'] = {
             'delta_pct':  round(_delta, 1),
@@ -401,6 +421,8 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
             'faixa':      _faixa,
             'n_paineis':  _n,
             'local':      _coe.get('local_ref'),
+            'perimetro_parcial': _parcial,
+            'atribuivel': _parcial is None,
             'fonte':      _coe.get('fonte'),
         }
 

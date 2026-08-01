@@ -146,11 +146,38 @@ def test_sem_nivel_o_custo_e_o_de_antes():
                 == custo_arroba_padrao(mod, 9.8, nivel=MEDIO))
 
 
-@pytest.mark.parametrize('mod', ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO'])
+@pytest.mark.parametrize('mod', ['CRIA', 'RECRIA', 'CICLO_COMPLETO'])
 def test_o_custo_cresce_do_intensivo_para_o_extensivo(mod):
+    """
+    Nos ciclos que criam ou fazem crescer animal, intensificar é ficar mais
+    eficiente por cabeça: o extensivo custa mais.
+    """
     c = {n: custo_arroba_padrao(mod, 9.8, nivel=n)
          for n in (INTENSIVO, MEDIO, EXTENSIVO)}
     assert c[INTENSIVO] < c[MEDIO] < c[EXTENSIVO], (mod, c)
+
+
+def test_na_engorda_intensificar_custa_MAIS_por_cabeca():
+    """
+    A engorda é a exceção, e ela aparece nos próprios dados da fonte: o perfil
+    "top rentáveis" gasta MAIS insumo que o médio (R$ 102,80 contra R$ 85,20
+    por cabeça/mês), porque intensificar terminação é suplementar mais.
+
+    Isso ficava escondido enquanto as rubricas de investimento entravam na
+    conta — elas eram maiores no perfil médio e mascaravam a inversão. Separar
+    custeio de investimento expôs a propriedade real do dado.
+
+    Não é contradição: na engorda o intensivo custa mais POR CABEÇA e menos
+    POR ARROBA, porque produz mais arroba na mesma cabeça. O parecer compara
+    por arroba; este teste prende o que a fonte diz por cabeça, para ninguém
+    "corrigir" a tabela achando que há erro de digitação.
+    """
+    from services.custos_desembolso import PERFIL_DESEMBOLSO, desembolso_operacional, preset_modalidade
+    assert PERFIL_DESEMBOLSO['ENGORDA']['insumos'][1] > PERFIL_DESEMBOLSO['ENGORDA']['insumos'][0]
+    oper = {p: desembolso_operacional(preset_modalidade('ENGORDA', p))
+            for p in ('extensivo', 'media', 'top')}
+    assert oper['top'] > oper['media'], oper
+    assert oper['extensivo'] > oper['top'], oper
 
 
 def test_o_perfil_extensivo_e_derivado_do_medio_e_nao_inventado():

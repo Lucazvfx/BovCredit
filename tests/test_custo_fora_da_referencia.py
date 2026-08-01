@@ -75,13 +75,56 @@ def test_o_aviso_entra_na_memoria_de_calculo(cli):
     """
     c = _parecer(cli, FICHA_RECRIA)['conclusao']
     passos = [m for m in (c.get('memoria') or [])
-              if 'Custo acima' in str(m.get('passo'))]
+              if 'Custo' in str(m.get('passo'))
+              and 'referência' in str(m.get('passo')) + str(m.get('detalhe'))]
     assert passos, 'aviso ausente da memória de cálculo'
     detalhe = passos[0]['detalhe']
     assert 'Confira o custo' in detalhe
     assert 'subestimad' in detalhe, (
         'o aviso precisa dizer o que a superestimação do custo faz com o DSCR'
     )
+
+
+def test_na_recria_o_aviso_declara_que_o_perimetro_e_diferente():
+    """
+    A recria isolada é comparada com o painel de recria E engorda, que vende
+    boi terminado (~20@) enquanto a nossa entrega animal de ~13,5@. O desvio
+    existe, mas parte dele é produto diferente, não custo alto.
+
+    O aviso CONTINUA — o que ele pede ("confira o custo") vale de todo jeito —
+    mas para de atribuir o desvio inteiro ao custo. Calar o aviso perderia o
+    sinal que motivou o recurso; afirmar "110% acima da praça" afirmaria o que
+    não se sabe.
+    """
+    from services.benchmarks_nacionais import avaliar_coe
+    b = avaliar_coe('RECRIA', 400.0)
+    assert b['perimetro_parcial'] and not b['comparavel']
+
+    p = montar_parecer(
+        identificacao={}, composicao={}, indicadores={}, benchmarks={},
+        consistencia={}, financeiro={}, geracao_caixa_anual=500_000,
+        credito={'credito_valor': 500_000, 'prazo_meses': 36, 'juros_aa': 0.1},
+        fluxo_gep={'coe_benchmark': b})
+    fora = p['conclusao']['custo_fora_da_referencia']
+    assert fora['atribuivel'] is False
+    passo = [m for m in p['conclusao']['memoria'] if 'Custo' in str(m.get('passo'))][0]
+    assert 'NÃO são o mesmo produto' in passo['detalhe']
+    assert 'boi terminado' in passo['detalhe']
+
+
+def test_na_cria_o_desvio_continua_atribuivel():
+    """Cria tem painel próprio: ali o desvio é do custo, e o texto afirma isso."""
+    from services.benchmarks_nacionais import avaliar_coe
+    b = avaliar_coe('CRIA', 400.0)
+    assert b['comparavel'] and b['perimetro_parcial'] is None
+    p = montar_parecer(
+        identificacao={}, composicao={}, indicadores={}, benchmarks={},
+        consistencia={}, financeiro={}, geracao_caixa_anual=500_000,
+        credito={'credito_valor': 500_000, 'prazo_meses': 36, 'juros_aa': 0.1},
+        fluxo_gep={'coe_benchmark': b})
+    assert p['conclusao']['custo_fora_da_referencia']['atribuivel'] is True
+    passo = [m for m in p['conclusao']['memoria'] if 'Custo acima' in str(m.get('passo'))][0]
+    assert 'COE contra COE' in passo['detalhe']
 
 
 def test_o_aviso_nao_rebaixa_a_recomendacao(cli):

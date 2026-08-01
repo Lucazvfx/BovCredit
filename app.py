@@ -55,6 +55,7 @@ from services.nivel_tecnologico import (
 from services.custos_desembolso import (
     custo_arroba_de_desembolso, COMPONENTES, custo_arroba_padrao,
     perfil_do_nivel as _perfil_do_nivel,
+    desembolso_operacional as _desembolso_operacional,
 )
 from services.reconciliacao import reconciliar
 from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
@@ -1037,11 +1038,18 @@ def api_classificar():
     if desembolso_cab_mes > 0:
         arrobas_rebanho = _arrobas_rebanho
         total_cabecas = _total_cabecas
+        # Os dois caminhos de custo — componentes digitados e perfil padrão —
+        # precisam aplicar a MESMA separação de custeio e investimento, senão
+        # o parecer muda conforme o analista tenha ou não preenchido a tabela.
+        _oper_cab_mes = _desembolso_operacional(
+            {k: float(componentes.get(k, 0) or 0) for k, _ in COMPONENTES})
         custo_arroba = custo_arroba_de_desembolso(
-            desembolso_cab_mes, arrobas_rebanho, total_cabecas)
+            _oper_cab_mes, arrobas_rebanho, total_cabecas)
         custo_desembolso = {
             'componentes': {k: float(componentes.get(k, 0) or 0) for k, _ in COMPONENTES},
             'desembolso_cab_mes': round(desembolso_cab_mes, 2),
+            'operacional_cab_mes': round(_oper_cab_mes, 2),
+            'investimento_cab_mes': round(desembolso_cab_mes - _oper_cab_mes, 2),
             'custo_arroba': round(custo_arroba, 2),
             'peso_medio_arroba': round(arrobas_rebanho / max(total_cabecas, 1), 2),
         }

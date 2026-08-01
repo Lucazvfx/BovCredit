@@ -24,6 +24,81 @@ COMPONENTES = [
     ('outros',         'Outros'),
 ]
 
+# ── Custeio e investimento: o que entra no DSCR ──────────────────────────────
+#
+# Três rubricas da fonte GEP vêm rotuladas "custeio + investimento" — o próprio
+# rótulo diz que são duas coisas somadas. Elas pesam 30 a 40% do perfil:
+#
+#     CRIA            35,35 de 90,88   38,9%
+#     RECRIA          40,10 de 100,50  39,9%
+#     CICLO COMPLETO  43,21 de 119,14  36,3%
+#
+# No COE publicado do painel do Pantanal as MESMAS rubricas somam 9%
+# (combustível 5% + manutenção 2% + insumos de pastagem 2%). A diferença não é
+# de sistema: é de perímetro. Investimento não é custo operacional.
+#
+# CONSEQUÊNCIA MEDIDA, antes desta separação:
+#
+#     nosso custo por cabeça/mês contra o painel (R$ 42,51)
+#       CRIA 2,1×   RECRIA 2,4×   CICLO COMPLETO 2,8×   ENGORDA 4,3×
+#
+#     cria em regime permanente: COE R$ 313,74/@ contra faixa medida de
+#     R$ 166–223, e resultado de −R$ 232 mil no ano 3
+#
+# Ou seja: o numerador que eu comparava "COE contra COE" não era COE. Era COE
+# mais investimento — a mesma confusão de níveis que o módulo de benchmarks
+# documenta para fora, acontecendo para dentro.
+#
+# O QUE ESTE NÚMERO É, E O QUE NÃO É
+#
+# A fonte não separa as duas parcelas, então o rateio é DERIVADO: as rubricas
+# mistas são reduzidas até ocuparem no perfil a mesma proporção que ocupam num
+# COE medido. Âncora única, um painel, aplicada a todas as modalidades — mesma
+# limitação do fator extensivo, e declarada pelo mesmo motivo.
+#
+# O desembolso CHEIO continua existindo e continua sendo mostrado: é dinheiro
+# que o produtor de fato gasta. O que muda é que o DSCR passa a ser medido
+# sobre a capacidade OPERACIONAL, porque investimento é adiável num ano
+# apertado e serviço de dívida não é.
+COMPONENTES_MISTOS = ('maquinas', 'pastagem', 'infraestrutura')
+
+SHARE_INVESTIMENTO_COE = 0.09
+"""Proporção que as rubricas mistas ocupam num COE medido (painel Pantanal)."""
+
+
+def _fator_custeio(comp: dict) -> float:
+    """Quanto das rubricas mistas sobrevive como custeio, de 0 a 1.
+
+    Resolve `mistas_novas / (base + mistas_novas) = SHARE`, com `base` sendo as
+    rubricas que já são integralmente operacionais.
+    """
+    mistas = sum(float(comp.get(k, 0) or 0) for k in COMPONENTES_MISTOS)
+    if mistas <= 0:
+        return 1.0
+    base = sum(float(v or 0) for k, v in comp.items() if k not in COMPONENTES_MISTOS)
+    alvo = base * SHARE_INVESTIMENTO_COE / (1.0 - SHARE_INVESTIMENTO_COE)
+    return min(alvo / mistas, 1.0)
+
+
+def desembolso_operacional(componentes: dict) -> float:
+    """Desembolso mensal por cabeça contando só a parcela de custeio.
+
+    É o número que vai ao DSCR. `sum(componentes.values())` continua sendo o
+    desembolso cheio, que é o que o produtor gasta e o que a tela mostra.
+    """
+    if not componentes:
+        return 0.0
+    f = _fator_custeio(componentes)
+    return sum(float(v or 0) * (f if k in COMPONENTES_MISTOS else 1.0)
+               for k, v in componentes.items())
+
+
+def parcela_investimento(componentes: dict) -> float:
+    """A parcela do desembolso tratada como investimento — o que sai do DSCR."""
+    if not componentes:
+        return 0.0
+    return sum(float(v or 0) for v in componentes.values()) - desembolso_operacional(componentes)
+
 # modalidade -> {componente: (media, top_rentaveis)} em R$/cab/mês.
 PERFIL_DESEMBOLSO = {
     'CRIA': {
@@ -246,5 +321,6 @@ def custo_arroba_padrao(tipo: str, arrobas_por_cabeca: float = None,
     tipo = _HERDA.get(tipo, tipo)
     if tipo not in PERFIL_DESEMBOLSO:
         tipo = 'CICLO_COMPLETO'
-    cab_mes = sum(preset_modalidade(tipo, perfil_do_nivel(nivel)).values())
+    # Só a parcela de custeio vai ao DSCR — ver COMPONENTES_MISTOS acima.
+    cab_mes = desembolso_operacional(preset_modalidade(tipo, perfil_do_nivel(nivel)))
     return round(cab_mes * 12 / max(arrobas_por_cabeca, 1.0), 2)
