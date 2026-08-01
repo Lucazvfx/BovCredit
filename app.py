@@ -22,6 +22,7 @@ from ml_engine import (
     explicar_shap, TIPOS,
 )
 import database as db
+from services import assistente as _assistente
 from services.documentos import (
     impressao as doc_impressao, comparar as doc_comparar,
 )
@@ -1610,10 +1611,8 @@ def api_narrativa():
 @app.route('/api/chat', methods=['POST'])
 @login_required
 def api_chat():
-    """Chat com o parecer de crédito via Groq."""
+    """Chat do assistente de crédito."""
     from services.groq_narrativa import gerar_resposta_chat, _feature_ativa
-    if not _feature_ativa():
-        return jsonify({'erro': 'IA não configurada — adicione GROQ_API_KEY nas variáveis de ambiente.'}), 503
 
     data = request.json or {}
     mensagem = (data.get('mensagem') or '').strip()
@@ -1622,6 +1621,23 @@ def api_chat():
     if len(mensagem) > 800:
         return jsonify({'erro': 'Mensagem muito longa (máx. 800 caracteres)'}), 400
 
+    # Conceito e recusa vêm ANTES do modelo, e sem depender dele.
+    #
+    # Conceito porque a explicação tem de bater com o CÁLCULO: um modelo
+    # explica deságio em geral, nós explicamos o deságio que o parecer aplica.
+    #
+    # Recusa porque prompt é pedido, não garantia. Taxa de Pronaf, prazo de
+    # Moderfrota, exigência do MCR — o modelo responde com confiança e erra, e
+    # informação errada sobre condição de crédito custa caro numa proposta.
+    # Classificar antes de chamar é o que torna a recusa uma propriedade do
+    # sistema e não uma esperança sobre o modelo.
+    _direto = _assistente.responder(mensagem)
+    if _direto is not None:
+        return jsonify({'resposta': _direto['texto'], 'origem': _direto['tipo']})
+
+    if not _feature_ativa():
+        return jsonify({'erro': 'IA não configurada — adicione GROQ_API_KEY nas variáveis de ambiente.'}), 503
+
     historico = data.get('historico') or []
     contexto  = data.get('contexto') or {}
 
@@ -1629,7 +1645,7 @@ def api_chat():
     if resposta is None:
         return jsonify({'erro': 'Serviço de IA temporariamente indisponível. Tente novamente.'}), 503
 
-    return jsonify({'resposta': resposta})
+    return jsonify({'resposta': resposta, 'origem': 'modelo'})
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1692,6 +1708,20 @@ def _responder_whatsapp(telefone: str, texto: str) -> str:
     if not uid:
         return ('Número não vinculado. Entre no BovCredit, gere um código de '
                 'vinculação e envie os 6 dígitos aqui.')
+
+    # Mesma disciplina do chat da tela: conceito e recusa não passam pelo
+    # modelo, e não dependem de haver parecer emitido. Um analista que ainda
+    # não gerou nada continua podendo perguntar como a conta é feita.
+    _direto = _assistente.responder(texto)
+    if _direto is not None:
+        # `_auditar` lê o usuário da sessão, e no webhook não há sessão — o
+        # registro vai direto, com o uid que o vínculo do telefone deu.
+        try:
+            db.registrar_acesso(_aud.WHATSAPP_CONSULTA, user_id=uid,
+                                detalhe=f'assistente:{_direto["tipo"]}')
+        except Exception:
+            logger.exception('[whatsapp] falha ao registrar consulta')
+        return _direto['texto']
 
     p = db.ultimo_parecer_do_usuario(uid)
     if not p:
