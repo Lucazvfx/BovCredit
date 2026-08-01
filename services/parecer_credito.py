@@ -359,7 +359,20 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
     # Este aviso NÃO rebaixa nem altera número. Ele existe para que uma recusa
     # por custo fora da praça não seja lida como recusa por fazenda ruim. É a
     # diferença entre um parecer que nega e um parecer que se explica.
-    _coe = (fluxo_gep or {}).get('coe_benchmark') or {}
+    # O CUSTO DO ANO QUE SUSTENTA A RECOMENDAÇÃO, não o do ano 1.
+    #
+    # O benchmark de custo era medido só no ano 1 — o mesmo ano que este módulo
+    # documenta como enganoso porque liquida o estoque declarado. Numa cria de
+    # 1.775 cabeças isso dava R$ 191,17/@ no ano 1 (dentro da faixa medida de
+    # 166–223) e R$ 292,74/@ no ano 3 (+31% acima do teto). O parecer negava
+    # pelo ano crítico e, ao lado, dizia que o custo estava na praça.
+    _ano_critico = conclusao.get('ano_critico')
+    _coe = {}
+    if _ano_critico:
+        _coe = next((a.get('coe_benchmark') or {} for a in (projecao_anos or [])
+                     if a.get('ano') == _ano_critico), {})
+    if not _coe:
+        _coe = (fluxo_gep or {}).get('coe_benchmark') or {}
     _delta = _coe.get('delta_pct')
     if _delta is not None and _delta >= COE_DIVERGENCIA_AVISO:
         # A referência é a FAIXA entre os painéis publicados da modalidade, não

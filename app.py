@@ -1267,6 +1267,44 @@ def api_classificar():
     )
 
     # COE (R$/@ vendida) = custo_operacional / arrobas_vendidas
+    #
+    # ── O COE PASSA A SER CALCULADO EM TODOS OS ANOS ─────────────────────────
+    #
+    # Era calculado só no ano 1 — o mesmo ano que o próprio parecer documenta
+    # como enganoso, porque liquida o estoque declarado na ficha. O efeito
+    # medido numa cria de 1.775 cabeças:
+    #
+    #     ano 1 .... R$ 191,17/@   dentro da faixa medida (166–223)
+    #     ano 3 .... R$ 292,74/@   +31% acima do teto
+    #
+    # A recomendação segue o ano crítico desde julho; o benchmark de custo
+    # ficou para trás e continuava dizendo "custo dentro da praça" sobre a
+    # única safra em que a fazenda vende o que já tinha em estoque.
+    #
+    # Agora o custo de cada ano é medido, e o parecer usa o do ano que
+    # sustenta a recomendação. `coe_por_arroba` segue sendo o do ano 1 para
+    # quem já lia esse campo; o do ano crítico entra ao lado.
+    def _arrobas_do_ano(_a):
+        """Arrobas comercializadas no ano, com o peso de cada categoria."""
+        if _ciclo_tipo in ('CRIA', 'CRIA_RECRIA'):
+            return (float(_a.get('matrizes_descartadas', 0)) * 15.33
+                    + float(_a.get('bezerras_vendidas', 0)) * 6.00
+                    + float(_a.get('femeas_excedentes', 0)) * 7.67
+                    + float(_a.get('machos_vendidos', 0)) * 6.67)
+        if _ciclo_tipo == 'RECRIA':
+            # Peso de saída variável: a receita dividida pelo preço efetivo é
+            # que devolve as arrobas reais.
+            if _preco_boi_ref > 0 and _a.get('receita', 0) > 0:
+                _pe = _preco_boi_ref * CENARIOS['conservador']['mods']['preco']
+                return _a['receita'] / max(_pe, 1)
+            return 0.0
+        return (float(_a.get('bois_vendidos', 0)) * 20.53
+                + float(_a.get('descarte_matrizes',
+                               _a.get('matrizes_descartadas', 0))) * 15.33
+                + float(_a.get('bezerras_vendidas', 0)) * 6.00
+                + float(_a.get('machos_024_vendidos',
+                               _a.get('machos_vendidos', 0))) * 10.67)
+
     # Arrobas reais por categoria com pesos corretos por ciclo.
     _ciclo_tipo = result.get('tipo', 'CICLO_COMPLETO')
     if _ciclo_tipo in ('CRIA', 'CRIA_RECRIA'):
@@ -1359,6 +1397,31 @@ def api_classificar():
     # variações na tela representem exatamente ±15% do preço de referência.
     _preco_mod_conservador = CENARIOS['conservador']['mods']['preco']
     _servico_base = _servico_gep  # já calculado acima (mesma base do DSCR)
+
+    # ── A sensibilidade tem de olhar o MESMO ano que a conclusão ─────────────
+    #
+    # Ela era calculada no ano 1 enquanto a recomendação segue o ano crítico —
+    # e os dois apareciam no mesmo parecer. Medido numa cria de 1.775 cabeças:
+    # a conclusão dizia DSCR -0,05 e a linha de preço atual da tabela de
+    # sensibilidade dizia 0,88. Quase um ponto de diferença, no mesmo
+    # documento, e o analista lê os dois.
+    #
+    # O ano 1 é justamente o que este sistema documenta como enganoso: ele
+    # liquida o estoque declarado na ficha. Testar a resiliência a queda de
+    # preço na única safra em que a fazenda vende o que já tinha é testar o
+    # ano errado.
+    def _idx_ano_critico(_cenario_anos):
+        """Índice do pior ano dentro do prazo, pela mesma regra do parecer."""
+        _n = max(1, min(-(-int(data.get('prazo_meses', 12) or 12) // 12),
+                        len(_cenario_anos)))
+        _pior, _menor = 0, None
+        for _i, _a in enumerate(_cenario_anos[:_n]):
+            _gc = _a['resultado'] - _reposicao_reprodutores
+            if _menor is None or _gc < _menor:
+                _pior, _menor = _i, _gc
+        return _pior
+
+    _i_crit = _idx_ano_critico(_cx['anos'])
     sensibilidade = []
     for _label, _fator in (('queda_15pct', 0.85), ('base', 1.00), ('alta_15pct', 1.15)):
         _pb_s = _preco_boi_ref * _fator / _preco_mod_conservador
@@ -1377,7 +1440,7 @@ def api_classificar():
             # compara duas fazendas diferentes e o delta deixa de ser do preço.
             **_sim_volume,
         )
-        _gc_s = _cx_s['anos'][0]['resultado'] - _reposicao_reprodutores
+        _gc_s = _cx_s['anos'][_i_crit]['resultado'] - _reposicao_reprodutores
         _dscr_s = round(_gc_s / _servico_base, 2) if _servico_base > 0 else None
         sensibilidade.append({
             'cenario': _label,
@@ -1411,7 +1474,7 @@ def api_classificar():
             preco_bezerra_cab=preco_bezerra, preco_bezerro_cab=preco_bezerro,
             **_sim_volume,
         )
-        _gc_c = _cx_c['anos'][0]['resultado'] - _reposicao_reprodutores
+        _gc_c = _cx_c['anos'][_i_crit]['resultado'] - _reposicao_reprodutores
         _dscr_c = round(_gc_c / _servico_base, 2) if _servico_base > 0 else None
         sensibilidade_custo.append({
             'variacao_pct': round((_fator_c - 1) * 100),
@@ -1445,10 +1508,24 @@ def api_classificar():
         _gc_ano = _ano['resultado'] - _reposicao_reprodutores
         _margem = round(_gc_ano / max(_ano['custo'], 1) * 100, 1)
         _dscr_ano = round(_gc_ano / _servico_base, 2) if _servico_base > 0 else None
+        # COE do ANO — é ele que o parecer usa quando o ano crítico não é o
+        # primeiro. Ver a nota em `_arrobas_do_ano`.
+        _arr_ano = _arrobas_do_ano(_ano)
+        _coe_ano = round(_ano['custo'] / _arr_ano, 2) if _arr_ano > 0 else None
         _projecao_anos.append({
             'ano':         _ano['ano'],
             'receita':     round(_ano['receita'], 2),
             'custo':       round(_ano['custo'], 2),
+            'arrobas_vendidas': round(_arr_ano, 1) if _arr_ano > 0 else None,
+            'coe_por_arroba':   _coe_ano,
+            'coe_benchmark':    (_avaliar_coe(_ciclo_tipo, _coe_ano,
+                                              uf=(precos_regional or {}).get('uf'))
+                                 if _coe_ano else None),
+            # Custo sobre a receita do próprio ano: métrica imune ao ano de
+            # referência e ao perímetro, porque numerador e denominador andam
+            # juntos com o preço. É a que o ebook Campo Futuro publica.
+            'coe_sobre_receita_pct': (round(_ano['custo'] / _ano['receita'] * 100, 1)
+                                      if _ano.get('receita') else None),
             'resultado':   round(_gc_ano, 2),
             'margem_pct':  _margem,
             'rebanho':     _ano.get('total', 0),
