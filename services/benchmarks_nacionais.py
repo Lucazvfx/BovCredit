@@ -499,12 +499,33 @@ def avaliar_desembolso(modalidade: str, valor_real: float) -> dict | None:
     }
 
 
+# Modalidades que NÃO têm painel próprio e caem no de RECRIA_ENGORDA. O painel
+# cobre as duas fases e vende BOI TERMINADO (~20@); uma recria isolada entrega
+# animal de ~13,5@ e uma engorda isolada parte de animal já formado. São
+# perímetros diferentes, e comparar o COE por arroba entre eles infla o nosso
+# lado — na recria, em cerca de 48% só por causa do peso de saída.
+#
+# Foi um erro meu ao criar o mapeamento: apliquei a mesma lógica de "cai no
+# painel mais próximo" que uso para UF, onde ela é inofensiva, a um eixo onde
+# ela troca o produto comparado. É a mesma classe do COE contra CT.
+#
+# Como não existe painel publicado de recria isolada, a comparação continua
+# sendo feita — mas declarada como parcial, e sem disparar o aviso automático
+# de custo fora da praça, que não teria como distinguir custo alto de
+# perímetro diferente.
+_PERIMETRO_PARCIAL = {
+    "RECRIA":  "o painel cobre recria E engorda e vende boi terminado (~20@); "
+               "esta análise cobre só a recria, que entrega animal de ~13,5@",
+    "ENGORDA": "o painel cobre recria E engorda e inclui a fase de recria; "
+               "esta análise cobre só a terminação",
+}
+
+
 def paineis_coe(modalidade: str) -> list:
     """Painéis Campo Futuro da modalidade, ou lista vazia se não houver.
 
-    RECRIA e ENGORDA isoladas caem no painel de RECRIA_ENGORDA: os painéis
-    publicados tratam as duas fases juntas, que é como a maioria das fazendas
-    de reposição opera.
+    RECRIA e ENGORDA isoladas caem no painel de RECRIA_ENGORDA — com a ressalva
+    de perímetro registrada em `_PERIMETRO_PARCIAL`.
     """
     chave = modalidade if modalidade in COE_PAINEIS else (
         "RECRIA_ENGORDA" if modalidade in ("RECRIA", "ENGORDA") else None
@@ -581,6 +602,7 @@ def avaliar_coe(modalidade: str, coe_calculado: float,
     else:
         nivel = "alto"
 
+    parcial = _PERIMETRO_PARCIAL.get(modalidade)
     return {
         "coe_calculado":  round(coe_calculado, 2),
         "coe_referencia": ref["coe_arroba"],
@@ -592,7 +614,9 @@ def avaliar_coe(modalidade: str, coe_calculado: float,
         "maiores_itens_pct": dict(ref["maiores_itens_pct"]),
         "delta_pct":      round(delta_pct, 1),
         "nivel":          nivel,
-        "base":           "COE (desembolso, inclui compra de animais)",
+        "base":           "COE (desembolso operacional, inclui compra de animais)",
+        "perimetro_parcial": parcial,
+        "comparavel":     parcial is None,
         "fonte":          FONTE_COE,
     }
 

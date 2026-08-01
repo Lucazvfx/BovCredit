@@ -269,7 +269,9 @@ def _parecer_com(coe_benchmark):
 
 
 def test_o_aviso_fala_em_faixa_quando_ha_faixa():
-    p = _parecer_com(avaliar_coe('RECRIA', 387.02))
+    # CRIA, não RECRIA: a recria cai no painel de recria+engorda e recebe o
+    # texto de perímetro parcial, coberto em test_custo_fora_da_referencia.py.
+    p = _parecer_com(avaliar_coe('CRIA', 400.0))
     passo = [m for m in p['conclusao']['memoria']
              if 'Custo acima' in str(m.get('passo'))][0]
     assert 'painéis' in passo['detalhe']

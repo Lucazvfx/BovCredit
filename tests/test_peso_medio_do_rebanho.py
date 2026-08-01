@@ -88,10 +88,35 @@ def test_os_dois_caminhos_concordam():
     a = arrobas_categorias(
         matrizes=float(v[6] + v[8]), bois=float(v[7] + v[9]),
         jovens_f=float(v[0] + v[2] + v[4]), jovens_m=float(v[1] + v[3] + v[5]))
+    # Os dois caminhos reais da rota: com componentes digitados, o app passa
+    # por `desembolso_operacional` antes de converter; sem componentes, o
+    # `custo_arroba_padrao` aplica a mesma separação internamente. Comparar a
+    # soma CHEIA com o padrão testaria bases diferentes de propósito.
+    from services.custos_desembolso import desembolso_operacional, preset_modalidade
     por_componentes = custo_arroba_de_desembolso(
-        DESEMBOLSO_PADRAO_CAB_MES['RECRIA'], a, sum(v))
+        desembolso_operacional(preset_modalidade('RECRIA', 'media')), a, sum(v))
     padrao = custo_arroba_padrao('RECRIA', arrobas_por_cabeca=a / sum(v))
     assert padrao == pytest.approx(por_componentes, rel=1e-3)
+
+
+def test_o_desembolso_cheio_e_maior_que_o_operacional():
+    """
+    A separação não pode zerar: o desembolso cheio continua sendo o que o
+    produtor gasta, e é ele que a tela mostra. O que sai do DSCR é só a parcela
+    de investimento das rubricas mistas.
+    """
+    from services.custos_desembolso import (
+        desembolso_operacional, parcela_investimento, preset_modalidade,
+        SHARE_INVESTIMENTO_COE)
+    for mod in ('CRIA', 'RECRIA', 'CICLO_COMPLETO'):
+        p = preset_modalidade(mod, 'media')
+        cheio, oper = sum(p.values()), desembolso_operacional(p)
+        assert 0 < oper < cheio, mod
+        assert parcela_investimento(p) == pytest.approx(cheio - oper)
+        # as rubricas mistas passam a ocupar a proporção do painel
+        mistas = sum(p[k] for k in ('maquinas', 'pastagem', 'infraestrutura'))
+        mistas_oper = oper - (cheio - mistas)
+        assert mistas_oper / oper == pytest.approx(SHARE_INVESTIMENTO_COE, abs=1e-6), mod
 
 
 # ── O fallback continua existindo, mas é último recurso ─────────────────────
@@ -117,5 +142,24 @@ def test_a_rota_usa_o_peso_do_rebanho():
         'valores': FURNAS, 'preco': 320, 'credito_valor': 840_000,
         'prazo_meses': 36, 'juros_aa': 0.125}).get_json()
     coe = d['parecer']['fluxo_gep'].get('coe_por_arroba') or 0
-    # com 11,7 fixo este caso dava R$ 387,02/@; com o peso real passa de 400
-    assert coe > 400, f'COE {coe:.2f} — a rota ainda usa a constante fixa'
+    # A asserção é RELATIVA de propósito. A versão anterior exigia COE > 400,
+    # um número calibrado contra o nível de custo da época — e ele mudou quando
+    # investimento saiu do DSCR, fazendo o teste falhar sem que nada do que ele
+    # protege tivesse quebrado.
+    #
+    # O que ele protege é o PESO: este rebanho pesa 9,75 @/cab contra o
+    # fallback de 11,7. Dividir pelo peso menor produz custo por arroba MAIOR,
+    # na razão 11,7/9,75 = 1,2. É isso que se afere, em qualquer nível de custo.
+    from services.custos_desembolso import ARROBAS_POR_CABECA_FALLBACK
+    a = arrobas_categorias(
+        matrizes=float(FURNAS[6] + FURNAS[8]), bois=float(FURNAS[7] + FURNAS[9]),
+        jovens_f=float(FURNAS[0] + FURNAS[2] + FURNAS[4]),
+        jovens_m=float(FURNAS[1] + FURNAS[3] + FURNAS[5]))
+    peso_real = a / sum(FURNAS)
+    assert peso_real < ARROBAS_POR_CABECA_FALLBACK, 'a premissa do caso mudou'
+    razao = ARROBAS_POR_CABECA_FALLBACK / peso_real
+    coe_com_fallback = coe / razao
+    assert coe > coe_com_fallback * 1.15, (
+        f'COE {coe:.2f} — a rota ainda usa a constante fixa de '
+        f'{ARROBAS_POR_CABECA_FALLBACK} @/cab em vez do peso real de {peso_real:.2f}'
+    )
