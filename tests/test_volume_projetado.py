@@ -94,26 +94,43 @@ def test_reter_novilha_agora_estabiliza_o_plantel():
 
     Agora a retenção MANDA, e é isso que se prende:
 
-        venda 75% das bezerras → 603 matrizes no ano 5   (-20%)
-        venda 45% .............. 740                     ( -1%)
-        venda 30% .............. 750                     (  0%)
+        venda 75% das bezerras → 558 matrizes no ano 5   (-17%)
+        venda 45% .............. 670                     (  0%)
+        venda 30% .............. 670                     (  0%)
 
     Quando o plantel encolhe, é porque a ficha não tem novilha — razão real,
     que o analista vê na composição — e não por causa de uma constante.
+
+    O PATAMAR MUDOU DE 750 PARA 670, e não é regressão. A base reprodutiva
+    passou a ser só quem já pariu (v[8] = 600); a faixa de 25–36m, que ainda
+    não pariu, saiu da base e entra amadurecendo no ano 1. O plantel sobe de
+    600 para 670 nesse primeiro ano — 150 que cruzam os 36 meses contra 78
+    baixas — e estabiliza ali. Comparar contra 750 era comparar contra um
+    número que nunca foi base reprodutiva de nada.
     """
     ca = custo_arroba_padrao('CRIA', 11.31)
-    mat_ini = CRIA[6] + CRIA[8]
+    # BASE REPRODUTIVA, não estoque de fêmeas adultas. Era `CRIA[6] + CRIA[8]`
+    # (750), e o 6 é a faixa de 25–36 meses, que ainda não pariu — ela saiu da
+    # base e entrou na reposição. Comparar o plantel do ano 5 contra 750 é
+    # comparar contra um número que nunca foi base reprodutiva de nada.
+    mat_ini = CRIA[8]
 
     def matrizes_ano5(vb):
         r = simular_cenario(CRIA, cenario='conservador', ciclo='CRIA',
                             preco_arroba=330.0, custo_arroba=ca, venda_bez_pct=vb)
         return r['anos'][4]['matrizes']
 
-    assert matrizes_ano5(30) >= mat_ini * 0.99, 'retendo bezerra o plantel tem de parar de cair'
-    assert matrizes_ano5(75) < matrizes_ano5(45) < mat_ini * 1.01
-    assert matrizes_ano5(75) > mat_ini * 0.75, (
-        'mesmo liquidando bezerra a queda não pode voltar ao patamar antigo (-45%)'
+    # Retendo, o plantel não cai abaixo da base declarada.
+    assert matrizes_ano5(30) >= mat_ini, 'retendo bezerra o plantel tem de parar de cair'
+    # E a retenção continua sendo o que manda: vender mais deixa menos matriz.
+    assert matrizes_ano5(75) < matrizes_ano5(45)
+    # Mesmo liquidando bezerra a queda não volta ao patamar antigo (-45%).
+    assert matrizes_ano5(75) > mat_ini * 0.85, (
+        f'{matrizes_ano5(75)} matrizes no ano 5 para uma base de {mat_ini}'
     )
+    # O degrau do ano 1 é a coorte de 25–36m amadurecendo, não crescimento
+    # projetado: são fêmeas que JÁ ESTÃO na ficha.
+    assert matrizes_ano5(30) <= mat_ini + CRIA[6]
 
 
 def test_a_promocao_cobre_descarte_e_mortalidade():

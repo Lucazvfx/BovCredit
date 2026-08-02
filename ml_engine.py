@@ -1176,6 +1176,11 @@ def calcular_ano(
     preco_bezerra_cab: float = None, preco_bezerro_cab: float = None,
     mort_adulto_pct: float = None,   # fração; default = mort_pct
     mort_bezerra_pct: float = None,  # fração; default = mort_pct × 3.5 (EMBRAPA)
+    # Fêmeas de 25–36 meses declaradas: cruzam os 36 meses dentro do ano e
+    # entram na base reprodutiva. NÃO produzem bezerro neste ano — ver a
+    # derivação em _simular_cria. Só o ano 1 recebe valor aqui; do ano 2 em
+    # diante a coorte vem da regra de reposição sobre as fêmeas jovens.
+    prestes_matrizes: float = 0.0,
 ) -> dict:
     """
     Pesos diferenciados na faixa jovem (0-25 meses):
@@ -1212,7 +1217,10 @@ def calcular_ano(
     desc_mat = round(matrizes * desc_mat_pct)
     bez_vend  = round(femeas_024 * venda_bez_pct)
     fem_repor = femeas_024 - bez_vend
-    aumento  = fem_repor - desc_mat
+    # A coorte que amadurece entra no plantel sem passar pela regra de venda:
+    # cruzar os 36 meses é calendário, não decisão de manejo. Submetê-la a
+    # `venda_bez_pct` liquidaria 75% das fêmeas prestes a parir.
+    aumento  = fem_repor - desc_mat + float(prestes_matrizes or 0.0)
     vendidos = bois_vendidos + desc_mat + bez_vend + machos_024_vend
     # Mortalidade diferenciada por categoria (EMBRAPA: bezerros 5–10%, adultos 1.5–2.5%)
     _mort_adulto  = mort_adulto_pct  if mort_adulto_pct  is not None else mort_pct
@@ -1370,9 +1378,45 @@ def _simular_cria(
     # cobrado sobre o rebanho inteiro — daí o caixa negativo.
     bez_F     = float(va[0] + va[2])   # fêmeas 0–12m
     bez_M     = float(va[1] + va[3])   # machos 0–12m
-    nov_F     = float(va[4])           # novilhas 13–24m
     mac_R     = float(va[5] + va[7])   # machos 13–36m (sem função na cria)
-    matrizes  = float(va[6] + va[8])
+
+    # ── Quem pare e quem ainda vai parir ─────────────────────────────────────
+    #
+    # Era `matrizes = va[6] + va[8]` e `nov_F = va[4]`. A faixa de 25–36 meses
+    # entrava inteira na BASE REPRODUTIVA, e isso contradiz o que este mesmo
+    # arquivo já afirma na guarda de classificação, com fonte:
+    #
+    #     "a fêmea da faixa de 25–36m ainda NÃO PARIU — contá-la como matriz
+    #      projeta bezerro que ainda não existe"
+    #
+    # A Embrapa Gado de Corte apurou 36,3 meses de idade média à primeira
+    # parição em 468 matrizes Nelore; no Pantanal extensivo são 40,0. Uma fêmea
+    # de 30 meses não tem bezerro ao pé.
+    #
+    # QUANTO CUSTAVA, medido numa cria de 1.775 cabeças:
+    #
+    #     base reprodutiva ..... 750 contra 600 reais
+    #     nascidos por ano ..... 525 contra 420
+    #     105 bezerros por ano que a fazenda não produz
+    #
+    # É o mesmo defeito que a checagem de consistência tinha na superfície — a
+    # mesma fêmea contada como plantel a repor E como reposição — só que uma
+    # camada abaixo, no motor.
+    #
+    # POR QUE ELA VAI PARA A REPOSIÇÃO E NÃO SOME: ela é exatamente o estoque
+    # de reposição. Em até um ano cruza os 36 meses e vira matriz de fato, e é
+    # isso que `promovidas` representa. O rebanho não perde a fêmea — ela muda
+    # de papel, do lado que produz para o lado que ainda vai produzir.
+    #
+    # DIREÇÃO DO ERRO CORRIGIDO: para baixo. A projeção passa a nascer menos
+    # bezerro, o resultado cai e o DSCR cai junto — o lado de reprovar. É o
+    # sentido seguro num produto de crédito, e aqui é também o sentido certo.
+    matrizes  = float(va[8])           # já pariram: acima de 36 meses
+    nov_F     = float(va[4])           # reposição jovem: 13–24 meses
+    # Coorte que ENVELHECE para dentro da base reprodutiva. Ver `_prestes` no
+    # laço: ela não disputa a regra de manutenção, porque cruzar os 36 meses
+    # não é decisão de manejo — é o calendário.
+    prestes_F = float(va[6])           # 25–36 meses
     bois      = float(va[9])           # touros de serviço
     total_ini = float(va.sum())
 
@@ -1447,9 +1491,28 @@ def _simular_cria(
         # Repõe o descarte E as matrizes que morrem — repor só o descarte
         # deixava o plantel caindo pela mortalidade (3% ao ano, 15% em cinco).
         # Se não houver novilha bastante, promove o que tem.
+        # ── Duas promoções, com regras diferentes ────────────────────────────
+        #
+        # A coorte de 25–36m cruza os 36 meses dentro do ano. Isso não é decisão
+        # de manejo, é calendário — ela entra na base reprodutiva inteira.
+        #
+        # POR QUE ELA NÃO PODE ENTRAR NA REGRA DE MANUTENÇÃO: medido, dava um
+        # salto de venda no ano 1. Com 150 fêmeas de 25–36m e apenas 78 baixas
+        # a repor, a regra promovia 78 e mandava 172 para a venda — o ano 1 de
+        # uma cria passava de 785 para 955 cabeças vendidas e o resultado subia
+        # 46%. É a ilusão do ano 1 outra vez, agora liquidando a fêmea que está
+        # prestes a parir.
+        #
+        # Também não é "projetar crescimento de rebanho", que é a coisa perigosa
+        # que o comentário acima adverte: estas fêmeas JÁ ESTÃO na ficha. Contar
+        # que elas amadureçam é descrever o declarado, não extrapolar.
+        #
+        # A regra de manutenção continua valendo para a coorte de 13–24m, que é
+        # onde o produtor de fato escolhe entre reter e vender.
         _baixas_mat = float(descarte_mat) + matrizes * mort
-        promovidas  = min(nov_F, _baixas_mat)
-        vende_nov_F = max(nov_F - promovidas, 0.0)   # excedente de fêmeas
+        _falta      = max(_baixas_mat - prestes_F, 0.0)
+        promovidas  = prestes_F + min(nov_F, _falta)
+        vende_nov_F = max(nov_F - min(nov_F, _falta), 0.0)   # excedente jovem
         vende_mac_R = mac_R                       # machos de recria saem
 
         machos_vend  = vende_bez_M + vende_mac_R
@@ -1470,9 +1533,12 @@ def _simular_cria(
 
         # ── Custo sobre o rebanho mantido no ano ────────────────────────────
         _touros = bois if bois > 0 else (max(round(matrizes / 30.0), 1) if matrizes > 0 else 0)
+        # `prestes_F` estava de fora e a coorte pastava de graça no modelo — o
+        # teste de custo por arroba pegou. Ela come como novilha adulta: peso de
+        # fêmea jovem, não de matriz, porque ainda não pariu nem amamenta.
         custo_manutencao = (matrizes * peso_matriz
                             + (bez_F + bez_M) * peso_bezerra
-                            + (nov_F + mac_R) * PESO_JOVEM_F_ARR
+                            + (nov_F + prestes_F + mac_R) * PESO_JOVEM_F_ARR
                             + _touros * PESO_BOI_ARR) * custo_arroba
 
         # ── Compra de desmama ───────────────────────────────────────────────
@@ -1502,7 +1568,7 @@ def _simular_cria(
         resultado = receita - custo
 
         # ── Estado no fim do ano (balanço fechado) ──────────────────────────
-        mortes = round((matrizes + nov_F + mac_R + bois) * mort
+        mortes = round((matrizes + nov_F + prestes_F + mac_R + bois) * mort
                        + (nascidos - desmamados))
         # `mortes` acima já contabiliza a mortalidade das matrizes, mas o
         # fechamento não a descontava: as matrizes mortas continuavam no
@@ -1511,6 +1577,11 @@ def _simular_cria(
         matrizes_prox = max(matrizes * (1 - mort) + promovidas - descarte_mat,
                             matrizes * 0.7)
         nov_F_prox    = max(retem_bez_F - retem_bez_F * mort, 0.0)
+        # A coorte de 25–36m declarada existe UMA vez: no ano 1 ela cruza os 36
+        # meses e vira base reprodutiva. Do ano 2 em diante quem alimenta a
+        # promoção é a regra de manutenção sobre as bezerras retidas, que é o
+        # ponto em que o produtor de fato escolhe entre reter e vender.
+        prestes_F     = 0.0
         # A safra do ano forma o estoque de 0–12m seguinte, menos o que já foi
         # antecipado para venda.
         bez_F_prox    = max(_desm_F - _antecip_F, 0.0)
@@ -1960,7 +2031,12 @@ def simular_cenario(
 
     femeas_024 = float(va[0]+va[2]+va[4])
     machos_024 = float(va[1]+va[3]+va[5])
-    matrizes   = float(va[6]+va[8])
+    # Base reprodutiva = só quem já pariu (acima de 36 meses). A faixa de
+    # 25–36m entra como coorte que AMADURECE — mesma correção de _simular_cria,
+    # e pela mesma fonte: idade média à primeira parição de 36,3 meses
+    # (Embrapa, 468 matrizes Nelore) e 40,0 no Pantanal extensivo.
+    matrizes   = float(va[8])
+    prestes_F  = float(va[6])
     bois       = float(va[7]+va[9])
     total_ini  = float(va.sum())
 
@@ -1986,6 +2062,7 @@ def simular_cenario(
     anos_proj = []
     for yr in range(1, anos + 1):
         r = calcular_ano(
+            prestes_matrizes=prestes_F,
             matrizes=matrizes, femeas_024=femeas_024,
             machos_024=machos_024, bois=bois,
             nat_pct=nat, desc_mat_pct=desc,
@@ -2022,6 +2099,10 @@ def simular_cenario(
             'jovens_m_fim':  r['machos_024_prox'],
         })
         matrizes   = float(r['matrizes_prox'])
+        # A coorte de 25–36m declarada existe UMA vez: no ano 1 ela cruza os 36
+        # meses e já está dentro de `matrizes_prox`. Do ano 2 em diante quem
+        # alimenta o plantel é `fem_repor`, a regra de reposição.
+        prestes_F  = 0.0
         bois       = float(r['bois_prox'])
         femeas_024 = float(r['femeas_024_prox'])
         machos_024 = float(r['machos_024_prox'])

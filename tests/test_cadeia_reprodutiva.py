@@ -128,19 +128,32 @@ def test_o_ano_1_nao_se_mexe_e_os_anos_de_regime_sim():
 
     Os anos de regime vendem a produção corrente, e é lá que os 22% a mais de
     bezerro (1 ÷ 0,82, o fator que sobrava) têm de aparecer.
+
+    O NÚMERO DO ANO 1 MUDOU DEPOIS, por outra correção: a faixa de 25–36m saiu
+    da base reprodutiva e entrou na reposição. Com 150 fêmeas amadurecendo
+    contra 78 baixas a repor, sobra excedente jovem para vender, e o ano 1
+    passou de 785 para 885 cabeças.
+
+    Isso NÃO desmente o que este teste prende. O ponto é que o ano 1 não
+    depende da CADEIA REPRODUTIVA — ele vende estoque declarado. Prender o
+    valor absoluto faria o teste brigar com toda correção futura de
+    composição, então o que se prende é a propriedade: mexer na natalidade não
+    move o ano 1.
     """
     r = simular_cenario(CRIA, 'conservador', ciclo='CRIA',
                         preco_arroba=330, custo_arroba=57)
     anos = r['anos']
-    assert anos[0]['vendidos'] == 785, (
-        'o ano 1 mudou — ele vende estoque declarado e não deveria depender '
-        'da cadeia reprodutiva'
+    magro = simular_cenario(CRIA, 'conservador', ciclo='CRIA',
+                            preco_arroba=330, custo_arroba=57, nat_pct=45)
+    assert anos[0]['vendidos'] == magro['anos'][0]['vendidos'], (
+        'o ano 1 passou a depender da natalidade — ele vende estoque '
+        'declarado e não deveria'
     )
-    assert anos[2]['vendidos'] > 370, (
-        f"ano 3 vende {anos[2]['vendidos']} — antes da correção eram 316"
+    assert anos[2]['vendidos'] > magro['anos'][2]['vendidos'], (
+        'a natalidade parou de mover os anos de regime'
     )
     # O plantel para de derreter tão rápido.
-    assert anos[4]['total'] > 1000
+    assert anos[4]['total'] > 900
 
 
 # ── Reposição: requisito de manutenção, não alavanca de DSCR ────────────────
