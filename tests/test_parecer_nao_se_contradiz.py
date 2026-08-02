@@ -136,3 +136,65 @@ def test_nao_se_chama_implausivel_uma_declaracao_inexistente():
     msg = _flag(BELA_VISTA, 'touro_matriz')['mensagem']
     assert 'declarada implausível' not in msg, msg
     assert 'IATF' in msg, 'o alerta perdeu a orientação prática'
+
+
+# ── 5. O catálogo de proveniência se monta sozinho ──────────────────────────
+def test_toda_medicao_registrada_chega_ao_parecer():
+    """
+    O parecer de produção publicava CINCO parâmetros medidos quando o módulo
+    já tinha TREZE. A lista do `catalogo()` era escrita à mão em
+    parecer_credito.py, e tudo registrado depois dela ficava invisível — as
+    quatro do painel do Pantanal e as quatro da cadeia reprodutiva de Vieira
+    et al. nunca chegaram ao documento.
+
+    O rodapé de proveniência é o que separa este parecer de uma planilha com
+    opinião. Uma medição que não aparece nele é, para o comitê, uma medição
+    que não existe. E o defeito era silencioso: nada quebrava, o número só
+    ficava menor que a verdade.
+    """
+    import services.parametros_zootecnicos as pz
+    from services.proveniencia import Parametro, MEDIDO, catalogo, do_modulo
+
+    no_modulo = {n for n, v in vars(pz).items()
+                 if isinstance(v, Parametro) and v.origem == MEDIDO}
+    no_catalogo = {p['rotulo'] for p in catalogo(do_modulo(pz))
+                   if p['origem'] == MEDIDO}
+
+    assert len(no_catalogo) >= len(no_modulo), (
+        f'{len(no_modulo)} medições no módulo, {len(no_catalogo)} no catálogo — '
+        f'a lista voltou a ser escrita à mão'
+    )
+    assert len(no_modulo) >= 13, (
+        'o módulo perdeu medições — se alguma foi removida, confirme que foi '
+        'de propósito'
+    )
+
+
+def test_o_parecer_publica_as_medicoes_novas():
+    """As quatro da cadeia reprodutiva têm de aparecer pelo nome no parecer."""
+    import database as db
+    from app import app
+    db.init_db()
+    email = 'provdeploy@example.com'
+    u = db.buscar_usuario_email(email)
+    if not u:
+        db.criar_usuario(email, 'Prov', 'senha123')
+        u = db.buscar_usuario_email(email)
+    app.config['TESTING'] = True
+    c = app.test_client()
+    with c.session_transaction() as s:
+        s['_user_id'] = str(u['id'])
+
+    r = c.post('/api/classificar', json={
+        'valores': BELA_VISTA, 'preco': 330,
+        'credito_valor': sum(BELA_VISTA) * 1200,
+        'prazo_meses': 36, 'juros_aa': 0.125}).get_json()
+
+    prov = r['parecer']['proveniencia']
+    medidos = {p['rotulo'] for p in prov['parametros'] if p['origem'] == 'medido'}
+    assert prov['resumo']['contagem']['medido'] >= 13, prov['resumo']['contagem']
+    for esperado in ('Prenhez, média de 4 safras',
+                     'Natalidade sobre prenhez',
+                     'Desmama sobre vacas expostas, 4 safras',
+                     'Mortalidade pré-desmama medida'):
+        assert esperado in medidos, f'{esperado!r} não chegou ao parecer'
