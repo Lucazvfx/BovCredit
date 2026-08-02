@@ -121,7 +121,32 @@ def analisar_consistencia(
     bezerros = v[0] + v[1]
     matrizes = v[6] + v[8]
     touros = v[9]
-    novilhas_repo = v[4] + v[6]
+
+    # ── v[6] estava contado NOS DOIS lados ───────────────────────────────────
+    #
+    # Era `novilhas_repo = v[4] + v[6]`, com `matrizes = v[6] + v[8]` logo
+    # acima. As mesmas 150 fêmeas de 25–36 meses eram simultaneamente o plantel
+    # a repor e a reposição dele.
+    #
+    # Num parecer real de 1.775 cabeças isso publicava "Reposição de 33% das
+    # matrizes — adequada" onde a taxa verdadeira é 13%. O erro corria a favor
+    # de aprovar: fazia um plantel apertado parecer folgado.
+    #
+    # Achado ao comparar com `avaliar_reposicao` (parametros_zootecnicos), que
+    # nasceu do artigo da Embrapa-CPATSA e usa só v[4]. Os dois davam números
+    # diferentes para a mesma coisa no mesmo documento — a classe de defeito
+    # que já custou a sensibilidade e o benchmark de custo.
+    #
+    # QUAL DOS DOIS LADOS CEDEU, e por quê: v[6] segue como matriz, porque é
+    # assim que ml_engine o trata em todo o motor (`va[6] + va[8]`). Mudar o
+    # denominador do rebanho inteiro para acertar um flag seria o rabo abanando
+    # o cachorro.
+    #
+    # FICA REGISTRADO O INCÔMODO: a faixa 25–36m como matriz contradiz
+    # IDADE_PRIMEIRA_PARICAO_MESES (36,3 medido pela Embrapa, 40,0 no Pantanal
+    # extensivo) — uma fêmea de 30 meses ainda não pariu. O motor documenta a
+    # escolha em ml_engine.py:68. É item aberto, não desta correção.
+    novilhas_repo = v[4]
 
     flags = []
 
@@ -157,7 +182,7 @@ def analisar_consistencia(
         else:
             flags.append(_flag(
                 "bezerros_vs_esperado", OK, "Bezerros vs esperado",
-                f"{bezerros:.0f} bezerros compatível com {matrizes:.0f} matrizes.",
+                f"{bezerros:.0f} bezerros de 0–5 meses, compatível com {matrizes:.0f} matrizes.",
                 declarado=bezerros, esperado=centro))
 
     # 1b. Compra de animais desmamados (coorte 0–12m vs produção própria).
@@ -220,8 +245,14 @@ def analisar_consistencia(
                 flags.append(_flag(
                     "touro_matriz", ALERTA,
                     "Poucos touros para tantas matrizes",
+                    # Dizia "Prenhez declarada implausível sem IATF" mesmo em
+                    # ficha sem prenhez nenhuma declarada — o parecer real de
+                    # 1.775 cabeças trazia essa frase com zero parâmetros
+                    # declarados no rodapé. Afirmar que uma declaração é
+                    # implausível quando ela não existe é afirmar sobre o nada.
                     f"{razao:.0f} matrizes por touro (> {matriz_touro_max:.0f}). "
-                    f"Prenhez declarada implausível sem IATF.",
+                    f"A monta natural nessa proporção não sustenta prenhez alta — "
+                    f"confirme se há IATF ou estação de monta.",
                     declarado=touros, esperado=matrizes / matriz_touro_max))
             elif razao < matriz_touro_min:
                 flags.append(_flag(
