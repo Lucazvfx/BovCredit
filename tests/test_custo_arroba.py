@@ -37,9 +37,13 @@ def test_simular_cria_custo_arroba():
     # 0–12m no peso de bezerra informado, novilhas 13–24m e machos 13–36m no
     # peso de fêmea jovem (7,67@), touros no peso de boi.
     from services.parametros_zootecnicos import PESO_JOVEM_F_ARR, PESO_BOI_ARR
-    matrizes = 30 + 40                   # v[6] + v[8]
+    # A faixa de 25–36m (v[6]) SAIU da base de matriz. Ela ainda não pariu
+    # (idade média à primeira parição: 36,3 meses, Embrapa) e come como novilha
+    # adulta, não como vaca lactante — peso de fêmea jovem, não de matriz.
+    # A diferença neste caso é 30 cab × (17 − 7,67)@ × R$ 57 = R$ 15.954.
+    matrizes = 40                        # v[8] — só quem já pariu
     bez      = (10 + 10) + (8 + 8)       # 0–12m: v[0]+v[1]+v[2]+v[3]
-    nov_mac  = 6 + (6 + 2)               # v[4] + (v[5] + v[7])
+    nov_mac  = 6 + 30 + (6 + 2)          # v[4] + v[6] + (v[5] + v[7])
     touros   = 3                         # v[9] — bois declarados
     esperado = (matrizes*17 + bez*8 + nov_mac*PESO_JOVEM_F_ARR
                 + touros*PESO_BOI_ARR) * 57
