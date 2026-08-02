@@ -197,3 +197,38 @@ def resumo(catalogo_: list) -> dict:
         'total':     total,
         'medidos_pct': round(contagem[MEDIDO] / total * 100, 1) if total else 0.0,
     }
+
+
+def do_modulo(*modulos) -> list:
+    """Todo `Parametro` definido no nível de módulo, para o catálogo se montar só.
+
+    POR QUE ISTO EXISTE. `catalogo()` era alimentado por uma lista escrita à mão
+    em parecer_credito.py. Toda medição registrada depois dela ficava invisível:
+    treze parâmetros medidos existiam em parametros_zootecnicos e o parecer
+    publicava CINCO — as quatro do painel do Pantanal e as quatro da cadeia
+    reprodutiva de Vieira et al. nunca chegaram ao documento.
+
+    O rodapé de proveniência é o que separa este parecer de uma planilha com
+    opinião. Uma medição que não aparece nele é, para o comitê, uma medição que
+    não existe — e o defeito era silencioso: nada quebrava, o número só ficava
+    menor do que a verdade.
+
+    É a mesma família de defeito das três cópias das faixas de desfrute: duas
+    fontes da mesma informação, sincronizadas à mão, e uma fica para trás.
+
+    O nome do atributo vira rótulo quando o parâmetro não trouxe um.
+    """
+    achados = []
+    for m in modulos:
+        for nome, valor in vars(m).items():
+            if nome.startswith('_'):
+                continue
+            if isinstance(valor, Parametro):
+                achados.append((nome, valor))
+            elif isinstance(valor, dict):
+                achados.extend((f'{nome}.{k}', v) for k, v in valor.items()
+                               if isinstance(v, Parametro))
+    return [v if v.rotulo else Parametro(
+                float(v), origem=v.origem, fonte=v.fonte, ano=v.ano, uf=v.uf,
+                rotulo=nome, nota=v.nota)
+            for nome, v in achados]

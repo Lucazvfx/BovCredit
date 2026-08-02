@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import os
 
-from services.proveniencia import politica, catalogo, resumo as _resumo_prov
+from services.proveniencia import (
+    politica, catalogo, do_modulo, resumo as _resumo_prov)
 
 # Faixas de política de crédito (DSCR) — ajustáveis, não são benchmark
 # zootécnico. Marcadas como POLÍTICA na proveniência: em comitê elas se
@@ -462,21 +463,30 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
     )
     from services.garantia import DESAGIO_PADRAO, LTV_APROVAR, LTV_RESSALVA
     from services.endividamento import COMPROMETIMENTO_ALERTA
+    import services.parametros_zootecnicos as _pz
+    import services.nivel_tecnologico as _nt
 
     _cat = catalogo(
         DSCR_APROVAR, DSCR_RESSALVA,
         LTV_APROVAR, LTV_RESSALVA, DESAGIO_PADRAO,
         COMPROMETIMENTO_ALERTA,
-        DESFRUTE_PCT,
-        NATALIDADE_PCT, DESMAME_PCT, MORTALIDADE_PCT,
-        MORTALIDADE_ADULTO_PCT, MORTALIDADE_BEZERRA_PCT,
-        RENDIMENTO_CARCACA_PCT, GANHO_ARROBA_MES,
-        # Não substituem os parâmetros de projeção — entram para o parecer
-        # mostrar contra o que a projeção está ancorada, e para o contador de
-        # proveniência deixar de reportar "0 medidos".
-        IDADE_PRIMEIRA_PARICAO_MESES, TAXA_PRENHEZ_MEDIDA_PCT,
-        PESO_DESMAMA_MACHO_KG, PESO_DESMAMA_FEMEA_KG,
-        PESO_FEMEA_REPOSICAO_KG,
+        # ── Zootecnia: varrida do módulo, não listada à mão ──────────────────
+        #
+        # Esta lista ERA escrita à mão, e toda medição registrada depois dela
+        # ficava invisível. Um parecer de produção publicava CINCO parâmetros
+        # medidos quando o módulo já tinha TREZE: as quatro do painel do
+        # Pantanal e as quatro da cadeia reprodutiva de Vieira et al. nunca
+        # chegaram ao documento.
+        #
+        # O rodapé de proveniência é o que separa este parecer de uma planilha
+        # com opinião. Uma medição que não aparece nele é, para o comitê, uma
+        # medição que não existe — e o defeito era silencioso: nada quebrava,
+        # o número só ficava menor que a verdade.
+        #
+        # Mesma família das três cópias das faixas de desfrute: duas fontes da
+        # mesma informação sincronizadas à mão, e uma fica para trás. Agora há
+        # uma fonte só, e registrar um `medido()` basta para ele ser publicado.
+        do_modulo(_pz, _nt),
     )
     proveniencia = {'parametros': _cat, 'resumo': _resumo_prov(_cat)}
 

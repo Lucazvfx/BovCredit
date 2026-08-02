@@ -161,9 +161,22 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         tf.setStyle(TableStyle(_estilo_fc))
         story.append(tf)
         story.append(Spacer(1, 4))
+        # A legenda tem de seguir o SINAL do número que ela explica. Era fixa em
+        # "riqueza criada pelo crescimento do rebanho" e aparecia embaixo de uma
+        # variação de −R$ 1,7 milhão num parecer real: a legenda dizia riqueza
+        # criada onde o rebanho tinha encolhido em um quarto do próprio valor.
+        #
+        # É a mesma classe de defeito do ano 1 na sensibilidade — texto estático
+        # ao lado de número que mudou de sinal, e quem lê acredita no texto.
+        _var_est = float(fluxo_gep.get('variacao_estoque') or 0)
         story.append(Paragraph(
-            '<i>Variação de estoque: riqueza criada pelo crescimento do rebanho — '
-            'não é caixa, mas é valor real do ativo.</i>', ss['Subtitulo']))
+            ('<i>Variação de estoque: riqueza criada pelo crescimento do rebanho '
+             '— não é caixa, mas é valor real do ativo.</i>'
+             if _var_est >= 0 else
+             '<i>Variação de estoque NEGATIVA: o rebanho encolheu no período. '
+             'Não é saída de caixa, mas é perda de ativo — a fazenda financiou '
+             'parte do resultado consumindo o próprio plantel. Confira se é '
+             'realização planejada ou descapitalização.</i>'), ss['Subtitulo']))
         _cd = fluxo_gep.get('compra_desmama_estimada', 0)
         if _cd:
             _repoe = fluxo_gep.get('repoe_compra_desmama')
@@ -180,37 +193,6 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
                    "e é isso que explica a variação de estoque negativa.")
                 + " As duas leituras são legítimas e dão pareceres diferentes.",
                 ss['Corpo']))
-
-    # ── Praça de referência dos preços ───────────────────────────────────────
-    # Sem isto o parecer não diz sobre qual preço os números foram feitos, e
-    # quem lê não tem como conferir nada que dependa de cotação.
-    reg = parecer.get('precos_regional')
-    if reg:
-        story.append(Paragraph('Praça de Referência dos Preços', ss['SecaoTitulo']))
-        if reg.get('ajustado'):
-            linhas_p = [['Categoria', 'Indicador nacional', f"Praça {reg.get('uf')}"]]
-            for c in reg.get('categorias', []):
-                linhas_p.append([
-                    c['categoria'].replace('preco_', '').capitalize(),
-                    _fmt_moeda(c['nacional']),
-                    _fmt_moeda(c['regional']),
-                ])
-            tp = Table(linhas_p, colWidths=[6*cm, 5*cm, 5*cm])
-            tp.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EEEEEE')),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#DDDDDD')),
-                ('FONTSIZE', (0, 0), (-1, -1), 8.5),
-                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
-            ]))
-            story.append(tp)
-            story.append(Spacer(1, 4))
-        story.append(Paragraph(reg.get('resumo', ''), ss['Corpo']))
-        story.append(Paragraph(
-            f"<i>Origem: {reg.get('origem', '')}. O indicador CEPEA/ESALQ é "
-            f"praça de {reg.get('uf_referencia', 'SP')}; o diferencial regional "
-            f"aqui aplicado é calibração de referência, a ser recalibrada com "
-            f"série própria.</i>", ss['Subtitulo']))
-        story.append(Spacer(1, 6))
 
     # ── Praça de referência dos preços ───────────────────────────────────────
     # Sem isto o parecer não diz sobre qual preço os números foram feitos, e
