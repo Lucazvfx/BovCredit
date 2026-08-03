@@ -187,6 +187,20 @@ def _erro_json(e):
     raise e
 
 
+# ── O IP que o limitador enxerga ──────────────────────────────────────────────
+#
+# Em produção o app roda atrás do proxy do Railway. Sem isto, `remote_addr` é o
+# IP DO PROXY, e não o do cliente — então TODOS os usuários da plataforma caem
+# no mesmo balde do limitador. Dez tentativas de login por minuto somadas entre
+# todas as consultorias derrubariam o login de todas elas ao mesmo tempo.
+#
+# `x_for=1` confia em UM salto de X-Forwarded-For: o do proxy imediatamente à
+# frente. Confiar em mais permitiria a um cliente forjar o cabeçalho e escapar
+# do limite escolhendo um IP a cada tentativa — que é a razão de o número ser
+# explícito e pequeno.
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
 # ── Rate limiting (proteção contra força bruta) ───────────────────────────────
 limiter = Limiter(
     get_remote_address,
@@ -371,7 +385,13 @@ def _auditar(evento, *, recurso=None, recurso_id=None, detalhe=None,
 
 # ── Auth routes ─────────────────────────────────────────────────────────────
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("10 per minute; 30 per hour")
+# `methods=['POST']` é o detalhe que faltava, e sem ele o limitador se voltava
+# contra os usuários: ele contava também os GET, ou seja o simples ATO DE ABRIR
+# A TELA DE LOGIN. Medido num app recém-iniciado, do décimo acesso em diante a
+# página respondia 429 e ninguém mais entrava.
+#
+# Força bruta é POST. GET de página de login não é tentativa de nada.
+@limiter.limit("10 per minute; 30 per hour", methods=['POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('app_main'))
