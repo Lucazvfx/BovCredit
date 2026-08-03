@@ -1709,11 +1709,46 @@ def _simular_recria(
         n2_f, n2_m = c1_f, c1_m - vend_c1_m
         n1_f, n1_m = c0_f, c0_m
 
-        # Reposição 1:1 por compra, como na ficha (venda 315 → compra 315).
-        # Entra como jovem e macho: a recria compra bezerro desmamado, não boi
-        # magro, e a relação de troca é outra (≈9,26@ contra 12,4@).
+        # ── Onde a reposição ENTRA, e por que isso decidia tudo ──────────────
+        #
+        # Era `n0_f, n0_m = 0.0, compras`: toda a reposição caía em 0–12m e toda
+        # ela macho. Dois defeitos num só lugar.
+        #
+        # 1. O TETO ESTRUTURAL DE 46%. Entrando em 0–12m, o animal atravessa
+        #    DUAS faixas etárias antes de sair, num ciclo que `meses_recria`
+        #    declara ser de 12 meses. Em regime permanente, com N entrando por
+        #    ano:
+        #
+        #        0–12m ..... N
+        #        13–24m .... N       → vende 0,83N, sobra 0,17N
+        #        25–36m .... 0,17N   → vende tudo
+        #        rebanho = 2,17N,  vendas = N,  desfrute = 1/2,17 = 46%
+        #
+        #    Nenhuma calibração de parâmetro passa de 46%, e o painel de
+        #    Pontes e Lacerda/MT mede 79,68% — faixa de referência 60–95%.
+        #    O modelo não estava mal ajustado, estava mal construído.
+        #
+        #    Entrando na faixa de onde de fato sai, o rebanho é 1,17N e o
+        #    desfrute vai a 85% — dentro da faixa, perto do painel.
+        #
+        #    A faixa etária não é tempo de casa. Um desmamado comprado aos 8
+        #    meses e vendido aos 20 fica 12 meses na fazenda, e é isso que
+        #    `meses_recria` diz; contá-lo em duas faixas anuais o fazia ocupar
+        #    o dobro do pasto que ocupa.
+        #
+        # 2. A LINHA DE FÊMEAS SE EXTINGUIA. Vendia-se fêmea de 25–36m e repunha
+        #    só macho: da terceira safra em diante o rebanho não tinha mais
+        #    fêmea nenhuma. Reposição 1:1 é um animal por animal do MESMO tipo.
+        #
+        # O efeito conjunto era um pingue-pongue de dois anos — desfrute
+        # alternando 29%/63% e o resultado trocando de sinal junto. Como a
+        # recomendação segue o ano crítico, ela pegava sempre o ano ruim da
+        # oscilação: toda recria saía negativa.
         compras = animais_sai
-        n0_f, n0_m = 0.0, compras
+        _frac_f = (femeas_sai / animais_sai) if animais_sai > 0 else 0.0
+        n1_f += compras * _frac_f
+        n1_m += compras * (1.0 - _frac_f)
+        n0_f, n0_m = 0.0, 0.0
 
         # O MESMO animal precisa ser comprado e valorado pelo mesmo preço.
         #
