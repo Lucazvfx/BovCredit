@@ -1,11 +1,25 @@
 """
-Testes de regressão com PDFs REAIS do INDEA-MT (boletim "Saldo Atual da
-Exploração"). Estes fixtures pegaram um bug real de produção: o regex de
-captura de quantidade exigia 2+ dígitos, descartando silenciosamente
-qualquer linha com 1-9 animais (ex.: "BOVINO 25 A 36 MESES FEMEA 2").
+Testes de regressão do parser INDEA-MT (boletim "Saldo Atual da Exploração").
 
-Os PDFs ficam em tests/fixtures_pdf/ e são versionados com o repositório
-para que este teste rode em qualquer máquina, sem depender de caminho local.
+Estes fixtures pegaram um bug real de produção: o regex de captura de
+quantidade exigia 2+ dígitos, descartando silenciosamente qualquer linha com
+1-9 animais (ex.: "BOVINO 25 A 36 MESES FEMEA 2"). Um rebanho inteiro virava
+zero e ninguém via.
+
+OS FIXTURES ERAM PDFs REAIS DE CLIENTE, E NÃO PODIAM SER.
+
+Seis boletins do INDEA com nome completo e CPF de um produtor identificável
+estavam versionados aqui — dado pessoal sob LGPD, distribuído a quem clonasse
+o repositório. Foram trocados por PDFs SINTÉTICOS que reproduzem o layout do
+INDEA e as MESMAS quantidades, com identidade fictícia (CPF 00000000000, que
+não passa em validação de dígito verificador de propósito).
+
+O que os casos testam continua idêntico — inclusive os dois de regressão
+direta do bug de um dígito. O que se perdeu foi só a identidade de alguém que
+não pediu para estar aqui.
+
+Gerados por tests/fixtures_pdf/gerar_fixtures.py, versionado ao lado: se o
+layout do INDEA mudar, regenera-se em vez de pedir PDF de cliente.
 """
 import os
 import subprocess
@@ -27,26 +41,26 @@ def _extrair_texto(pdf_path: str) -> str:
 # (nome_do_arquivo, total_esperado_so_bovinos, dict_animais_esperado)
 CASOS = [
     (
-        '51000168416_-_FAZENDA_SANTA_ELIZA.pdf', 603,
+        'fazenda_alfa.pdf', 603,
         {'f05_M': 120, 'f13_M': 483},
     ),
     (
-        '51000170037_-_FAZENDA_NOSSO_SENHOR_BOM_JESUS_I.pdf', 460,
+        'fazenda_bravo.pdf', 460,
         {'f05_F': 225, 'f05_M': 55, 'f13_F': 175, 'f25_F': 5},
     ),
     (
-        '51000170042_-_FAZENDA_CATUAI.pdf', 478,
+        'fazenda_charlie.pdf', 478,
         {'f05_M': 25, 'f13_F': 210, 'f13_M': 100, 'f25_F': 113, 'f25_M': 30},
     ),
     (
         # Regressão direta do bug: ficheiro só tinha 3 linhas, 2 delas com
         # quantidade de 1 dígito (15 e 9 também conta, mas o caso crítico
-        # era ITAIPU com '9' isolado na linha 13 A 24 MESES MACHO).
-        '51000170437_-_FAZENDA_ITAIPU_IV.pdf', 77,
+        # era DELTA com '9' isolado na linha 13 A 24 MESES MACHO).
+        'fazenda_delta.pdf', 77,
         {'f05_M': 15, 'f13_M': 9, 'fac_F': 53},
     ),
     (
-        '51000737470_-_FAZENDA_VALE_DO_GIBEAO.pdf', 3292,
+        'fazenda_echo.pdf', 3292,
         {
             'f00_F': 340, 'f00_M': 325, 'f05_F': 102,
             'f13_F': 308, 'fac_F': 2200, 'fac_M': 17,
@@ -55,7 +69,7 @@ CASOS = [
     (
         # Regressão direta do bug: ÚNICA linha do PDF tem quantidade "2"
         # (1 dígito) — o parser zerava o rebanho inteiro antes da correção.
-        '51001153859_-_ESTANCIA_BARBOSINHA.pdf', 2,
+        'fazenda_foxtrot.pdf', 2,
         {'f25_F': 2},
     ),
 ]

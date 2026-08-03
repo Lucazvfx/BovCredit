@@ -106,8 +106,7 @@ def test_libgomp_continua_instalado(dockerfile):
 # Pulam onde o ambiente não os tem (a imagem de produção tem — é o que os
 # testes acima garantem). Onde rodam, provam a cascata inteira sobre um PDF
 # escaneado de verdade: sem camada de texto, só pixels.
-FIXTURE = os.path.join(RAIZ, 'tests', 'fixtures_pdf',
-                       '51000168416_-_FAZENDA_SANTA_ELIZA.pdf')
+FIXTURE = os.path.join(RAIZ, 'tests', 'fixtures_pdf', 'fazenda_alfa.pdf')
 
 falta_binario = pytest.mark.skipif(
     not (shutil.which('pdftotext') and shutil.which('tesseract')),

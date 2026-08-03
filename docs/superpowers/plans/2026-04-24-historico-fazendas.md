@@ -334,10 +334,10 @@ Substituir por:
 
 - [ ] **Step 2: Verificar no browser**
 
-1. No painel "Inserir Dados", criar uma fazenda chamada "Fazenda Vale do Gibeao"
+1. No painel "Inserir Dados", criar uma fazenda chamada "Fazenda Echo"
 2. Resetar o formulário (botão ✕ Limpar)
-3. Clicar "📂 Ler PDF" e selecionar o PDF `51000737470 - FAZENDA VALE DO GIBEAO.pdf`
-4. O dropdown "Selecionar Fazenda" deve pré-selecionar "Fazenda Vale do Gibeao" automaticamente
+3. Clicar "📂 Ler PDF" e selecionar o PDF `tests/fixtures_pdf/fazenda_echo.pdf`
+4. O dropdown "Selecionar Fazenda" deve pré-selecionar "Fazenda Echo" automaticamente
 5. Os valores do PDF devem estar corretos (não sobrescritos pela última análise)
 
 - [ ] **Step 3: Commit**
