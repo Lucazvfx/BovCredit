@@ -1709,6 +1709,51 @@ def api_classificar():
         endividamento=endividamento,
         precos_regional=precos_regional)
 
+    # As três perguntas do crédito ficam explícitas e independentes no
+    # resultado. Uma operação pode ter caixa suficiente, mas garantia fraca;
+    # ou garantia boa, mas inconsistência cadastral. O comitê não deve receber
+    # isso escondido numa recomendação única.
+    _conclusao = parecer.get('conclusao', {})
+    _dscr = _conclusao.get('dscr')
+    _cap_recomendacao = _conclusao.get('recomendacao')
+    _cap_status = ('aprovada' if _cap_recomendacao == 'aprovar'
+                   else 'ressalva' if _cap_recomendacao == 'ressalva'
+                   else 'reprovada')
+    _cons_score = float(consistencia.get('score_consistencia', 0) or 0)
+    _conf = float(result.get('confianca', 0) or 0)
+    _risco_alertas = int((consistencia.get('resumo') or {}).get('alertas', 0) or 0)
+    _risco_erros = int((consistencia.get('resumo') or {}).get('erros', 0) or 0)
+    _risco_status = ('baixo' if _risco_erros == 0 and _risco_alertas <= 1
+                     and _cons_score >= 80 and _conf >= 0.70
+                     else 'alto' if _risco_erros > 0 or _cons_score < 50
+                     else 'medio')
+    analises_credito = {
+        'capacidade_pagamento': {
+            'status': _cap_status,
+            'dscr': _dscr,
+            'geracao_caixa_anual': round(float(geracao_caixa_anual), 2),
+            'capacidade_maxima': _conclusao.get('capacidade_maxima'),
+            'justificativa': _conclusao.get('justificativa'),
+        },
+        'risco_credito': {
+            'status': _risco_status,
+            'score_consistencia': round(_cons_score, 1),
+            'confianca_classificacao': round(_conf, 4),
+            'alertas_consistencia': _risco_alertas,
+            'erros_consistencia': _risco_erros,
+            'tipo_exploracao': result.get('tipo'),
+        },
+        'garantia': {
+            'status': garantia.get('veredito', 'nao_avaliada'),
+            'valor_mercado': garantia.get('valor_mercado'),
+            'valor_execucao': garantia.get('valor_execucao'),
+            'ltv': garantia.get('ltv'),
+            'credito_solicitado': garantia.get('credito_solicitado'),
+            'justificativa': garantia.get('justificativa'),
+        },
+    }
+    parecer['analises_credito'] = analises_credito
+
     # Persiste no histórico da fazenda apenas quando há fazenda e solicitação.
     fazenda_id = data.get('fazenda_id')
     if fazenda_id and data.get('credito_valor'):
@@ -1774,6 +1819,7 @@ def api_classificar():
         'breakeven_simples': breakeven,
         'consistencia': consistencia,
         'parecer': parecer,
+        'analises_credito': analises_credito,
         'fluxo_gep': fluxo_gep,
         'sensibilidade': sensibilidade,
         'sensibilidade_custo': sensibilidade_custo,
