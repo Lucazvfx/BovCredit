@@ -1755,6 +1755,7 @@ def api_classificar():
         },
     }
     parecer['analises_credito'] = analises_credito
+    parecer['qualidade_dados'] = qualidade_dados
 
     # Persiste no histórico da fazenda apenas quando há fazenda e solicitação.
     fazenda_id = data.get('fazenda_id')
