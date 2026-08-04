@@ -1216,6 +1216,20 @@ def api_classificar():
         custo_arroba_engorda=_custo_fase('custo_arroba_engorda'),
         preco_boi_arr=preco_boi, preco_vaca_arr=preco_vaca,
         preco_bezerra_cab=preco_bezerra, preco_bezerro_cab=preco_bezerro)
+
+    # O breakeven apresentado no parecer deve ser o da simulação efetiva,
+    # com os índices, custos, preços e parâmetros informados pelo analista.
+    # Antes ele era calculado acima, por `calcular_breakeven_simples`, usando
+    # defaults fixos e podendo divergir do fluxo de caixa que acabamos de
+    # projetar. Mantemos o cálculo simples somente como fallback defensivo.
+    _be_sim = _cx.get('preco_breakeven')
+    _be_unidade_sim = _cx.get('preco_breakeven_unidade')
+    if _be_sim is not None and float(_be_sim) >= 0:
+        breakeven = {
+            'preco_breakeven': round(float(_be_sim), 2),
+            'unidade': _be_unidade_sim or 'R$/arroba',
+            'origem': 'simulacao_cenario',
+        }
     geracao_caixa_anual = _cx['anos'][0]['resultado']
 
     # ── Desfrute PROJETADO pela própria simulação ────────────────────────────
@@ -2572,3 +2586,4 @@ def api_parse_text():
 if __name__ == '__main__':
     logger.info("🚀 BoviML iniciado em http://localhost:5050")
     app.run(debug=True, port=5050)
+
