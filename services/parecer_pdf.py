@@ -436,6 +436,10 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
     story.append(Paragraph('Conclusão — Capacidade de Pagamento', ss['SecaoTitulo']))
     rec = conclusao.get('recomendacao')
     if rec:
+        if conclusao.get('nivel_recomendacao_label'):
+            story.append(Paragraph(
+                f"Nível operacional: <b>{conclusao['nivel_recomendacao_label']}</b>",
+                ss['Corpo']))
         cor = _COR_RECOMENDACAO.get(rec, colors.grey)
         label = _LABEL_RECOMENDACAO.get(rec, rec.upper())
         t = Table([[Paragraph(f"<b>{label}</b>", ParagraphStyle('r', parent=ss['Corpo'], textColor=colors.white, fontSize=12))]],
