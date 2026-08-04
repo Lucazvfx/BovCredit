@@ -1762,6 +1762,24 @@ def api_classificar():
     parecer['documentos_credito'] = documentos_credito
     fluxo_mensal = projetar_fluxo_mensal(_projecao_anos)
     parecer['fluxo_mensal'] = fluxo_mensal
+    # Nível operacional: uma aprovação matemática com documentos faltantes
+    # vira aprovação condicionada, nunca aprovação final.
+    _rec_base = _conclusao.get('recomendacao')
+    _docs_pendentes_obrig = any(
+        x.get('obrigatorio') for x in documentos_credito.get('pendentes', []))
+    if not _rec_base:
+        _nivel_rec, _rotulo_rec = 'sem_credito_informado', 'SEM CRÉDITO INFORMADO'
+    elif _rec_base == 'aprovar' and _docs_pendentes_obrig:
+        _nivel_rec, _rotulo_rec = (
+            'aprovacao_condicionada', 'APROVAÇÃO CONDICIONADA À DOCUMENTAÇÃO')
+    elif _rec_base == 'aprovar':
+        _nivel_rec, _rotulo_rec = 'pre_aprovado', 'PRÉ-APROVADO'
+    elif _rec_base == 'ressalva':
+        _nivel_rec, _rotulo_rec = 'revisao_com_ressalvas', 'REVISÃO COM RESSALVAS'
+    else:
+        _nivel_rec, _rotulo_rec = 'nao_recomendado', 'NÃO RECOMENDADO'
+    parecer['conclusao']['nivel_recomendacao'] = _nivel_rec
+    parecer['conclusao']['nivel_recomendacao_label'] = _rotulo_rec
 
     # Persiste no histórico da fazenda apenas quando há fazenda e solicitação.
     fazenda_id = data.get('fazenda_id')
@@ -2504,12 +2522,25 @@ def api_template_download():
 @app.route('/api/ficha/download', methods=['GET'])
 @login_required
 def api_ficha_download():
-    """Baixa o template XLSM de CONSOLIDADO preenchido com exemplo."""
+    """Baixa a ficha XLSM oficial de classificação do rebanho."""
     return send_file(
-        os.path.join(app.static_folder, 'ficha_consolidado_exemplo.xlsm'),
+        os.path.join(app.static_folder, 'classificacao_rebanho_fichas.xlsm'),
         mimetype='application/vnd.ms-excel.sheet.macroEnabled.12',
         as_attachment=True,
-        download_name='ficha_consolidado_exemplo.xlsm',
+        download_name='classificacao_rebanho_fichas.xlsm',
+    )
+
+
+@app.route('/api/ficha/instrucoes', methods=['GET'])
+@login_required
+def api_ficha_instrucoes():
+    """Baixa o manual rápido de preenchimento da ficha XLSM."""
+    return send_from_directory(
+        app.static_folder,
+        'ficha_classificacao_rebanho_instrucoes.txt',
+        as_attachment=True,
+        download_name='ficha_classificacao_rebanho_instrucoes.txt',
+        mimetype='text/plain; charset=utf-8',
     )
 
 
