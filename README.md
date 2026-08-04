@@ -2,9 +2,9 @@
 
 > **Emita pareceres de crédito rural com metodologia, Machine Learning e PDF com a marca da sua consultoria — em minutos.**
 
-Sistema de análise técnico-financeira de rebanho bovino para **consultorias de crédito rural e analistas de banco**. Classifica automaticamente a modalidade de exploração entre seis, projeta a geração de caixa ao longo de todo o prazo do financiamento, audita a consistência do rebanho declarado e emite um **parecer com recomendação Aprovar / Ressalva / Negar** — com memória de cálculo passo a passo.
+Sistema de apoio à análise técnico-financeira de rebanho bovino para **consultorias de crédito rural e analistas de banco**. Classifica automaticamente a modalidade de exploração, importa fichas XLSM e documentos sanitários, projeta a geração de caixa, audita a consistência do rebanho e emite um parecer com níveis operacionais de recomendação — sempre com memória de cálculo e indicação da qualidade dos dados.
 
-Este documento descreve o sistema **como ele está**, incluindo o que não funciona e o que não foi validado (§16). Levantado do código em 31/07/2026.
+Este documento descreve o sistema **como ele está**. O BovCredit é uma pré-análise de apoio à consultoria: não substitui conferência documental, visita à propriedade ou a decisão final do agente de crédito.
 
 ---
 
@@ -61,6 +61,10 @@ Este documento descreve o sistema **como ele está**, incluindo o que não funci
 7. **Crédito** — DSCR em **todos** os anos do prazo, endividamento total, garantia pelo valor de execução.
 8. **Parecer** — recomendação, memória de cálculo, explicação SHAP, PDF com a marca da consultoria.
 9. **Confirmação** — o analista confirma ou corrige a modalidade, e isso vira dado de treino.
+10. **Qualidade dos dados** — separa dados observados, informados, estimados e ausentes.
+11. **Documentação** — checklist de GTA/inventário, CAR, propriedade, custos, pesagens e endividamento.
+12. **Importação XLSM** — ficha de classificação de rebanho com múltiplas fazendas e macros preservadas.
+13. **Fluxo mensal** — demonstração estimada de receita, custos, dívida, fluxo livre e mês crítico.
 
 ---
 
@@ -201,6 +205,26 @@ O deságio médio acompanha a composição do rebanho. O LTV é medido sobre o v
 ### Rebaixamento
 
 Capacidade de pagamento, garantia, endividamento e consistência são perguntas **independentes** — vale a **pior** das respostas. Cada motivo entra na memória de cálculo mesmo quando a recomendação já caiu por outro: o comitê precisa ver todos os problemas, não só o primeiro que disparou.
+
+### Níveis operacionais de recomendação
+
+O resultado matemático da capacidade de pagamento é separado da condição documental da operação:
+
+| Nível | Significado |
+|---|---|
+| `PRÉ-APROVADO` | Capacidade adequada e documentação mínima recebida |
+| `APROVAÇÃO CONDICIONADA À DOCUMENTAÇÃO` | Resultado favorável, mas há documentos obrigatórios pendentes |
+| `REVISÃO COM RESSALVAS` | Existem alertas de risco, consistência, garantia ou endividamento |
+| `NÃO RECOMENDADO` | O cenário não sustenta a operação nas premissas informadas |
+| `SEM CRÉDITO INFORMADO` | Análise zootécnica/preliminar sem solicitação de financiamento |
+
+### Qualidade e origem dos dados
+
+Cada análise informa se o dado veio da ficha, foi informado pelo analista ou foi estimado por benchmark. Uma ficha sanitária contém contagens por sexo e idade, mas não comprova sozinha peso, GMD, natalidade, custos ou capacidade de pagamento. Estimativas são identificadas e reduzem a confiança da análise.
+
+### Importação da ficha XLSM
+
+O arquivo `static/classificacao_rebanho_fichas.xlsm` é disponibilizado pelo endpoint `/api/ficha/download` e pelo botão **Baixar Ficha XLSM**. O manual está em `/api/ficha/instrucoes`. A ficha preserva o projeto VBA original; macros devem ser habilitadas no Excel Desktop. O importador lê a aba `CONSOLIDADO`, reconhece múltiplas fazendas, valida totais e mapeia as categorias para as 10 posições do motor. A categoria 0–12 meses é dividida 50/50 entre as duas faixas jovens quando não existe idade mais detalhada.
 
 ### Pesos e rendimentos por categoria
 
@@ -496,7 +520,8 @@ tests/                        # pytest — 56 arquivos, 417 casos
 | POST | `/api/cenario` · GET `/api/cenarios` | Projeção de cenários |
 | POST | `/api/reconciliacao` | Reconciliar documentos de garantia |
 | POST | `/api/ler-pdf` · `/api/ler-planilha` · `/api/parse-text` | Importação |
-| GET | `/api/template/download` · `/api/ficha/download` | Templates |
+| GET | `/api/template/download` · `/api/ficha/download` · `/api/ficha/instrucoes` | Templates e manual XLSM |
+| POST | `/api/importar-ficha-excel` | Importar e validar `.xlsx`/`.xlsm` com múltiplas fazendas |
 | GET | `/api/precos/live` | Cotações do dia |
 | GET | `/api/noticias` | Notícias do setor |
 | POST | `/api/narrativa` · `/api/chat` | IA sobre o parecer |
@@ -714,3 +739,4 @@ Protegido pela **Lei 9.610/98 (Direitos Autorais)** e **Lei 9.609/98 (Software)*
 É vedado copiar, modificar, distribuir ou sublicenciar este software sem autorização prévia por escrito.
 
 **Licenciamento comercial:** viniciuslukas353@gmail.com
+
