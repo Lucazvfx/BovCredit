@@ -37,7 +37,7 @@ from pdf_parsers import (
     ORIGENS_GENERICAS, ORIGENS_INDEA,
 )
 
-from services.importar_excel import parsear_ficha_excel
+from services.importar_excel import parsear_ficha_excel, validar_fazendas_importadas
 
 from scraper import obter_precos_arroba, _session_com_retry, _HEADERS as _SCRAPER_HEADERS
 
@@ -64,6 +64,8 @@ from services.reconciliacao import reconciliar
 from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
 from services.garantia import avaliar_garantia
 from services.qualidade_dados import analisar_qualidade_dados
+from services.checklist_credito import checklist_credito
+from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services.precos_regionais import aplicar as aplicar_preco_regional
 from services import auditoria as _aud
 from services import totp as _totp
@@ -954,6 +956,7 @@ def api_classificar():
     result = classificar(v, **kwargs)
     ind    = calcular_indicadores(v)
     qualidade_dados = analisar_qualidade_dados(v, data)
+    documentos_credito = checklist_credito(data, qualidade_dados)
 
     # Indicadores comparáveis a benchmarks regionais (GEP Araguaia / Rondônia):
     # usa o que o usuário informou (mortalidade_pct, desmama_pct,
@@ -1756,6 +1759,9 @@ def api_classificar():
     }
     parecer['analises_credito'] = analises_credito
     parecer['qualidade_dados'] = qualidade_dados
+    parecer['documentos_credito'] = documentos_credito
+    fluxo_mensal = projetar_fluxo_mensal(_projecao_anos)
+    parecer['fluxo_mensal'] = fluxo_mensal
 
     # Persiste no histórico da fazenda apenas quando há fazenda e solicitação.
     fazenda_id = data.get('fazenda_id')
@@ -1815,6 +1821,8 @@ def api_classificar():
         **result,
         'indicadores': ind,
         'qualidade_dados': qualidade_dados,
+        'documentos_credito': documentos_credito,
+        'fluxo_mensal': fluxo_mensal,
         'indicadores_benchmark': ind_bench,
         'benchmarks': benchmarks,
         'benchmarks_nacionais': painel_nacional,
@@ -2527,11 +2535,16 @@ def api_importar_ficha_excel():
         fazendas = parsear_ficha_excel(conteudo)
         if not fazendas:
             return jsonify({'erro': 'Nenhuma fazenda com animais encontrada na aba CONSOLIDADO'}), 400
+        validacao = validar_fazendas_importadas(fazendas)
+        if not validacao['valido']:
+            return jsonify({'erro': '; '.join(validacao['erros']),
+                            'validacao': validacao}), 400
         uf = (request.form.get('uf') or '').strip().upper()
         if uf:
             for faz in fazendas:
                 faz.setdefault('uf', uf)
-        return jsonify({'fazendas': fazendas, 'total_fazendas': len(fazendas)})
+        return jsonify({'fazendas': fazendas, 'total_fazendas': len(fazendas),
+                        'validacao': validacao})
     except KeyError:
         return jsonify({'erro': 'Aba CONSOLIDADO não encontrada — verifique o formato do arquivo'}), 400
     except Exception as e:
