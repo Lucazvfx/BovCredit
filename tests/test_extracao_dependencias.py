@@ -106,9 +106,6 @@ def test_libgomp_continua_instalado(dockerfile):
 # Pulam onde o ambiente não os tem (a imagem de produção tem — é o que os
 # testes acima garantem). Onde rodam, provam a cascata inteira sobre um PDF
 # escaneado de verdade: sem camada de texto, só pixels.
-FIXTURE = os.path.join(RAIZ, 'tests', 'fixtures_pdf',
-                       '51000168416_-_FAZENDA_SANTA_ELIZA.pdf')
-
 falta_binario = pytest.mark.skipif(
     not (shutil.which('pdftotext') and shutil.which('tesseract')),
     reason='requer poppler-utils e tesseract-ocr instalados')
@@ -127,9 +124,23 @@ def pdf_escaneado(tmp_path_factory):
     from reportlab.lib.utils import ImageReader
     from reportlab.pdfgen import canvas
 
-    destino = str(tmp_path_factory.mktemp('ocr') / 'escaneado.pdf')
+    pasta = tmp_path_factory.mktemp('ocr')
+    origem = str(pasta / 'origem_sintetica.pdf')
+    destino = str(pasta / 'escaneado.pdf')
+
+    fonte = canvas.Canvas(origem, pagesize=A4)
+    for y, linha in enumerate((
+        'INDEA MT - SALDO ATUAL DA EXPLORACAO',
+        'PROPRIEDADE: 00000000000 - FAZENDA SINTETICA',
+        'MUNICIPIO: MUNICIPIO TESTE - MT',
+        'BOVINO 5 A 12 MESES MACHO 120',
+        'BOVINO 13 A 24 MESES MACHO 483',
+    )):
+        fonte.drawString(55, 780 - y * 35, linha)
+    fonte.save()
+
     c = canvas.Canvas(destino, pagesize=A4)
-    with pdfplumber.open(FIXTURE) as pdf:
+    with pdfplumber.open(origem) as pdf:
         for page in pdf.pages:
             buf = io.BytesIO()
             page.to_image(resolution=200).original.save(buf, format='PNG')
@@ -168,9 +179,9 @@ def test_ocr_le_pdf_escaneado(pdf_escaneado):
 def test_ocr_recupera_o_rebanho_e_nao_so_o_cabecalho(pdf_escaneado):
     """
     O número que importa. Com o `--psm` no padrão o Tesseract descarta a
-    coluna QUANTIDADE: fazenda e CPF saem certos e o rebanho sai zerado — um
+    coluna QUANTIDADE: o cabeçalho sai certo e o rebanho sai zerado — um
     parecer construído sobre rebanho zero, sem nenhum erro visível. Confere
-    contra o mesmo total que o teste do PDF nativo usa: 603 = 120 + 483.
+    contra o total do documento sintético: 603 = 120 + 483.
     """
     from pdf_parsers import extrair_texto_pdf, parsear_indea
 

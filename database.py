@@ -4,6 +4,7 @@ Usa PostgreSQL (via DATABASE_URL) em produção e SQLite localmente.
 """
 import json, os
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from werkzeug.security import generate_password_hash, check_password_hash
 from contextlib import contextmanager
 
@@ -661,7 +662,8 @@ def guardar_cotacao_diaria(precos: dict):
     Insere ou atualiza o preço da arroba para a data atual.
     Compatível com PostgreSQL e SQLite através da função abstrata _exec.
     """
-    hoje = datetime.now().strftime('%Y-%m-%d')
+    hoje = datetime.now(ZoneInfo(os.environ.get('APP_TIMEZONE',
+                                                'America/Porto_Velho'))).strftime('%Y-%m-%d')
     ph = _PH
     boi = float(precos.get('boi', 0.0))
     vaca = float(precos.get('vaca', 0.0))
@@ -692,7 +694,15 @@ def obter_cotacoes_atuais() -> dict:
     Retorna dicionário {'boi': valor, 'vaca': valor, 'boi_china': valor}
     """
     try:
-        resultado = _exec('SELECT preco_boi, preco_vaca, preco_boi_china, preco_bezerro, preco_bezerra FROM cotacao_arroba ORDER BY data_cotacao DESC LIMIT 1', fetch='one')
+        hoje = datetime.now(ZoneInfo(os.environ.get('APP_TIMEZONE',
+                                                    'America/Porto_Velho'))).strftime('%Y-%m-%d')
+        resultado = _exec(
+            f'''SELECT preco_boi, preco_vaca, preco_boi_china,
+                       preco_bezerro, preco_bezerra
+                FROM cotacao_arroba
+                WHERE data_cotacao<={_PH}
+                ORDER BY data_cotacao DESC LIMIT 1''',
+            (hoje,), fetch='one')
         if resultado:
             return {
                 'boi': float(resultado['preco_boi'] or 0.0),

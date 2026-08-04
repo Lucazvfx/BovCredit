@@ -42,7 +42,7 @@ Este documento descreve o sistema **como ele está**, incluindo o que não funci
 |---|---|
 | Python (produção) | 10.476 linhas |
 | Interface (`templates/index.html`) | 3.750 linhas |
-| Testes | **567** casos em 63 arquivos |
+| Testes | **867** casos coletados |
 | Rotas HTTP | 44, sendo 25 endpoints `/api` |
 | Modelo | ensemble de 4, 42 features, 6 classes |
 | Agências estaduais lidas | 7 |
@@ -94,7 +94,7 @@ v = [fêmeas 00–04m, machos 00–04m,
 > **Ressalva que importa:** esse conjunto é **sintético**, gerado das faixas de referência que nós mesmos escrevemos em `treinar_ciclos.py`. O número mede que o modelo aprendeu as faixas, não que acerta na realidade. É validação circular — e é exatamente por isso que existe o botão de confirmação (§9).
 
 **Também no motor:**
-- **SHAP** (TreeExplainer) — exigência de explicabilidade da Res. CMN 4.966/2021
+- **SHAP** (TreeExplainer) — explicabilidade técnica para governança e revisão humana; não certifica conformidade regulatória
 - **Proveniência** da decisão: regra determinística ou ML
 - **Atipicidade**: o quanto o rebanho se afasta da distribuição de treino
 - **Agrupamento de features redundantes** no SHAP (7 pares com correlação 1,0)
@@ -613,7 +613,7 @@ Push em `main` dispara deploy automático. A imagem usa `python:3.11.15` e insta
 ### Testes
 
 ```bash
-python -m pytest tests/ -q --ignore=tests/test_pdf_reais_indea.py
+python -m pytest -q
 ```
 
 Os mais significativos:
@@ -652,20 +652,14 @@ A ficha levou a mais dois vazamentos: o motor de engorda deixava `va[8]` (fêmea
 
 Em ordem de impacto.
 
-### Bug conhecido, não corrigido
+### Limitações financeiras conhecidas
 
-**Carência não capitaliza juros.** A parcela é calculada sobre `prazo − carência` sem crescer o principal pelos juros acumulados no período. Num crédito de R$ 1 milhão, 36 meses, 12 de carência a 12,5% a.a.:
-
-| | Parcela |
-|---|---|
-| Hoje | R$ 46.997 |
-| Correto | R$ 52.872 |
-
-**12,5% subestimada**, e o DSCR sobe na mesma proporção. Erra para o lado de aprovar. Carência é padrão em custeio pecuário.
+- O cronograma implementado é **Price mensal**, com capitalização durante a carência e distribuição das parcelas pelos anos efetivos. Operações SAC, anuais, semestrais ou alinhadas à safra ainda exigem cronograma informado pela instituição.
+- A projeção cobre no máximo **60 meses**. A API rejeita prazo maior para não afirmar que avaliou anos que o simulador não projetou.
+- Para dívidas existentes, o sistema conhece saldo e parcela, mas não o vencimento. Por prudência, mantém 12 parcelas anuais durante todo o horizonte analisado.
 
 ### Inconsistências
 
-- **Sensibilidade usa DSCR do ano 1**, enquanto a conclusão usa o ano crítico. Na mesma tela, o veredicto grande e os cards de cenário usam bases diferentes.
 - **`CICLO_COMPLETO`** tem desvio de balanço de −14 em 700 cabeças, no limite da tolerância de 2%. É o único motor não revisado.
 - **`_build_model()` ramifica em `DATABASE_URL`** (100 árvores em produção, 300 em dev). Hoje é inofensivo porque produção carrega o pickle; vira armadilha se o pickle falhar.
 
@@ -695,7 +689,7 @@ Comparado às plataformas de crédito agro estabelecidas, que são **grão-prime
 1. **Lê o rebanho.** Sensoriamento remoto e NDVI demarcam área de safra — não contam cabeça, não dizem idade nem sexo. Para pecuária, a garantia é viva e se move.
 2. **Sete agências estaduais parseadas.** Trabalho sujo, acumulado, sem atalho.
 3. **Audita a garantia.** Rebanho de papel contra rebanho físico é uma pergunta que a arquitetura deles não faz.
-4. **É auditável.** Memória de cálculo linha por linha, onde um score de 100+ fontes é caixa-preta — e a Res. CMN 4.966 exige que a instituição justifique.
+4. **É auditável.** Memória de cálculo linha por linha para o analista revisar premissas, dados e conclusão. A Resolução CMN 4.966/2021 trata de critérios contábeis para instrumentos financeiros e perdas esperadas; ela não exige especificamente SHAP.
 
 O ativo que ainda falta construir e que composto vira fosso: **série histórica de GTA**. Hoje lemos a GTA, extraímos o saldo e descartamos o resto. Cada GTA é um registro datado de movimentação; guardadas, dão trajetória documentada em vez de declarada, desfrute medido em vez de estimado, e benchmarks reais no lugar das faixas sintéticas.
 

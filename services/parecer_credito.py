@@ -67,6 +67,49 @@ def principal_apos_carencia(pv: float, juros_aa: float,
     return pv * (1 + i) ** carencia_meses
 
 
+def cronograma_price(
+    pv: float,
+    juros_aa: float,
+    prazo_meses: int,
+    carencia_meses: int = 0,
+) -> dict:
+    """Cronograma anual da nova operação, respeitando carência e ano parcial.
+
+    A parcela é mensal e constante após a carência. O principal capitaliza
+    durante a carência; cada ano recebe somente as parcelas que efetivamente
+    vencem nele. Assim, 30 meses com 6 de carência produzem 6 parcelas no ano
+    1, 12 no ano 2 e 6 no ano 3 — nunca ``12 × parcela`` cegamente.
+    """
+    pv = max(float(pv or 0), 0.0)
+    prazo = int(prazo_meses or 0)
+    carencia = int(carencia_meses or 0)
+    if pv <= 0 or prazo <= 0:
+        return {'parcela_mensal': 0.0, 'principal_amortizado': pv,
+                'anos': []}
+    if carencia < 0 or carencia >= prazo:
+        raise ValueError('A carência deve ser menor que o prazo do crédito.')
+
+    n = prazo - carencia
+    principal = principal_apos_carencia(pv, juros_aa, carencia)
+    parcela = parcela_price(principal, juros_aa, n)
+    anos = []
+    for ano in range(1, -(-prazo // 12) + 1):
+        inicio = (ano - 1) * 12 + 1
+        fim = min(ano * 12, prazo)
+        parcelas = sum(1 for mes in range(inicio, fim + 1)
+                       if mes > carencia)
+        anos.append({
+            'ano': ano,
+            'parcelas_nova_operacao': parcelas,
+            'servico_nova_operacao': round(parcelas * parcela, 2),
+        })
+    return {
+        'parcela_mensal': round(parcela, 2),
+        'principal_amortizado': round(principal, 2),
+        'anos': anos,
+    }
+
+
 def credito_maximo(
     geracao_caixa_anual: float,
     juros_aa: float,
@@ -108,16 +151,18 @@ def avaliar_capacidade_pagamento(
     carencia_meses: int = 0,
     dividas_mensais: float = 0.0,
 ) -> dict:
-    n = max(prazo_meses - carencia_meses, 0)
-    # O principal cresce durante a carência — ver principal_apos_carencia.
-    _pv = principal_apos_carencia(credito_valor, juros_aa, carencia_meses)
-    parcela = parcela_price(_pv, juros_aa, n)
+    cronograma = cronograma_price(
+        credito_valor, juros_aa, prazo_meses, carencia_meses)
+    _pv = cronograma['principal_amortizado']
+    parcela = cronograma['parcela_mensal']
     _cap_carencia = ({
         'carencia_meses':       carencia_meses,
         'principal_liberado':   round(credito_valor, 2),
         'principal_amortizado': round(_pv, 2),
         'acrescimo_pct':        round((_pv / credito_valor - 1) * 100, 1),
     } if _pv > credito_valor > 0 else None)
+    # A capacidade nominal usa um ano cheio de amortização; o cronograma
+    # multianual abaixo substitui esse número pelo serviço efetivo de cada ano.
     servico_anual = 12 * (parcela + max(dividas_mensais, 0.0))
     cap_max = credito_maximo(geracao_caixa_anual, juros_aa, prazo_meses,
                              carencia_meses, dividas_mensais)
@@ -125,6 +170,7 @@ def avaliar_capacidade_pagamento(
     if servico_anual <= 0:
         return {'dscr': None, 'parcela_mensal': round(parcela, 2),
                 'capitalizacao_carencia': _cap_carencia,
+                'cronograma_divida': cronograma['anos'],
                 'servico_divida_anual': 0.0,
                 'geracao_caixa_anual': round(geracao_caixa_anual, 2),
                 'capacidade_maxima': cap_max,
@@ -146,6 +192,7 @@ def avaliar_capacidade_pagamento(
             'geracao_caixa_anual': round(geracao_caixa_anual, 2),
             'capacidade_maxima': cap_max,
             'capitalizacao_carencia': _cap_carencia,
+            'cronograma_divida': cronograma['anos'],
             'recomendacao': rec, 'faixa': rec, 'justificativa': just}
 
 
@@ -174,7 +221,9 @@ def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list,
         prazo_meses: prazo do crédito, que define quantos anos avaliar.
     """
     base = dict(conclusao_ano1)
-    if not projecao_anos or not base.get('dscr'):
+    if not projecao_anos:
+        return base
+    if not base.get('cronograma_divida') and not base.get('parcela_mensal'):
         return base
 
     n_anos = max(1, min(-(-prazo_meses // 12), len(projecao_anos)))  # teto
@@ -193,11 +242,19 @@ def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list,
         'detalhe': f'A capacidade de pagamento é avaliada sobre {n_anos} '
                    f'ano(s) de projeção, não apenas o primeiro.',
     }, {
-        'passo':   'Serviço da dívida',
-        'valor':   f'{_fmt_rs(base["servico_divida_anual"])}/ano',
-        'detalhe': f'Parcela de {_fmt_rs(base["parcela_mensal"])} × 12, '
-                   f'somada a dívidas já existentes.',
+        'passo': 'Serviço da dívida',
+        'valor': 'cronograma anual',
+        'detalhe': ('O DSCR usa os vencimentos efetivos de cada ano; não '
+                    'multiplica automaticamente a parcela por doze.'),
     }]
+    for item in base.get('cronograma_divida') or []:
+        memoria.append({
+            'passo': f'Serviço da nova operação — ano {item["ano"]}',
+            'valor': _fmt_rs(item['servico_nova_operacao']),
+            'detalhe': (f'{item["parcelas_nova_operacao"]} parcela(s) de '
+                        f'{_fmt_rs(base["parcela_mensal"])}; carência e ano '
+                        'parcial respeitados.'),
+        })
     # A carência não é gratuita, e o parecer precisa dizer isso: o saldo rende
     # juros durante ela e a parcela seguinte amortiza um principal maior. Sem
     # esta linha, o analista vê uma parcela mais alta do que a conta ingênua
@@ -240,7 +297,8 @@ def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list,
         just = (f'Cobertura cai para {dscr_min:.2f} no ano {ano_pior}, abaixo de '
                 f'1,00 — a operação deixa de cobrir a dívida antes do fim do prazo.')
 
-    rebaixado = rec != base['recomendacao']
+    recomendacao_ano1 = base.get('recomendacao')
+    rebaixado = recomendacao_ano1 is not None and rec != recomendacao_ano1
     memoria.append({
         'passo':   'Ano crítico',
         'valor':   f'ano {ano_pior} · DSCR {dscr_min:.2f}',
@@ -255,8 +313,8 @@ def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list,
     if rebaixado:
         memoria.append({
             'passo':   'Rebaixamento',
-            'valor':   f'{base["recomendacao"].upper()} → {rec.upper()}',
-            'detalhe': f'O ano 1 isolado indicava {base["recomendacao"]} '
+            'valor':   f'{recomendacao_ano1.upper()} → {rec.upper()}',
+            'detalhe': f'O ano 1 isolado indicava {recomendacao_ano1} '
                        f'(DSCR {base["dscr"]:.2f}), mas ele liquida o estoque '
                        f'acumulado e não se repete.',
         })
@@ -265,7 +323,7 @@ def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list,
         'recomendacao':      rec,
         'faixa':             rec,
         'justificativa':     just,
-        'dscr_ano1':         base['dscr'],
+        'dscr_ano1':         next((d for ano, d in dscrs if ano == 1), None),
         'dscr_minimo':       round(dscr_min, 2),
         'dscr_medio':        round(dscr_medio, 2),
         'ano_critico':       ano_pior,

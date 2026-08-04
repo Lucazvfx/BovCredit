@@ -47,7 +47,7 @@ from services.benchmarks_nacionais import (
     avaliar_nacional, avaliar_zootecnico, CICLO_CATEGORIAS,
     calcular_desfrute, alerta_liquidacao,
 )
-from services.parecer_credito import montar_parecer
+from services.parecer_credito import montar_parecer, cronograma_price
 from services.parecer_pdf import gerar_pdf_parecer
 from services.pesos_rebanho import arrobas_categorias
 from services.parametros_zootecnicos import (
@@ -93,7 +93,7 @@ _NARRATIVA_INLINE = os.environ.get('NARRATIVA_INLINE', '0') == '1'
 #
 # A explicabilidade NÃO é perdida: o frontend busca em /api/shap logo após
 # renderizar e funde o resultado no parecer, de modo que o PDF continua
-# saindo com os fatores — exigência da CMN 4.966/2021.
+# saindo com os fatores — boa prática de governança e revisão humana.
 #
 # Reversível: SHAP_INLINE=1 volta a calcular dentro de /api/classificar.
 _SHAP_INLINE = os.environ.get('SHAP_INLINE', '0') == '1'
@@ -122,7 +122,14 @@ app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20 MB
 # ── Session cookie hardening ──────────────────────────────────────────────────
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = bool(os.environ.get('RAILWAY_ENVIRONMENT'))
+_https_producao = bool(
+    os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('RENDER')
+    or os.environ.get('FLY_APP_NAME') or os.environ.get('DATABASE_URL')
+)
+app.config['SESSION_COOKIE_SECURE'] = _https_producao
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+app.config['REMEMBER_COOKIE_SECURE'] = _https_producao
 
 # ── Security headers via after_request ───────────────────────────────────────
 @app.after_request
@@ -130,6 +137,16 @@ def _set_security_headers(response):
     response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
     response.headers.setdefault('X-Content-Type-Options', 'nosniff')
     response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.setdefault(
+        'Content-Security-Policy',
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' "
+        "https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
+        "script-src 'self' 'unsafe-inline'; connect-src 'self'; "
+        "frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+    )
+    if _https_producao:
+        response.headers.setdefault('Strict-Transport-Security',
+                                    'max-age=31536000; includeSubDomains')
     return response
 
 _secret_key = os.environ.get('SECRET_KEY')
@@ -148,10 +165,18 @@ def _csrf_token() -> str:
 app.jinja_env.globals['csrf_token'] = _csrf_token
 
 @app.before_request
-def _verificar_csrf_admin():
-    if request.method == 'POST' and request.path.startswith('/admin'):
-        token = request.form.get('csrf_token', '')
-        if not token or not _secrets.compare_digest(token, session.get('csrf_token', '')):
+def _verificar_csrf():
+    """Protege toda mutação autenticada, inclusive endpoints JSON e upload."""
+    if (request.method in {'POST', 'PUT', 'PATCH', 'DELETE'}
+            and current_user.is_authenticated):
+        esperado = session.get('csrf_token')
+        # Sessões antigas recebem o token na próxima renderização do app. As
+        # rotas admin sempre o criam no formulário e continuam falhando fechado.
+        if not esperado and not request.path.startswith('/admin'):
+            return None
+        token = (request.form.get('csrf_token', '')
+                 or request.headers.get('X-CSRF-Token', ''))
+        if not token or not _secrets.compare_digest(token, esperado or ''):
             abort(403)
 
 # ── Erros: resposta útil em vez de página HTML muda ──────────────────────────
@@ -905,6 +930,18 @@ def api_classificar():
     if len(v) != 10 or not all(isinstance(x, (int, float)) and x >= 0 for x in v) or sum(v) < 10:
         return jsonify({'erro': 'Envie 10 valores >= 0 (fêmeas e machos por faixa) com total >= 10'}), 400
 
+    credito_valor = float(data.get('credito_valor') or 0)
+    prazo_credito = int(data.get('prazo_meses') or 0)
+    carencia_credito = int(data.get('carencia_meses') or 0)
+    juros_credito = float(data.get('juros_aa') or 0)
+    if credito_valor > 0:
+        if prazo_credito < 1 or prazo_credito > 60:
+            return jsonify({'erro': 'O prazo do crédito deve estar entre 1 e 60 meses.'}), 400
+        if carencia_credito < 0 or carencia_credito >= prazo_credito:
+            return jsonify({'erro': 'A carência deve ser menor que o prazo do crédito.'}), 400
+        if juros_credito < 0:
+            return jsonify({'erro': 'A taxa de juros não pode ser negativa.'}), 400
+
     kwargs = {}
     if 'taxa_natalidade' in data:
         kwargs['taxa_natalidade'] = float(data['taxa_natalidade'])
@@ -1271,15 +1308,15 @@ def api_classificar():
     geracao_caixa_anual -= _reposicao_reprodutores
 
     # Serviço da dívida para o fluxo GEP (mesma base do DSCR do parecer)
-    _parcela_nova = 0.0
-    if data.get('credito_valor') and data.get('prazo_meses') and data.get('juros_aa'):
-        from services.parecer_credito import parcela_price
-        _n = max(int(data.get('prazo_meses', 0)) - int(data.get('carencia_meses', 0) or 0), 0)
-        _parcela_nova = parcela_price(
-            float(data.get('credito_valor', 0)),
-            float(data.get('juros_aa', 0)),
-            _n,
-        )
+    _cronograma_nova = cronograma_price(
+        credito_valor, juros_credito, prazo_credito, carencia_credito
+    ) if credito_valor > 0 else {'parcela_mensal': 0.0, 'anos': []}
+    _parcela_nova = _cronograma_nova['parcela_mensal']
+
+    def _servico_nova_no_ano(ano):
+        item = next((x for x in _cronograma_nova['anos']
+                     if x['ano'] == ano), None)
+        return float(item['servico_nova_operacao']) if item else 0.0
 
     # Endividamento existente: o campo único "dívidas mensais" passa a aceitar
     # um inventário por credor. Consolidado aqui, antes de tudo, porque o fluxo
@@ -1292,8 +1329,8 @@ def api_classificar():
         geracao_caixa_anual    = geracao_caixa_anual,
         parcela_nova           = _parcela_nova,
     )
-    _servico_gep = (12 * (_parcela_nova + endividamento['parcela_existente_mensal'])
-                    if _parcela_nova > 0 else 0.0)
+    _servico_gep = (_servico_nova_no_ano(1)
+                    + 12 * endividamento['parcela_existente_mensal'])
     fluxo_gep = calcular_fluxo_gep(
         receita_caixa            = _ano1['receita'],
         custo_caixa              = _ano1['custo'],
@@ -1433,8 +1470,6 @@ def api_classificar():
     # Compensa o modificador de preço do cenário conservador (0.95) para que as
     # variações na tela representem exatamente ±15% do preço de referência.
     _preco_mod_conservador = CENARIOS['conservador']['mods']['preco']
-    _servico_base = _servico_gep  # já calculado acima (mesma base do DSCR)
-
     # ── A sensibilidade tem de olhar o MESMO ano que a conclusão ─────────────
     #
     # Ela era calculada no ano 1 enquanto a recomendação segue o ano crítico —
@@ -1459,6 +1494,8 @@ def api_classificar():
         return _pior
 
     _i_crit = _idx_ano_critico(_cx['anos'])
+    _servico_base = (_servico_nova_no_ano(_i_crit + 1)
+                     + 12 * endividamento['parcela_existente_mensal'])
     sensibilidade = []
     for _label, _fator in (('queda_15pct', 0.85), ('base', 1.00), ('alta_15pct', 1.15)):
         _pb_s = _preco_boi_ref * _fator / _preco_mod_conservador
@@ -1525,7 +1562,7 @@ def api_classificar():
             ),
         })
 
-    # SHAP — explicabilidade regulatória (CMN 4.966/2021 / Marco Legal IA).
+    # SHAP — explicabilidade técnica para governança e revisão humana.
     # Por padrão NÃO é calculado aqui: são ~160 MB de pico que coincidiam com
     # a classificação e estouravam a memória do contêiner. O frontend busca em
     # /api/shap e funde no parecer, então o PDF continua com os fatores.
@@ -1603,7 +1640,9 @@ def api_classificar():
     for _ano in _cx['anos']:
         _gc_ano = _ano['resultado'] - _reposicao_reprodutores
         _margem = round(_gc_ano / max(_ano['custo'], 1) * 100, 1)
-        _dscr_ano = round(_gc_ano / _servico_base, 2) if _servico_base > 0 else None
+        _servico_ano = (_servico_nova_no_ano(_ano['ano'])
+                        + 12 * endividamento['parcela_existente_mensal'])
+        _dscr_ano = round(_gc_ano / _servico_ano, 2) if _servico_ano > 0 else None
         # COE do ANO — é ele que o parecer usa quando o ano crítico não é o
         # primeiro. Ver a nota em `_arrobas_do_ano`.
         _arr_ano = _arrobas_do_ano(_ano)
@@ -1636,6 +1675,7 @@ def api_classificar():
             'matrizes':    _ano.get('matrizes', 0),
             'vendidos':    _ano.get('vendidos', 0),
             'dscr':        _dscr_ano,
+            'servico_divida_anual': round(_servico_ano, 2),
             'viavel':      (_dscr_ano is None or _dscr_ano >= 1.0) and _gc_ano > 0,
         })
 
@@ -1814,7 +1854,7 @@ def api_shap():
     da classificação estourava o contêiner (502). Aqui ele acontece sozinho.
 
     O frontend chama logo após renderizar o resultado e funde a resposta no
-    parecer — a explicabilidade da CMN 4.966/2021 continua no PDF.
+    parecer — a explicabilidade técnica continua no PDF.
     """
     ctx = (request.json or {}).get('contexto') or {}
     valores = ctx.get('valores')

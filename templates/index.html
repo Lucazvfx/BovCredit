@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>BovCredit</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="/static/favicon-cow.png">
@@ -521,7 +522,7 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
     <div class="cb">
       <div class="fgrid">
         <div class="field"><label>Valor solicitado (R$)</label><input type="number" id="credito_valor" min="0" step="1000" placeholder="Ex: 500000"></div>
-        <div class="field"><label>Prazo (meses)</label><input type="number" id="credito_prazo" min="1" placeholder="Ex: 24"></div>
+        <div class="field"><label>Prazo (meses)</label><input type="number" id="credito_prazo" min="1" max="60" placeholder="Ex: 24"></div>
         <div class="field"><label>Carência (meses)</label><input type="number" id="credito_carencia" min="0" value="0"></div>
         <div class="field"><label title="Plano Safra 2026/27: Custeio empresarial 12,5% · Moderfrota empresarial 12,5% · Pronamp custeio 9,0% · Pronamp Moderfrota 11,5% · RenovAgro/PCA pastagens 8,0–9,5%">Juros (% a.a.) ℹ</label><input type="number" id="credito_juros" min="0" step="0.1" placeholder="Ex: 12,5 (Moderfrota 2026/27)"></div>
         <div class="field"><label>Finalidade</label><select id="credito_finalidade"><option value="custeio">Custeio</option><option value="investimento">Investimento</option></select></div>
@@ -1205,6 +1206,19 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 </main>
 
 <script>
+const _csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+const _nativeFetch = window.fetch.bind(window);
+window.fetch = (input, init={}) => {
+  const url = typeof input === 'string' ? input : input.url;
+  const method = String(init.method || 'GET').toUpperCase();
+  const sameOrigin = new URL(url, window.location.href).origin === window.location.origin;
+  if(sameOrigin && !['GET','HEAD','OPTIONS'].includes(method)){
+    const headers = new Headers(init.headers || {});
+    headers.set('X-CSRF-Token', _csrfToken);
+    init = {...init, headers};
+  }
+  return _nativeFetch(input, init);
+};
 // ================== VARIAVEIS GLOBAIS ==================
 const FAIXAS=[
   {key:'bez',lF:'Bezerra',         lM:'Bezerro',          l:'0–12 meses',  cF:'#FBBF24',cM:'#F59E0B'},
@@ -1795,11 +1809,12 @@ function _renderComparativo(fazendas){
     const cat=_catDe(f.animais);
     const isTR=f.is_total_rebanho;
     const bg=isTR?'background:rgba(74,222,128,.06);border-top:1px solid rgba(74,222,128,.2);border-bottom:1px solid rgba(74,222,128,.2);':'';
-    const nome=isTR?`<strong style="color:var(--ve)">∑ ${f.fazenda}</strong>`:f.fazenda;
+    const nomeSeguro=escapeHtml(f.fazenda||'');
+    const nome=isTR?`<strong style="color:var(--ve)">∑ ${nomeSeguro}</strong>`:nomeSeguro;
     const totalStyle=isTR?`${tdN};color:var(--ve);font-weight:800`:`${tdN};color:var(--tx)`;
     return `<tr style="${bg}" id="comp-row-${idx}">
       <td style="${tdL}">${nome}</td>
-      ${hasUF?`<td style="${tdL};text-align:center;font-family:var(--fm);font-size:.68rem;color:var(--mu)">${f.uf||'—'}</td>`:''}
+      ${hasUF?`<td style="${tdL};text-align:center;font-family:var(--fm);font-size:.68rem;color:var(--mu)">${escapeHtml(f.uf||'—')}</td>`:''}
       <td style="${totalStyle}">${fN(f.total)}</td>
       ${cols.map((c,i)=>`<td style="${tdN};color:${c.c};${i===4?'border-left:1px solid var(--b)':''}">${fN(cat[c.k]||0)}</td>`).join('')}
       <td style="padding:4px 6px">
@@ -1856,8 +1871,8 @@ function renderConsistencia(c){
     const s=SEV[f.severidade]||SEV.ok;
     return `<div style="display:flex;gap:10px;padding:10px 12px;border-left:3px solid ${s.c};background:var(--c2);border-radius:8px;margin-bottom:6px">
       <div style="color:${s.c};font-weight:800;flex-shrink:0">${s.i}</div>
-      <div><div style="font-weight:700;font-size:.8rem">${f.titulo}</div>
-      <div style="font-size:.72rem;color:var(--mu);margin-top:2px">${f.mensagem||''}</div></div></div>`;
+      <div><div style="font-weight:700;font-size:.8rem">${escapeHtml(f.titulo||'')}</div>
+      <div style="font-size:.72rem;color:var(--mu);margin-top:2px">${escapeHtml(f.mensagem||'')}</div></div></div>`;
   }).join('');
   el.innerHTML=`<div class="card" style="padding:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
@@ -1919,7 +1934,7 @@ function mostrarPDFPreview(data){
       <div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:8px">Fazendas combinadas (${combinadas.length})</div>
       <div style="display:flex;flex-direction:column;gap:6px">
         ${combinadas.map(f=>`<div style="display:flex;justify-content:space-between;gap:10px;font-family:var(--fm);font-size:.68rem;padding:6px 10px;background:var(--c2);border-radius:6px;border:1px solid var(--b)">
-          <span>${f.nome}${f.municipio?' · '+f.municipio:''}</span>
+          <span>${escapeHtml(f.nome||'')}${f.municipio?' · '+escapeHtml(f.municipio):''}</span>
           <span style="color:var(--g);font-weight:600">${fN(f.total)} animais</span>
         </div>`).join('')}
       </div>
@@ -1931,7 +1946,7 @@ function mostrarPDFPreview(data){
       <div class="cb">
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
           <div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu)">Origem detectada:</div>
-          <div id="pdf-origem" style="font-family:var(--fb);font-weight:700">${data.origem||'—'}</div>
+          <div id="pdf-origem" style="font-family:var(--fb);font-weight:700">${escapeHtml(data.origem||'—')}</div>
           <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label style="font-family:var(--fm);font-size:.55rem;color:var(--mu)">Reprocessar como</label>
             <select id="pdf-parser-select" style="background:var(--c2);border:1px solid var(--b2);padding:6px;border-radius:6px">
@@ -1944,9 +1959,9 @@ function mostrarPDFPreview(data){
         </div>
         ${listaFazendas}
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px">
-          <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Fazenda</div><div>${data.fazenda||'—'}</div></div>
-          <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Município</div><div>${data.municipio||'—'}</div></div>
-          <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Proprietário</div><div>${data.proprietario||'—'}</div></div>
+          <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Fazenda</div><div>${escapeHtml(data.fazenda||'—')}</div></div>
+          <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Município</div><div>${escapeHtml(data.municipio||'—')}</div></div>
+          <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Proprietário</div><div>${escapeHtml(data.proprietario||'—')}</div></div>
         </div>
         <table class="ytbl">
           <thead><tr><th>Faixa</th><th class="r" style="color:var(--g)">♀ Fêmeas</th><th class="r" style="color:var(--am)">♂ Machos</th><th class="r">Total</th></tr></thead>
@@ -1956,7 +1971,8 @@ function mostrarPDFPreview(data){
         </table>
       </div>
     </div>
-    <button class="btn-p" style="margin-top:16px" onclick="classificarPDF(${JSON.stringify(v)},${JSON.stringify(data)})"><span>🧠 Classificar com Machine Learning</span></button>`;
+    <button class="btn-p" style="margin-top:16px" onclick="classificarPDF(window._pdfPreviewData.valores,window._pdfPreviewData)"><span>🧠 Classificar com Machine Learning</span></button>`;
+  window._pdfPreviewData = data;
   document.getElementById('dz').innerHTML=`<span class="upzone-icon">✅</span><h2 class="upzone-title">PDF carregado: <span>${escapeHtml(data.fazenda||'Exploração')}</span></h2><p class="upzone-sub">${fN(data.total)} animais · Clique para carregar outro(s)</p><input type="file" id="pdf-inp" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files)">`;
 }
 
@@ -2101,7 +2117,7 @@ function renderEndividamento(e){
 
   const linhas = (e.itens||[]).map(i=>`
     <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
-      <td style="padding:7px 10px;color:${i.discriminado?'var(--sb)':'var(--mu)'}">${i.instituicao}</td>
+      <td style="padding:7px 10px;color:${i.discriminado?'var(--sb)':'var(--mu)'}">${escapeHtml(i.instituicao||'')}</td>
       <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${i.saldo_devedor?fR(i.saldo_devedor):'—'}</td>
       <td style="padding:7px 10px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">${fR(i.parcela_mensal)}</td>
     </tr>`).join('');
@@ -3659,7 +3675,7 @@ async function carregarFazendasSelect(){
     const r = await fetch('/api/fazendas');
     const d = await r.json();
     fazendasCache = d.fazendas || [];
-    const opts = fazendasCache.map(f=>`<option value="${f.id}">${f.nome}${f.municipio?' — '+f.municipio:''}</option>`).join('');
+    const opts = fazendasCache.map(f=>`<option value="${Number(f.id)}">${escapeHtml(f.nome||'')}${f.municipio?' — '+escapeHtml(f.municipio):''}</option>`).join('');
     const selEntrada = document.getElementById('f_fazenda_id');
     const selHist = document.getElementById('hist-fazenda-id');
     if(selEntrada) selEntrada.innerHTML = '<option value="">— análise avulsa (não salva histórico) —</option>' + opts;

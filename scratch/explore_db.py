@@ -17,10 +17,10 @@ def explore_db():
         for col in info:
             print(col)
             
-        # Try to find user viniciuslukas353@gmail.com if the table looks like a user table
+        # Exemplo local: procure apenas uma conta sintética de desenvolvimento.
         if 'usuario' in table_name.lower():
             print(f"\nSearching for user in {table_name}...")
-            cursor.execute(f"SELECT * FROM {table_name} WHERE email = 'viniciuslukas353@gmail.com';")
+            cursor.execute(f"SELECT * FROM {table_name} WHERE email = 'dev@example.invalid';")
             user = cursor.fetchone()
             if user:
                 print("Found user:", user)

@@ -97,13 +97,19 @@ def test_falha_do_scheduler_nao_impede_servir(conf_texto):
     assert 'try:' in trecho and 'except Exception' in trecho
 
 
-def test_iniciar_scheduler_e_idempotente():
+def test_iniciar_scheduler_e_idempotente(monkeypatch):
     """Chamar duas vezes não pode criar dois agendadores."""
     import app as appmod
+    monkeypatch.setattr(appmod, 'rotina_diaria_cotacoes', lambda: None)
     primeiro = appmod.iniciar_scheduler()
-    segundo = appmod.iniciar_scheduler()
-    assert primeiro is segundo
-    assert appmod._scheduler_iniciado is True
+    try:
+        segundo = appmod.iniciar_scheduler()
+        assert primeiro is segundo
+        assert appmod._scheduler_iniciado is True
+    finally:
+        primeiro.shutdown(wait=False)
+        appmod.scheduler = None
+        appmod._scheduler_iniciado = False
 
 
 def test_app_nao_inicia_scheduler_sozinho_sob_o_hook():

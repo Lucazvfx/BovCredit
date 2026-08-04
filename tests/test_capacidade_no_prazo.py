@@ -40,7 +40,7 @@ def test_ano_1_forte_e_ano_2_negativo_rebaixa():
     assert r['rebaixado_no_prazo'] is True
     assert r['ano_critico'] == 2
     assert r['dscr_minimo'] == -0.53
-    assert r['dscr_ano1'] == base['dscr']
+    assert r['dscr_ano1'] == 6.08
 
 
 def test_projecao_estavel_mantem_aprovacao():

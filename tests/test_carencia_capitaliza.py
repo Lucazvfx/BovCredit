@@ -31,9 +31,23 @@ sugerido.
 import pytest
 
 from services.parecer_credito import (
-    parcela_price, principal_apos_carencia, credito_maximo,
+    parcela_price, principal_apos_carencia, credito_maximo, cronograma_price,
     avaliar_capacidade_pagamento, DSCR_APROVAR,
 )
+
+
+def test_cronograma_respeita_carencia_e_ultimo_ano_parcial():
+    c = cronograma_price(500_000, 0.10, prazo_meses=30, carencia_meses=6)
+    assert [a['parcelas_nova_operacao'] for a in c['anos']] == [6, 12, 6]
+    assert c['anos'][0]['servico_nova_operacao'] == pytest.approx(
+        6 * c['parcela_mensal'], abs=0.10)
+    assert c['anos'][2]['servico_nova_operacao'] == pytest.approx(
+        6 * c['parcela_mensal'], abs=0.10)
+
+
+def test_cronograma_rejeita_carencia_igual_ao_prazo():
+    with pytest.raises(ValueError, match='menor que o prazo'):
+        cronograma_price(100_000, 0.10, prazo_meses=12, carencia_meses=12)
 
 PV, JUROS, PRAZO, CARENCIA = 1_000_000.0, 0.125, 36, 12
 

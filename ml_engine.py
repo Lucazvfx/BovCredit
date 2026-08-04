@@ -580,7 +580,7 @@ def classificar(
 
     explicacao = []
 
-    # Rastreio de proveniência da decisão (CMN 4.966/2021 — a explicação
+    # Rastreio de proveniência da decisão — a explicação
     # apresentada precisa corresponder ao processo que efetivamente decidiu).
     origem_decisao = 'ml'
     regra_aplicada = None
@@ -922,7 +922,7 @@ def _grupos_redundantes() -> list[list[int]]:
 
 
 # ==================================================================
-# 5b. SHAP — Explicabilidade (CMN 4.966/2021 / Marco Legal IA)
+# 5b. SHAP — explicabilidade técnica e governança do modelo
 # ==================================================================
 def explicar_shap(
     v: list,
@@ -934,8 +934,8 @@ def explicar_shap(
     """
     Retorna os principais fatores que explicam a classificação via SHAP.
 
-    Conformidade: CMN 4.966/2021 (modelos internos de risco) e
-    PL 2.338/2023 — Marco Legal da IA (sistemas de alto risco).
+    Apoio à governança: explicação técnica do modelo para revisão humana.
+    Isto não constitui, isoladamente, conformidade regulatória.
 
     IMPORTANTE: quando `origem_decisao == 'regra'`, a classificação final foi
     determinada por uma regra determinística e NÃO pelo modelo. Nesse caso o
@@ -1038,7 +1038,7 @@ def explicar_shap(
         'n_estimadores': len(contribs),
         'metodo':        ('SHAP TreeExplainer — média do ensemble'
                           + (' · features equivalentes agrupadas' if _SHAP_AGRUPAR else '')),
-        'conformidade':  'CMN 4.966/2021 · Marco Legal IA (Lei 2.338/2023)',
+        'conformidade':  'Apoio à governança e revisão humana; não certifica conformidade regulatória',
         'agrupamento_redundantes': _SHAP_AGRUPAR,
         'decisao_por_regra': por_regra,
         'regra_aplicada':    regra_aplicada,
