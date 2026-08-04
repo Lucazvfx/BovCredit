@@ -2228,6 +2228,16 @@ function renderProveniencia(pv){
 }
 
 // ================== RENDER RESULTADO ==================
+function renderAnalisesCredito(data, parecer){
+  const a=(parecer&&parecer.analises_credito)||data.analises_credito;
+  if(!a) return '';
+  const labels={capacidade_pagamento:'Capacidade de pagamento',risco_credito:'Risco de crédito',garantia:'Garantia'};
+  const statusLabel={aprovada:'ADEQUADA',ressalva:'RESSALVA',reprovada:'INSUFICIENTE',baixo:'BAIXO',medio:'MÉDIO',alto:'ALTO',suficiente:'SUFICIENTE',insuficiente:'INSUFICIENTE',nao_avaliada:'NÃO AVALIADA'};
+  const color=s=>({aprovada:'#4ADE80',baixo:'#4ADE80',suficiente:'#4ADE80',ressalva:'#FBBF24',medio:'#FBBF24',reprovada:'#F87171',alto:'#F87171',insuficiente:'#F87171'}[s]||'#8891A5');
+  return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:#60A5FA"></div>Três dimensões da análise</div></div><div class="cb analises-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+    ${Object.entries(labels).map(([k,l])=>{const x=a[k]||{},s=x.status||'nao_avaliada',co=color(s);return `<div style="border:1px solid ${co}55;border-radius:10px;padding:14px;background:${co}0D"><div style="font-size:.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">${l}</div><div style="font-size:1.05rem;font-weight:800;color:${co};margin:7px 0">${statusLabel[s]||s}</div><div style="font-size:.75rem;color:var(--sb);line-height:1.45">${k==='capacidade_pagamento'?(x.dscr!=null?'DSCR: '+x.dscr:'Sem crédito informado'):k==='risco_credito'?`Confiança: ${x.confianca_classificacao!=null?(x.confianca_classificacao*100).toFixed(0)+'%':'—'} · Consistência: ${x.score_consistencia??'—'}`:`LTV: ${x.ltv!=null?x.ltv+'%':'—'} · Execução: ${x.valor_execucao!=null?fR(x.valor_execucao):'—'}`}</div></div>`}).join('')}
+  </div><div style="padding:0 14px 14px;color:var(--mu);font-size:.7rem">A análise é uma pré-avaliação de apoio à consultoria. Confirme documentos, pesos, custos, dívidas e movimentações antes da decisão final.</div></div>`;
+}
 function renderParecer(data){
   const p=data.parecer; if(!p) return '';
   window._lastParecer = p;
@@ -2560,7 +2570,7 @@ function renderParecer(data){
   return `<div class="card" style="margin-bottom:24px">
     <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Parecer de Crédito</div>
       <button class="btn-sm" onclick="baixarPdfParecer(window._lastParecer)">⬇ Baixar PDF</button></div>
-    <div class="cb" style="display:grid;gap:0">${renderPraca(p.precos_regional)}${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
+    <div class="cb" style="display:grid;gap:0">${renderAnalisesCredito(data,p)}${renderPraca(p.precos_regional)}${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
   </div>
   ${renderGarantia(p.garantia)}
   ${renderEndividamento(p.endividamento)}
@@ -4076,3 +4086,4 @@ carregarFazendasSelect();
 </footer>
 </body>
 </html>
+
