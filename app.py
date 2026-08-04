@@ -63,6 +63,7 @@ from services.custos_desembolso import (
 from services.reconciliacao import reconciliar
 from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
 from services.garantia import avaliar_garantia
+from services.qualidade_dados import analisar_qualidade_dados
 from services.precos_regionais import aplicar as aplicar_preco_regional
 from services import auditoria as _aud
 from services import totp as _totp
@@ -952,6 +953,7 @@ def api_classificar():
 
     result = classificar(v, **kwargs)
     ind    = calcular_indicadores(v)
+    qualidade_dados = analisar_qualidade_dados(v, data)
 
     # Indicadores comparáveis a benchmarks regionais (GEP Araguaia / Rondônia):
     # usa o que o usuário informou (mortalidade_pct, desmama_pct,
@@ -1811,6 +1813,7 @@ def api_classificar():
     return jsonify({
         **result,
         'indicadores': ind,
+        'qualidade_dados': qualidade_dados,
         'indicadores_benchmark': ind_bench,
         'benchmarks': benchmarks,
         'benchmarks_nacionais': painel_nacional,
