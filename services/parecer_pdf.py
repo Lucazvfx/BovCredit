@@ -91,11 +91,27 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
     story.append(Paragraph(
         f"{fazenda} · {municipio} · {proprietario} — emitido em "
         f"{datetime.now().strftime('%d/%m/%Y')}", ss['Subtitulo']))
+    story.append(Spacer(1, 5))
+    story.append(Paragraph(
+        '<b>Natureza da análise:</b> pré-análise técnico-financeira de apoio à '
+        'consultoria. Este documento não substitui a conferência documental, '
+        'a visita à propriedade ou a decisão final do agente de crédito.',
+        ss['Subtitulo']))
     story.append(HRFlowable(width='100%', color=colors.HexColor('#CCCCCC'), spaceBefore=8, spaceAfter=4))
 
     composicao = parecer.get('composicao') or {}
     story.append(Paragraph('Composição do Rebanho', ss['SecaoTitulo']))
     story.append(Paragraph(f"Total de animais: {composicao.get('total', '—')}", ss['Corpo']))
+
+    qualidade = parecer.get('qualidade_dados') or {}
+    if qualidade:
+        story.append(Paragraph('Qualidade e origem dos dados', ss['SecaoTitulo']))
+        story.append(Paragraph(
+            f"Confiança: <b>{qualidade.get('nivel_confianca', '—')}</b> · "
+            f"Origem principal: {qualidade.get('origem_principal', '—')}",
+            ss['Corpo']))
+        for aviso in (qualidade.get('avisos') or []):
+            story.append(Paragraph(f"• {aviso}", ss['Corpo']))
 
     indicadores = parecer.get('indicadores') or {}
     benchmarks = indicadores.get('benchmarks') or []
@@ -481,3 +497,4 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
 
     doc.build(story)
     return buf.getvalue()
+
