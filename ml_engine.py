@@ -1632,10 +1632,13 @@ def _simular_cria(
 
     result = _montar_resultado(cenario, sc, anos_proj, total_ini, 'CRIA')
     ano1 = anos_proj[0]
-    units = float(max(ano1['vendidos'], 1)) * peso_bezerra
+    # Na cria a receita é por bezerro/bezerra vendido, não por arroba.
+    # Multiplicar as cabeças pelo peso e rotular como R$/arroba misturava
+    # unidades e subestimava o preço mínimo por animal.
+    units = float(max(ano1['vendidos'], 1))
     result.update({
-        'preco_breakeven':         round(ano1['custo'] / max(units, 1), 2),
-        'preco_breakeven_unidade': 'R$/arroba',
+        'preco_breakeven':         round(ano1['custo'] / units, 2),
+        'preco_breakeven_unidade': 'R$/cabeça',
         'preco_usado':             preco_bz,
         'slider_units':            units,
         'slider_custo_ano1':       ano1['custo'],
@@ -2411,3 +2414,4 @@ def calcular_breakeven_simples(v: list, ciclo: str) -> dict:
     custo = arrobas * custo_arroba
     units = total * 0.30 * 16.0
     return {'preco_breakeven': round(custo / max(units, 1), 2), 'unidade': 'R$/arroba'}
+
