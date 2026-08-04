@@ -113,6 +113,15 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         for aviso in (qualidade.get('avisos') or []):
             story.append(Paragraph(f"• {aviso}", ss['Corpo']))
 
+    rating = parecer.get('rating') or {}
+    if rating:
+        story.append(Paragraph('Rating indicativo de crédito', ss['SecaoTitulo']))
+        story.append(Paragraph(
+            f"Faixa <b>{rating.get('faixa', '—')}</b> · "
+            f"Score <b>{rating.get('score', '—')}/100</b> · "
+            f"{rating.get('rotulo', '—')}. {rating.get('observacao', '')}",
+            ss['Corpo']))
+
     indicadores = parecer.get('indicadores') or {}
     benchmarks = indicadores.get('benchmarks') or []
     if benchmarks:
