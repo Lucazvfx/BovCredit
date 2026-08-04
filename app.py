@@ -66,6 +66,7 @@ from services.garantia import avaliar_garantia
 from services.qualidade_dados import analisar_qualidade_dados
 from services.checklist_credito import checklist_credito
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
+from services.rating_credito import calcular_rating
 from services.precos_regionais import aplicar as aplicar_preco_regional
 from services import auditoria as _aud
 from services import totp as _totp
@@ -1762,6 +1763,14 @@ def api_classificar():
     parecer['documentos_credito'] = documentos_credito
     fluxo_mensal = projetar_fluxo_mensal(_projecao_anos)
     parecer['fluxo_mensal'] = fluxo_mensal
+    rating = calcular_rating(
+        dscr=_conclusao.get('dscr_minimo', _conclusao.get('dscr')),
+        ltv=garantia.get('ltv'),
+        consistencia=consistencia.get('score_consistencia', 0),
+        confianca=qualidade_dados.get('nivel_confianca', 'media-baixa'),
+        documentos_pendentes=len(documentos_credito.get('pendentes', [])),
+        comprometimento_pct=endividamento.get('comprometimento_pct'))
+    parecer['rating'] = rating
     # Nível operacional: uma aprovação matemática com documentos faltantes
     # vira aprovação condicionada, nunca aprovação final.
     _rec_base = _conclusao.get('recomendacao')
@@ -1841,6 +1850,7 @@ def api_classificar():
         'qualidade_dados': qualidade_dados,
         'documentos_credito': documentos_credito,
         'fluxo_mensal': fluxo_mensal,
+        'rating': rating,
         'indicadores_benchmark': ind_bench,
         'benchmarks': benchmarks,
         'benchmarks_nacionais': painel_nacional,
