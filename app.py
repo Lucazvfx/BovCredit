@@ -40,6 +40,10 @@ from pdf_parsers import (
 )
 
 from services.importar_excel import parsear_ficha_excel, validar_fazendas_importadas
+from services.fichas_rebanho import read_ficha_pdf
+from services.fichas_rebanho.consolidator import consolidar_registros
+from services.fichas_rebanho.validator import validar_registros
+from services.fichas_rebanho.log import registros_para_log
 
 from scraper import obter_precos_arroba, _session_com_retry, _HEADERS as _SCRAPER_HEADERS
 
@@ -2571,6 +2575,119 @@ def api_template_download():
         'modelo_composicao_rebanho.xlsx',
         as_attachment=True,
     )
+
+
+@app.route('/api/fichas/importar', methods=['POST'])
+@login_required
+def api_importar_fichas():
+    """Importa um lote de PDFs usando o fluxo baseado no XLSM.
+
+    O endpoint não confirma nem grava a consolidação no cadastro. Ele devolve
+    todos os registros, inclusive os pendentes de revisão, para a interface
+    confirmar ou corrigir antes de classificar o rebanho.
+    """
+    arquivos = request.files.getlist('pdf') or request.files.getlist('arquivos')
+    arquivos = [arquivo for arquivo in arquivos if arquivo and arquivo.filename]
+    if not arquivos:
+        return jsonify({
+            'sucesso': False,
+            'arquivos_processados': 0,
+            'fichas_identificadas': 0,
+            'animais_extraidos': 0,
+            'registros': [],
+            'avisos': [],
+            'erros': ['Envie um ou mais arquivos no campo "pdf".'],
+        }), 400
+
+    estado = (request.form.get('estado') or '').strip() or None
+    modelo = (request.form.get('modelo') or '').strip() or None
+    todos_registros = []
+    avisos = []
+    erros = []
+    processados = 0
+    fichas = 0
+
+    for arquivo in arquivos:
+        if not arquivo.filename.lower().endswith('.pdf'):
+            erros.append(f'{arquivo.filename}: apenas arquivos PDF são aceitos.')
+            continue
+        tmp_path = None
+        try:
+            tmp = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
+            tmp_path = tmp.name
+            tmp.close()
+            arquivo.save(tmp_path)
+            leitura = read_ficha_pdf(tmp_path, estado=estado, modelo=modelo)
+            processados += 1
+            if leitura.get('sucesso'):
+                fichas += 1
+                todos_registros.extend(leitura.get('registros') or [])
+                avisos.extend(
+                    f'{arquivo.filename}: {aviso}'
+                    for aviso in leitura.get('avisos') or []
+                )
+                erros.extend(
+                    f'{arquivo.filename}: {erro}'
+                    for erro in leitura.get('erros') or []
+                )
+            else:
+                erros.extend(
+                    f'{arquivo.filename}: {erro}'
+                    for erro in leitura.get('erros') or ['falha não detalhada']
+                )
+        except Exception as exc:
+            erros.append(f'{arquivo.filename}: {exc}')
+        finally:
+            if tmp_path:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+
+    validacao = validar_registros(todos_registros)
+    todos_registros = validacao['registros']
+    avisos.extend(validacao['avisos'])
+    erros.extend(validacao['erros'])
+    consolidado = consolidar_registros(todos_registros)
+    valores_agregados = [
+        sum((item.get('valores') or [0] * 10)[indice] for item in consolidado)
+        for indice in range(10)
+    ]
+    fazendas_compat = [{
+        'fazenda': item.get('fazenda', ''),
+        'municipio': item.get('municipio', ''),
+        'estado': item.get('estado', ''),
+        'valores': item.get('valores', [0] * 10),
+        'total': item.get('total', 0),
+    } for item in consolidado]
+    animais = sum(
+        int(registro['quantidade'])
+        for registro in todos_registros
+        if isinstance(registro.get('quantidade'), (int, float))
+        and registro.get('quantidade') >= 0
+        and registro.get('status') == 'Distribuído'
+    )
+    return jsonify({
+        'sucesso': bool(fichas) and not erros,
+        'arquivos_processados': processados,
+        'fichas_identificadas': fichas,
+        'animais_extraidos': animais,
+        'registros': todos_registros,
+        'log': registros_para_log(todos_registros),
+        'consolidado': consolidado,
+        # Campos compatíveis com o frontend legado /api/ler-pdf.
+        'valores': valores_agregados,
+        'fazendas': fazendas_compat,
+        'fazenda': (
+            fazendas_compat[0]['fazenda'] if len(fazendas_compat) == 1
+            else f'{len(fazendas_compat)} fazendas combinadas'
+        ),
+        'municipio': fazendas_compat[0]['municipio'] if len(fazendas_compat) == 1 else '',
+        'total': sum(valores_agregados),
+        'avisos': avisos,
+        'erros': erros,
+        'pode_confirmar': bool(todos_registros) and not erros,
+    })
 
 
 @app.route('/api/ficha/download', methods=['GET'])

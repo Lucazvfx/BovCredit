@@ -1675,7 +1675,7 @@ async function lerPDFsInserir(fileList){
       const fd=new FormData();fd.append('pdf',file);
       if(estado)fd.append('estado',estado);
       try{
-        const res=await fetch('/api/ler-pdf',{method:'POST',body:fd});
+        const res=await fetch('/api/fichas/importar',{method:'POST',body:fd});
         const data=await res.json();
         if(data.erro){falhas++;showToast(`${file.name}: ${data.erro}`,true);continue}
         const itens = Array.isArray(data.fazendas) && data.fazendas.length
@@ -1922,7 +1922,7 @@ async function lerPDFs(fileList){
     for(const file of files){
       const fd=new FormData();fd.append('pdf',file);
       try{
-        const res=await fetch('/api/ler-pdf',{method:'POST',body:fd});
+        const res=await fetch('/api/fichas/importar',{method:'POST',body:fd});
         const data=await res.json();
         if(data.erro){falhas++;showToast(`${file.name}: ${data.erro}`,true);continue}
         const itens = Array.isArray(data.fazendas) && data.fazendas.length
@@ -1949,6 +1949,8 @@ async function lerPDFs(fileList){
       proprietario: primeiraMeta?.proprietario||'',
       origem: fazendas.length===1 ? fazendas[0].origem : 'MÚLTIPLOS',
       fazendas_combinadas: fazendas,
+      avisos: data.avisos||[],
+      erros: data.erros||[],
     });
     const okMsg=fazendas.length>1 ? `${fazendas.length} PDFs combinados (${fN(totalGeral)} animais no total)` : `PDF carregado: ${fazendas[0].nome} (${fN(totalGeral)} animais)`;
     showToast(falhas?`${okMsg} · ${falhas} arquivo(s) falharam`:okMsg);
@@ -1959,6 +1961,8 @@ function mostrarPDFPreview(data){
   const v=data.valores;
   const _vd=vApiToDisplay(v);
   const rows=FAIXAS.map((f,i)=>`<tr><td>${f.lF}/${f.lM} <span style="font-size:.6rem;color:var(--mu)">${f.l}</span></td><td class="g">${fN(_vd[i][0])}</td><td class="a">${fN(_vd[i][1])}</td><td class="r">${fN(_vd[i][0]+_vd[i][1])}</td></tr>`).join('');
+  const pendencias=[...(data.erros||[]),...(data.avisos||[])];
+  const painelPendencias=pendencias.length ? '<div style="margin-bottom:16px;padding:10px 12px;border-radius:8px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);color:#FBBF24;font-size:.72rem"><strong>Revisão necessária</strong><ul style="margin:6px 0 0 16px">'+pendencias.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ul></div>' : '';
   const combinadas=data.fazendas_combinadas||[];
   const listaFazendas = combinadas.length>1 ? `
     <div style="margin-bottom:18px">
@@ -1988,7 +1992,7 @@ function mostrarPDFPreview(data){
             <button class="btn-sm" onclick="reparsarPDF()">↻ Reprocessar</button>
           </div>
         </div>
-        ${listaFazendas}
+        ${painelPendencias}${listaFazendas}
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px">
           <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Fazenda</div><div>${escapeHtml(data.fazenda||'—')}</div></div>
           <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Município</div><div>${escapeHtml(data.municipio||'—')}</div></div>
