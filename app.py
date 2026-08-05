@@ -18,6 +18,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from ml_engine import (
     treinar_modelo, classificar, calcular_indicadores,
     simular_cenario, carregar_modelo, CENARIOS,
+    comparar_cenarios,
     avaliar_benchmarks, extrair_indicadores_benchmark, calcular_breakeven_simples,
     explicar_shap, TIPOS, PARAMS_POR_CICLO,
 )
@@ -64,6 +65,8 @@ from services.reconciliacao import reconciliar
 from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
 from services.garantia import avaliar_garantia
 from services.qualidade_dados import analisar_qualidade_dados
+from services.explicacao_classificacao import montar_explicacao_classificacao
+from services.validacao_zootecnica import analisar_validacoes_zootecnicas
 from services.checklist_credito import checklist_credito
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services.rating_credito import calcular_rating
@@ -956,6 +959,7 @@ def api_classificar():
 
     result = classificar(v, **kwargs)
     ind    = calcular_indicadores(v)
+    explicacao_classificacao = montar_explicacao_classificacao(result, ind)
     qualidade_dados = analisar_qualidade_dados(v, data)
     documentos_credito = checklist_credito(data, qualidade_dados)
 
@@ -1359,6 +1363,14 @@ def api_classificar():
         servico_divida_anual     = _servico_gep,
         reposicao_reprodutores   = _reposicao_reprodutores,
     )
+    # Decomposição auditável do custo do primeiro ano. O custo operacional
+    # continua sendo o desembolso completo (manutenção + reposição de animais)
+    # usado pelo caixa e pelo DSCR; estes campos apenas tornam explícita a
+    # parcela que costuma empurrar a recria para o negativo.
+    fluxo_gep['custo_manutencao'] = round(float(_ano1.get('custo_manutencao', 0.0) or 0.0), 2)
+    fluxo_gep['custo_reposicao'] = round(float(_ano1.get('custo_reposicao', 0.0) or 0.0), 2)
+    fluxo_gep['resultado_antes_reposicao'] = round(
+        fluxo_gep['receita_vendas'] - fluxo_gep['custo_manutencao'], 2)
 
     # COE (R$/@ vendida) = custo_operacional / arrobas_vendidas
     #
@@ -1699,6 +1711,23 @@ def api_classificar():
             'viavel':      (_dscr_ano is None or _dscr_ano >= 1.0) and _gc_ano > 0,
         })
 
+    validacoes_zootecnicas = analisar_validacoes_zootecnicas(
+        v, data, projecao=_projecao_anos)
+    _parametros_cenarios = dict(_sim_volume)
+    _parametros_cenarios.update({
+        'preco_arroba': preco_boi or float(data.get('preco', 320)),
+        'custo_arroba': custo_arroba,
+        'custo_arroba_cria': _custo_fase('custo_arroba_cria'),
+        'custo_arroba_recria': _custo_fase('custo_arroba_recria'),
+        'custo_arroba_engorda': _custo_fase('custo_arroba_engorda'),
+        'preco_boi_arr': preco_boi,
+        'preco_vaca_arr': preco_vaca,
+        'preco_bezerra_cab': preco_bezerra,
+        'preco_bezerro_cab': preco_bezerro,
+    })
+    comparacao_cenarios = comparar_cenarios(
+        v, result['tipo'], parametros=_parametros_cenarios)
+
     parecer = montar_parecer(
         identificacao={'fazenda': fazenda, 'municipio': municipio,
                        'proprietario': data.get('proprietario', '')},
@@ -1760,6 +1789,9 @@ def api_classificar():
     }
     parecer['analises_credito'] = analises_credito
     parecer['qualidade_dados'] = qualidade_dados
+    parecer['explicacao_classificacao'] = explicacao_classificacao
+    parecer['validacoes_zootecnicas'] = validacoes_zootecnicas
+    parecer['comparacao_cenarios'] = comparacao_cenarios
     parecer['documentos_credito'] = documentos_credito
     fluxo_mensal = projetar_fluxo_mensal(_projecao_anos)
     parecer['fluxo_mensal'] = fluxo_mensal
@@ -1848,6 +1880,9 @@ def api_classificar():
         **result,
         'indicadores': ind,
         'qualidade_dados': qualidade_dados,
+        'explicacao_classificacao': explicacao_classificacao,
+        'validacoes_zootecnicas': validacoes_zootecnicas,
+        'comparacao_cenarios': comparacao_cenarios,
         'documentos_credito': documentos_credito,
         'fluxo_mensal': fluxo_mensal,
         'rating': rating,

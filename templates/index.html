@@ -2318,6 +2318,9 @@ function renderParecer(data){
       <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">Fluxo de Caixa Completo</div>
       <div style="display:grid;gap:4px;font-size:.82rem">
         ${mr2('(+) Receita de vendas', fR(gep.receita_vendas), 'g')}
+        ${gep.custo_manutencao != null ? mr2('(−) Manutenção do plantel', fR(gep.custo_manutencao), 'r') : ''}
+        ${gep.resultado_antes_reposicao != null ? mr2('(=) Resultado antes da reposição', fR(gep.resultado_antes_reposicao), gep.resultado_antes_reposicao>=0?'g':'r', true) : ''}
+        ${gep.custo_reposicao > 0 ? mr2('(−) Compra de animais para reposição', fR(gep.custo_reposicao), 'r') : ''}
         ${mr2('(−) Custo caixa (desembolso)', fR(gep.custo_operacional), 'r')}
         ${gep.reposicao_reprodutores > 0 ? mr2('(−) Reposição de reprodutores', fR(gep.reposicao_reprodutores), 'r') : ''}
         ${mr2('(=) Resultado operacional (caixa)', fR(gep.resultado_operacional), gep.resultado_operacional>=0?'g':'r', true)}
@@ -2645,6 +2648,8 @@ function renderResult(data){
             const chips=[];
             if(data.origem_decisao==='regra'){
               chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--am);background:rgba(251,191,36,.1)">⚖ regra determinística: ${escapeHtml(data.regra_aplicada||'')}</span>`);
+            } else if(data.origem_decisao==='composicao_modelo'){
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--am);background:rgba(251,191,36,.1)">📋 inferido pela composição da ficha</span>`);
             } else {
               chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(74,222,128,.35);color:var(--g);background:rgba(74,222,128,.1)">🧠 decidido pelo modelo ML</span>`);
             }
@@ -2656,11 +2661,20 @@ function renderResult(data){
             }
             return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${chips.join('')}</div>`;
           })()}
+          ${data.classificacao_limitada ? `
+            <div style="margin-top:12px;padding:11px 13px;border:1px solid rgba(251,191,36,.38);border-radius:9px;background:rgba(251,191,36,.08);color:var(--sb);font-size:.76rem;line-height:1.5">
+              <b style="color:var(--am)">Classificação limitada:</b>
+              o ciclo inferido é <b>${escapeHtml(TL[data.tipo]||data.tipo||'')}</b>,
+              mas faltam ${escapeHtml((data.dados_faltantes||[]).join(', ')||'dados de produção')}.
+              Confirme esta informação antes de usar o resultado.
+            </div>` : ''}
           <div style="margin-top:22px">${confBars}</div>
         </div>
         <div class="rhero-em">${TE[tipo]}</div>
       </div>
     </div>
+
+    ${renderTransparencia(data)}
 
     ${data.shap_pendente ? shapPlaceholderHtml() : shapCardHtml(data.shap_explicacao||{}, tipo, col)}
 
@@ -2809,6 +2823,36 @@ function renderResult(data){
   const _fpD=document.getElementById('fp-dur');
   if(_fpD) _fpD.value=_FP_DUR_DEFAULT[tipo]||12;
   setTimeout(renderFluxoProjetado,250);
+}
+
+function renderTransparencia(data){
+  const q=data.qualidade_dados||{};
+  const e=data.explicacao_classificacao||{};
+  const vz=data.validacoes_zootecnicas||{};
+  const cc=data.comparacao_cenarios||{};
+  const campos=q.campos||{};
+  const contagem=(origem)=>Object.values(campos).filter(x=>x.origem===origem).length;
+  const alertas=vz.alertas||[];
+  const cen=(cc.cenarios||[]).map(x=>{
+    const ac=x.acumulado||{};
+    return `<tr><td>${escapeHtml(x.id||'—')}</td><td>${fR(ac.receita)}</td><td>${fR(ac.custo)}</td><td>${fR(ac.resultado)}</td><td>${x.dscr_minimo==null?'—':x.dscr_minimo}</td><td>${x.ano_critico==null?'—':x.ano_critico}</td></tr>`;
+  }).join('');
+  const fatores=(e.fatores||[]).slice(0,6).map(f=>`<li>${escapeHtml(f.evidencia||f.rotulo||'')}</li>`).join('');
+  const avisos=alertas.slice(0,5).map(a=>`<div style="padding:8px 0;border-bottom:1px solid var(--b)"><b>${escapeHtml(a.titulo||'Alerta')}</b><br><span style="color:var(--mu)">${escapeHtml(a.evidencia||'')} · ${escapeHtml(a.acao||'')}</span></div>`).join('');
+  return `<div class="g2" style="margin-bottom:24px">
+    <div class="card"><div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Qualidade dos dados</div></div><div class="cb">
+      <div style="font-size:.78rem;line-height:1.7">Documento: <b>${contagem('documento')}</b> · Usuário: <b>${contagem('usuario')}</b> · Estimativa: <b>${contagem('estimativa')}</b> · Ausente: <b>${contagem('ausente')}</b></div>
+      <div style="margin-top:10px;color:${q.resultado_financeiro_estimado?'var(--am)':'var(--g)'};font-size:.75rem">${q.resultado_financeiro_estimado?'Fluxo financeiro estimado: confirme as premissas faltantes.':'Premissas financeiras informadas.'}</div>
+    </div></div>
+    <div class="card"><div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Por que este ciclo?</div></div><div class="cb">
+      <div style="font-size:.78rem">Final: <b>${escapeHtml(e.ciclo_final||data.tipo||'—')}</b> · Modelo: <b>${escapeHtml(e.ciclo_modelo||'—')}</b> · Decisão: <b>${escapeHtml(e.decisao||'—')}</b></div>
+      ${fatores?`<ul style="margin:10px 0 0 18px;font-size:.72rem;color:var(--sb);line-height:1.6">${fatores}</ul>`:''}
+    </div></div>
+  </div>
+  <div class="card" style="margin-bottom:24px"><div class="ch"><div class="ct"><div class="cd" style="background:var(--rd)"></div>Riscos e cenários</div></div><div class="cb">
+    ${avisos||'<div style="font-size:.75rem;color:var(--g)">Nenhum alerta zootécnico encontrado com os dados disponíveis.</div>'}
+    ${cen?`<div style="overflow:auto;margin-top:14px"><table class="dt"><thead><tr><th>Cenário</th><th>Receita</th><th>Custo</th><th>Resultado</th><th>DSCR mín.</th><th>Ano crítico</th></tr></thead><tbody>${cen}</tbody></table></div>`:''}
+  </div></div>`;
 }
 
 function mr(k,v,c){return`<div class="mrow"><span class="mk">${k}</span><span class="mv ${c}">${v}</span></div>`}
