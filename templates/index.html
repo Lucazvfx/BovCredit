@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="csrf-token" content="{{ csrf_token() }}">
-<title>BovCredit</title>
+<title>Orkavyn Agro Intelligence</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="/static/favicon-cow.png">
 <style>
@@ -420,7 +420,7 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 <div class="toast" id="toast"></div>
 
 <header>
-  <div class="logo"><img src="/static/img/logo-dark.svg" alt="BovCredit" style="height:20px;display:block"></div>
+  <div class="logo"><img src="/static/img/logo-dark.svg" alt="Orkavyn Agro Intelligence" style="height:20px;display:block"></div>
   <div class="hdr-r">
     <span id="hdr-boi" class="ml-acc" style="cursor:default" title="Cotação Boi (R$/arroba)">Boi: --</span>
     <span id="hdr-vaca" class="ml-acc" style="cursor:default" title="Cotação Vaca (R$/arroba)">Vaca: --</span>
@@ -1271,7 +1271,7 @@ const DEFAULT_PARAMS_CICLO = {
 let paramsPorCiclo = {};
 
 function initParamsPorCiclo() {
-  const saved = localStorage.getItem('boviml_params_ciclo');
+  const saved = localStorage.getItem('orkavyn_params_ciclo');
   if (saved) {
     try { paramsPorCiclo = JSON.parse(saved); } catch(e) { paramsPorCiclo = cloneDefault(); }
   } else {
@@ -1316,14 +1316,14 @@ function salvarParametrosDoCiclo() {
     venda_bez_pct: parseFloat(document.getElementById('param-vendbez').value) || 0,
     nat_pct: parseFloat(document.getElementById('param-nat').value) || 0
   };
-  localStorage.setItem('boviml_params_ciclo', JSON.stringify(paramsPorCiclo));
+  localStorage.setItem('orkavyn_params_ciclo', JSON.stringify(paramsPorCiclo));
   document.getElementById('param-status').innerHTML = '✓ Salvo para ' + ciclo;
   setTimeout(() => document.getElementById('param-status').innerHTML = '', 3000);
 }
 function resetarParametrosDoCiclo() {
   const ciclo = document.getElementById('ciclo-alvo').value;
   paramsPorCiclo[ciclo] = { ...DEFAULT_PARAMS_CICLO[ciclo] };
-  localStorage.setItem('boviml_params_ciclo', JSON.stringify(paramsPorCiclo));
+  localStorage.setItem('orkavyn_params_ciclo', JSON.stringify(paramsPorCiclo));
   carregarParametrosDoCiclo();
   document.getElementById('param-status').innerHTML = '↺ Padrões restaurados';
 }
@@ -4047,7 +4047,7 @@ async function gerarCodigoWhatsapp(){
     }
     caixa.innerHTML = `
       <div style="font-size:.74rem;color:var(--sb);line-height:1.6">
-        Envie este código pelo seu WhatsApp para o número do BovCredit:
+        Envie este código pelo seu WhatsApp para o número da Orkavyn Agro Intelligence:
         <div style="font-family:var(--fm);font-size:1.6rem;font-weight:800;letter-spacing:6px;color:var(--g);margin:6px 0 2px">${escapeHtml(d.codigo)}</div>
         <span style="color:var(--mu)">Vale por ${d.validade_min} minutos e serve uma vez só.</span>
       </div>`;

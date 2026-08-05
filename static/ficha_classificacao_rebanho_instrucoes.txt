@@ -1,7 +1,7 @@
-BOVCREDIT — FICHA DE CLASSIFICAÇÃO DE REBANHO (.XLSM)
+ORKAVYN AGRO INTELLIGENCE — FICHA DE CLASSIFICAÇÃO DE REBANHO (.XLSM)
 
 OBJETIVO
-Preencher a composição do rebanho por fazenda e importar o arquivo no BovCredit.
+Preencher a composição do rebanho por fazenda e importar o arquivo na Orkavyn Agro Intelligence.
 A ficha é uma fonte de composição do rebanho. Pesos, GMD, custos, dívidas e índices
 reprodutivos devem ser confirmados com documentos e informações complementares.
 
@@ -13,14 +13,14 @@ COMO PREENCHER
    de fêmeas e machos.
 4. Preencha cada fazenda em seu bloco. Não altere os nomes das categorias.
 5. Salve o arquivo como .XLSM, mantendo as macros habilitadas.
-6. No BovCredit, use “Importar Ficha” e selecione este arquivo.
+6. Na Orkavyn Agro Intelligence, use “Importar Ficha” e selecione este arquivo.
 
 CATEGORIAS
 Fêmeas: Bezerra, Bezerra Desmama, Novilha, Vaca.
 Machos: Bezerro, Bezerro Desmama, Garrote, Boi Gordo.
 
 IMPORTANTE SOBRE AS FAIXAS
-A categoria Bezerra/Bezerro da ficha representa 0–12 meses. Como o BovCredit
+A categoria Bezerra/Bezerro da ficha representa 0–12 meses. Como a Orkavyn Agro Intelligence
 separa 0–5 e 5–13 meses, o sistema distribui essa quantidade em 50%/50% como
 estimativa. Confirme manualmente quando possuir a idade detalhada.
 
@@ -39,7 +39,7 @@ Confira se:
 - documentos de propriedade, CAR, custos, dívidas e movimentações estão disponíveis.
 
 LIMITAÇÃO
-O resultado do BovCredit é uma pré-análise de apoio à consultoria. A ficha não
+O resultado da Orkavyn Agro Intelligence é uma pré-análise de apoio à consultoria. A ficha não
 comprova sozinha peso, produtividade, natalidade, custos ou capacidade de pagamento.
 A decisão final depende da conferência documental e da análise profissional.
 

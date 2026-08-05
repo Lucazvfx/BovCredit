@@ -106,7 +106,7 @@ RETENCAO_AUDITORIA_DIAS = int(os.environ.get('RETENCAO_AUDITORIA_DIAS', '730'))
 
 # Sal do pseudônimo. Sem ele, o hash de um e-mail seria reversível por
 # dicionário — a lista de e-mails plausíveis é curta e pública.
-_SAL = os.environ.get('LGPD_SAL') or os.environ.get('SECRET_KEY') or 'bovcredit'
+_SAL = os.environ.get('LGPD_SAL') or os.environ.get('SECRET_KEY') or 'orkavyn-agro-intelligence'
 
 PREFIXO_ANONIMO = 'anon:'
 

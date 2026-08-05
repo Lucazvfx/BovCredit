@@ -107,7 +107,7 @@ def verificar(segredo: str, codigo: str, *, agora: float | None = None,
     return None
 
 
-def uri_provisionamento(segredo: str, conta: str, emissor: str = 'BovCredit') -> str:
+def uri_provisionamento(segredo: str, conta: str, emissor: str = 'Orkavyn Agro Intelligence') -> str:
     """
     URI `otpauth://` para o QR code do aplicativo autenticador.
 
@@ -137,7 +137,7 @@ def gerar_codigos_backup(qtd: int = QTD_BACKUP) -> list[str]:
 
 def hash_codigo_backup(codigo: str, sal: str = '') -> str:
     limpo = ''.join(c for c in str(codigo or '').lower() if c.isalnum())
-    sal = sal or os.environ.get('SECRET_KEY') or 'bovcredit'
+    sal = sal or os.environ.get('SECRET_KEY') or 'orkavyn-agro-intelligence'
     return hashlib.sha256((sal + limpo).encode()).hexdigest()
 
 

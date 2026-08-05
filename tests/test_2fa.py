@@ -120,8 +120,8 @@ def test_uri_traz_emissor_no_rotulo_e_no_parametro():
     """
     uri = totp.uri_provisionamento('ABC234', 'analista@fazenda.com.br')
     assert uri.startswith('otpauth://totp/')
-    assert 'BovCredit%3Aanalista' in uri
-    assert 'issuer=BovCredit' in uri
+    assert 'Orkavyn%20Agro%20Intelligence%3Aanalista' in uri
+    assert 'issuer=Orkavyn%20Agro%20Intelligence' in uri
     assert 'secret=ABC234' in uri
 
 

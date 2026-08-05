@@ -141,7 +141,7 @@ def gerar_resposta_chat(
     ctx_str = _contexto_str(contexto)
     system_prompt = (
         "Você é um analista sênior de crédito rural especializado em pecuária de corte, "
-        "assistindo um usuário do sistema BovCredit.\n\n"
+        "assistindo um usuário da Orkavyn Agro Intelligence.\n\n"
         f"Contexto do parecer atual:\n{ctx_str}\n\n"
         "Responda em português, de forma direta e profissional. "
         "Máximo 3 parágrafos curtos. Sem bullet points. "

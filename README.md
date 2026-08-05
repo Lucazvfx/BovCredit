@@ -1,10 +1,10 @@
-# BovCredit — Plataforma de Análise de Crédito Pecuário
+# Orkavyn Agro Intelligence — Inteligência para decisões melhores no campo
 
 > **Emita pareceres de crédito rural com metodologia, Machine Learning e PDF com a marca da sua consultoria — em minutos.**
 
 Sistema de apoio à análise técnico-financeira de rebanho bovino para **consultorias de crédito rural e analistas de banco**. Classifica automaticamente a modalidade de exploração, importa fichas XLSM e documentos sanitários, projeta a geração de caixa, audita a consistência do rebanho e emite um parecer com níveis operacionais de recomendação — sempre com memória de cálculo e indicação da qualidade dos dados.
 
-Este documento descreve o sistema **como ele está**. O BovCredit é uma pré-análise de apoio à consultoria: não substitui conferência documental, visita à propriedade ou a decisão final do agente de crédito.
+Este documento descreve o sistema **como ele está**. A Orkavyn Agro Intelligence é uma pré-análise de apoio à consultoria: transforma dados do campo em decisões melhores, sem substituir conferência documental, visita à propriedade ou a decisão final do agente de crédito.
 
 ---
 

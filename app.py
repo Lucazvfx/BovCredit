@@ -160,7 +160,7 @@ _secret_key = os.environ.get('SECRET_KEY')
 if not _secret_key:
     if os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RAILWAY_ENVIRONMENT'):
         raise RuntimeError('SECRET_KEY não definida em produção — defina a variável de ambiente.')
-    _secret_key = 'boviml-dev-secret-local'
+    _secret_key = 'orkavyn-dev-secret-local'
 app.secret_key = _secret_key
 
 # ── CSRF protection para rotas admin ─────────────────────────────────────────
@@ -2142,7 +2142,7 @@ def _responder_whatsapp(telefone: str, texto: str) -> str:
         # Já vinculado e não era código válido: pode ser pergunta. Segue.
 
     if not uid:
-        return ('Número não vinculado. Entre no BovCredit, gere um código de '
+        return ('Número não vinculado. Entre na Orkavyn Agro Intelligence, gere um código de '
                 'vinculação e envie os 6 dígitos aqui.')
 
     # Mesma disciplina do chat da tela: conceito e recusa não passam pelo
@@ -2729,6 +2729,6 @@ def api_parse_text():
 # INÍCIO DA APLICAÇÃO
 # ─────────────────────────────────────────────
 if __name__ == '__main__':
-    logger.info("🚀 BoviML iniciado em http://localhost:5050")
+    logger.info("🚀 Orkavyn Agro Intelligence iniciado em http://localhost:5050")
     app.run(debug=True, port=5050)
 
