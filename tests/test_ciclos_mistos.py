@@ -116,3 +116,15 @@ def test_classificar_fazenda_cria_recria_real():
     # Pode ser CRIA ou RECRIA principal; o que importa é que detecte misto
     if result['tipo'] in ('CRIA', 'RECRIA'):
         assert result['combinacao'] in ('CRIA+RECRIA',) or result['tipo_secundario'] is None
+
+
+def test_ficha_sem_vendas_usa_inferencia_do_modelo():
+    """Saldo INDEA sem vendas não confirma sozinho o ciclo produtivo."""
+    v = [300, 280, 563, 187, 1105, 1344, 298, 80, 593, 39]
+    result = classificar(v)
+
+    assert result['tipo'] == 'CICLO_COMPLETO'
+    assert result['classificacao_limitada'] is True
+    assert result['tipo_modelo'] == 'CICLO_COMPLETO'
+    assert result['dados_faltantes'] == ['bois_vendidos']
+    assert result['revisao_humana'] is True

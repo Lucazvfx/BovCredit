@@ -577,6 +577,18 @@ def classificar(
     feat = extrair_features(v, taxa_natalidade, _bois_v, _bez_v).reshape(1, -1)
     probs = _pipeline.predict_proba(feat)[0]
     prob_dict = {TIPOS[i]: round(float(p) * 100, 1) for i, p in enumerate(probs)}
+    tipo_modelo = TIPOS[int(probs.argmax())]
+
+    # Sem vendas declaradas, só aceitamos CICLO_COMPLETO diretamente quando a
+    # própria pirâmide etária sustenta uma base madura de matrizes. Isso evita
+    # transformar uma recria de fêmeas jovens em ciclo completo só porque há
+    # muitos animais nas faixas intermediárias.
+    _razao_madura_ficha = (float(va[8]) / float(va[6])) if va[6] > 0 else float('inf')
+    _ciclo_completo_inferido = bool(
+        bois_vendidos is None
+        and tipo_modelo == 'CICLO_COMPLETO'
+        and _razao_madura_ficha >= 1.0
+    )
 
     explicacao = []
 
@@ -585,7 +597,20 @@ def classificar(
     origem_decisao = 'ml'
     regra_aplicada = None
 
-    if _engorda_puro:
+    if _ciclo_completo_inferido:
+        # Ausência de vendas na ficha significa dado desconhecido, não venda
+        # zero. A composição e o modelo continuam sendo a melhor inferência
+        # disponível; o resultado financeiro será marcado como limitado.
+        tipo = tipo_modelo
+        origem_decisao = 'ml'
+        regra_aplicada = None
+        confianca = round(float(probs[int(probs.argmax())]) * 100, 1)
+        explicacao.append(
+            'Classificação automática pela composição da ficha e pelo modelo ML; '
+            'vendas de bois não informadas (não tratadas como zero).'
+        )
+        explicacao.append(f'ML confirmou: {tipo}')
+    elif _engorda_puro:
         tipo = 'ENGORDA'
         origem_decisao = 'regra'
         regra_aplicada = 'engorda_pura'
@@ -775,6 +800,19 @@ def classificar(
     except Exception:
         atipicidade = None
 
+    # Uma ficha de saldo informa composição, mas não prova que houve venda de
+    # animais para abate. Quando o modelo sugere CICLO_COMPLETO e a regra
+    # conservadora o rebaixa por falta dessa informação, expor a limitação é
+    # mais honesto do que apresentar RECRIA como conclusão definitiva.
+    classificacao_limitada = bois_vendidos is None
+    dados_faltantes = ['bois_vendidos'] if bois_vendidos is None else []
+    revisao_humana = classificacao_limitada
+    if classificacao_limitada:
+        explicacao.append(
+            'Classificação limitada: o modelo sugere CICLO_COMPLETO, mas a '
+            'ficha não informa vendas de bois; confirmar com o analista.'
+        )
+
     return {
         'classificacao': tipo,
         'tipo': tipo,
@@ -789,6 +827,10 @@ def classificar(
         'regra_aplicada':  regra_aplicada,   # None quando origem_decisao == 'ml'
         'confianca_ml':    confianca_ml,     # probabilidade real do modelo
         'atipicidade':     atipicidade,      # distância à distribuição de treino
+        'tipo_modelo':     tipo_modelo,
+        'classificacao_limitada': classificacao_limitada,
+        'dados_faltantes': dados_faltantes,
+        'revisao_humana':  revisao_humana,
     }
 
 
