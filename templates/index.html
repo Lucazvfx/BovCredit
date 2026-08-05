@@ -2645,6 +2645,8 @@ function renderResult(data){
             const chips=[];
             if(data.origem_decisao==='regra'){
               chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--am);background:rgba(251,191,36,.1)">⚖ regra determinística: ${escapeHtml(data.regra_aplicada||'')}</span>`);
+            } else if(data.origem_decisao==='composicao_modelo'){
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--am);background:rgba(251,191,36,.1)">📋 inferido pela composição da ficha</span>`);
             } else {
               chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(74,222,128,.35);color:var(--g);background:rgba(74,222,128,.1)">🧠 decidido pelo modelo ML</span>`);
             }
@@ -2656,6 +2658,13 @@ function renderResult(data){
             }
             return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${chips.join('')}</div>`;
           })()}
+          ${data.classificacao_limitada ? `
+            <div style="margin-top:12px;padding:11px 13px;border:1px solid rgba(251,191,36,.38);border-radius:9px;background:rgba(251,191,36,.08);color:var(--sb);font-size:.76rem;line-height:1.5">
+              <b style="color:var(--am)">Classificação limitada:</b>
+              o ciclo inferido é <b>${escapeHtml(TL[data.tipo]||data.tipo||'')}</b>,
+              mas faltam ${escapeHtml((data.dados_faltantes||[]).join(', ')||'dados de produção')}.
+              Confirme esta informação antes de usar o resultado.
+            </div>` : ''}
           <div style="margin-top:22px">${confBars}</div>
         </div>
         <div class="rhero-em">${TE[tipo]}</div>
