@@ -564,6 +564,8 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
         <button class="btn-sm" onclick="window.location='/api/template/download'">⬇ Template</button>
         <button class="btn-sm" onclick="document.getElementById('insr-xlsx-inp').click()">📊 Ler Planilha</button>
         <input type="file" id="insr-xlsx-inp" accept=".xlsx,.xlsm" style="display:none" onchange="lerPlanilha(this.files[0]);this.value=''">
+        <button class="btn-sm" onclick="document.getElementById('pdf-inp-main').click()" title="Ler saldo de rebanho em PDF">📄 Ler PDF</button>
+        <input type="file" id="pdf-inp-main" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files);this.value=''">
         <select id="insr-uf-ficha" class="btn-sm" style="padding:2px 4px;cursor:pointer;font-size:.75rem">
           <option value="">🗺 UF: Todas</option>
           <option value="MT">MT</option>
@@ -1923,9 +1925,15 @@ async function lerPDFs(fileList){
         const res=await fetch('/api/ler-pdf',{method:'POST',body:fd});
         const data=await res.json();
         if(data.erro){falhas++;showToast(`${file.name}: ${data.erro}`,true);continue}
-        data.valores.forEach((val,i)=>somaV[i]+=(parseFloat(val)||0));
-        fazendas.push({nome:data.fazenda||file.name,municipio:data.municipio||'',total:data.total||0,origem:data.origem||'—'});
-        if(!primeiraMeta)primeiraMeta=data;
+        const itens = Array.isArray(data.fazendas) && data.fazendas.length
+          ? data.fazendas : [data];
+        for(const item of itens){
+          const valores = Array.isArray(item.valores) ? item.valores : data.valores;
+          (valores||[]).forEach((val,i)=>somaV[i]+=(parseFloat(val)||0));
+          fazendas.push({nome:item.fazenda||file.name,municipio:item.municipio||'',
+            total:item.total||0,origem:item.origem||data.origem||'—'});
+          if(!primeiraMeta)primeiraMeta=item;
+        }
         if(data.texto_raw) _last_pdf_raw = data.texto_raw;
       }catch(e){
         falhas++;showToast(`${file.name}: erro ao processar (${e.message})`,true);
