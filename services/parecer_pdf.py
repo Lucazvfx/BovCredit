@@ -113,6 +113,43 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         for aviso in (qualidade.get('avisos') or []):
             story.append(Paragraph(f"• {aviso}", ss['Corpo']))
 
+    if qualidade.get('campos'):
+        _origens = qualidade['campos'].values()
+        _cont = {o: sum(x.get('origem') == o for x in _origens)
+                 for o in ('documento', 'usuario', 'estimativa', 'ausente')}
+        story.append(Paragraph(
+            f"Documento: {_cont['documento']} · Usuário: {_cont['usuario']} · "
+            f"Estimativa: {_cont['estimativa']} · Ausente: {_cont['ausente']}",
+            ss['Subtitulo']))
+        if qualidade.get('resultado_financeiro_estimado'):
+            story.append(Paragraph(
+                '<b>Atenção:</b> o fluxo financeiro depende de premissas estimadas '
+                'e deve ser confirmado pelo analista.', ss['Corpo']))
+
+    explicacao_classificacao = parecer.get('explicacao_classificacao') or {}
+    if explicacao_classificacao:
+        story.append(Paragraph('Por que este ciclo foi classificado assim', ss['SecaoTitulo']))
+        story.append(Paragraph(
+            f"Ciclo final: <b>{explicacao_classificacao.get('ciclo_final', '—')}</b> · "
+            f"Modelo: <b>{explicacao_classificacao.get('ciclo_modelo', '—')}</b> · "
+            f"Decisão: {explicacao_classificacao.get('decisao', '—')}", ss['Corpo']))
+        for fator in (explicacao_classificacao.get('fatores') or [])[:6]:
+            story.append(Paragraph(
+                f"• {fator.get('evidencia', fator.get('rotulo', '—'))}", ss['Corpo']))
+
+    validacoes = parecer.get('validacoes_zootecnicas') or {}
+    if validacoes:
+        story.append(Paragraph('Alertas zootécnicos', ss['SecaoTitulo']))
+        for alerta in (validacoes.get('alertas') or []):
+            story.append(Paragraph(
+                f"• <b>{alerta.get('titulo', '—')}</b>: "
+                f"{alerta.get('evidencia', '—')} · Ação: {alerta.get('acao', '—')}",
+                ss['Corpo']))
+        if validacoes.get('nao_avaliadas'):
+            story.append(Paragraph(
+                f"Não avaliadas por falta de dados: {', '.join(validacoes['nao_avaliadas'])}.",
+                ss['Subtitulo']))
+
     rating = parecer.get('rating') or {}
     if rating:
         story.append(Paragraph('Rating indicativo de crédito', ss['SecaoTitulo']))
@@ -363,6 +400,28 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
             _s_style.append(('FONTNAME', (0, _base_idx), (-1, _base_idx), 'Helvetica-Bold'))
         ts.setStyle(TableStyle(_s_style))
         story.append(ts)
+        story.append(Spacer(1, 4))
+
+    comparacao = parecer.get('comparacao_cenarios') or {}
+    if comparacao.get('cenarios'):
+        story.append(Paragraph('Comparação de cenários', ss['SecaoTitulo']))
+        linhas_c = [['Cenário', 'Receita acumulada', 'Custo acumulado', 'Resultado', 'DSCR mín.', 'Ano crítico']]
+        for c in comparacao['cenarios']:
+            ac = c.get('acumulado') or {}
+            linhas_c.append([
+                c.get('id', '—'), _fmt_moeda(ac.get('receita')),
+                _fmt_moeda(ac.get('custo')), _fmt_moeda(ac.get('resultado')),
+                str(c.get('dscr_minimo') if c.get('dscr_minimo') is not None else '—'),
+                str(c.get('ano_critico') if c.get('ano_critico') is not None else '—'),
+            ])
+        tc = Table(linhas_c, colWidths=[3.2*cm, 3.2*cm, 3.2*cm, 3.2*cm, 2*cm, 2.2*cm])
+        tc.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EEEEEE')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#DDDDDD')),
+            ('FONTSIZE', (0, 0), (-1, -1), 7.5),
+            ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+        ]))
+        story.append(tc)
         story.append(Spacer(1, 4))
 
     shap = parecer.get('shap_explicacao') or {}

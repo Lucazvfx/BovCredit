@@ -2671,6 +2671,8 @@ function renderResult(data){
       </div>
     </div>
 
+    ${renderTransparencia(data)}
+
     ${data.shap_pendente ? shapPlaceholderHtml() : shapCardHtml(data.shap_explicacao||{}, tipo, col)}
 
     ${renderParecer(data)}
@@ -2818,6 +2820,36 @@ function renderResult(data){
   const _fpD=document.getElementById('fp-dur');
   if(_fpD) _fpD.value=_FP_DUR_DEFAULT[tipo]||12;
   setTimeout(renderFluxoProjetado,250);
+}
+
+function renderTransparencia(data){
+  const q=data.qualidade_dados||{};
+  const e=data.explicacao_classificacao||{};
+  const vz=data.validacoes_zootecnicas||{};
+  const cc=data.comparacao_cenarios||{};
+  const campos=q.campos||{};
+  const contagem=(origem)=>Object.values(campos).filter(x=>x.origem===origem).length;
+  const alertas=vz.alertas||[];
+  const cen=(cc.cenarios||[]).map(x=>{
+    const ac=x.acumulado||{};
+    return `<tr><td>${escapeHtml(x.id||'—')}</td><td>${fR(ac.receita)}</td><td>${fR(ac.custo)}</td><td>${fR(ac.resultado)}</td><td>${x.dscr_minimo==null?'—':x.dscr_minimo}</td><td>${x.ano_critico==null?'—':x.ano_critico}</td></tr>`;
+  }).join('');
+  const fatores=(e.fatores||[]).slice(0,6).map(f=>`<li>${escapeHtml(f.evidencia||f.rotulo||'')}</li>`).join('');
+  const avisos=alertas.slice(0,5).map(a=>`<div style="padding:8px 0;border-bottom:1px solid var(--b)"><b>${escapeHtml(a.titulo||'Alerta')}</b><br><span style="color:var(--mu)">${escapeHtml(a.evidencia||'')} · ${escapeHtml(a.acao||'')}</span></div>`).join('');
+  return `<div class="g2" style="margin-bottom:24px">
+    <div class="card"><div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Qualidade dos dados</div></div><div class="cb">
+      <div style="font-size:.78rem;line-height:1.7">Documento: <b>${contagem('documento')}</b> · Usuário: <b>${contagem('usuario')}</b> · Estimativa: <b>${contagem('estimativa')}</b> · Ausente: <b>${contagem('ausente')}</b></div>
+      <div style="margin-top:10px;color:${q.resultado_financeiro_estimado?'var(--am)':'var(--g)'};font-size:.75rem">${q.resultado_financeiro_estimado?'Fluxo financeiro estimado: confirme as premissas faltantes.':'Premissas financeiras informadas.'}</div>
+    </div></div>
+    <div class="card"><div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Por que este ciclo?</div></div><div class="cb">
+      <div style="font-size:.78rem">Final: <b>${escapeHtml(e.ciclo_final||data.tipo||'—')}</b> · Modelo: <b>${escapeHtml(e.ciclo_modelo||'—')}</b> · Decisão: <b>${escapeHtml(e.decisao||'—')}</b></div>
+      ${fatores?`<ul style="margin:10px 0 0 18px;font-size:.72rem;color:var(--sb);line-height:1.6">${fatores}</ul>`:''}
+    </div></div>
+  </div>
+  <div class="card" style="margin-bottom:24px"><div class="ch"><div class="ct"><div class="cd" style="background:var(--rd)"></div>Riscos e cenários</div></div><div class="cb">
+    ${avisos||'<div style="font-size:.75rem;color:var(--g)">Nenhum alerta zootécnico encontrado com os dados disponíveis.</div>'}
+    ${cen?`<div style="overflow:auto;margin-top:14px"><table class="dt"><thead><tr><th>Cenário</th><th>Receita</th><th>Custo</th><th>Resultado</th><th>DSCR mín.</th><th>Ano crítico</th></tr></thead><tbody>${cen}</tbody></table></div>`:''}
+  </div></div>`;
 }
 
 function mr(k,v,c){return`<div class="mrow"><span class="mk">${k}</span><span class="mv ${c}">${v}</span></div>`}
