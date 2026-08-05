@@ -1346,6 +1346,12 @@ CENARIOS = {
         'emoji': '📈',
         'mods': {'nat': 1.03, 'mort': 0.90, 'desc': 0.95, 'preco': 1.02}
     },
+    'provavel': {
+        'nome': 'Provável — Premissas neutras',
+        'desc': 'Mantém as premissas informadas sem melhora ou piora de cenário.',
+        'emoji': '📊',
+        'mods': {'nat': 1.00, 'mort': 1.00, 'desc': 1.00, 'preco': 1.00}
+    },
     'especulativo': {
         'nome': 'Especulativo — Alta Venda',
         'desc': 'Maximiza venda aproveitando preço favorável.',
@@ -2276,6 +2282,53 @@ BENCHMARKS_RO = {
         },
     },
 }
+
+def comparar_cenarios(v: list, ciclo: str, parametros: dict | None = None) -> dict:
+    """Compara quatro cenários mantendo o mesmo estoque inicial e ciclo."""
+    parametros_base = dict(parametros or {})
+    parametros_base.pop('cenario', None)
+    parametros_base.pop('ciclo', None)
+    total_inicial = int(sum(float(x or 0) for x in (v or [])))
+    mapa = (
+        ('base_estimado', 'crescimento'),
+        ('conservador', 'conservador'),
+        ('provavel', 'provavel'),
+        ('otimista', 'otimista'),
+    )
+    cenarios = []
+    for identificador, subjacente in mapa:
+        resultado = simular_cenario(
+            list(v), subjacente, ciclo=ciclo, **parametros_base)
+        anos = []
+        for ano in resultado.get('anos', []):
+            item = dict(ano)
+            item['total_inicial'] = total_inicial
+            anos.append(item)
+        dscrs = [float(a['dscr']) for a in anos if a.get('dscr') is not None]
+        ano_critico = None
+        if anos:
+            ano_critico = min(anos, key=lambda a: float(a.get('resultado', 0)))['ano']
+        cenarios.append({
+            'id': identificador,
+            'cenario_subjacente': subjacente,
+            'nome': resultado.get('nome'),
+            'emoji': resultado.get('emoji'),
+            'ciclo': ciclo,
+            'premissas': dict(CENARIOS[subjacente]['mods']),
+            'anos': anos,
+            'acumulado': resultado.get('acumulado', {}),
+            'ano_critico': ano_critico,
+            'dscr_minimo': min(dscrs) if dscrs else None,
+            'capacidade_pagamento': None,
+        })
+    return {
+        'premissas_comuns': {
+            'total_inicial': total_inicial,
+            'ciclo': ciclo,
+        },
+        'cenarios': cenarios,
+    }
+
 
 def _classificar_faixa(valor: float, faixas: dict, inverso: bool = False) -> tuple:
     t_a, t_m, t_b = faixas['abaixo'], faixas['medio'], faixas['bom']

@@ -18,6 +18,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from ml_engine import (
     treinar_modelo, classificar, calcular_indicadores,
     simular_cenario, carregar_modelo, CENARIOS,
+    comparar_cenarios,
     avaliar_benchmarks, extrair_indicadores_benchmark, calcular_breakeven_simples,
     explicar_shap, TIPOS, PARAMS_POR_CICLO,
 )
@@ -1704,6 +1705,20 @@ def api_classificar():
 
     validacoes_zootecnicas = analisar_validacoes_zootecnicas(
         v, data, projecao=_projecao_anos)
+    _parametros_cenarios = dict(_sim_volume)
+    _parametros_cenarios.update({
+        'preco_arroba': preco_boi or float(data.get('preco', 320)),
+        'custo_arroba': custo_arroba,
+        'custo_arroba_cria': _custo_fase('custo_arroba_cria'),
+        'custo_arroba_recria': _custo_fase('custo_arroba_recria'),
+        'custo_arroba_engorda': _custo_fase('custo_arroba_engorda'),
+        'preco_boi_arr': preco_boi,
+        'preco_vaca_arr': preco_vaca,
+        'preco_bezerra_cab': preco_bezerra,
+        'preco_bezerro_cab': preco_bezerro,
+    })
+    comparacao_cenarios = comparar_cenarios(
+        v, result['tipo'], parametros=_parametros_cenarios)
 
     parecer = montar_parecer(
         identificacao={'fazenda': fazenda, 'municipio': municipio,
@@ -1768,6 +1783,7 @@ def api_classificar():
     parecer['qualidade_dados'] = qualidade_dados
     parecer['explicacao_classificacao'] = explicacao_classificacao
     parecer['validacoes_zootecnicas'] = validacoes_zootecnicas
+    parecer['comparacao_cenarios'] = comparacao_cenarios
     parecer['documentos_credito'] = documentos_credito
     fluxo_mensal = projetar_fluxo_mensal(_projecao_anos)
     parecer['fluxo_mensal'] = fluxo_mensal
@@ -1858,6 +1874,7 @@ def api_classificar():
         'qualidade_dados': qualidade_dados,
         'explicacao_classificacao': explicacao_classificacao,
         'validacoes_zootecnicas': validacoes_zootecnicas,
+        'comparacao_cenarios': comparacao_cenarios,
         'documentos_credito': documentos_credito,
         'fluxo_mensal': fluxo_mensal,
         'rating': rating,
