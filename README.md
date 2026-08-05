@@ -528,6 +528,7 @@ tests/                        # pytest — 56 arquivos, 417 casos
 | POST | `/api/whatsapp/codigo` | Código de vínculo do WhatsApp |
 | GET/POST | `/api/fazendas` · `/api/fazendas/<id>/pareceres` | Fazendas e histórico |
 | GET/POST | `/api/empresa/perfil` · `/api/empresa/ativa` | Consultoria |
+| GET | `/healthz` | Health check sem autenticação para o provedor de produção |
 | POST | `/api/estimativa-valor` | Valor estimado por peso e sexo |
 
 ### Exemplo

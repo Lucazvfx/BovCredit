@@ -22,6 +22,7 @@ _CAMPOS_ZOOTECNICOS = {
 _CAMPOS_OPERACIONAIS = {
     'bois_vendidos': 'vendas de bois',
     'bezerros_vendidos': 'vendas de bezerros',
+    'vendas_anuais': 'vendas anuais totais',
     'compras_reposicao': 'compras/reposição',
     'preco_boi': 'preço do boi',
     'preco_vaca': 'preço da vaca',

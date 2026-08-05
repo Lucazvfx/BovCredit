@@ -912,6 +912,12 @@ def api_parecer_pdf():
                      as_attachment=True, download_name='parecer_credito.pdf')
 
 # ── Landing page pública ───────────────────────────────────────────────────────
+@app.route('/healthz')
+def healthz():
+    """Sinal mínimo para o balanceador sem expor configuração ou banco."""
+    return jsonify({'status': 'ok'})
+
+
 @app.route('/')
 def landing():
     if current_user.is_authenticated:

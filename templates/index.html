@@ -649,6 +649,15 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
               <div class="field"><label>Bezerros Vendidos (cab.)</label><input type="number" id="c-bezv" placeholder="Automático" min="0" oninput="upd()"></div>
             </div>
             <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
+              <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Dados produtivos declarados <span style="opacity:.6">— opcionais; entram na qualidade da análise</span></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
+                <div class="field"><label>Vendas anuais (cab.)</label><input type="number" id="c-vendas" placeholder="Ex: 35" min="0" step="1"></div>
+                <div class="field"><label>Compras/reposição (cab.)</label><input type="number" id="c-compras" placeholder="Ex: 30" min="0" step="1"></div>
+                <div class="field"><label>Peso médio (kg)</label><input type="number" id="c-peso-medio" placeholder="Ex: 420" min="0" step="1"></div>
+                <div class="field"><label>Peso à desmama (kg)</label><input type="number" id="c-peso-desmama" placeholder="Ex: 210" min="0" step="1"></div>
+              </div>
+            </div>
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
               <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Indicadores para Benchmark Regional (RO) <span style="opacity:.6">— opcional, sem dado usa média regional</span></div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:14px">
                 <div class="field"><label>Mortalidade (%)</label><input type="number" id="c-mort" placeholder="5" min="0" max="100" step="0.1"></div>
@@ -1596,6 +1605,14 @@ async function classificar(){
     if(natV!=='') body.taxa_natalidade=parseFloat(natV)/100;
     if(boisvV!=='') body.bois_vendidos=parseFloat(boisvV);
     if(bezvV!=='') body.bezerros_vendidos=parseFloat(bezvV);
+    const vendasV=document.getElementById('c-vendas').value;
+    const comprasV=document.getElementById('c-compras').value;
+    const pesoMedioV=document.getElementById('c-peso-medio').value;
+    const pesoDesmamaV=document.getElementById('c-peso-desmama').value;
+    if(vendasV!=='') body.vendas_anuais=parseFloat(vendasV);
+    if(comprasV!=='') body.compras_reposicao=parseFloat(comprasV);
+    if(pesoMedioV!=='') body.peso_medio_kg=parseFloat(pesoMedioV);
+    if(pesoDesmamaV!=='') body.peso_desmama_kg=parseFloat(pesoDesmamaV);
     const mortV=document.getElementById('c-mort').value;
     const desmV=document.getElementById('c-desm').value;
     const rcV=document.getElementById('c-rc').value;
