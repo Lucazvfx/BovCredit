@@ -1676,9 +1676,14 @@ async function lerPDFsInserir(fileList){
         const res=await fetch('/api/ler-pdf',{method:'POST',body:fd});
         const data=await res.json();
         if(data.erro){falhas++;showToast(`${file.name}: ${data.erro}`,true);continue}
-        data.valores.forEach((val,i)=>somaV[i]+=(parseFloat(val)||0));
-        fazendas.push(data.fazenda||file.name);
-        if(!primeiraMeta)primeiraMeta=data;
+        const itens = Array.isArray(data.fazendas) && data.fazendas.length
+          ? data.fazendas : [data];
+        for(const item of itens){
+          const valores = Array.isArray(item.valores) ? item.valores : data.valores;
+          (valores||[]).forEach((val,i)=>somaV[i]+=(parseFloat(val)||0));
+          fazendas.push(item.fazenda||file.name);
+          if(!primeiraMeta)primeiraMeta=item;
+        }
         // guarda o raw text do primeiro PDF para reprocessamento
         if(data.texto_raw) _last_pdf_raw = data.texto_raw;
       }catch(e){

@@ -100,6 +100,11 @@ def detectar_origem(text: str) -> str:
       'GENERICO'          — fallback
     """
     up = text.upper()
+    norm = _normalizar(text)
+
+    if ('FAZENDA' in norm and 'SITUA' in norm and 'TOTAL BOVINOS' in norm
+            and 'MACHO 0-12' in norm and 'FEMEA 0-12' in norm):
+        return 'RESUMO_FAZENDAS'
 
     # — RO (IDARON) — prioridade máxima pois 'IDARON' é inequívoco
     if 'DECLARAÇÃO Nº' in up and 'IDARON' in up:
@@ -845,6 +850,85 @@ def _categoria_zootecnica(up: str):
                 sexo = 'AMBOS' if plural else 'M'   # "...os" ambíguo; "...o" -> masculino
         return faixa, sexo
     return None, None
+
+def parsear_resumo_fazendas(text: str, pdf_path: str = None) -> dict:
+    """Lê o resumo consolidado com uma linha por fazenda.
+
+    O formato distribui as oito faixas em duas páginas: a primeira traz
+    nome, município, situação e três colunas; a segunda traz as cinco colunas
+    restantes na mesma ordem das fazendas.
+    """
+    linhas = [linha.strip() for linha in text.splitlines() if linha.strip()]
+    prefixos = []
+    for linha in linhas:
+        m = re.match(
+            r'^(.*?)\s+(ATIVO|INATIVO)\s+'
+            r'(\d+)\s+(\d+)\s+(\d+)\s*$', linha, re.I)
+        if m:
+            prefixos.append({
+                'prefixo': m.group(1).strip(),
+                'situacao': m.group(2).upper(),
+                'm0': int(m.group(3)), 'f0': int(m.group(4)),
+                'm13': int(m.group(5)),
+            })
+
+    # Descobre municípios compostos pela repetição dos sufixos nas linhas.
+    sufixos = {}
+    for item in prefixos:
+        palavras = item['prefixo'].split()
+        for tamanho in (3, 2, 1):
+            if len(palavras) >= tamanho:
+                sufixo = ' '.join(palavras[-tamanho:])
+                sufixos[sufixo] = sufixos.get(sufixo, 0) + 1
+    municipios_repetidos = [s for s, n in sufixos.items() if n >= 2]
+    municipio_padrao = max(municipios_repetidos, key=len) if municipios_repetidos else ''
+    linhas_fazendas = []
+    for item in prefixos:
+        prefixo = item.pop('prefixo')
+        municipio = municipio_padrao if prefixo.upper().endswith(municipio_padrao.upper()) else prefixo.split()[-1]
+        nome = prefixo[:-len(municipio)].strip() if municipio else prefixo
+        linhas_fazendas.append({**item, 'fazenda': nome, 'municipio': municipio})
+
+    continuacoes = []
+    for linha in linhas:
+        nums = re.findall(r'\d+', linha)
+        if not re.fullmatch(r'[\d\s]+', linha):
+            continue
+        if len(nums) >= 6 and not re.search(r'FAZENDA|MUNIC[IÍ]PIO|SITUA', linha, re.I):
+            continuacoes.append([int(n) for n in nums])
+
+    fazendas = []
+    for base, cont in zip(linhas_fazendas, continuacoes):
+        animais = _animais_vazios()
+        _adicionar(animais, 'f00_12', 'M', base['m0'])
+        _adicionar(animais, 'f00_12', 'F', base['f0'])
+        _adicionar(animais, 'f13', 'M', base['m13'])
+        _adicionar(animais, 'f13', 'F', cont[0])
+        _adicionar(animais, 'f25', 'M', cont[1])
+        _adicionar(animais, 'f25', 'F', cont[2])
+        _adicionar(animais, 'fac', 'M', cont[3])
+        _adicionar(animais, 'fac', 'F', cont[4])
+        item = _resultado({
+            'fazenda': base['fazenda'], 'municipio': base['municipio'],
+            'situacao': base['situacao'], 'proprietario': '', 'cpf': '',
+            'ie': '', 'data_saldo': '',
+        }, animais)
+        item['total_bovinos_documento'] = cont[5]
+        fazendas.append(item)
+
+    agregado = _animais_vazios()
+    for fazenda in fazendas:
+        for chave, valor in fazenda['animais'].items():
+            agregado[chave] += valor
+    resultado = _resultado({
+        'fazenda': f'{len(fazendas)} fazendas', 'municipio': '',
+        'proprietario': '', 'cpf': '', 'ie': '', 'data_saldo': '',
+    }, agregado)
+    resultado['fazendas'] = fazendas
+    resultado['total_bovinos_documento'] = sum(
+        f['total_bovinos_documento'] for f in fazendas)
+    return resultado
+
 
 def parsear_generico(text: str) -> dict:
     animais = _animais_vazios()

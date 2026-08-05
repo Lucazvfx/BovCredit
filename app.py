@@ -31,6 +31,7 @@ from services.documentos import (
 # Importações do PDF parsers (evitamos sobrescrever com definições locais)
 from pdf_parsers import (
     parsear_idaron, parsear_indea, parsear_declaracao_idaron,
+    parsear_resumo_fazendas,
     parsear_generico,
     parsear_iagro_ms, parsear_aged_ma, parsear_agrodefesa_go,
     parsear_adapec_to, parsear_adepara_pa,
@@ -2496,7 +2497,9 @@ def api_ler_pdf():
             'TO': 'ADAPEC_TO', 'PA': 'ADEPARA_PA',
         }
         orig = _ESTADO_ORIGEM.get(estado) or detectar_origem(text)
-        if orig == 'DECLARACAO_IDARON':
+        if orig == 'RESUMO_FAZENDAS':
+            dados = parsear_resumo_fazendas(text, pdf_path=tmp_path)
+        elif orig == 'DECLARACAO_IDARON':
             dados = parsear_declaracao_idaron(text)
         elif orig == 'IDARON':
             dados = parsear_idaron(text, pdf_path=tmp_path)
@@ -2697,7 +2700,9 @@ def api_parse_text():
     origem = data.get('origem')
     try:
         orig = origem or detectar_origem(text)
-        if orig == 'DECLARACAO_IDARON':
+        if orig == 'RESUMO_FAZENDAS':
+            dados = parsear_resumo_fazendas(text)
+        elif orig == 'DECLARACAO_IDARON':
             dados = parsear_declaracao_idaron(text)
         elif orig == 'IDARON':
             dados = parsear_idaron(text)
