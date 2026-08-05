@@ -1363,6 +1363,14 @@ def api_classificar():
         servico_divida_anual     = _servico_gep,
         reposicao_reprodutores   = _reposicao_reprodutores,
     )
+    # Decomposição auditável do custo do primeiro ano. O custo operacional
+    # continua sendo o desembolso completo (manutenção + reposição de animais)
+    # usado pelo caixa e pelo DSCR; estes campos apenas tornam explícita a
+    # parcela que costuma empurrar a recria para o negativo.
+    fluxo_gep['custo_manutencao'] = round(float(_ano1.get('custo_manutencao', 0.0) or 0.0), 2)
+    fluxo_gep['custo_reposicao'] = round(float(_ano1.get('custo_reposicao', 0.0) or 0.0), 2)
+    fluxo_gep['resultado_antes_reposicao'] = round(
+        fluxo_gep['receita_vendas'] - fluxo_gep['custo_manutencao'], 2)
 
     # COE (R$/@ vendida) = custo_operacional / arrobas_vendidas
     #

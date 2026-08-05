@@ -199,6 +199,11 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         story.append(Paragraph('Fluxo de Caixa', ss['SecaoTitulo']))
         linhas_fc = [['Componente', 'R$ (Ano 1)']]
         linhas_fc.append(['(+) Receita de vendas', _fmt_moeda(fluxo_gep.get('receita_vendas'))])
+        if 'custo_manutencao' in fluxo_gep:
+            linhas_fc.append(['(-) Manutenção do plantel', _fmt_moeda(fluxo_gep.get('custo_manutencao'))])
+            linhas_fc.append(['(=) Resultado antes da reposição', _fmt_moeda(fluxo_gep.get('resultado_antes_reposicao'))])
+            if fluxo_gep.get('custo_reposicao', 0) > 0:
+                linhas_fc.append(['(-) Compra de animais para reposição', _fmt_moeda(fluxo_gep.get('custo_reposicao'))])
         linhas_fc.append(['(−) Custo operacional', _fmt_moeda(fluxo_gep.get('custo_operacional'))])
         linhas_fc.append(['(=) Resultado operacional (caixa)', _fmt_moeda(fluxo_gep.get('resultado_operacional'))])
         linhas_fc.append(['(±) Variação de estoque do rebanho', _fmt_moeda(fluxo_gep.get('variacao_estoque'))])
@@ -209,7 +214,8 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         linhas_fc.append(['Valor do rebanho — início do período', _fmt_moeda(fluxo_gep.get('valor_rebanho_ini'))])
         linhas_fc.append(['Valor do rebanho — fim do período', _fmt_moeda(fluxo_gep.get('valor_rebanho_fim'))])
         tf = Table(linhas_fc, colWidths=[10*cm, 6*cm])
-        _destaques = {3, 5}  # linhas de resultado (índice 0 = header)
+        _destaques = {i for i, linha in enumerate(linhas_fc)
+                      if linha[0].startswith('(=)')}
         _estilo_fc = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EEEEEE')),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#DDDDDD')),

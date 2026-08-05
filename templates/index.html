@@ -2318,6 +2318,9 @@ function renderParecer(data){
       <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">Fluxo de Caixa Completo</div>
       <div style="display:grid;gap:4px;font-size:.82rem">
         ${mr2('(+) Receita de vendas', fR(gep.receita_vendas), 'g')}
+        ${gep.custo_manutencao != null ? mr2('(−) Manutenção do plantel', fR(gep.custo_manutencao), 'r') : ''}
+        ${gep.resultado_antes_reposicao != null ? mr2('(=) Resultado antes da reposição', fR(gep.resultado_antes_reposicao), gep.resultado_antes_reposicao>=0?'g':'r', true) : ''}
+        ${gep.custo_reposicao > 0 ? mr2('(−) Compra de animais para reposição', fR(gep.custo_reposicao), 'r') : ''}
         ${mr2('(−) Custo caixa (desembolso)', fR(gep.custo_operacional), 'r')}
         ${gep.reposicao_reprodutores > 0 ? mr2('(−) Reposição de reprodutores', fR(gep.reposicao_reprodutores), 'r') : ''}
         ${mr2('(=) Resultado operacional (caixa)', fR(gep.resultado_operacional), gep.resultado_operacional>=0?'g':'r', true)}
