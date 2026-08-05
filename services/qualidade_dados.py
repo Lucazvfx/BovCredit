@@ -36,6 +36,7 @@ _CAMPOS_COM_ESTIMATIVA_SEGURA = {'peso_medio_kg'}
 def analisar_qualidade_dados(valores: list, dados: dict | None = None) -> dict:
     """Classifica a evidência disponível sem inventar índices produtivos."""
     dados = dados or {}
+    total = sum(float(x or 0) for x in (valores or []))
     campos_informados = []
     campos_ausentes = []
     campos = {}
@@ -72,7 +73,14 @@ def analisar_qualidade_dados(valores: list, dados: dict | None = None) -> dict:
         }
         campos_ausentes.append({'campo': campo, 'descricao': rotulo})
 
-    total = sum(float(x or 0) for x in (valores or []))
+    if total > 0:
+        campos['composicao_rebanho'] = {
+            'valor': total,
+            'origem': 'documento',
+            'informado': True,
+            'confianca': 'estrutural',
+            'observacao': 'Contagem por sexo e faixa etária extraída da ficha.',
+        }
     # A ficha fornece estrutura do rebanho; índices produtivos continuam
     # estimados enquanto não houver medições ou histórico operacional.
     observados = ['contagem por sexo e faixa etária'] if total > 0 else []
