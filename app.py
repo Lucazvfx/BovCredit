@@ -65,6 +65,7 @@ from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
 from services.garantia import avaliar_garantia
 from services.qualidade_dados import analisar_qualidade_dados
 from services.explicacao_classificacao import montar_explicacao_classificacao
+from services.validacao_zootecnica import analisar_validacoes_zootecnicas
 from services.checklist_credito import checklist_credito
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services.rating_credito import calcular_rating
@@ -1701,6 +1702,9 @@ def api_classificar():
             'viavel':      (_dscr_ano is None or _dscr_ano >= 1.0) and _gc_ano > 0,
         })
 
+    validacoes_zootecnicas = analisar_validacoes_zootecnicas(
+        v, data, projecao=_projecao_anos)
+
     parecer = montar_parecer(
         identificacao={'fazenda': fazenda, 'municipio': municipio,
                        'proprietario': data.get('proprietario', '')},
@@ -1763,6 +1767,7 @@ def api_classificar():
     parecer['analises_credito'] = analises_credito
     parecer['qualidade_dados'] = qualidade_dados
     parecer['explicacao_classificacao'] = explicacao_classificacao
+    parecer['validacoes_zootecnicas'] = validacoes_zootecnicas
     parecer['documentos_credito'] = documentos_credito
     fluxo_mensal = projetar_fluxo_mensal(_projecao_anos)
     parecer['fluxo_mensal'] = fluxo_mensal
@@ -1852,6 +1857,7 @@ def api_classificar():
         'indicadores': ind,
         'qualidade_dados': qualidade_dados,
         'explicacao_classificacao': explicacao_classificacao,
+        'validacoes_zootecnicas': validacoes_zootecnicas,
         'documentos_credito': documentos_credito,
         'fluxo_mensal': fluxo_mensal,
         'rating': rating,
