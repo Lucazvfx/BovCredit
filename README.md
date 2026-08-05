@@ -721,6 +721,35 @@ O ativo que ainda falta construir e que composto vira fosso: **série histórica
 
 ---
 
+## Leitura centralizada de fichas estaduais
+
+A camada services/fichas_rebanho reproduz o fluxo do XLSM:
+
+PDF -> leitor estadual -> MAPEAMENTO -> registros/LOG -> validação -> consolidação
+
+O catálogo de regras é carregado da aba MAPEAMENTO de
+static/classificacao_rebanho_fichas.xlsm. O carregador aceita tanto o XLSM
+normal quanto a cópia Base64 distribuída no projeto.
+
+O endpoint de lote é POST /api/fichas/importar.
+
+Campos:
+
+- pdf: pode ser repetido para vários arquivos;
+- estado: opcional;
+- modelo: opcional.
+
+Ele retorna registros, log, avisos, erros e consolidado. Registros não
+reconhecidos não são descartados: ficam com status Revisão.
+
+Os testes sintéticos da camada ficam em:
+
+- tests/test_fichas_rebanho_core.py;
+- tests/test_fichas_rebanho_estados.py.
+
+O modelo GO IR também confere se as oito quantidades fecham com o total da
+ficha, seguindo a rotina ExtrairDadosGOIR do VBA.
+
 ## Documentos relacionados
 
 | Arquivo | Conteúdo |
