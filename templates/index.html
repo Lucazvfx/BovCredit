@@ -488,6 +488,7 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 
 <!-- ═══ ENTRADA MANUAL ═══ -->
 <div class="panel active" id="panel-entrada">
+  <div id="pdf-status-main" style="margin-bottom:16px;display:none"></div>
   <div class="ptitle">Inserir dados do <em>rebanho</em></div>
   <p class="psub">Preencha as quantidades por faixa etária.</p>
 
@@ -1982,8 +1983,9 @@ function mostrarPDFPreview(data){
         </div>`).join('')}
       </div>
     </div>` : '';
-  document.getElementById('pdf-status').style.display='block';
-  document.getElementById('pdf-status').innerHTML=`
+  const status = document.getElementById('pdf-status-main') || document.getElementById('pdf-status');
+  status.style.display='block';
+  status.innerHTML=`
     <div class="card">
       <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Dados Extraídos do PDF</div></div>
       <div class="cb">
