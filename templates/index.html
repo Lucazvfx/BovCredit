@@ -1679,7 +1679,8 @@ async function lerPDFsInserir(fileList){
       if(estado)fd.append('estado',estado);
       try{
         const res=await fetch('/api/fichas/importar',{method:'POST',body:fd});
-        const data=await res.json();
+        const data=await lerRespostaJson(res, 'ler o PDF');
+        if(!data){falhas++;continue}
         if(data.erro){falhas++;showToast(`${file.name}: ${data.erro}`,true);continue}
         (data.avisos||[]).forEach(x=>avisos.push(`${file.name}: ${x}`));
         (data.erros||[]).forEach(x=>erros.push(`${file.name}: ${x}`));
@@ -1930,7 +1931,8 @@ async function lerPDFs(fileList){
       const fd=new FormData();fd.append('pdf',file);
       try{
         const res=await fetch('/api/fichas/importar',{method:'POST',body:fd});
-        const data=await res.json();
+        const data=await lerRespostaJson(res, 'ler o PDF');
+        if(!data){falhas++;continue}
         if(data.erro){falhas++;showToast(`${file.name}: ${data.erro}`,true);continue}
         (data.avisos||[]).forEach(x=>avisos.push(`${file.name}: ${x}`));
         (data.erros||[]).forEach(x=>erros.push(`${file.name}: ${x}`));
@@ -2018,6 +2020,7 @@ function mostrarPDFPreview(data){
     </div>
     <button class="btn-p" style="margin-top:16px" onclick="classificarPDF(window._pdfPreviewData.valores,window._pdfPreviewData)"><span>🧠 Classificar com Machine Learning</span></button>`;
   window._pdfPreviewData = data;
+  status.scrollIntoView({behavior:'smooth', block:'start'});
   document.getElementById('dz').innerHTML=`<span class="upzone-icon">✅</span><h2 class="upzone-title">PDF carregado: <span>${escapeHtml(data.fazenda||'Exploração')}</span></h2><p class="upzone-sub">${fN(data.total)} animais · Clique para carregar outro(s)</p><input type="file" id="pdf-inp" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files)">`;
 }
 
