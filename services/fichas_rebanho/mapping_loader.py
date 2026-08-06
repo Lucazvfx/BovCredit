@@ -69,6 +69,10 @@ class MappingCatalog:
         estado = {
             'GO_DEC_WEB': 'GO_DECLARACAO',
             'AGRODEFESA_GO': 'GO_DECLARACAO',
+            # O relatório "Rebanho por Fazenda" não informa a sigla no
+            # cabeçalho, mas o layout/faixas e os municípios deste modelo são
+            # os mesmos do resumo de declaração de Goiás.
+            'RESUMO_FAZENDAS': 'GO_DECLARACAO',
         }.get(_normalizar(estado), estado)
         return self._by_key.get(self._key(estado, sexo, estratificacao))
 

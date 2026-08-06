@@ -1,4 +1,5 @@
 from pdf_parsers import detectar_origem, parsear_resumo_fazendas
+from services.fichas_rebanho.base_reader import registros_do_parse
 
 
 TEXTO = '''Fazenda Município Situação Macho 0-12 Fêmea 0-12 Macho 13-24
@@ -37,3 +38,11 @@ def test_le_fazendas_e_preserva_total_agregado():
     assert dados['fazendas'][2]['total'] == 1578
     assert dados['total'] == 2804
     assert sum(dados['valores']) == 2804
+
+
+def test_resumo_de_goias_distribui_as_linhas_no_mapeamento():
+    dados = parsear_resumo_fazendas(TEXTO)
+    registros = registros_do_parse(dados, 'RESUMO_FAZENDAS', modelo='RESUMO_FAZENDAS')
+
+    assert all(item['status'] != 'RevisÃ£o' for item in registros)
+    assert sum(item['quantidade'] for item in registros) == 2804
