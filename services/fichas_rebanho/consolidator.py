@@ -24,6 +24,8 @@ def consolidar_registros(registros: list[dict]) -> list[dict]:
             'fazenda': fazenda,
             'municipio': registro.get('municipio', ''),
             'estado': registro.get('estado', ''),
+            'origem': registro.get('origem', ''),
+            'modelo': registro.get('modelo', ''),
             'valores': [0] * 10,
             'registros': [],
         })

@@ -247,7 +247,7 @@ def test_os_valores_de_2013_nao_viram_referencia_de_custo():
     # Se alguém importar EXAGRO_RESULTADO_2013 dentro de custos_desembolso,
     # este teste falha e obriga a discussão sobre deflacionar.
     import services.custos_desembolso as cd
-    assert 'EXAGRO' not in open(cd.__file__).read(), (
+    assert 'EXAGRO' not in open(cd.__file__, encoding='utf-8').read(), (
         'o EXAGRO 2013 entrou no módulo de custos — valores nominais de 2013 '
         'não se comparam com a safra 24/25 sem deflacionar'
     )

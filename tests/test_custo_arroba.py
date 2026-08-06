@@ -48,7 +48,7 @@ def test_simular_cria_custo_arroba():
     esperado = (matrizes*17 + bez*8 + nov_mac*PESO_JOVEM_F_ARR
                 + touros*PESO_BOI_ARR) * 57
     assert abs(ano1['custo'] - esperado) < 1.0
-    assert r['preco_breakeven_unidade'] == 'R$/arroba'
+    assert r['preco_breakeven_unidade'] == 'R$/cabeça'
 
 
 def test_simular_recria_custo_arroba_prorata():

@@ -105,7 +105,7 @@ def test_simular_cria_retorna_breakeven():
                              venda_bez_pct=60, custo_arroba=57)
     assert 'preco_breakeven' in result
     assert result['preco_breakeven'] > 0
-    assert result['preco_breakeven_unidade'] == 'R$/arroba'
+    assert result['preco_breakeven_unidade'] == 'R$/cabeça'
     assert 'slider_units' in result
     assert 'slider_custo_ano1' in result
     assert 'margem_atual_pct' in result

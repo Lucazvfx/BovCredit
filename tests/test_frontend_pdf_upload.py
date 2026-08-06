@@ -49,7 +49,8 @@ def test_endpoint_importacao_entrega_valores_prontos_para_classificar(monkeypatc
         app_module,
         'read_ficha_pdf',
         lambda *args, **kwargs: {'sucesso': True, 'registros': registros,
-                                 'avisos': [], 'erros': [], 'dados_brutos': dados},
+                                 'avisos': [], 'erros': [], 'dados_brutos': dados,
+                                 'origem': 'ADAPEC_TO', 'modelo': 'TO_DECLARACAO'},
     )
 
     resposta = client.post(
@@ -63,6 +64,8 @@ def test_endpoint_importacao_entrega_valores_prontos_para_classificar(monkeypatc
     assert corpo['total'] == 86
     assert len(corpo['valores']) == 10
     assert corpo['fazendas']
+    assert corpo['fazendas'][0]['origem'] == 'ADAPEC_TO'
+    assert corpo['fazendas'][0]['modelo'] == 'TO_DECLARACAO'
 
     classificacao = client.post('/api/classificar', json={'valores': corpo['valores']})
     assert classificacao.status_code == 200

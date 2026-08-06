@@ -100,9 +100,9 @@ def test_a_legenda_da_variacao_de_estoque_segue_o_sinal(variacao, esperado,
     caminho = tmp_path / 'p.pdf'
     caminho.write_bytes(gerar_pdf_parecer(parecer))
 
-    import subprocess
-    txt = subprocess.run(['pdftotext', '-layout', str(caminho), '-'],
-                         capture_output=True, text=True).stdout
+    import pdfplumber
+    with pdfplumber.open(caminho) as pdf:
+        txt = '\n'.join(page.extract_text() or '' for page in pdf.pages)
     assert esperado in txt, f'legenda não menciona "{esperado}"'
     assert proibido not in txt, (
         f'legenda diz "{proibido}" com variação de {variacao:,.2f}'
@@ -173,22 +173,23 @@ def test_toda_medicao_registrada_chega_ao_parecer():
 def test_o_parecer_publica_as_medicoes_novas():
     """As quatro da cadeia reprodutiva têm de aparecer pelo nome no parecer."""
     import database as db
-    from app import app
+    import uuid
+    from app import app, User
+    from flask_login import login_user
     db.init_db()
-    email = 'provdeploy@example.com'
+    email = f'provdeploy-{uuid.uuid4().hex}@example.com'
+    db.criar_usuario(email, 'Prov', 'senha123')
     u = db.buscar_usuario_email(email)
-    if not u:
-        db.criar_usuario(email, 'Prov', 'senha123')
-        u = db.buscar_usuario_email(email)
-    app.config['TESTING'] = True
-    c = app.test_client()
-    with c.session_transaction() as s:
-        s['_user_id'] = str(u['id'])
-
-    r = c.post('/api/classificar', json={
+    payload = {
         'valores': BELA_VISTA, 'preco': 330,
         'credito_valor': sum(BELA_VISTA) * 1200,
-        'prazo_meses': 36, 'juros_aa': 0.125}).get_json()
+        'prazo_meses': 36, 'juros_aa': 0.125,
+    }
+    with app.test_request_context('/api/classificar', method='POST', json=payload):
+        login_user(User(u))
+        r = app.view_functions['api_classificar']()
+        assert r.status_code == 200
+        r = r.get_json()
 
     prov = r['parecer']['proveniencia']
     medidos = {p['rotulo'] for p in prov['parametros'] if p['origem'] == 'medido'}

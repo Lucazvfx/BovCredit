@@ -2711,7 +2711,13 @@ def api_importar_fichas():
             processados += 1
             if leitura.get('sucesso'):
                 fichas += 1
-                todos_registros.extend(leitura.get('registros') or [])
+                origem_leitura = leitura.get('origem', '')
+                modelo_leitura = leitura.get('modelo', '')
+                for registro in leitura.get('registros') or []:
+                    registro = dict(registro)
+                    registro.setdefault('origem', origem_leitura)
+                    registro.setdefault('modelo', modelo_leitura)
+                    todos_registros.append(registro)
                 avisos.extend(
                     f'{arquivo.filename}: {aviso}'
                     for aviso in leitura.get('avisos') or []
@@ -2747,6 +2753,8 @@ def api_importar_fichas():
         'fazenda': item.get('fazenda', ''),
         'municipio': item.get('municipio', ''),
         'estado': item.get('estado', ''),
+        'origem': item.get('origem', ''),
+        'modelo': item.get('modelo', ''),
         'valores': item.get('valores', [0] * 10),
         'total': item.get('total', 0),
     } for item in consolidado]

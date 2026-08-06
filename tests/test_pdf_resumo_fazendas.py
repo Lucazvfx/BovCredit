@@ -46,3 +46,14 @@ def test_resumo_de_goias_distribui_as_linhas_no_mapeamento():
 
     assert all(item['status'] != 'RevisÃ£o' for item in registros)
     assert sum(item['quantidade'] for item in registros) == 2804
+
+
+def test_resumo_preserva_cada_fazenda_no_fluxo_de_importacao():
+    dados = parsear_resumo_fazendas(TEXTO)
+    registros = registros_do_parse(dados, 'RESUMO_FAZENDAS', modelo='RESUMO_FAZENDAS')
+
+    assert len(registros) == 64
+    assert {item['fazenda'] for item in registros} == {
+        fazenda['fazenda'] for fazenda in dados['fazendas']
+    }
+    assert sum(item['quantidade'] for item in registros) == 2804

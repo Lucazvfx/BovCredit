@@ -113,6 +113,18 @@ def registros_do_parse(
 ) -> list[dict]:
     catalog = mapping or load_mapping()
     modelo = _modelo(estado, modelo, estado)
+
+    # Relatórios "Rebanho por Fazenda" trazem várias propriedades no mesmo
+    # PDF. Preservamos a granularidade no fluxo de importação; o consolidado
+    # geral continua sendo obtido pela soma dos registros abaixo.
+    if modelo == 'RESUMO_FAZENDAS' and dados.get('fazendas'):
+        registros_por_fazenda = []
+        for indice, fazenda in enumerate(dados['fazendas'], start=1):
+            registros_por_fazenda.extend(registros_do_parse(
+                fazenda, estado, arquivo=arquivo, mapping=catalog,
+                numero_ficha=indice, modelo=modelo))
+        return registros_por_fazenda
+
     animais = dados.get('animais') or {}
     registros = []
 
@@ -200,6 +212,9 @@ def read_ficha_text(
     dados = _parser(_origem_do_modelo(modelo_real, origem), text, pdf_path=pdf_path)
     registros = registros_do_parse(
         dados, modelo_real, arquivo=arquivo, modelo=modelo_real)
+    for registro in registros:
+        registro.setdefault('origem', origem)
+        registro.setdefault('modelo', modelo_real)
     return {
         'sucesso': True,
         'origem': origem,

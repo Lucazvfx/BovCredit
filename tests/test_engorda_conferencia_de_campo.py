@@ -61,7 +61,7 @@ def test_a_arroba_do_boi_terminado_confere_com_a_medicao_de_campo():
     (custo ÷ arrobas vendidas), um erro aqui apareceria como custo por arroba
     errado — que é exatamente o sintoma que estamos investigando na recria.
     """
-    fonte = open('app.py').read()
+    fonte = open('app.py', encoding='utf-8').read()
     m = re.search(r"_arr_bois\s*=\s*float\(_ano1\.get\('bois_vendidos', 0\)\) \* ([\d.]+)",
                   fonte)
     assert m, 'a constante de arrobas do boi vendido mudou de forma'
