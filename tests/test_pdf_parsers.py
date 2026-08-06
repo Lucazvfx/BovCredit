@@ -26,6 +26,7 @@ from pdf_parsers import (
     parsear_adapec_to,
 )
 from services.mapeamento_fichas import load_mapeamento, buscar_mapeamento, mapear_animais
+from services.fichas_rebanho.base_reader import registros_do_parse
 
 
 # ─────────────────────────────────────────────
@@ -187,7 +188,8 @@ def test_parsear_go_declaracao_web_linha_existentes_e_meses():
     assert dados['total'] == 2319
     assert dados['valores'] == [11, 17, 3, 5, 2199, 0, 60, 0, 23, 1]
     assert dados['fazenda'] == 'FAZENDA ZERO III'
-    assert any(r['classificacao'] == 'Vaca' and r['quantidade'] == 23 for r in dados['mapeamento'])
+    registros = registros_do_parse(dados, 'GO_DEC_WEB', modelo='GO_DEC_WEB')
+    assert any(r['classificacao'] == 'Vaca' and r['quantidade'] == 23 for r in registros)
 
 
 def test_parsear_adapec_to_soma_varias_propriedades():
@@ -198,7 +200,8 @@ def test_parsear_adapec_to_soma_varias_propriedades():
     assert [f['fazenda'] for f in dados['fazendas']] == [
         'FAZENDA TRES MENINAS', 'BANANAL'
     ]
-    assert any(r['classificacao'] == 'Boi Gordo' and r['quantidade'] == 1 for r in dados['mapeamento'])
+    registros = registros_do_parse(dados, 'TO_DECLARACAO', modelo='TO_DECLARACAO')
+    assert any(r['classificacao'] == 'Boi Gordo' and r['quantidade'] == 1 for r in registros)
 
 
 # ─────────────────────────────────────────────

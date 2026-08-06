@@ -146,7 +146,8 @@ def detectar_origem(text: str) -> str:
     # — TO (ADAPEC — 4 faixas) —
     if ('ADAPEC' in up
             or 'AGÊNCIA DE DEFESA AGROPECUÁRIA DO TOCANTINS' in up
-            or 'AGENCIA DE DEFESA AGROPECUARIA DO TOCANTINS' in up):
+            or 'AGENCIA DE DEFESA AGROPECUARIA DO TOCANTINS' in up
+            or ('TOCANTINS' in norm and 'DECLARACAO DE DADOS CADASTRAIS' in norm)):
         return 'ADAPEC_TO'
 
     # — MA (AGED — 4 faixas) —
@@ -726,6 +727,30 @@ def parsear_declaracao_idaron(text: str) -> dict:
 # ─────────────────────────────────────────────
 # PARSER GO — Declaração Rebanho sistema web
 # ─────────────────────────────────────────────
+def _dividir_faixa_0_12(total: int) -> tuple[int, int]:
+    primeiro = total // 2
+    return primeiro, total - primeiro
+
+
+def _dividir_go_0_12(text: str, sexo: str) -> tuple[int, int]:
+    """Obtém 0-4 e 5-12 pela tabela mensal da declaração GO."""
+    inicio = text.upper().find('IDADE TOTAL')
+    if inicio < 0:
+        return 0, 0
+    linhas = []
+    for linha in text[inicio:].splitlines():
+        if linha.strip().upper().startswith('TOTAL'):
+            break
+        nums = re.findall(r'(?:AT[EÉ] 1|\d+)\s+M[EÊ]S(?:ES)?\s+(\d+)', linha, re.I)
+        if len(nums) >= 2:
+            linhas.append([int(nums[0]), int(nums[1])])
+    if len(linhas) < 13:
+        return 0, 0
+    indice = 0 if sexo == 'M' else 1
+    valores = [linha[indice] for linha in linhas[:13]]
+    return sum(valores[:5]), sum(valores[5:13])
+
+
 def parsear_go_declaracao_web(text: str) -> dict:
     """
     Parser para Declaração de Rebanho GO emitida pelo sistema web AGRODEFESA.
@@ -761,36 +786,34 @@ def parsear_go_declaracao_web(text: str) -> dict:
     # Extrai linha "Existentes" da seção "DECLARAÇÃO REBANHO" (não da seção "MORTES")
     secao_m = re.search(r'DECLARAÇÃO REBANHO', text, re.I)
     secao = text[secao_m.end():] if secao_m else text
-    ex_idx = secao.upper().find('EXISTENTES')
-    if ex_idx >= 0:
-        after_ex = secao[ex_idx:]
-        for line in after_ex.split('\n')[1:5]:
-            nums = [int(n) for n in re.findall(r'\d+', line)]
-            if len(nums) >= 8:
-                m0, f0 = nums[0], nums[1]
-                animais['f00_M'] = m0 // 2
-                animais['f05_M'] = m0 - m0 // 2
-                animais['f00_F'] = f0 // 2
-                animais['f05_F'] = f0 - f0 // 2
-                animais['f13_M'] = nums[2]
-                animais['f13_F'] = nums[3]
-                animais['f25_M'] = nums[4]
-                animais['f25_F'] = nums[5]
-                animais['fac_M'] = nums[6]
-                animais['fac_F'] = nums[7]
-                break
+    ex_linha = re.search(r'EXISTENTES\s+([^\n]+)', secao, re.I)
+    if ex_linha:
+        nums = [int(n) for n in re.findall(r'\d+', ex_linha.group(1))]
+        # A Ãºltima coluna Ã© o total da linha, nÃ£o uma faixa etÃ¡ria.
+        if len(nums) >= 9:
+            nums = nums[:8]
+        if len(nums) >= 8:
+            m0_4, m5_12 = _dividir_go_0_12(text, 'M')
+            f0_4, f5_12 = _dividir_go_0_12(text, 'F')
+            if m0_4 + m5_12 == 0:
+                m0_4, m5_12 = _dividir_faixa_0_12(nums[0])
+            if f0_4 + f5_12 == 0:
+                f0_4, f5_12 = _dividir_faixa_0_12(nums[1])
+            animais.update({
+                'f00_M': m0_4, 'f05_M': m5_12,
+                'f00_F': f0_4, 'f05_F': f5_12,
+                'f13_M': nums[2], 'f13_F': nums[3],
+                'f25_M': nums[4], 'f25_F': nums[5],
+                'fac_M': nums[6], 'fac_F': nums[7],
+            })
 
-    valores = _para_valores(animais)
-    return {
-        'fazenda':      fazenda,
-        'municipio':    municipio,
+    return _resultado({
+        'fazenda': fazenda,
+        'municipio': municipio,
         'proprietario': proprietario,
-        'cpf':          cpf,
-        'data_saldo':   data_saldo,
-        'total':        sum(valores),
-        'animais':      animais,
-        'valores':      valores,
-    }
+        'cpf': cpf,
+        'data_saldo': data_saldo,
+    }, animais)
 
 
 # ─────────────────────────────────────────────
@@ -1256,6 +1279,43 @@ def parsear_adapec_to(text: str, pdf_path: str = None) -> dict:
     """
     animais = _animais_vazios()
     meta = _meta_basica(text)
+
+    # O OCR do ADAPEC costuma colocar toda a linha "Saldo" em uma linha e
+    # pode juntar duas propriedades no mesmo PDF. Reconstitui cada bloco.
+    norm = _normalizar(text)
+    marcadores = list(re.finditer(r'BOVIDEOS?', norm, re.I))
+    fazendas = []
+    for i, marcador in enumerate(marcadores):
+        fim = marcadores[i + 1].start() if i + 1 < len(marcadores) else len(text)
+        bloco = text[marcador.start():fim]
+        saldo = re.search(r'SALDO[^\n]*', bloco, re.I)
+        if not saldo:
+            continue
+        numeros = [int(n) for n in re.findall(r'\d+', saldo.group(0))]
+        if len(numeros) < 2:
+            continue
+        total = numeros[-1]
+        candidatos = numeros[:-1]
+        valores8 = (candidatos + [0] * 8)[:8]
+        residual = total - sum(valores8)
+        if residual > 0 and len(candidatos) < 8:
+            valores8[4 if len(candidatos) >= 5 else len(candidatos)] += residual
+        if sum(valores8) != total:
+            continue
+        _aplicar_mapa8(animais, valores8)
+        cabecalho = bloco.splitlines()[0] if bloco.splitlines() else ''
+        m_faz = re.search(r'BOVIDEOS?\s+\d+\s+(.+?)\s+\d{8,}', cabecalho, re.I)
+        nome = m_faz.group(1).strip(' |') if m_faz else ''
+        fazendas.append({'fazenda': nome, 'total': total, 'valores': valores8})
+
+    if fazendas:
+        resultado = _resultado(meta, animais)
+        resultado['fazendas'] = fazendas
+        if len(fazendas) > 1:
+            resultado['fazenda'] = ' + '.join(f['fazenda'] for f in fazendas if f['fazenda'])
+        elif fazendas[0]['fazenda']:
+            resultado['fazenda'] = fazendas[0]['fazenda']
+        return resultado
 
     # Tenta tabelas via pdfplumber (equivale ao Power Query do VBA)
     if pdf_path:
