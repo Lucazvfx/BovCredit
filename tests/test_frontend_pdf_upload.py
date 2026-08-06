@@ -1,4 +1,10 @@
 from pathlib import Path
+import io
+
+import database as db
+import app as app_module
+from app import app
+from services.fichas_rebanho.base_reader import registros_do_parse
 
 
 TEMPLATE = Path(__file__).parents[1] / 'templates' / 'index.html'
@@ -20,3 +26,44 @@ def test_preview_pdf_e_botao_classificacao_ficam_disponiveis_na_entrada():
     assert 'id="pdf-status-main"' in html
     assert 'Classificar com Machine Learning' in html
     assert 'document.getElementById(\'pdf-status-main\')' in html
+
+
+def test_endpoint_importacao_entrega_valores_prontos_para_classificar(monkeypatch):
+    db.init_db()
+    email = 'pdf-flow-test@example.com'
+    usuario = db.buscar_usuario_email(email)
+    if not usuario:
+        db.criar_usuario(email, 'PDF Flow', 'senha123')
+        usuario = db.buscar_usuario_email(email)
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess['_user_id'] = str(usuario['id'])
+
+    animais = {
+        'f00_F': 10, 'f05_F': 5, 'f13_F': 10, 'f25_F': 5, 'fac_F': 20,
+        'f00_M': 8, 'f05_M': 4, 'f13_M': 8, 'f25_M': 4, 'fac_M': 12,
+    }
+    dados = {'fazenda': 'Fazenda Teste', 'municipio': 'Palmas', 'animais': animais}
+    registros = registros_do_parse(dados, 'TO_DECLARACAO', modelo='TO_DECLARACAO')
+    monkeypatch.setattr(
+        app_module,
+        'read_ficha_pdf',
+        lambda *args, **kwargs: {'sucesso': True, 'registros': registros,
+                                 'avisos': [], 'erros': [], 'dados_brutos': dados},
+    )
+
+    resposta = client.post(
+        '/api/fichas/importar',
+        data={'pdf': (io.BytesIO(b'%PDF-falso'), 'teste.pdf')},
+        content_type='multipart/form-data',
+    )
+
+    assert resposta.status_code == 200
+    corpo = resposta.get_json()
+    assert corpo['total'] == 86
+    assert len(corpo['valores']) == 10
+    assert corpo['fazendas']
+
+    classificacao = client.post('/api/classificar', json={'valores': corpo['valores']})
+    assert classificacao.status_code == 200
+    assert classificacao.get_json().get('tipo')

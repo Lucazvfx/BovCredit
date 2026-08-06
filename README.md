@@ -770,3 +770,18 @@ Protegido pela **Lei 9.610/98 (Direitos Autorais)** e **Lei 9.609/98 (Software)*
 
 **Licenciamento comercial:** viniciuslukas353@gmail.com
 
+## Base de casos reais rotulados
+
+Cada chamada autenticada de `/api/classificar` cria um registro pendente em
+`casos_reais`. Quando o analista confirma ou corrige a modalidade, o caso passa
+a `CONFIRMADO` e pode ser usado pelo exportador de treinamento. Previsões não
+confirmadas nunca entram no retreinamento.
+
+Endpoints: `GET /api/casos-reais`, `GET /api/casos-reais/resumo`,
+`POST /api/casos-reais/<id>/confirmar` e
+`POST /api/casos-reais/<id>/descartar`.
+
+O banco guarda o vetor de dez posições, origem (PDF, Excel ou manual), arquivo,
+estado, modelo, previsão do ML, confiança e decisão humana. O PDF não é
+armazenado nessa tabela; apenas sua identificação e proveniência.
+

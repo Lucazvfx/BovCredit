@@ -205,6 +205,32 @@ def init_db():
         )
     ''', commit=True)
 
+    # Casos reais rotulados por analista. Nao substitui registros: mantem a
+    # camada explicita de proveniencia para medir e retreinar o modelo.
+    _exec(f'''
+        CREATE TABLE IF NOT EXISTS casos_reais (
+            id                    {_AI},
+            empresa_id            INTEGER,
+            user_id               INTEGER,
+            fazenda_id            INTEGER,
+            registro_id           INTEGER,
+            fazenda               TEXT DEFAULT '',
+            municipio             TEXT DEFAULT '',
+            origem                TEXT NOT NULL,
+            arquivo               TEXT DEFAULT '',
+            estado                TEXT DEFAULT '',
+            modelo                TEXT DEFAULT '',
+            valores               TEXT NOT NULL,
+            classificacao_ml      TEXT NOT NULL,
+            confianca             REAL DEFAULT 0,
+            classificacao_humana  TEXT,
+            status                TEXT NOT NULL DEFAULT 'PENDENTE',
+            observacao            TEXT DEFAULT '',
+            created_at            TIMESTAMP DEFAULT {_NOW},
+            confirmed_at          TIMESTAMP
+        )
+    ''', commit=True)
+
     # Nova Tabela: Histórico de Cotações da Arroba (Agora com Boi China)
     _exec(f'''
         CREATE TABLE IF NOT EXISTS cotacao_arroba (
@@ -560,15 +586,161 @@ def confirmar(registro_id: int, class_conf: str):
     _exec(f'UPDATE registros SET class_conf={ph} WHERE id={ph}',
           (class_conf, registro_id), commit=True)
 
+
+_CASOS_TIPOS = {'CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO',
+                'RECRIA_ENGORDA', 'CRIA_RECRIA'}
+_CASOS_STATUS = {'PENDENTE', 'CONFIRMADO', 'DESCARTADO'}
+_CASOS_ORIGENS = {'PDF', 'EXCEL', 'MANUAL'}
+
+
+def _validar_caso_real(valores, classificacao, origem='MANUAL') -> list:
+    if not isinstance(valores, (list, tuple)) or len(valores) != 10:
+        raise ValueError('O vetor do caso real deve conter exatamente dez valores.')
+    normalizados = []
+    for valor in valores:
+        if not isinstance(valor, (int, float)) or valor < 0:
+            raise ValueError('Os valores do rebanho devem ser numéricos e não negativos.')
+        normalizados.append(int(valor) if float(valor).is_integer() else float(valor))
+    if classificacao not in _CASOS_TIPOS:
+        raise ValueError(f'Classificação inválida: {classificacao}')
+    if origem not in _CASOS_ORIGENS:
+        raise ValueError(f'Origem inválida: {origem}')
+    return normalizados
+
+
+def criar_caso_real(valores, classificacao_ml, confianca=0, *, origem='MANUAL',
+                    arquivo='', estado='', modelo='', fazenda='', municipio='',
+                    user_id=None, empresa_id=None, fazenda_id=None,
+                    registro_id=None, observacao='') -> int:
+    valores = _validar_caso_real(valores, classificacao_ml, origem)
+    try:
+        confianca = float(confianca or 0)
+    except (TypeError, ValueError) as exc:
+        raise ValueError('Confiança inválida.') from exc
+    if confianca < 0 or confianca > 100:
+        raise ValueError('A confiança deve estar entre 0 e 100.')
+    ph = _PH
+    return int(_exec(
+        f'''INSERT INTO casos_reais
+            (empresa_id, user_id, fazenda_id, registro_id, fazenda, municipio,
+             origem, arquivo, estado, modelo, valores, classificacao_ml,
+             confianca, observacao)
+            VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})''',
+        (empresa_id, user_id, fazenda_id, registro_id, (fazenda or '')[:120],
+         (municipio or '')[:120], origem, (arquivo or '')[:255], (estado or '')[:40],
+         (modelo or '')[:80], json.dumps(valores), classificacao_ml,
+         round(confianca, 2), (observacao or '')[:1000]),
+        fetch='lastrow', commit=True
+    ))
+
+
+def _caso_real_dict(row):
+    if not row:
+        return None
+    caso = dict(row)
+    caso['valores'] = json.loads(caso['valores'])
+    return caso
+
+
+def buscar_caso_real(caso_id: int, user_id: int = None, empresa_id: int = None) -> dict | None:
+    ph = _PH
+    sql = f'SELECT * FROM casos_reais WHERE id={ph}'
+    params = [caso_id]
+    if user_id is not None:
+        sql += f' AND user_id={ph}'
+        params.append(user_id)
+    if empresa_id is not None:
+        sql += f' AND empresa_id={ph}'
+        params.append(empresa_id)
+    return _caso_real_dict(_exec(sql, tuple(params), fetch='one'))
+
+
+def listar_casos_reais(user_id: int = None, empresa_id: int = None,
+                       status: str = None, classificacao: str = None,
+                       origem: str = None, limit: int = 100) -> list:
+    ph = _PH
+    sql = 'SELECT * FROM casos_reais WHERE 1=1'
+    params = []
+    for coluna, valor in (('user_id', user_id), ('empresa_id', empresa_id),
+                          ('status', status), ('classificacao_humana', classificacao),
+                          ('origem', origem)):
+        if valor is not None:
+            sql += f' AND {coluna}={ph}'
+            params.append(valor)
+    sql += f' ORDER BY created_at DESC, id DESC LIMIT {ph}'
+    params.append(max(1, min(int(limit or 100), 1000)))
+    return [_caso_real_dict(row) for row in (_exec(sql, tuple(params), fetch='all') or [])]
+
+
+def confirmar_caso_real(caso_id: int, classificacao_humana: str,
+                        observacao: str = '', user_id: int = None,
+                        empresa_id: int = None) -> dict:
+    if classificacao_humana not in _CASOS_TIPOS:
+        raise ValueError(f'Classificação inválida: {classificacao_humana}')
+    caso = buscar_caso_real(caso_id, user_id=user_id, empresa_id=empresa_id)
+    if not caso:
+        raise LookupError('Caso real não encontrado.')
+    ph = _PH
+    _exec(
+        f'''UPDATE casos_reais SET classificacao_humana={ph}, status='CONFIRMADO',
+            observacao={ph}, confirmed_at={_NOW} WHERE id={ph}''',
+        (classificacao_humana, (observacao or '')[:1000], caso_id), commit=True)
+    return buscar_caso_real(caso_id, user_id=user_id, empresa_id=empresa_id)
+
+
+def descartar_caso_real(caso_id: int, motivo: str, user_id: int = None,
+                        empresa_id: int = None) -> bool:
+    if not (motivo or '').strip():
+        raise ValueError('Informe o motivo do descarte.')
+    caso = buscar_caso_real(caso_id, user_id=user_id, empresa_id=empresa_id)
+    if not caso:
+        raise LookupError('Caso real não encontrado.')
+    ph = _PH
+    _exec(f'''UPDATE casos_reais SET status='DESCARTADO', observacao={ph}
+              WHERE id={ph}''', (motivo[:1000], caso_id), commit=True)
+    return True
+
+
+def resumo_casos_reais(user_id: int = None, empresa_id: int = None) -> dict:
+    casos = listar_casos_reais(user_id=user_id, empresa_id=empresa_id, limit=1000)
+    resumo = {'total': len(casos), 'pendentes': 0, 'confirmados': 0,
+              'descartados': 0, 'por_origem': {}, 'por_classificacao': {}}
+    for caso in casos:
+        status = caso['status'].lower() + 's'
+        if status in resumo:
+            resumo[status] += 1
+        origem = caso.get('origem') or 'DESCONHECIDA'
+        resumo['por_origem'][origem] = resumo['por_origem'].get(origem, 0) + 1
+        if caso.get('classificacao_humana'):
+            ciclo = caso['classificacao_humana']
+            resumo['por_classificacao'][ciclo] = resumo['por_classificacao'].get(ciclo, 0) + 1
+    return resumo
+
 def exportar_treino():
     TIPOS = ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO',
              'RECRIA_ENGORDA', 'CRIA_RECRIA']
+    # Casos reais confirmados são a fonte principal. Registros legados continuam
+    # válidos para compatibilidade; quando possuem caso_real vinculado, entram
+    # apenas uma vez.
+    casos = _exec(
+        "SELECT registro_id, valores, classificacao_humana "
+        "FROM casos_reais WHERE status='CONFIRMADO'",
+        fetch='all'
+    ) or []
+    vinculados = {r['registro_id'] for r in casos if r.get('registro_id') is not None}
     rows = _exec(
-        'SELECT valores, class_conf FROM registros WHERE class_conf IS NOT NULL',
+        'SELECT id, valores, class_conf FROM registros WHERE class_conf IS NOT NULL',
         fetch='all'
     ) or []
     X, y = [], []
+    for r in casos:
+        t = r['classificacao_humana']
+        if t in TIPOS:
+            X.append(json.loads(r['valores']))
+            y.append(TIPOS.index(t))
     for r in rows:
+        if r['id'] in vinculados:
+            continue
         t = r['class_conf']
         if t in TIPOS:
             X.append(json.loads(r['valores']))
@@ -577,7 +749,7 @@ def exportar_treino():
 
 def buscar_registro_por_id(registro_id: int) -> dict | None:
     ph = _PH
-    row = _exec(f'SELECT id, fazenda, valores, class_ml FROM registros WHERE id={ph}',
+    row = _exec(f'SELECT id, fazenda, valores, class_ml, class_conf FROM registros WHERE id={ph}',
                 (registro_id,), fetch='one')
     return dict(row) if row else None
 

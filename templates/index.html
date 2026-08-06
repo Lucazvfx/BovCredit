@@ -1556,12 +1556,14 @@ function toggleGuiaFicha(btn){const p=document.getElementById('guia-ficha-panel'
 
 // ================== CLASSIFICAR ==================
 let lastRegistroId=null;
+let _pdfImportMetadata=null;
 async function classificar(){
   const v=getVals();
   if(v.reduce((a,b)=>a+b,0)<10){showToast('Insira pelo menos 10 animais.',true);return}
   showLoading(['Analisando composição do rebanho...','Calculando indicadores técnicos...','Calculando fluxo GEP...','Gerando parecer de crédito...']);
   try{
     const body={valores:v,fazenda:document.getElementById('f_faz').value,municipio:document.getElementById('f_mun').value,proprietario:document.getElementById('f_prop').value};
+    if(_pdfImportMetadata) Object.assign(body, _pdfImportMetadata);
     // Cliente cadastrado (opcional) — necessário para persistir o parecer no histórico
     body.fazenda_id=+document.getElementById('f_fazenda_id')?.value||null;
     // Área de pastagem → lotação e produtividade → nível tecnológico → perfil
@@ -1959,6 +1961,9 @@ async function lerPDFs(fileList){
       municipio: fazendas.length===1 ? fazendas[0].municipio : '',
       proprietario: primeiraMeta?.proprietario||'',
       origem: fazendas.length===1 ? fazendas[0].origem : 'MÚLTIPLOS',
+      arquivo_origem: files.length===1 ? files[0].name : 'MULTIPLOS',
+      estado: primeiraMeta?.estado||'',
+      modelo: primeiraMeta?.modelo||'',
       fazendas_combinadas: fazendas,
       avisos: avisos,
       erros: erros,
@@ -2039,6 +2044,12 @@ async function reparsarPDF(){
 }
 
 async function classificarPDF(v,meta){
+  _pdfImportMetadata={
+    origem_dados:'PDF',
+    arquivo_origem:meta?.arquivo_origem||'',
+    estado:meta?.estado||'',
+    modelo:meta?.modelo||meta?.origem||'',
+  };
   if(meta){document.getElementById('f_faz').value=meta.fazenda||'';document.getElementById('f_mun').value=meta.municipio||'';document.getElementById('f_prop').value=meta.proprietario||''}
   setValsFromApi(v);
   await classificar();

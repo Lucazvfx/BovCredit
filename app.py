@@ -1023,6 +1023,29 @@ def api_classificar():
         fazenda=fazenda,
         municipio=municipio,
         nat_pct=nat_pct,
+        user_id=current_user.id,
+        fazenda_id=data.get('fazenda_id') or None,
+    )
+
+    # Camada de dados reais: cada classificação fica pendente de revisão humana
+    # e só entra no treinamento depois de confirmada pelo analista.
+    origem_dados = (data.get('origem_dados') or 'MANUAL').strip().upper()
+    if origem_dados not in {'PDF', 'EXCEL', 'MANUAL'}:
+        origem_dados = 'MANUAL'
+    db.criar_caso_real(
+        valores=v,
+        classificacao_ml=result['classificacao'],
+        confianca=result['confianca'],
+        origem=origem_dados,
+        arquivo=data.get('arquivo_origem', ''),
+        estado=data.get('estado', ''),
+        modelo=data.get('modelo', ''),
+        fazenda=fazenda,
+        municipio=municipio,
+        user_id=current_user.id,
+        empresa_id=_resolver_empresa_ativa(),
+        fazenda_id=data.get('fazenda_id') or None,
+        registro_id=registro_id,
     )
 
     # Consistência do rebanho declarado (diferencial de análise de crédito):
@@ -1973,6 +1996,13 @@ def api_confirmar_ciclo():
         return jsonify({'erro': 'Registro não encontrado.'}), 404
 
     db.confirmar(int(registro_id), ciclo)
+    caso_real = db.buscar_caso_real(int(registro_id), user_id=current_user.id)
+    if caso_real:
+        db.confirmar_caso_real(
+            caso_real['id'], ciclo,
+            user_id=current_user.id,
+            empresa_id=_resolver_empresa_ativa(),
+        )
     concordou = registro.get('class_ml') == ciclo
     _auditar(_aud.CICLO_CONFIRMADO, recurso='registro', recurso_id=registro_id,
              detalhe=f'ML={registro.get("class_ml")} analista={ciclo}')
@@ -1987,6 +2017,66 @@ def api_confirmar_ciclo():
         'concordou': concordou,
         'total_confirmados': db.contar_confirmados(),
     })
+
+
+@app.route('/api/casos-reais', methods=['GET'])
+@login_required
+def api_listar_casos_reais():
+    """Lista classificações aguardando revisão ou já rotuladas pelo analista."""
+    status = (request.args.get('status') or '').strip().upper() or None
+    classificacao = (request.args.get('classificacao') or '').strip().upper() or None
+    origem = (request.args.get('origem') or '').strip().upper() or None
+    try:
+        limit = int(request.args.get('limit') or 100)
+    except (TypeError, ValueError):
+        return jsonify({'erro': 'limit deve ser numérico.'}), 400
+    if status and status not in db._CASOS_STATUS:
+        return jsonify({'erro': 'status inválido.'}), 400
+    if classificacao and classificacao not in db._CASOS_TIPOS:
+        return jsonify({'erro': 'classificação inválida.'}), 400
+    if origem and origem not in db._CASOS_ORIGENS:
+        return jsonify({'erro': 'origem inválida.'}), 400
+    empresa_id = _resolver_empresa_ativa()
+    return jsonify({'casos': db.listar_casos_reais(
+        user_id=current_user.id, empresa_id=empresa_id, status=status,
+        classificacao=classificacao, origem=origem, limit=limit,
+    )})
+
+
+@app.route('/api/casos-reais/resumo', methods=['GET'])
+@login_required
+def api_resumo_casos_reais():
+    return jsonify(db.resumo_casos_reais(
+        user_id=current_user.id, empresa_id=_resolver_empresa_ativa()))
+
+
+@app.route('/api/casos-reais/<int:caso_id>/confirmar', methods=['POST'])
+@login_required
+def api_confirmar_caso_real(caso_id):
+    data = request.json or {}
+    ciclo = (data.get('classificacao') or data.get('ciclo') or '').strip().upper()
+    try:
+        caso = db.confirmar_caso_real(
+            caso_id, ciclo, observacao=data.get('observacao', ''),
+            user_id=current_user.id, empresa_id=_resolver_empresa_ativa())
+    except (ValueError, LookupError) as exc:
+        return jsonify({'erro': str(exc)}), 400 if isinstance(exc, ValueError) else 404
+    if caso.get('registro_id'):
+        db.confirmar(caso['registro_id'], ciclo)
+    return jsonify({'ok': True, 'caso': caso})
+
+
+@app.route('/api/casos-reais/<int:caso_id>/descartar', methods=['POST'])
+@login_required
+def api_descartar_caso_real(caso_id):
+    data = request.json or {}
+    try:
+        db.descartar_caso_real(
+            caso_id, data.get('motivo', ''), user_id=current_user.id,
+            empresa_id=_resolver_empresa_ativa())
+    except (ValueError, LookupError) as exc:
+        return jsonify({'erro': str(exc)}), 400 if isinstance(exc, ValueError) else 404
+    return jsonify({'ok': True, 'caso_id': caso_id, 'status': 'DESCARTADO'})
 
 
 @app.route('/api/shap', methods=['POST'])
