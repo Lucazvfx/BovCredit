@@ -1668,6 +1668,8 @@ async function lerPDFsInserir(fileList){
   showLoading(files.length>1?`Lendo ${files.length} PDFs...`:'Lendo PDF...');
   const somaV=new Array(10).fill(0);
   const fazendas=[];
+  const avisos=[];
+  const erros=[];
   let primeiraMeta=null, falhas=0;
   const estado=(document.getElementById('insr-estado')?.value||'').trim();
   try{
@@ -1678,6 +1680,8 @@ async function lerPDFsInserir(fileList){
         const res=await fetch('/api/fichas/importar',{method:'POST',body:fd});
         const data=await res.json();
         if(data.erro){falhas++;showToast(`${file.name}: ${data.erro}`,true);continue}
+        (data.avisos||[]).forEach(x=>avisos.push(`${file.name}: ${x}`));
+        (data.erros||[]).forEach(x=>erros.push(`${file.name}: ${x}`));
         const itens = Array.isArray(data.fazendas) && data.fazendas.length
           ? data.fazendas : [data];
         for(const item of itens){
@@ -1917,6 +1921,8 @@ async function lerPDFs(fileList){
   showLoading(files.length>1?`Lendo ${files.length} PDFs...`:'Lendo PDF...');
   const somaV=new Array(10).fill(0);
   const fazendas=[];
+  const avisos=[];
+  const erros=[];
   let primeiraMeta=null, falhas=0;
   try{
     for(const file of files){
@@ -1925,6 +1931,8 @@ async function lerPDFs(fileList){
         const res=await fetch('/api/fichas/importar',{method:'POST',body:fd});
         const data=await res.json();
         if(data.erro){falhas++;showToast(`${file.name}: ${data.erro}`,true);continue}
+        (data.avisos||[]).forEach(x=>avisos.push(`${file.name}: ${x}`));
+        (data.erros||[]).forEach(x=>erros.push(`${file.name}: ${x}`));
         const itens = Array.isArray(data.fazendas) && data.fazendas.length
           ? data.fazendas : [data];
         for(const item of itens){
@@ -1949,8 +1957,8 @@ async function lerPDFs(fileList){
       proprietario: primeiraMeta?.proprietario||'',
       origem: fazendas.length===1 ? fazendas[0].origem : 'MÚLTIPLOS',
       fazendas_combinadas: fazendas,
-      avisos: data.avisos||[],
-      erros: data.erros||[],
+      avisos: avisos,
+      erros: erros,
     });
     const okMsg=fazendas.length>1 ? `${fazendas.length} PDFs combinados (${fN(totalGeral)} animais no total)` : `PDF carregado: ${fazendas[0].nome} (${fN(totalGeral)} animais)`;
     showToast(falhas?`${okMsg} · ${falhas} arquivo(s) falharam`:okMsg);
