@@ -1,5 +1,5 @@
 /* ============================================================
-   BOVIML — Folha de Estilos Principal
+   ORKAVYN AGRO INTELLIGENCE — Folha de Estilos Principal
    Arquivo: static/style.css
    Referenciado por: templates/index.html
 
@@ -1105,6 +1105,10 @@ main {
 }
 
 @media (max-width: 768px) {
+  .analises-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   .faz-grid {
     grid-template-columns: 1fr !important;
     gap: 12px !important;
@@ -1162,3 +1166,4 @@ main {
   .faz-grid { gap: 10px !important; }
   .faz-card { border-radius: 10px !important; }
 }
+

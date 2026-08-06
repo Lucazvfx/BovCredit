@@ -1,3 +1,5 @@
+import pytest
+
 from ml_engine import calcular_ano
 from services.pesos_rebanho import arrobas_categorias
 
@@ -25,9 +27,27 @@ def test_simular_cria_custo_arroba():
         preco_arroba_bezerro=300, custo_arroba=57, anos=1,
         peso_matriz=17, peso_bezerra=8)
     ano1 = r['anos'][0]
-    # custo = (matrizes×17 + fem_recria×8) × 57
-    matrizes = 30 + 40; fem_recria = 10 + 8 + 6
-    assert abs(ano1['custo'] - (matrizes*17 + fem_recria*8) * 57) < 1.0
+    # custo = (matrizes×17 + jovens(F+M)×8 + touros×20.53) × 57
+    #
+    # Antes o custo somava só as fêmeas jovens: os machos 0–25m declarados
+    # pastavam de graça no modelo. E estimava touros por 1:30 mesmo quando o
+    # rebanho já declarava bois — cobrando touros que não existiam e ignorando
+    # os que existiam. Agora o custo cobre o rebanho efetivamente mantido.
+    # O rebanho é mantido por COORTE, e cada uma pesa diferente: bezerros
+    # 0–12m no peso de bezerra informado, novilhas 13–24m e machos 13–36m no
+    # peso de fêmea jovem (7,67@), touros no peso de boi.
+    from services.parametros_zootecnicos import PESO_JOVEM_F_ARR, PESO_BOI_ARR
+    # A faixa de 25–36m (v[6]) SAIU da base de matriz. Ela ainda não pariu
+    # (idade média à primeira parição: 36,3 meses, Embrapa) e come como novilha
+    # adulta, não como vaca lactante — peso de fêmea jovem, não de matriz.
+    # A diferença neste caso é 30 cab × (17 − 7,67)@ × R$ 57 = R$ 15.954.
+    matrizes = 40                        # v[8] — só quem já pariu
+    bez      = (10 + 10) + (8 + 8)       # 0–12m: v[0]+v[1]+v[2]+v[3]
+    nov_mac  = 6 + 30 + (6 + 2)          # v[4] + v[6] + (v[5] + v[7])
+    touros   = 3                         # v[9] — bois declarados
+    esperado = (matrizes*17 + bez*8 + nov_mac*PESO_JOVEM_F_ARR
+                + touros*PESO_BOI_ARR) * 57
+    assert abs(ano1['custo'] - esperado) < 1.0
     assert r['preco_breakeven_unidade'] == 'R$/arroba'
 
 
@@ -40,7 +60,11 @@ def test_simular_recria_custo_arroba_prorata():
     ano1 = r['anos'][0]
     animais = 50 + 30; peso_medio = (8 + 14) / 2
     esperado = animais * peso_medio * 57 * (12/12)
-    assert abs(ano1['custo'] - esperado) < 1.0
+    # `custo` passou a somar manutenção + reposição 1:1 (a recria vende o lote
+    # e repõe comprando desmamados). O rateio pro-rata é a parte de manutenção.
+    assert abs(ano1['custo_manutencao'] - esperado) < 1.0
+    assert ano1['custo'] == pytest.approx(
+        ano1['custo_manutencao'] + ano1['custo_reposicao'], abs=1.0)
 
 
 def test_simular_engorda_custo_arroba_prorata():

@@ -162,6 +162,39 @@ def parsear_ficha_excel(source) -> list[dict]:
     return fazendas
 
 
+def validar_fazendas_importadas(fazendas: list[dict]) -> dict:
+    """Valida a composição importada antes de enviá-la ao classificador."""
+    itens = list(fazendas or [])
+    total = next((f for f in itens if f.get('is_total_rebanho')), None)
+    individuais = [f for f in itens if not f.get('is_total_rebanho')]
+    soma_individuais = sum(int(f.get('total', 0) or 0) for f in individuais)
+    soma_categorias = sum(sum(float(x or 0) for x in (f.get('valores') or []))
+                          for f in individuais)
+    avisos = []
+    erros = []
+    if not individuais:
+        erros.append('Nenhuma fazenda com quantidade preenchida foi encontrada.')
+    if abs(soma_individuais - soma_categorias) > 0.01:
+        erros.append('O total de uma ou mais fazendas não bate com as categorias.')
+    if total and int(total.get('total', 0) or 0) > 0:
+        total_planilha = int(total['total'])
+        if total_planilha != soma_individuais:
+            avisos.append(
+                f'Total Rebanho ({total_planilha}) difere da soma das fazendas '
+                f'({soma_individuais}). Confira fazendas ocultas ou fórmulas.')
+    else:
+        avisos.append('A planilha não trouxe total agregado recalculado; foi usada a soma das fazendas.')
+    avisos.append('Bezerra e bezerro de 0–12 meses são distribuídos 50/50 entre as duas faixas jovens.')
+    return {
+        'valido': not erros and bool(individuais),
+        'fazendas': len(individuais),
+        'total_fazendas': soma_individuais,
+        'total_planilha': int(total.get('total', 0) or 0) if total else None,
+        'avisos': avisos,
+        'erros': erros,
+    }
+
+
 def _flush(fazendas: list, fazenda: str | None, animais: dict | None) -> None:
     if fazenda is None or animais is None:
         return
@@ -173,3 +206,4 @@ def _flush(fazendas: list, fazenda: str | None, animais: dict | None) -> None:
             'valores': valores,
             'total':   sum(valores),
         })
+

@@ -16,3 +16,4 @@ gestao_model.pkl
 gestao.db
 *.db
 *.pkl
+*.bak

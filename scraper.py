@@ -99,8 +99,26 @@ def _obter_via_agrobr():
 _HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 _DEFAULTS = {'boi': 342.0, 'vaca': 308.0, 'boi_china': 355.0}
 _URL_BOI_NA     = "https://www.noticiasagricolas.com.br/cotacoes/boi-gordo"
+_URL_BOI_CEPEA  = "https://cepea.org.br/br/indicador/boi-gordo.aspx"  # backup
 _URL_VACA_SCOT  = "https://www.scotconsultoria.com.br/cotacoes/vaca-gorda/?ref=smnb"
 _URL_BEZ_CEPEA  = "https://cepea.org.br/br/indicador/bezerro.aspx"
+
+
+def _parse_boi_cepea(html: str) -> float:
+    """Backup: extrai o indicador de boi gordo direto da página CEPEA/ESALQ.
+
+    A página lista o valor mais recente no formato 'nnn,nn' ou '1.nnn,nn'.
+    Retorna 0.0 se não achar valor dentro da faixa de sanidade.
+    """
+    from services.precos_diarios import valido, FAIXA_ARROBA
+    import re as _re
+    texto = _re.sub(r'<[^>]+>', ' ', html)
+    # Boi gordo ESALQ: tipicamente entre 300 e 500 R$/@
+    for cand in _re.findall(r'(\d{1,3}[.,]\d{2})', texto):
+        v = float(cand.replace('.', '').replace(',', '.'))
+        if valido(v, *FAIXA_ARROBA):
+            return v
+    return 0.0
 
 
 def obter_precos_arroba():
@@ -124,7 +142,7 @@ def obter_precos_arroba():
     except Exception:
         ultimo = {}
 
-    # ── BOI — Notícias Agrícolas (CEPEA/ESALQ) ──
+    # ── BOI — Notícias Agrícolas (CEPEA/ESALQ) → backup direto CEPEA ──
     boi, fonte_boi = 0.0, ''
     sess = _session_com_retry()
     try:
@@ -133,7 +151,15 @@ def obter_precos_arroba():
         if boi:
             fonte_boi = 'CEPEA/ESALQ (Notícias Agrícolas)'
     except Exception as e:
-        logger.warning(f'[Scraper] Falha ao buscar boi: {e}')
+        logger.warning(f'[Scraper] Falha ao buscar boi (NA): {e}')
+    if not boi:
+        try:
+            html_cepea = sess.get(_URL_BOI_CEPEA, headers=_HEADERS, timeout=20).text
+            boi = _parse_boi_cepea(html_cepea)
+            if boi:
+                fonte_boi = 'CEPEA/ESALQ (direto)'
+        except Exception as e:
+            logger.warning(f'[Scraper] Falha ao buscar boi (CEPEA backup): {e}')
     if not boi:
         boi = float(ultimo.get('boi') or 0) or _DEFAULTS['boi']
         fonte_boi = 'último salvo' if ultimo.get('boi') else 'default'

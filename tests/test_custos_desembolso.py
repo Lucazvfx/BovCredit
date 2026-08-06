@@ -17,7 +17,13 @@ def test_conversao_rebanho_vazio_retorna_zero():
 def test_preset_recria_top_bate_com_a_tabela():
     p = preset_modalidade('RECRIA', 'top')
     assert set(p.keys()) == {c[0] for c in COMPONENTES}
-    assert abs(sum(p.values()) - 167.28) < 0.01  # TOTAL RECRIA/ENGORDA top
+    assert abs(sum(p.values()) - 77.40) < 0.01  # TOTAL RECRIA top (desagregado safra 24/25)
+
+
+def test_preset_recria_engorda_legado_top():
+    # Alias RECRIA_ENGORDA mantido para compatibilidade com dados históricos.
+    p = preset_modalidade('RECRIA_ENGORDA', 'top')
+    assert abs(sum(p.values()) - 167.28) < 0.01
 
 
 def test_preset_cria_media_bate_total():
@@ -25,10 +31,13 @@ def test_preset_cria_media_bate_total():
     assert abs(sum(p.values()) - 90.88) < 0.01
 
 
-def test_recria_e_engorda_mapeiam_para_recria_engorda():
-    assert preset_modalidade('RECRIA', 'media') == preset_modalidade('ENGORDA', 'media')
-    assert preset_modalidade('RECRIA', 'media') == {
-        k: v[0] for k, v in PERFIL_DESEMBOLSO['RECRIA_ENGORDA'].items()}
+def test_recria_e_engorda_sao_desagregados():
+    # Desde safra 24/25 GEP Araguaia, RECRIA e ENGORDA têm presets próprios.
+    r = preset_modalidade('RECRIA', 'media')
+    e = preset_modalidade('ENGORDA', 'media')
+    assert r != e
+    assert abs(sum(r.values()) - 100.50) < 0.01
+    assert abs(sum(e.values()) - 182.60) < 0.01
 
 
 def test_modalidade_desconhecida_cai_em_ciclo_completo():

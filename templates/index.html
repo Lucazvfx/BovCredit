@@ -2,8 +2,9 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fluxo de caixa</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<title>Orkavyn Agro Intelligence</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="/static/favicon-cow.png">
 <style>
@@ -28,14 +29,27 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{font-family:var(--fb);background:var(--bg);color:var(--tx);min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+/* min-height em dvh: no iOS `100vh` conta a tela inteira, inclusive a faixa
+   que a barra de endereço do Safari cobre, e o fundo termina atrás dela.
+   `dvh` acompanha a barra; o `vh` acima fica de fallback. */
+body{font-family:var(--fb);background:var(--bg);color:var(--tx);min-height:100vh;min-height:100dvh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 body::before{content:'';position:fixed;inset:0;background:
   radial-gradient(ellipse 60% 40% at 15% 10%,rgba(74,222,128,.05) 0%,transparent 60%),
   radial-gradient(ellipse 50% 30% at 85% 85%,rgba(34,211,238,.04) 0%,transparent 60%);
   pointer-events:none;z-index:0}
 
+/* ── FUNDO PECUÁRIA — spotlight ── */
+#bg-rebanho{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:url('/static/img/rebanho-bg.jpg') center center/cover no-repeat;
+  opacity:0;
+  transition:opacity .4s ease;
+  -webkit-mask-image:radial-gradient(circle 220px at 50% 50%,black 0%,transparent 100%);
+  mask-image:radial-gradient(circle 220px at 50% 50%,black 0%,transparent 100%);
+}
+
 header{position:sticky;top:0;z-index:200;background:rgba(6,8,16,.93);backdrop-filter:blur(24px);border-bottom:1px solid var(--b);height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 36px}
-.logo{font-family:var(--fn);font-weight:800;font-size:1.4rem;letter-spacing:-.5px;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:hidden}
+.logo{font-family:var(--fn);font-weight:800;font-size:1.4rem;letter-spacing:-.5px;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:visible;flex-shrink:0}
 .logo-mk{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#4ADE80,#4ADE80);display:flex;align-items:center;justify-content:center;font-size:.9rem}
 .logo em{font-style:normal;background:linear-gradient(90deg,#4ADE80,#4ADE80);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .hdr-r{display:flex;align-items:center;gap:12px}
@@ -178,7 +192,30 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 .ytbl td.r2{color:var(--rd);font-family:var(--fm);font-size:.78rem;text-align:right}
 .ytbl tbody tr:hover td{background:rgba(255,255,255,.02)}
 
-.tc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+.tc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+
+/* ── Desfrute: KPI row + meter, com entrada elástica ───────────────────── */
+.df-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.df-tile{background:var(--c2);border:1px solid var(--b);border-radius:var(--rs);padding:14px 16px;
+  opacity:0;transform:translateY(14px) scale(.94);
+  transition:opacity .45s ease,transform .75s cubic-bezier(.22,1.62,.36,1)}
+.df-tile.in{opacity:1;transform:none}
+.df-tile-l{font-family:var(--fm);font-size:.52rem;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:7px}
+.df-tile-v{font-family:var(--fn);font-weight:900;font-size:1.5rem;letter-spacing:-.5px;line-height:1}
+.df-tile-d{font-family:var(--fm);font-size:.56rem;color:var(--sb);margin-top:5px}
+/* hero: o número que a seção lidera */
+.df-hero{font-family:var(--fn);font-weight:900;font-size:3.1rem;letter-spacing:-2px;line-height:.92}
+/* meter: trilho no tom claro da mesma rampa, preenchimento carrega a severidade */
+.df-track{position:relative;height:12px;border-radius:7px;background:rgba(255,255,255,.06);
+  border:1px solid var(--b);overflow:hidden;margin-top:6px}
+.df-fill{height:100%;width:0;border-radius:6px;
+  transition:width 1.05s cubic-bezier(.22,1.55,.36,1)}
+/* faixa de referência desenhada sobre o trilho */
+.df-band{position:absolute;top:0;bottom:0;pointer-events:none;
+  border-left:2px solid rgba(255,255,255,.85);border-right:2px solid rgba(255,255,255,.85);
+  box-shadow:inset 0 0 0 9999px rgba(255,255,255,.10)}
+.df-scale{display:flex;justify-content:space-between;font-family:var(--fm);font-size:.5rem;color:var(--mu);margin-top:5px}
+@media(max-width:600px){.df-grid{grid-template-columns:1fr}.df-hero{font-size:2.5rem}}
 .tc{border-radius:var(--rs);padding:16px;border:1px solid var(--b);background:var(--c2);position:relative}
 .tc-sel{position:absolute;top:10px;right:10px;font-family:var(--fm);font-size:.48rem;letter-spacing:1.5px;text-transform:uppercase;padding:2px 8px;border-radius:3px}
 .tc-ico{font-size:1.7rem;margin-bottom:7px;display:block}
@@ -195,25 +232,107 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 .loading-overlay.show{display:flex}
 .lspin{width:50px;height:50px;border:3px solid var(--b2);border-top-color:var(--g);border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .ltxt{font-family:var(--fn);font-size:1rem;letter-spacing:.5px}
 
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px}
-@media(max-width:900px){.g2,.g3,.g13,.fgrid,.sstrip,.tc-grid{grid-template-columns:1fr 1fr}main,header{padding-left:20px;padding-right:20px}.rhero-tipo{font-size:3rem}.rhero-em{display:none}.tstrip{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){
+  .g2,.g3,.g13,.fgrid,.sstrip,.tc-grid{grid-template-columns:1fr 1fr}
+  .proj-strip{grid-template-columns:repeat(2,1fr)}
+  main,header{padding-left:20px;padding-right:20px}
+  .rhero-tipo{font-size:3rem}.rhero-em{display:none}
+  .tstrip{grid-template-columns:repeat(3,1fr)}
+}
 @media(max-width:600px){
+  /* layout */
   .g2,.g3,.g13,.fgrid,.sstrip,.tc-grid,.proj-strip{grid-template-columns:1fr}
   .tstrip{grid-template-columns:repeat(2,1fr)}
-  .rhero-grid{grid-template-columns:1fr}.rhero{padding:22px}
-  .ptitle{font-size:1.8rem}.psub{font-size:.8rem}
-  main{padding-top:24px;padding-bottom:72px}
-  .tab-bar{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+
+  /* header */
+  header{padding:0 14px;height:52px}
+  #hdr-boi,#hdr-vaca{display:none}
+  .hdr-r{gap:6px}
+
+  /* main */
+  main{padding:20px 14px max(80px,calc(60px + env(safe-area-inset-bottom)))}
+
+  /* tab-bar: rola na horizontal, botões nunca encolhem.
+     Medido no iPhone 13 (390px): a barra precisa de 587px e só DUAS das cinco
+     abas cabem. A rolagem já existia, mas nada indicava que havia mais — o
+     analista não descobre uma aba que não aparece. A máscara em degradê na
+     borda direita é a dica: some quando chega ao fim. */
+  .tab-bar{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:20px;flex-wrap:nowrap;
+           -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);
+           mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);
+           scroll-snap-type:x proximity;overscroll-behavior-x:contain}
   .tab-bar::-webkit-scrollbar{display:none}
-  .tab-btn{padding:8px 13px;font-size:.68rem;letter-spacing:1px}
+  .tab-btn{flex-shrink:0;white-space:nowrap;padding:10px 14px;font-size:.68rem;letter-spacing:1px;min-height:44px;scroll-snap-align:start}
+
+  /* Tabela de rebanho: 5 colunas precisam de 423px e o iPhone 13 tem 390.
+     A coluna de % é DERIVADA (total da faixa ÷ rebanho) e o mesmo número
+     aparece no painel de totais logo abaixo. Sai ela, não a rolagem: rolar
+     lateralmente para digitar é pior que não ver um percentual calculado. */
+  .itbl .col-pct{display:none}
+
+  /* Mesma razão na projeção multianual: a coluna produz/vende é a mais nova e
+     a menos essencial das sete — o número que decide (DSCR) e o que resume
+     (resultado) precisam caber sem rolagem. Ela continua na tela grande e no
+     PDF, que é onde o analista audita. */
+  .col-prod{display:none}
+
+  /* Cabeçalho de card: `.ch` é uma linha flex com título à esquerda e grupo de
+     botões à direita. Em 390px o título fica com a largura toda e o grupo
+     desmorona numa coluna de um botão por linha — foi o que a captura no
+     iPhone mostrou no card de rebanho: dez botões empilhados ao lado de um
+     título espremido em três linhas. Empilhar de propósito resolve. */
+  .ch{flex-direction:column;align-items:stretch;gap:12px;padding:14px 16px}
+  .ch>div:last-child{justify-content:flex-start}
+
+  /* Cabeçalho: era ele que esticava a página para 431px num iPhone de 390.
+     A conta: logo 128px com `flex-shrink:0` + bloco da direita 289px + 28 de
+     padding. O bloco da direita cresceu porque o seletor de empresa passou de
+     9,28px para 16px de fonte (regra de `pointer: coarse`, para o Safari não
+     dar zoom ao focar) — e `select` com `min-width:auto` reserva a largura da
+     MAIOR opção, que é o nome inteiro da consultoria.
+     Consertar a fonte criou este; medir só depois é como se acha. */
+  /* Aba Ajuda: grades de 3 e 4 colunas declaradas em style inline, que só um
+     seletor com !important alcança. Precisavam de 487px em 390 de tela. */
+  .g2-help{grid-template-columns:1fr !important}
+  /* As tabelas da Ajuda são largas e não têm campo para digitar: aqui rolar
+     lateralmente é aceitável, esconder coluna não. */
+  .g2-help table, .cb>table{display:block;overflow-x:auto;max-width:100%}
+
+  header{flex-wrap:wrap;row-gap:8px}
+  .logo img{max-width:104px;height:auto}
+  .hdr-r{min-width:0;flex-wrap:wrap;justify-content:flex-end}
+  #empresa-ativa-select{max-width:52vw;min-width:0;text-overflow:ellipsis}
+
+  /* typography */
+  .ptitle{font-size:1.6rem}.psub{font-size:.8rem}
+  .rhero-grid{grid-template-columns:1fr}.rhero{padding:18px}
+  .rhero-tipo{font-size:1.8rem}.rhero-em{display:none}
+  .rhero-sub{font-size:.68rem}
+  .sc2-v{font-size:1.1rem}.tsc-v{font-size:1.2rem}.pjc-v{font-size:1.2rem}
+
+  /* input table */
+  .itbl thead th,.itbl td{padding:6px 7px;font-size:.75rem}
+  .ni{width:80px;font-size:.8rem;padding:7px 8px;min-height:44px}
   .cbar-l{width:80px;font-size:.54rem}
-  .rhero-tipo{font-size:2rem}
-  #fase-geral>div[style],#fase-cria>div[style],#fase-recria>div[style],#fase-engorda>div[style]{grid-template-columns:1fr!important}
-  .itbl thead th,.itbl td{padding:7px 8px;font-size:.78rem}
-  .ni{width:80px;font-size:.8rem;padding:7px 8px}
+  .brow-l{width:80px;font-size:.54rem}
+
+  /* cards & fields */
   .cb{padding:14px}
+  .field input,.field select{font-size:.9rem}
+
+  /* touch targets */
+  .btn-sm{min-height:44px;padding:9px 14px}
+  .btn-p{padding:14px 28px}
+
+  /* toast — full-width, respects safe area */
+  .toast{left:14px;right:14px;bottom:max(16px,env(safe-area-inset-bottom));max-width:unset;text-align:center}
+
+  /* inline grids forced by JS */
+  #fase-geral>div[style],#fase-cria>div[style],#fase-recria>div[style],#fase-engorda>div[style]{grid-template-columns:1fr!important}
 }
 
 /* ── CICLO COMPLETO ── */
@@ -244,10 +363,56 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 .res-box{border-radius:var(--r);padding:20px 24px;margin-top:16px;border:1px solid;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 .res-box.pos{border-color:rgba(74,222,128,.3);background:rgba(74,222,128,.06)}
 .res-box.neg{border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.06)}
+
+/* ── iOS: o zoom ao focar campo ──────────────────────────────────────────────
+   O Safari do iPhone DÁ ZOOM na página quando o campo focado tem fonte menor
+   que 16px, e depois não volta sozinho — o analista fica com a tela deslocada
+   e precisa fazer pinça para enxergar o resto. Não é preferência de design: é
+   comportamento do sistema.
+
+   Medido nesta tela num iPhone 13:
+
+       empresa-ativa-select ....  9,28px   ← e ilegível, além de dar zoom
+       campos de identificação .. 14,4px
+       campos de rebanho ........ 12,5px
+
+   `font-size:16px` no campo resolve o zoom, e `min-height:44px` dá o alvo de
+   toque que a própria Apple recomenda — abaixo disso erra-se o campo vizinho
+   na tabela de rebanho, que é densa.
+
+   O seletor é por PONTEIRO GROSSO, não por largura de tela: um iPad em
+   paisagem tem 1024px e o mesmo problema, e um monitor pequeno não tem
+   problema nenhum. Largura de viewport nunca foi a pergunta certa aqui. */
+@media (pointer: coarse) {
+  input, select, textarea,
+  .field input, .field select, input[type=number] {
+    font-size: 16px !important;
+  }
+  input, select, textarea, button, .btn-sm {
+    min-height: 44px;
+  }
+
+  /* O seletor de empresa era o pior dos dois: 9,28px de fonte e 31px de
+     altura, esta vinda de uma altura fixa no estilo do cabeçalho — por isso
+     precisa de `height:auto` junto, senão o min-height não vale de nada. */
+  #empresa-ativa-select { font-size: 16px !important; min-height: 44px; height: auto; }
+}
+
+/* ── iPhone com notch: a área segura ─────────────────────────────────────────
+   Com `viewport-fit=cover` o conteúdo passa a ocupar a tela toda, inclusive
+   sob o notch e sob a barra de gestos. Sem compensar, o cabeçalho fica
+   parcialmente escondido e o rodapé fica sob a faixa inferior. */
+@supports (padding: max(0px)) {
+  header { padding-left: max(14px, env(safe-area-inset-left));
+           padding-right: max(14px, env(safe-area-inset-right)); }
+  main   { padding-left: max(14px, env(safe-area-inset-left));
+           padding-right: max(14px, env(safe-area-inset-right)); }
+}
 </style>
 </head>
 <body>
 
+<div id="bg-rebanho"></div>
 <div class="loading-overlay" id="loading-ov">
   <div class="lspin"></div>
   <div class="ltxt" id="loading-txt">Processando...</div>
@@ -255,7 +420,7 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 <div class="toast" id="toast"></div>
 
 <header>
-  <div class="logo"><div class=""></div>Fluxo de Caixa<em></em></div>
+  <div class="logo"><img src="/static/img/logo-dark.svg" alt="Orkavyn Agro Intelligence" style="height:20px;display:block"></div>
   <div class="hdr-r">
     <span id="hdr-boi" class="ml-acc" style="cursor:default" title="Cotação Boi (R$/arroba)">Boi: --</span>
     <span id="hdr-vaca" class="ml-acc" style="cursor:default" title="Cotação Vaca (R$/arroba)">Vaca: --</span>
@@ -281,6 +446,37 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
   </div>
 </div>
 
+<!-- ═══ TICKER DE NOTÍCIAS ═══ -->
+<div id="news-ticker" style="
+  position:relative;z-index:10;
+  background:rgba(6,8,16,.85);
+  border-bottom:1px solid rgba(74,222,128,.12);
+  backdrop-filter:blur(8px);
+  display:flex;align-items:center;
+  height:28px;overflow:hidden;
+">
+  <div style="
+    flex-shrink:0;
+    background:var(--g);color:#060810;
+    font-size:.58rem;font-weight:800;letter-spacing:.05em;
+    padding:0 10px;height:100%;
+    display:flex;align-items:center;white-space:nowrap;
+  ">AGRO</div>
+  <div style="flex:1;overflow:hidden;position:relative;">
+    <div id="ticker-track" style="
+      display:flex;align-items:center;gap:0;
+      white-space:nowrap;
+      animation:ticker-scroll 60s linear infinite;
+      will-change:transform;
+    ">
+      <span id="ticker-inner" style="
+        font-size:.6rem;color:var(--mu);
+        padding:0 16px;
+      ">Carregando notícias...</span>
+    </div>
+  </div>
+</div>
+
 <main>
 <div class="tab-bar">
   <button class="tab-btn active" onclick="showTab('entrada',this)">Inserir Dados</button>
@@ -302,6 +498,15 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
         <div class="field"><label>Fazenda</label><input type="text" id="f_faz" placeholder="Ex: Fazenda Santa Cruz"></div>
         <div class="field"><label>Município / Estado</label><input type="text" id="f_mun" placeholder="Ex: Juara - MT"></div>
         <div class="field"><label>Proprietário</label><input type="text" id="f_prop" placeholder="Ex: João da Silva"></div>
+        <!-- Área de pastagem: é o que permite calcular lotação (UA/ha) e
+             produtividade (@/ha/ano), e com elas o NÍVEL TECNOLÓGICO, que
+             escolhe o perfil de custo. Sem ela o sistema mantém o perfil médio
+             e diz no parecer que não classificou — nunca chuta o nível. -->
+        <div class="field">
+          <label>Área de pastagem (ha) <span style="color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">— define o nível tecnológico</span></label>
+          <input type="number" id="f_area" min="0" step="1" placeholder="Ex: 900" oninput="_previaNivel()">
+          <div id="f_area_previa" style="font-family:var(--fm);font-size:.6rem;color:var(--mu);margin-top:4px"></div>
+        </div>
       </div>
       <div class="fgrid" style="margin-top:12px;align-items:end">
         <div class="field"><label>Cliente cadastrado (opcional — habilita histórico)</label>
@@ -317,11 +522,33 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
     <div class="cb">
       <div class="fgrid">
         <div class="field"><label>Valor solicitado (R$)</label><input type="number" id="credito_valor" min="0" step="1000" placeholder="Ex: 500000"></div>
-        <div class="field"><label>Prazo (meses)</label><input type="number" id="credito_prazo" min="1" placeholder="Ex: 24"></div>
+        <div class="field"><label>Prazo (meses)</label><input type="number" id="credito_prazo" min="1" max="60" placeholder="Ex: 24"></div>
         <div class="field"><label>Carência (meses)</label><input type="number" id="credito_carencia" min="0" value="0"></div>
         <div class="field"><label title="Plano Safra 2026/27: Custeio empresarial 12,5% · Moderfrota empresarial 12,5% · Pronamp custeio 9,0% · Pronamp Moderfrota 11,5% · RenovAgro/PCA pastagens 8,0–9,5%">Juros (% a.a.) ℹ</label><input type="number" id="credito_juros" min="0" step="0.1" placeholder="Ex: 12,5 (Moderfrota 2026/27)"></div>
-        <div class="field"><label>Dívidas mensais (R$/mês)</label><input type="number" id="dividas_mensais" min="0" value="0"></div>
         <div class="field"><label>Finalidade</label><select id="credito_finalidade"><option value="custeio">Custeio</option><option value="investimento">Investimento</option></select></div>
+      </div>
+
+      <!-- Endividamento existente: era um número solto digitado sem origem, e
+           todo o DSCR se apoiava nele. Discriminado por credor, vira declaração
+           assinável e confrontável com o SCR. -->
+      <div style="margin-top:16px;border-top:1px solid var(--b);padding-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+          <div>
+            <div style="font-family:var(--fm);font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--sb)">Endividamento existente</div>
+            <div style="font-size:.72rem;color:var(--mu);margin-top:3px">Operações do produtor em outras instituições. Entram no DSCR.</div>
+          </div>
+          <button class="btn-sm" onclick="addCredor()">+ Adicionar credor</button>
+        </div>
+        <div id="dividas-lista"></div>
+        <div id="dividas-vazio" style="font-size:.75rem;color:var(--mu);padding:10px 0">
+          Nenhuma dívida declarada — o parecer assumirá ausência de endividamento e recomendará conferir o SCR.
+        </div>
+        <div class="fgrid" style="margin-top:10px">
+          <div class="field">
+            <label title="Use apenas se não souber discriminar por credor. O parecer marcará a origem como não discriminada.">Ou informe só o total mensal (R$/mês) ℹ</label>
+            <input type="number" id="dividas_mensais" min="0" value="0" oninput="syncDividasVazio()">
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -337,6 +564,8 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
         <button class="btn-sm" onclick="window.location='/api/template/download'">⬇ Template</button>
         <button class="btn-sm" onclick="document.getElementById('insr-xlsx-inp').click()">📊 Ler Planilha</button>
         <input type="file" id="insr-xlsx-inp" accept=".xlsx,.xlsm" style="display:none" onchange="lerPlanilha(this.files[0]);this.value=''">
+        <button class="btn-sm" onclick="document.getElementById('pdf-inp-main').click()" title="Ler saldo de rebanho em PDF">📄 Ler PDF</button>
+        <input type="file" id="pdf-inp-main" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files);this.value=''">
         <select id="insr-uf-ficha" class="btn-sm" style="padding:2px 4px;cursor:pointer;font-size:.75rem">
           <option value="">🗺 UF: Todas</option>
           <option value="MT">MT</option>
@@ -350,7 +579,8 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
           <option value="BA">BA</option>
           <option value="SP">SP</option>
         </select>
-        <button class="btn-sm" onclick="window.location='/api/ficha/download'" title="Baixar planilha CONSOLIDADO com exemplo preenchido">⬇ Baixar Ficha</button>
+          <button class="btn-sm" onclick="window.location='/api/ficha/download'" title="Baixar ficha XLSM com macros">⬇ Baixar Ficha XLSM</button>
+          <button class="btn-sm" onclick="window.location='/api/ficha/instrucoes'" title="Baixar instruções de preenchimento">📄 Instruções</button>
         <button class="btn-sm" onclick="document.getElementById('insr-ficha-inp').click()">📋 Importar Ficha</button>
         <input type="file" id="insr-ficha-inp" accept=".xlsx,.xlsm" style="display:none" onchange="lerFichaExcel(this.files[0]);this.value=''">
         <button class="btn-sm" onclick="toggleGuiaFicha(this)" title="Como preencher o Excel">?</button>
@@ -398,7 +628,7 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
     </div>
     <div class="cb" style="padding:0">
       <table class="itbl">
-        <thead><tr><th>Faixa Etária</th><th class="c"> Fêmeas</th><th class="c"> Machos</th><th class="c">Total Faixa</th><th class="c">% Rebanho</th></tr></thead>
+        <thead><tr><th>Faixa Etária</th><th class="c"> Fêmeas</th><th class="c"> Machos</th><th class="c">Total Faixa</th><th class="c col-pct">% Rebanho</th></tr></thead>
         <tbody id="input-tbody"></tbody>
       </table>
       <div style="padding:18px">
@@ -419,6 +649,15 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
               <div class="field"><label>Taxa Natalidade (%)</label><input type="number" id="c-nat" placeholder="65" min="1" max="100" step="1" oninput="upd()"></div>
               <div class="field"><label>Bois Vendidos (cab.)</label><input type="number" id="c-boisv" placeholder="Automático" min="0" oninput="upd()"></div>
               <div class="field"><label>Bezerros Vendidos (cab.)</label><input type="number" id="c-bezv" placeholder="Automático" min="0" oninput="upd()"></div>
+            </div>
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
+              <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Dados produtivos declarados <span style="opacity:.6">— opcionais; entram na qualidade da análise</span></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
+                <div class="field"><label>Vendas anuais (cab.)</label><input type="number" id="c-vendas" placeholder="Ex: 35" min="0" step="1"></div>
+                <div class="field"><label>Compras/reposição (cab.)</label><input type="number" id="c-compras" placeholder="Ex: 30" min="0" step="1"></div>
+                <div class="field"><label>Peso médio (kg)</label><input type="number" id="c-peso-medio" placeholder="Ex: 420" min="0" step="1"></div>
+                <div class="field"><label>Peso à desmama (kg)</label><input type="number" id="c-peso-desmama" placeholder="Ex: 210" min="0" step="1"></div>
+              </div>
             </div>
             <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
               <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Indicadores para Benchmark Regional (RO) <span style="opacity:.6">— opcional, sem dado usa média regional</span></div>
@@ -457,16 +696,6 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
   <div class="ptitle">Ler PDF do <em>INDEA</em></div>
   <p class="psub">Upload do "Saldo Atual da Exploração". Selecione vários arquivos para somar o rebanho de todas as fazendas.</p>
 
-  <div class="field" style="max-width:320px;margin-bottom:12px">
-    <label for="pdf-estado">Estado da ficha (opcional)</label>
-    <select id="pdf-estado">
-      <option value="">Automático</option><option value="RO">Rondônia (RO)</option>
-      <option value="PA">Pará (PA)</option><option value="MT">Mato Grosso (MT)</option>
-      <option value="GO">Goiás (GO)</option><option value="MA">Maranhão (MA)</option>
-      <option value="TO">Tocantins (TO)</option><option value="MS">Mato Grosso do Sul (MS)</option>
-    </select>
-  </div>
-
   <div class="upzone" id="dz" onclick="document.getElementById('pdf-inp').click()">
     <span class="upzone-icon"></span>
     <h2 class="upzone-title">Carregue o PDF<span></span></h2>
@@ -480,6 +709,7 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 <!-- ═══ RESULTADO ═══ -->
 <div class="panel" id="panel-resultado">
   <div id="result-wrap"></div>
+  <div id="chat-panel" style="display:none;margin-top:16px"></div>
 </div>
 
 <!-- ═══ CENÁRIOS ═══ -->
@@ -988,6 +1218,19 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 </main>
 
 <script>
+const _csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+const _nativeFetch = window.fetch.bind(window);
+window.fetch = (input, init={}) => {
+  const url = typeof input === 'string' ? input : input.url;
+  const method = String(init.method || 'GET').toUpperCase();
+  const sameOrigin = new URL(url, window.location.href).origin === window.location.origin;
+  if(sameOrigin && !['GET','HEAD','OPTIONS'].includes(method)){
+    const headers = new Headers(init.headers || {});
+    headers.set('X-CSRF-Token', _csrfToken);
+    init = {...init, headers};
+  }
+  return _nativeFetch(input, init);
+};
 // ================== VARIAVEIS GLOBAIS ==================
 const FAIXAS=[
   {key:'bez',lF:'Bezerra',         lM:'Bezerro',          l:'0–12 meses',  cF:'#FBBF24',cM:'#F59E0B'},
@@ -1010,10 +1253,10 @@ function setValsFromApi(v10){
   FAIXAS.forEach((f,i)=>{document.getElementById(f.key+'_F').value=d[i][0];document.getElementById(f.key+'_M').value=d[i][1];});
   upd();
 }
-const TC={CRIA:'#4ADE80',RECRIA:'#22D3EE',ENGORDA:'#F87171',CICLO_COMPLETO:'#FBBF24'};
-const TE={CRIA:'🐄',RECRIA:'🐂',ENGORDA:'🥩',CICLO_COMPLETO:'🔄'};
-const TL={CRIA:'CRIA',RECRIA:'RECRIA',ENGORDA:'ENGORDA',CICLO_COMPLETO:'CICLO COMPLETO'};
-const TD={CRIA:'Foco em produção de bezerros. Predomínio de vacas/matrizes adultas, alta taxa de cria.',RECRIA:'Fase de desenvolvimento pós-desmame. Alta concentração 13–24m.',ENGORDA:'Terminação para abate. Machos adultos em peso de corte predominam.',CICLO_COMPLETO:'Todas as fases integradas: cria, recria e terminação na mesma propriedade.'};
+const TC={CRIA:'#4ADE80',RECRIA:'#22D3EE',ENGORDA:'#F87171',CICLO_COMPLETO:'#FBBF24',RECRIA_ENGORDA:'#FB923C',CRIA_RECRIA:'#A78BFA'};
+const TE={CRIA:'🐄',RECRIA:'🐂',ENGORDA:'🥩',CICLO_COMPLETO:'🔄',RECRIA_ENGORDA:'🐂',CRIA_RECRIA:'🐄'};
+const TL={CRIA:'CRIA',RECRIA:'RECRIA',ENGORDA:'ENGORDA',CICLO_COMPLETO:'CICLO COMPLETO',RECRIA_ENGORDA:'RECRIA / ENGORDA',CRIA_RECRIA:'CRIA + RECRIA'};
+const TD={CRIA:'Foco em produção de bezerros. Predomínio de vacas/matrizes adultas, alta taxa de cria.',RECRIA:'Fase de desenvolvimento pós-desmame. Alta concentração 13–24m.',ENGORDA:'Terminação para abate. Machos adultos em peso de corte predominam.',CICLO_COMPLETO:'Todas as fases integradas: cria, recria e terminação na mesma propriedade.',RECRIA_ENGORDA:'Compra magro e termina. Giro alto, retenção muito baixa, receita em boi gordo.',CRIA_RECRIA:'Base de cria com compra de desmama. Produção própria somada a animais adquiridos para recria.'};
 const fN=n=>Math.round(n).toLocaleString('pt-BR');
 const fR=n=>'R$ '+Math.round(n).toLocaleString('pt-BR');
 const fP=n=>(n*100).toFixed(1)+'%';
@@ -1022,15 +1265,15 @@ let _last_pdf_raw = null; // para reprocessamento
 
 // ================== PARÂMETROS POR CICLO ==================
 const DEFAULT_PARAMS_CICLO = {
-  CRIA: { prop_boi:20, renov_boi_pct:15, desc_mat_pct:20, venda_bez_pct:10, nat_pct:65 },
-  RECRIA: { prop_boi:0, renov_boi_pct:0, desc_mat_pct:0, venda_bez_pct:80, nat_pct:65 },
-  ENGORDA: { prop_boi:0, renov_boi_pct:0, desc_mat_pct:0, venda_bez_pct:100, nat_pct:65 },
-  CICLO_COMPLETO: { prop_boi:30, renov_boi_pct:20, desc_mat_pct:30, venda_bez_pct:30, nat_pct:65 }
+  CRIA: { prop_boi:30, renov_boi_pct:20, desc_mat_pct:10, venda_bez_pct:75, nat_pct:70 },
+  RECRIA: { prop_boi:0, renov_boi_pct:0, desc_mat_pct:0, venda_bez_pct:100, nat_pct:70 },
+  ENGORDA: { prop_boi:0, renov_boi_pct:0, desc_mat_pct:0, venda_bez_pct:100, nat_pct:70 },
+  CICLO_COMPLETO: { prop_boi:30, renov_boi_pct:20, desc_mat_pct:10, venda_bez_pct:75, nat_pct:70 }
 };
 let paramsPorCiclo = {};
 
 function initParamsPorCiclo() {
-  const saved = localStorage.getItem('boviml_params_ciclo');
+  const saved = localStorage.getItem('orkavyn_params_ciclo');
   if (saved) {
     try { paramsPorCiclo = JSON.parse(saved); } catch(e) { paramsPorCiclo = cloneDefault(); }
   } else {
@@ -1075,14 +1318,14 @@ function salvarParametrosDoCiclo() {
     venda_bez_pct: parseFloat(document.getElementById('param-vendbez').value) || 0,
     nat_pct: parseFloat(document.getElementById('param-nat').value) || 0
   };
-  localStorage.setItem('boviml_params_ciclo', JSON.stringify(paramsPorCiclo));
+  localStorage.setItem('orkavyn_params_ciclo', JSON.stringify(paramsPorCiclo));
   document.getElementById('param-status').innerHTML = '✓ Salvo para ' + ciclo;
   setTimeout(() => document.getElementById('param-status').innerHTML = '', 3000);
 }
 function resetarParametrosDoCiclo() {
   const ciclo = document.getElementById('ciclo-alvo').value;
   paramsPorCiclo[ciclo] = { ...DEFAULT_PARAMS_CICLO[ciclo] };
-  localStorage.setItem('boviml_params_ciclo', JSON.stringify(paramsPorCiclo));
+  localStorage.setItem('orkavyn_params_ciclo', JSON.stringify(paramsPorCiclo));
   carregarParametrosDoCiclo();
   document.getElementById('param-status').innerHTML = '↺ Padrões restaurados';
 }
@@ -1109,6 +1352,7 @@ function atualizarTituloCiclo() {
 // ================== PRECOS (FALLBACK) ==================
 const _COTACOES_FALLBACK = { boi: 0, vaca: 0 };
 function _fmtValor(v){ const n = Number(v) || 0; return n.toFixed(2) + ' R$'; }
+function escapeHtml(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;'); }
 function showToast(msg, isError=false){ const t = document.getElementById('toast'); if(!t) return; t.textContent = msg; t.classList.toggle('err', !!isError); t.classList.add('show'); clearTimeout(window._toastTimer); window._toastTimer = setTimeout(()=> t.classList.remove('show'), 6000); }
 async function atualizarPrecos(){
   try{ const res = await fetch('/api/precos/live');
@@ -1118,7 +1362,55 @@ async function atualizarPrecos(){
   document.getElementById('hdr-boi').textContent = 'Boi: ' + _fmtValor(_COTACOES_FALLBACK.boi);
   document.getElementById('hdr-vaca').textContent = 'Vaca: ' + _fmtValor(_COTACOES_FALLBACK.vaca);
 }
-document.addEventListener('DOMContentLoaded', ()=>{ atualizarPrecos(); setInterval(atualizarPrecos, 1000 * 60 * 30); });
+document.addEventListener('DOMContentLoaded', ()=>{
+  atualizarPrecos();
+  setInterval(atualizarPrecos, 1000 * 60 * 30);
+
+  // Fundo rebanho — spotlight segue o cursor
+  const bgEl = document.getElementById('bg-rebanho');
+  let hideTimer;
+  document.addEventListener('mousemove', (e)=>{
+    const x = e.clientX, y = e.clientY;
+    const mask = `radial-gradient(circle 220px at ${x}px ${y}px, black 0%, transparent 100%)`;
+    bgEl.style.webkitMaskImage = mask;
+    bgEl.style.maskImage = mask;
+    bgEl.style.opacity = '1';
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(()=>{ bgEl.style.opacity = '0'; }, 2500);
+  });
+  document.addEventListener('mouseleave', ()=>{
+    clearTimeout(hideTimer);
+    bgEl.style.opacity = '0';
+  });
+
+  // Ticker de notícias agropecuárias
+  (async function iniciarTicker(){
+    try {
+      const r = await fetch('/api/noticias');
+      const d = await r.json();
+      if (!d.ok || !d.noticias?.length) return;
+      const inner = document.getElementById('ticker-inner');
+      const track = document.getElementById('ticker-track');
+      // Constrói itens separados por ponto verde
+      const sep = '<span style="color:var(--g);padding:0 12px;opacity:.6">●</span>';
+      const html = d.noticias.map(n => {
+        const safeLink = /^https?:\/\//.test(n.link||'') ? n.link : '#';
+        return `<a href="${safeLink}" target="_blank" rel="noopener" style="color:var(--mu);text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--g)'" onmouseout="this.style.color='var(--mu)'">${escapeHtml(n.titulo)}</a>`;
+      }).join(sep);
+      // Duplica para loop contínuo
+      inner.innerHTML = html + sep + html;
+      // Ajusta velocidade ao comprimento do conteúdo
+      const largura = inner.scrollWidth / 2;
+      const velocidade = Math.max(40, largura / 80); // ~80px/s
+      track.style.animationDuration = velocidade + 's';
+      // Pausa no hover
+      track.addEventListener('mouseenter', () => track.style.animationPlayState = 'paused');
+      track.addEventListener('mouseleave', () => track.style.animationPlayState = 'running');
+    } catch(e) {
+      console.warn('Ticker: falha ao carregar notícias', e);
+    }
+  })();
+});
 
 // ================== BUILD TABLE ==================
 function buildTable(){
@@ -1136,11 +1428,49 @@ function buildTable(){
       <td class="tdc"><input type="number" class="ni nf" id="${f.key}_F" value="0" min="0" oninput="upd()"></td>
       <td class="tdc"><input type="number" class="ni nm" id="${f.key}_M" value="0" min="0" oninput="upd()"></td>
       <td class="tdc tdtot" id="${f.key}_T">0</td>
-      <td class="tdc tdtot" id="${f.key}_P" style="color:var(--mu)">0%</td>
+      <td class="tdc tdtot col-pct" id="${f.key}_P" style="color:var(--mu)">0%</td>
     </tr>`;
   });
   upd();
 }
+// ================== ENDIVIDAMENTO (inventário por credor) ==================
+let _credorSeq = 0;
+function addCredor(inst='', saldo='', parcela=''){
+  const id = ++_credorSeq;
+  const row = document.createElement('div');
+  row.className = 'credor-row';
+  row.id = 'credor-' + id;
+  row.style.cssText = 'display:grid;grid-template-columns:2fr 1.2fr 1.2fr auto;gap:8px;align-items:end;margin-bottom:8px';
+  row.innerHTML = `
+    <div class="field" style="margin:0"><label>Instituição</label>
+      <input type="text" class="cr-inst" value="${inst}" placeholder="Ex: Banco do Brasil"></div>
+    <div class="field" style="margin:0"><label>Saldo devedor (R$)</label>
+      <input type="number" class="cr-saldo" min="0" step="1000" value="${saldo}"></div>
+    <div class="field" style="margin:0"><label>Parcela (R$/mês)</label>
+      <input type="number" class="cr-parcela" min="0" step="100" value="${parcela}" oninput="syncDividasVazio()"></div>
+    <button class="btn-sm" title="Remover" onclick="this.parentElement.remove();syncDividasVazio()"
+            style="height:34px;padding:0 12px">✕</button>`;
+  document.getElementById('dividas-lista').appendChild(row);
+  syncDividasVazio();
+}
+function coletarDividas(){
+  return [...document.querySelectorAll('.credor-row')].map(r=>({
+    instituicao:    r.querySelector('.cr-inst').value.trim(),
+    saldo_devedor:  +r.querySelector('.cr-saldo').value || 0,
+    parcela_mensal: +r.querySelector('.cr-parcela').value || 0,
+  })).filter(d => d.parcela_mensal > 0 || d.saldo_devedor > 0);
+}
+function syncDividasVazio(){
+  const temLinha = coletarDividas().length > 0;
+  const temTotal = (+document.getElementById('dividas_mensais').value || 0) > 0;
+  document.getElementById('dividas-vazio').style.display = (temLinha || temTotal) ? 'none' : '';
+  // O campo agregado só faz sentido quando nada foi discriminado — o backend
+  // já dá precedência ao inventário, e deixar os dois ativos sugere que somam.
+  const agg = document.getElementById('dividas_mensais');
+  agg.disabled = temLinha;
+  agg.parentElement.style.opacity = temLinha ? .45 : 1;
+}
+
 function getVals(){
   const bezF=parseFloat(document.getElementById('bez_F').value)||0;
   const bezM=parseFloat(document.getElementById('bez_M').value)||0;
@@ -1177,11 +1507,43 @@ function upd(){
            +(v[1]+v[3])*pmc;        // bezerros (f00M+f05M): R$/cab
   const tval=document.getElementById('t-val');
   if(tval) tval.textContent=val>0?fR(val):'—';
+  _previaNivel();
+}
+
+// ================== NÍVEL TECNOLÓGICO ==================
+// Espelho de services/nivel_tecnologico.py — só a lotação, que é o que dá para
+// calcular antes de classificar. A produtividade depende das arrobas vendidas,
+// que só existem depois da simulação; ela volta no resultado.
+// Peso vivo por faixa, na ordem do vetor. Mesmos números de PESO_VIVO_FAIXA_KG.
+const PESO_VIVO_FAIXA=[90,100,180,200,280,320,460,560,460,560];
+const KG_POR_UA=450;
+const NIVEL_LOTACAO={media_br:0.7, intensivo:1.6};
+
+function _previaNivel(){
+  const el=document.getElementById('f_area_previa'); if(!el) return;
+  const area=parseFloat(document.getElementById('f_area')?.value)||0;
+  const v=getVals();
+  const ua=v.reduce((s,n,i)=>s+n*PESO_VIVO_FAIXA[i],0)/KG_POR_UA;
+  if(!area||area<=0||ua<=0){
+    el.textContent = ua>0
+      ? `${ua.toFixed(0)} UA no rebanho — informe a área para classificar o nível`
+      : '';
+    el.style.color='var(--mu)';
+    return;
+  }
+  const uaHa=ua/area;
+  let nivel,cor;
+  if(uaHa<NIVEL_LOTACAO.media_br){nivel='Extensivo';cor='var(--am)';}
+  else if(uaHa>=NIVEL_LOTACAO.intensivo){nivel='Intensivo';cor='var(--g)';}
+  else {nivel='Médio';cor='var(--cy)';}
+  el.innerHTML=`${ua.toFixed(0)} UA · <strong style="color:${cor}">${uaHa.toFixed(2)} UA/ha — ${nivel}</strong> `
+    +`<span style="color:var(--mu)">(média Brasil 0,7 · intensivo 1,6)</span>`;
+  el.style.color='var(--sb)';
 }
 
 // ================== EXEMPLOS ==================
 const EX={
-  ciclo: {v:[300,280,400,200,900,1200,250,80,600,40],faz:'Fazenda Modelo',mun:'Sinop - MT',prop:'Exemplo'},
+  ciclo: {v:[120,100,80,70,40,50,150,80,270,40],faz:'Fazenda Modelo',mun:'Sinop - MT',prop:'Exemplo'},
   cria:  {v:[300,280,200,80,100,40,150,10,600,15],faz:'Fazenda Bela Vista',mun:'Alta Floresta - MT',prop:'Exemplo'},
   recria:{v:[50,45,80,70,400,600,100,80,80,20],faz:'Fazenda Santa Fé',mun:'Guarantã - MT',prop:'Exemplo'},
   engorda:{v:[10,8,20,18,50,80,20,120,10,400],faz:'Fazenda Confinamento',mun:'Primavera do Leste - MT',prop:'Exemplo'},
@@ -1201,11 +1563,24 @@ async function classificar(){
     const body={valores:v,fazenda:document.getElementById('f_faz').value,municipio:document.getElementById('f_mun').value,proprietario:document.getElementById('f_prop').value};
     // Cliente cadastrado (opcional) — necessário para persistir o parecer no histórico
     body.fazenda_id=+document.getElementById('f_fazenda_id')?.value||null;
+    // Área de pastagem → lotação e produtividade → nível tecnológico → perfil
+    // de custo. Vai como null quando vazio, e o backend mantém o perfil médio.
+    body.area_pasto_ha=+document.getElementById('f_area')?.value||null;
     // Preços por categoria (cotação do dia, editáveis) — cada um segue seu preço
     body.preco_boi=+document.getElementById('cot-boi')?.value||0;
     body.preco_vaca=+document.getElementById('cot-vaca')?.value||0;
     body.preco_bezerro=+document.getElementById('cot-bezerro')?.value||0;
     body.preco_bezerra=+document.getElementById('cot-bezerra')?.value||0;
+    // Quais desses o analista realmente digitou. Só esses escapam do
+    // diferencial de praça — um preço digitado já é o da região dele, e
+    // ajustá-lo de novo descontaria duas vezes.
+    body.precos_manuais = [
+      ['preco_boi','cot-boi'], ['preco_vaca','cot-vaca'],
+      ['preco_bezerro','cot-bezerro'], ['preco_bezerra','cot-bezerra'],
+    ].filter(([_,id])=>{
+      const el=document.getElementById(id);
+      return el && el.value && el.value !== (el.dataset.auto ?? '');
+    }).map(([chave,_])=>chave);
     // Custo em R$/@ (mesmo input da projeção) e solicitação de crédito
     body.custo_componentes={};
     COMP_DESEMB.forEach(k=>{body.custo_componentes[k]=parseFloat(document.getElementById('cd-'+k)?.value)||0;});
@@ -1224,6 +1599,7 @@ async function classificar(){
     body.carencia_meses=+document.getElementById('credito_carencia').value||0;
     body.juros_aa=(+document.getElementById('credito_juros').value||0)/100;
     body.dividas_mensais=+document.getElementById('dividas_mensais').value||0;
+    body.dividas=coletarDividas();
     body.credito_finalidade=document.getElementById('credito_finalidade').value;
     const natV=document.getElementById('c-nat').value;
     const boisvV=document.getElementById('c-boisv').value;
@@ -1231,6 +1607,14 @@ async function classificar(){
     if(natV!=='') body.taxa_natalidade=parseFloat(natV)/100;
     if(boisvV!=='') body.bois_vendidos=parseFloat(boisvV);
     if(bezvV!=='') body.bezerros_vendidos=parseFloat(bezvV);
+    const vendasV=document.getElementById('c-vendas').value;
+    const comprasV=document.getElementById('c-compras').value;
+    const pesoMedioV=document.getElementById('c-peso-medio').value;
+    const pesoDesmamaV=document.getElementById('c-peso-desmama').value;
+    if(vendasV!=='') body.vendas_anuais=parseFloat(vendasV);
+    if(comprasV!=='') body.compras_reposicao=parseFloat(comprasV);
+    if(pesoMedioV!=='') body.peso_medio_kg=parseFloat(pesoMedioV);
+    if(pesoDesmamaV!=='') body.peso_desmama_kg=parseFloat(pesoDesmamaV);
     const mortV=document.getElementById('c-mort').value;
     const desmV=document.getElementById('c-desm').value;
     const rcV=document.getElementById('c-rc').value;
@@ -1246,7 +1630,11 @@ async function classificar(){
     if(prenhV!=='') body.taxa_prenhez_pct=parseFloat(prenhV);
     if(desembV!=='') body.desembolso_cab_mes=parseFloat(desembV);
     const res=await fetch('/api/classificar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const data=await res.json();
+    // Um 500 devolve HTML, não JSON: sem esta checagem o res.json() lançava,
+    // a exceção subia sem catch e a tela ficava muda — o usuário via só o
+    // spinner sumir, sem resultado e sem mensagem.
+    const data = await lerRespostaJson(res, 'classificar');
+    if(!data) return;
     if(data.erro){showToast(data.erro,true);return}
     lastVals=v;
     window.lastTipo=data.tipo||data.classificacao||'CICLO_COMPLETO';
@@ -1265,6 +1653,11 @@ async function classificar(){
     if (data.classificacao) afterClassificationSync(data.classificacao);
     recalcCiclo();
     runSc();
+  }catch(e){
+    // Rede fora do ar, JSON malformado ou erro inesperado no render: sem este
+    // catch a exceção subia e a tela ficava muda.
+    console.error('[classificar]', e);
+    showToast('Não foi possível concluir a análise: ' + (e && e.message ? e.message : 'erro inesperado'), true);
   }finally{hideLoading()}
 }
 
@@ -1276,19 +1669,23 @@ async function lerPDFsInserir(fileList){
   const somaV=new Array(10).fill(0);
   const fazendas=[];
   let primeiraMeta=null, falhas=0;
-  const estadoPdf=(document.getElementById('pdf-estado')?.value||'').trim();
   const estado=(document.getElementById('insr-estado')?.value||'').trim();
   try{
     for(const file of files){
-      const fd=new FormData();fd.append('pdf',file);if(estadoPdf)fd.append('estado',estadoPdf);
+      const fd=new FormData();fd.append('pdf',file);
       if(estado)fd.append('estado',estado);
       try{
-        const res=await fetch('/api/ler-pdf',{method:'POST',body:fd});
+        const res=await fetch('/api/fichas/importar',{method:'POST',body:fd});
         const data=await res.json();
         if(data.erro){falhas++;showToast(`${file.name}: ${data.erro}`,true);continue}
-        data.valores.forEach((val,i)=>somaV[i]+=(parseFloat(val)||0));
-        fazendas.push(data.fazenda||file.name);
-        if(!primeiraMeta)primeiraMeta=data;
+        const itens = Array.isArray(data.fazendas) && data.fazendas.length
+          ? data.fazendas : [data];
+        for(const item of itens){
+          const valores = Array.isArray(item.valores) ? item.valores : data.valores;
+          (valores||[]).forEach((val,i)=>somaV[i]+=(parseFloat(val)||0));
+          fazendas.push(item.fazenda||file.name);
+          if(!primeiraMeta)primeiraMeta=item;
+        }
         // guarda o raw text do primeiro PDF para reprocessamento
         if(data.texto_raw) _last_pdf_raw = data.texto_raw;
       }catch(e){
@@ -1437,11 +1834,12 @@ function _renderComparativo(fazendas){
     const cat=_catDe(f.animais);
     const isTR=f.is_total_rebanho;
     const bg=isTR?'background:rgba(74,222,128,.06);border-top:1px solid rgba(74,222,128,.2);border-bottom:1px solid rgba(74,222,128,.2);':'';
-    const nome=isTR?`<strong style="color:var(--ve)">∑ ${f.fazenda}</strong>`:f.fazenda;
+    const nomeSeguro=escapeHtml(f.fazenda||'');
+    const nome=isTR?`<strong style="color:var(--ve)">∑ ${nomeSeguro}</strong>`:nomeSeguro;
     const totalStyle=isTR?`${tdN};color:var(--ve);font-weight:800`:`${tdN};color:var(--tx)`;
     return `<tr style="${bg}" id="comp-row-${idx}">
       <td style="${tdL}">${nome}</td>
-      ${hasUF?`<td style="${tdL};text-align:center;font-family:var(--fm);font-size:.68rem;color:var(--mu)">${f.uf||'—'}</td>`:''}
+      ${hasUF?`<td style="${tdL};text-align:center;font-family:var(--fm);font-size:.68rem;color:var(--mu)">${escapeHtml(f.uf||'—')}</td>`:''}
       <td style="${totalStyle}">${fN(f.total)}</td>
       ${cols.map((c,i)=>`<td style="${tdN};color:${c.c};${i===4?'border-left:1px solid var(--b)':''}">${fN(cat[c.k]||0)}</td>`).join('')}
       <td style="padding:4px 6px">
@@ -1498,8 +1896,8 @@ function renderConsistencia(c){
     const s=SEV[f.severidade]||SEV.ok;
     return `<div style="display:flex;gap:10px;padding:10px 12px;border-left:3px solid ${s.c};background:var(--c2);border-radius:8px;margin-bottom:6px">
       <div style="color:${s.c};font-weight:800;flex-shrink:0">${s.i}</div>
-      <div><div style="font-weight:700;font-size:.8rem">${f.titulo}</div>
-      <div style="font-size:.72rem;color:var(--mu);margin-top:2px">${f.mensagem||''}</div></div></div>`;
+      <div><div style="font-weight:700;font-size:.8rem">${escapeHtml(f.titulo||'')}</div>
+      <div style="font-size:.72rem;color:var(--mu);margin-top:2px">${escapeHtml(f.mensagem||'')}</div></div></div>`;
   }).join('');
   el.innerHTML=`<div class="card" style="padding:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
@@ -1520,21 +1918,22 @@ async function lerPDFs(fileList){
   const somaV=new Array(10).fill(0);
   const fazendas=[];
   let primeiraMeta=null, falhas=0;
-  const estadoPdf=(document.getElementById('pdf-estado')?.value||'').trim();
   try{
     for(const file of files){
-      const fd=new FormData();fd.append('pdf',file);if(estadoPdf)fd.append('estado',estadoPdf);
+      const fd=new FormData();fd.append('pdf',file);
       try{
-        const res=await fetch('/api/ler-pdf',{method:'POST',body:fd});
+        const res=await fetch('/api/fichas/importar',{method:'POST',body:fd});
         const data=await res.json();
         if(data.erro){falhas++;showToast(`${file.name}: ${data.erro}`,true);continue}
-        data.valores.forEach((val,i)=>somaV[i]+=(parseFloat(val)||0));
-        if(Array.isArray(data.fazendas)&&data.fazendas.length){
-          data.fazendas.forEach(f=>fazendas.push({nome:f.fazenda||file.name,municipio:data.municipio||'',total:f.total||0,origem:data.origem||'—'}));
-        }else{
-          fazendas.push({nome:data.fazenda||file.name,municipio:data.municipio||'',total:data.total||0,origem:data.origem||'—'});
+        const itens = Array.isArray(data.fazendas) && data.fazendas.length
+          ? data.fazendas : [data];
+        for(const item of itens){
+          const valores = Array.isArray(item.valores) ? item.valores : data.valores;
+          (valores||[]).forEach((val,i)=>somaV[i]+=(parseFloat(val)||0));
+          fazendas.push({nome:item.fazenda||file.name,municipio:item.municipio||'',
+            total:item.total||0,origem:item.origem||data.origem||'—'});
+          if(!primeiraMeta)primeiraMeta=item;
         }
-        if(!primeiraMeta)primeiraMeta=data;
         if(data.texto_raw) _last_pdf_raw = data.texto_raw;
       }catch(e){
         falhas++;showToast(`${file.name}: erro ao processar (${e.message})`,true);
@@ -1550,11 +1949,9 @@ async function lerPDFs(fileList){
       proprietario: primeiraMeta?.proprietario||'',
       origem: fazendas.length===1 ? fazendas[0].origem : 'MÚLTIPLOS',
       fazendas_combinadas: fazendas,
+      avisos: data.avisos||[],
+      erros: data.erros||[],
     });
-    setValsFromApi(somaV);
-    document.getElementById('f_faz').value=fazendas.length===1?fazendas[0].nome:`${fazendas.length} fazendas combinadas`;
-    document.getElementById('f_mun').value=fazendas.length===1?(fazendas[0].municipio||''):'';
-    document.getElementById('f_prop').value=primeiraMeta?.proprietario||'';
     const okMsg=fazendas.length>1 ? `${fazendas.length} PDFs combinados (${fN(totalGeral)} animais no total)` : `PDF carregado: ${fazendas[0].nome} (${fN(totalGeral)} animais)`;
     showToast(falhas?`${okMsg} · ${falhas} arquivo(s) falharam`:okMsg);
   }finally{hideLoading()}
@@ -1564,13 +1961,15 @@ function mostrarPDFPreview(data){
   const v=data.valores;
   const _vd=vApiToDisplay(v);
   const rows=FAIXAS.map((f,i)=>`<tr><td>${f.lF}/${f.lM} <span style="font-size:.6rem;color:var(--mu)">${f.l}</span></td><td class="g">${fN(_vd[i][0])}</td><td class="a">${fN(_vd[i][1])}</td><td class="r">${fN(_vd[i][0]+_vd[i][1])}</td></tr>`).join('');
+  const pendencias=[...(data.erros||[]),...(data.avisos||[])];
+  const painelPendencias=pendencias.length ? '<div style="margin-bottom:16px;padding:10px 12px;border-radius:8px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);color:#FBBF24;font-size:.72rem"><strong>Revisão necessária</strong><ul style="margin:6px 0 0 16px">'+pendencias.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ul></div>' : '';
   const combinadas=data.fazendas_combinadas||[];
   const listaFazendas = combinadas.length>1 ? `
     <div style="margin-bottom:18px">
       <div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:8px">Fazendas combinadas (${combinadas.length})</div>
       <div style="display:flex;flex-direction:column;gap:6px">
         ${combinadas.map(f=>`<div style="display:flex;justify-content:space-between;gap:10px;font-family:var(--fm);font-size:.68rem;padding:6px 10px;background:var(--c2);border-radius:6px;border:1px solid var(--b)">
-          <span>${f.nome}${f.municipio?' · '+f.municipio:''}</span>
+          <span>${escapeHtml(f.nome||'')}${f.municipio?' · '+escapeHtml(f.municipio):''}</span>
           <span style="color:var(--g);font-weight:600">${fN(f.total)} animais</span>
         </div>`).join('')}
       </div>
@@ -1582,7 +1981,7 @@ function mostrarPDFPreview(data){
       <div class="cb">
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
           <div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu)">Origem detectada:</div>
-          <div id="pdf-origem" style="font-family:var(--fb);font-weight:700">${data.origem||'—'}</div>
+          <div id="pdf-origem" style="font-family:var(--fb);font-weight:700">${escapeHtml(data.origem||'—')}</div>
           <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label style="font-family:var(--fm);font-size:.55rem;color:var(--mu)">Reprocessar como</label>
             <select id="pdf-parser-select" style="background:var(--c2);border:1px solid var(--b2);padding:6px;border-radius:6px">
@@ -1593,11 +1992,11 @@ function mostrarPDFPreview(data){
             <button class="btn-sm" onclick="reparsarPDF()">↻ Reprocessar</button>
           </div>
         </div>
-        ${listaFazendas}
+        ${painelPendencias}${listaFazendas}
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px">
-          <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Fazenda</div><div>${data.fazenda||'—'}</div></div>
-          <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Município</div><div>${data.municipio||'—'}</div></div>
-          <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Proprietário</div><div>${data.proprietario||'—'}</div></div>
+          <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Fazenda</div><div>${escapeHtml(data.fazenda||'—')}</div></div>
+          <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Município</div><div>${escapeHtml(data.municipio||'—')}</div></div>
+          <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Proprietário</div><div>${escapeHtml(data.proprietario||'—')}</div></div>
         </div>
         <table class="ytbl">
           <thead><tr><th>Faixa</th><th class="r" style="color:var(--g)">♀ Fêmeas</th><th class="r" style="color:var(--am)">♂ Machos</th><th class="r">Total</th></tr></thead>
@@ -1607,8 +2006,9 @@ function mostrarPDFPreview(data){
         </table>
       </div>
     </div>
-    <button class="btn-p" style="margin-top:16px" onclick="classificarPDF(${JSON.stringify(v)},${JSON.stringify(data)})"><span>🧠 Classificar com Machine Learning</span></button>`;
-  document.getElementById('dz').innerHTML=`<span class="upzone-icon">✅</span><h2 class="upzone-title">PDF carregado: <span>${data.fazenda||'Exploração'}</span></h2><p class="upzone-sub">${fN(data.total)} animais · Clique para carregar outro(s)</p><input type="file" id="pdf-inp" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files)">`;
+    <button class="btn-p" style="margin-top:16px" onclick="classificarPDF(window._pdfPreviewData.valores,window._pdfPreviewData)"><span>🧠 Classificar com Machine Learning</span></button>`;
+  window._pdfPreviewData = data;
+  document.getElementById('dz').innerHTML=`<span class="upzone-icon">✅</span><h2 class="upzone-title">PDF carregado: <span>${escapeHtml(data.fazenda||'Exploração')}</span></h2><p class="upzone-sub">${fN(data.total)} animais · Clique para carregar outro(s)</p><input type="file" id="pdf-inp" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files)">`;
 }
 
 async function reparsarPDF(){
@@ -1631,7 +2031,258 @@ async function classificarPDF(v,meta){
   await classificar();
 }
 
+// ================== GARANTIA E ENDIVIDAMENTO ==================
+// Status, não série: cada cor vem acompanhada de ícone e rótulo, para que o
+// significado nunca dependa só da cor.
+const LTV_COR    = {suficiente:'#4ADE80', ajustada:'#FBBF24', insuficiente:'#F87171'};
+const LTV_ICONE  = {suficiente:'✓', ajustada:'▲', insuficiente:'✕'};
+const LTV_ROTULO = {suficiente:'Garantia folgada', ajustada:'Cobre, sem margem',
+                    insuficiente:'Não cobre o crédito'};
+
+// Selo da praça: aparece antes dos números porque explica todos eles. Sem ele
+// o analista não sabe sobre qual preço o parecer foi feito.
+function renderPraca(reg){
+  if(!reg) return '';
+  const ok = reg.ajustado;
+  const cor = ok ? 'var(--cy)' : 'var(--mu)';
+  const detalhe = ok ? `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px">
+      ${(reg.categorias||[]).map(c=>`
+        <div>
+          <div style="font-family:var(--fm);font-size:.52rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">${escapeHtml(c.categoria.replace('preco_',''))}</div>
+          <div style="font-size:.78rem"><span style="color:var(--mu);text-decoration:line-through">${fR(c.nacional)}</span>
+            <strong style="color:var(--tx);margin-left:6px">${fR(c.regional)}</strong></div>
+        </div>`).join('')}
+    </div>` : '';
+
+  return `<div style="margin-bottom:16px;padding:12px 16px;border:1px solid var(--b);border-left:3px solid ${cor};border-radius:8px;background:var(--c2)">
+    <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+      <span style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu)">Praça dos preços</span>
+      ${reg.uf?`<span style="font-family:var(--fn);font-weight:800;font-size:.95rem;color:${cor}">${escapeHtml(reg.uf)}</span>`:''}
+      ${ok?`<span style="font-family:var(--fm);font-size:.72rem;color:${cor}">${reg.basis_pct>0?'+':''}${reg.basis_pct}% vs indicador nacional</span>`:''}
+    </div>
+    <div style="font-size:.76rem;color:var(--sb);margin-top:5px;line-height:1.55">${escapeHtml(reg.resumo||'')}</div>
+    ${detalhe}
+    <div style="font-size:.68rem;color:var(--mu);margin-top:8px;font-style:italic">
+      Origem: ${escapeHtml(reg.origem||'')}. O indicador CEPEA/ESALQ é praça de ${escapeHtml(reg.uf_referencia||'SP')} —
+      o diferencial é calibração de referência, a recalibrar com série própria.
+    </div>
+  </div>`;
+}
+
+function renderGarantia(g){
+  if(!g || !(g.valor_mercado > 0)) return '';
+  const cor = LTV_COR[g.veredito] || '#8891A5';
+
+  // Meter: uma razão contra um limite. O trilho é um passo mais claro da mesma
+  // cor do preenchimento, para que o estado se leia na barra inteira; as marcas
+  // de política ficam sobre ele. Acima de 100% a barra satura e o número diz o
+  // resto — esticar a escala esconderia a gravidade.
+  const pct = g.ltv == null ? null : Math.min(g.ltv, 100);
+  const meter = g.ltv == null ? '' : `
+    <div style="margin:14px 0 6px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+        <span style="font-family:var(--fm);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu)">LTV sobre valor de execução</span>
+        <span style="font-family:var(--fn);font-weight:900;font-size:1.3rem;color:${cor}">${g.ltv.toFixed(1)}%</span>
+      </div>
+      <div style="position:relative;height:10px;border-radius:5px;background:${cor}22;overflow:hidden">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:${cor};border-radius:5px;
+                    transition:width .7s cubic-bezier(.22,1.62,.36,1)"></div>
+      </div>
+      <div style="position:relative;height:14px;margin-top:2px">
+        <span style="position:absolute;left:${g.ltv_aprovar_pct}%;transform:translateX(-50%);font-family:var(--fm);font-size:.52rem;color:var(--mu)">│${g.ltv_aprovar_pct}%</span>
+        <span style="position:absolute;left:${g.ltv_ressalva_pct}%;transform:translateX(-50%);font-family:var(--fm);font-size:.52rem;color:var(--mu)">│${g.ltv_ressalva_pct}%</span>
+      </div>
+      <div style="margin-top:8px;font-size:.8rem;color:${cor}">
+        <strong>${LTV_ICONE[g.veredito]||''} ${LTV_ROTULO[g.veredito]||''}</strong>
+        <span style="color:var(--sb)"> — ${g.justificativa||''}</span>
+      </div>
+    </div>`;
+
+  // Seis categorias que todas carregam significado → tabela, não gráfico.
+  const linhas = (g.composicao||[]).map(l=>`
+    <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:7px 10px;color:var(--sb)">${l.rotulo}</td>
+      <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${fR(l.valor_mercado)}</td>
+      <td style="padding:7px 10px;text-align:right;color:var(--mu);font-variant-numeric:tabular-nums">−${l.desagio_pct.toFixed(0)}%</td>
+      <td style="padding:7px 10px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">${fR(l.valor_garantia)}</td>
+    </tr>`).join('');
+
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Garantia — Valor de Execução</div></div>
+    <div class="cb">
+      <p style="font-size:.78rem;color:var(--sb);line-height:1.6;margin-bottom:4px">
+        Rebanho em penhor não se realiza pela cotação do dia. Entre a inadimplência e o caixa
+        há apreensão, transporte, risco sanitário e venda forçada. O deságio por categoria
+        reflete quão rápido cada uma vira dinheiro — boi pronto para abate vende na semana,
+        bezerro leva dois anos até a terminação.
+      </p>
+      ${meter}
+      <div style="overflow-x:auto;margin-top:12px">
+        <table style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:440px">
+          <thead><tr style="border-bottom:1px solid var(--b)">
+            <th style="padding:7px 10px;text-align:left;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Categoria</th>
+            <th style="padding:7px 10px;text-align:right;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Mercado</th>
+            <th style="padding:7px 10px;text-align:right;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Deságio</th>
+            <th style="padding:7px 10px;text-align:right;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Execução</th>
+          </tr></thead>
+          <tbody>${linhas}</tbody>
+          <tfoot><tr style="border-top:1px solid var(--b)">
+            <td style="padding:8px 10px;font-weight:800">Total</td>
+            <td style="padding:8px 10px;text-align:right;font-variant-numeric:tabular-nums">${fR(g.valor_mercado)}</td>
+            <td style="padding:8px 10px;text-align:right;color:var(--mu);font-variant-numeric:tabular-nums">−${g.desagio_medio_pct.toFixed(1)}%</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:800;color:${cor};font-variant-numeric:tabular-nums">${fR(g.valor_garantia)}</td>
+          </tr></tfoot>
+        </table>
+      </div>
+      ${g.credito_maximo_garantia > 0 ? `<div style="margin-top:12px;padding:10px 14px;background:var(--c2);border:1px solid var(--b);border-radius:var(--rs);font-size:.78rem;color:var(--sb)">
+        Crédito máximo pela garantia: <strong style="color:var(--g)">${fR(g.credito_maximo_garantia)}</strong>.
+        O limite pela capacidade de pagamento é outro — vale o menor dos dois.
+      </div>` : ''}
+      ${renderMemoria(g,'gar')}
+    </div>
+  </div>`;
+}
+
+function renderEndividamento(e){
+  if(!e) return '';
+  const critico = e.alerta === 'critico';
+  const cor = critico ? '#F87171' : (e.alerta === 'ok' ? '#4ADE80' : '#FBBF24');
+  const icone = critico ? '✕' : (e.alerta === 'ok' ? '✓' : '▲');
+
+  const linhas = (e.itens||[]).map(i=>`
+    <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:7px 10px;color:${i.discriminado?'var(--sb)':'var(--mu)'}">${escapeHtml(i.instituicao||'')}</td>
+      <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${i.saldo_devedor?fR(i.saldo_devedor):'—'}</td>
+      <td style="padding:7px 10px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">${fR(i.parcela_mensal)}</td>
+    </tr>`).join('');
+
+  const tabela = (e.itens||[]).length ? `
+    <div style="overflow-x:auto;margin-top:10px">
+      <table style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:380px">
+        <thead><tr style="border-bottom:1px solid var(--b)">
+          <th style="padding:7px 10px;text-align:left;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Credor</th>
+          <th style="padding:7px 10px;text-align:right;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Saldo devedor</th>
+          <th style="padding:7px 10px;text-align:right;font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">Parcela/mês</th>
+        </tr></thead>
+        <tbody>${linhas}</tbody>
+        <tfoot>
+          <tr style="border-top:1px solid var(--b)">
+            <td style="padding:7px 10px;font-weight:700">Total existente</td>
+            <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${e.saldo_devedor_total?fR(e.saldo_devedor_total):'—'}</td>
+            <td style="padding:7px 10px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">${fR(e.parcela_existente_mensal)}</td>
+          </tr>
+          ${e.parcela_nova_mensal>0?`
+          <tr><td style="padding:7px 10px;color:var(--sb)">(+) Crédito em análise</td><td></td>
+            <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${fR(e.parcela_nova_mensal)}</td></tr>
+          <tr style="border-top:1px solid var(--b)"><td style="padding:8px 10px;font-weight:800">(=) Serviço total mensal</td><td></td>
+            <td style="padding:8px 10px;text-align:right;font-weight:800;color:${cor};font-variant-numeric:tabular-nums">${fR(e.parcela_total_mensal)}</td></tr>`:''}
+        </tfoot>
+      </table>
+    </div>` : '';
+
+  const barra = e.comprometimento_pct == null ? '' : `
+    <div style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+        <span style="font-family:var(--fm);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu)">Comprometimento da geração de caixa</span>
+        <span style="font-family:var(--fn);font-weight:900;font-size:1.3rem;color:${cor}">${e.comprometimento_pct.toFixed(0)}%</span>
+      </div>
+      <div style="position:relative;height:10px;border-radius:5px;background:${cor}22;overflow:hidden">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:${Math.min(e.comprometimento_pct,100)}%;background:${cor};border-radius:5px;
+                    transition:width .7s cubic-bezier(.22,1.62,.36,1)"></div>
+      </div>
+      <div style="position:relative;height:14px;margin-top:2px">
+        <span style="position:absolute;left:${e.limite_alerta_pct}%;transform:translateX(-50%);font-family:var(--fm);font-size:.52rem;color:var(--mu)">│limite ${e.limite_alerta_pct}%</span>
+      </div>
+    </div>`;
+
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Endividamento do Proponente</div></div>
+    <div class="cb">
+      ${tabela}
+      ${barra}
+      <div style="margin-top:10px;font-size:.8rem;color:${critico?cor:'var(--sb)'}">
+        <strong>${icone}</strong> ${e.justificativa||''}
+      </div>
+      <div style="margin-top:8px;font-size:.72rem;color:var(--mu);font-style:italic">
+        Origem: ${e.origem||'declarado'}. Endividamento declarado pelo proponente não substitui
+        consulta ao SCR do Banco Central.
+      </div>
+      ${renderMemoria(e,'end')}
+    </div>
+  </div>`;
+}
+
+// ================== ORIGEM DOS PARÂMETROS ==================
+// Medição se cita, política se discute, referência se questiona, declaração se
+// confere. Antes disso todos apareciam iguais na tela — eram só números.
+const PROV_COR = {medido:'#4ADE80', referencia:'#FBBF24', politica:'#A78BFA', declarado:'#8891A5'};
+
+function renderProveniencia(pv){
+  if(!pv || !(pv.parametros||[]).length) return '';
+  const r = pv.resumo || {}, c = r.contagem || {};
+  const chips = ['medido','referencia','politica','declarado'].map(o=>`
+    <div style="display:flex;align-items:center;gap:7px">
+      <span style="width:9px;height:9px;border-radius:50%;background:${PROV_COR[o]};flex-shrink:0"></span>
+      <span style="font-family:var(--fn);font-weight:800;font-size:1.05rem">${c[o]||0}</span>
+      <span style="font-size:.74rem;color:var(--sb)">${escapeHtml((r.rotulos||{})[o]||o)}</span>
+    </div>`).join('');
+
+  const linhas = pv.parametros.map(d=>`
+    <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:7px 10px;color:var(--sb)">${escapeHtml(d.rotulo||'—')}</td>
+      <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${d.valor}</td>
+      <td style="padding:7px 10px;white-space:nowrap">
+        <span style="width:8px;height:8px;border-radius:50%;background:${PROV_COR[d.origem]};display:inline-block;margin-right:6px"></span>
+        <span style="color:${PROV_COR[d.origem]};font-size:.74rem">${escapeHtml(d.origem_rotulo)}</span>
+      </td>
+      <td style="padding:7px 10px;color:var(--mu);font-size:.74rem">${escapeHtml(d.fonte||'—')}</td>
+    </tr>`).join('');
+
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="ch"><div class="ct"><div class="cd" style="background:${c.medido?PROV_COR.medido:PROV_COR.referencia}"></div>Origem dos Parâmetros</div></div>
+    <div class="cb">
+      <p style="font-size:.78rem;color:var(--sb);line-height:1.6;margin-bottom:12px">
+        ${r.total||0} parâmetros sustentam este parecer. Nem todos têm o mesmo peso:
+        <strong style="color:${PROV_COR.medido}">medição se cita</strong>,
+        <strong style="color:${PROV_COR.politica}">política se discute</strong>,
+        <strong style="color:${PROV_COR.referencia}">referência se questiona</strong>,
+        <strong style="color:${PROV_COR.declarado}">declaração se confere</strong>.
+      </p>
+      <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:14px">${chips}</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:520px">
+          <thead><tr style="border-bottom:1px solid var(--b)">
+            ${['Parâmetro','Valor','Origem','Fonte'].map((h,i)=>`<th style="padding:7px 10px;text-align:${i===1?'right':'left'};font-family:var(--fm);font-size:.55rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu)">${h}</th>`).join('')}
+          </tr></thead>
+          <tbody>${linhas}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
 // ================== RENDER RESULTADO ==================
+function renderAnalisesCredito(data, parecer){
+  const a=(parecer&&parecer.analises_credito)||data.analises_credito;
+  if(!a) return '';
+  const docs=(parecer&&parecer.documentos_credito)||data.documentos_credito||{};
+  const rating=(parecer&&parecer.rating)||data.rating||{};
+  const ratingColor={A:'#4ADE80',B:'#86EFAC',C:'#FBBF24',D:'#FB923C',E:'#F87171'}[rating.faixa]||'#8891A5';
+  const labels={capacidade_pagamento:'Capacidade de pagamento',risco_credito:'Risco de crédito',garantia:'Garantia'};
+  const statusLabel={aprovada:'ADEQUADA',ressalva:'RESSALVA',reprovada:'INSUFICIENTE',baixo:'BAIXO',medio:'MÉDIO',alto:'ALTO',suficiente:'SUFICIENTE',insuficiente:'INSUFICIENTE',nao_avaliada:'NÃO AVALIADA'};
+  const color=s=>({aprovada:'#4ADE80',baixo:'#4ADE80',suficiente:'#4ADE80',ressalva:'#FBBF24',medio:'#FBBF24',reprovada:'#F87171',alto:'#F87171',insuficiente:'#F87171'}[s]||'#8891A5');
+  return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:#60A5FA"></div>Três dimensões da análise</div><div style="font-size:.72rem;color:${ratingColor};font-weight:800">RATING ${rating.faixa||'—'} · ${rating.score??'—'}/100</div></div><div class="cb analises-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+    ${Object.entries(labels).map(([k,l])=>{const x=a[k]||{},s=x.status||'nao_avaliada',co=color(s);return `<div style="border:1px solid ${co}55;border-radius:10px;padding:14px;background:${co}0D"><div style="font-size:.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">${l}</div><div style="font-size:1.05rem;font-weight:800;color:${co};margin:7px 0">${statusLabel[s]||s}</div><div style="font-size:.75rem;color:var(--sb);line-height:1.45">${k==='capacidade_pagamento'?(x.dscr!=null?'DSCR: '+x.dscr:'Sem crédito informado'):k==='risco_credito'?`Confiança: ${x.confianca_classificacao!=null?(x.confianca_classificacao*100).toFixed(0)+'%':'—'} · Consistência: ${x.score_consistencia??'—'}`:`LTV: ${x.ltv!=null?x.ltv+'%':'—'} · Execução: ${x.valor_execucao!=null?fR(x.valor_execucao):'—'}`}</div></div>`}).join('')}
+  </div><div style="padding:0 14px 14px;color:var(--mu);font-size:.7rem">A análise é uma pré-avaliação de apoio à consultoria. Confirme documentos, pesos, custos, dívidas e movimentações antes da decisão final.</div>
+  ${docs.pendentes?.length?`<div style="margin:0 14px 14px;padding:11px 13px;border:1px solid rgba(251,191,36,.35);border-radius:9px;background:rgba(251,191,36,.06);font-size:.72rem;color:var(--sb)"><strong style="color:#FBBF24">Documentos pendentes</strong><br>${docs.pendentes.map(d=>'• '+d.descricao).join('<br>')}</div>`:''}</div>`;
+}
+function renderFluxoMensal(data, parecer){
+  const f=(parecer&&parecer.fluxo_mensal)||data.fluxo_mensal;
+  if(!f||!f.meses?.length) return '';
+  const c=f.mes_critico;
+  return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:#A78BFA"></div>Fluxo mensal para crédito</div></div><div class="cb" style="display:flex;gap:18px;flex-wrap:wrap;font-size:.78rem;color:var(--sb)"><span>Saldo mínimo: <strong style="color:${f.saldo_minimo>=0?'var(--g)':'var(--rd)'}">${fR(f.saldo_minimo)}</strong></span><span>Mês crítico: <strong>${c?`Ano ${c.ano}, mês ${c.mes}`:'—'}</strong></span><span style="color:var(--mu)">Distribuição estimada; informe calendário real para decisão final.</span></div></div>`;
+}
 function renderParecer(data){
   const p=data.parecer; if(!p) return '';
   window._lastParecer = p;
@@ -1639,27 +2290,37 @@ function renderParecer(data){
   const LBL={aprovar:'APROVAR',ressalva:'APROVAR COM RESSALVA',negar:'NEGAR'};
   const cor={aprovar:'#4ADE80',ressalva:'#FBBF24',negar:'#F87171'}[c.recomendacao]||'#8891A5';
   const capMax = c.capacidade_maxima;
-  const _vrLtv = (data.fluxo_gep||{}).valor_rebanho_ini || 0;
-  const _creditoLtv = +document.getElementById('credito_valor')?.value || 0;
-  const ltv = (_vrLtv > 0 && _creditoLtv > 0) ? (_creditoLtv / _vrLtv * 100) : null;
+  // O LTV vem do servidor, calculado sobre o valor de EXECUÇÃO (com deságio por
+  // categoria). Antes era calculado aqui contra o valor de mercado cheio, o que
+  // superestimava a cobertura — rebanho em penhor não se realiza pela cotação
+  // do dia.
+  const gar = p.garantia || {};
+  const ltv = (gar.ltv != null) ? gar.ltv : null;
 
   // Veredicto em banner grande com faixa KPI
   const concl = c.recomendacao ? (() => {
     const ncols = 3 + (capMax > 0 ? 1 : 0) + (ltv !== null ? 1 : 0);
-    const ltvCor = ltv <= 50 ? '#4ADE80' : ltv <= 80 ? '#FBBF24' : '#F87171';
+    const ltvCor = LTV_COR[gar.veredito] || '#8891A5';
     return `<div style="border-radius:12px;overflow:hidden;border:1px solid ${cor}33;margin-bottom:16px">
       <div style="background:${cor}15;padding:26px 24px 20px;text-align:center">
-        <div style="font-family:var(--fn);font-weight:900;font-size:3.2rem;letter-spacing:-1px;line-height:1;color:${cor}">${LBL[c.recomendacao]||c.recomendacao}</div>
+        <div style="font-family:var(--fn);font-weight:900;font-size:3.2rem;letter-spacing:-1px;line-height:1;color:${cor}">${c.nivel_recomendacao_label||LBL[c.recomendacao]||c.recomendacao}</div>
         <div style="font-family:var(--fm);font-size:.58rem;color:var(--mu);margin-top:6px;letter-spacing:2px;text-transform:uppercase">Parecer de Capacidade de Pagamento</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(${ncols},1fr);gap:1px;background:${cor}22">
         <div style="background:var(--c);padding:13px 14px;text-align:center">
-          <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">DSCR</div>
-          <div style="font-family:var(--fn);font-weight:900;font-size:1.8rem;letter-spacing:-.5px;color:${cor}">${c.dscr}</div>
+          <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">${
+            c.dscr_minimo!=null && c.dscr_minimo!==c.dscr_ano1 ? `DSCR · ano ${c.ano_critico}` : 'DSCR'
+          }</div>
+          <div style="font-family:var(--fn);font-weight:900;font-size:1.8rem;letter-spacing:-.5px;color:${cor}">${
+            c.dscr_minimo!=null ? c.dscr_minimo : c.dscr
+          }</div>
+          ${c.dscr_minimo!=null && c.dscr_minimo!==c.dscr_ano1
+            ? `<div style="font-family:var(--fm);font-size:.5rem;color:var(--mu);margin-top:3px">ano 1: ${c.dscr_ano1}</div>` : ''}
         </div>
         ${ltv !== null ? `<div style="background:var(--c);padding:13px 14px;text-align:center">
-          <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">LTV</div>
+          <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">LTV · execução</div>
           <div style="font-family:var(--fn);font-weight:900;font-size:1.8rem;letter-spacing:-.5px;color:${ltvCor}">${ltv.toFixed(1)}%</div>
+          <div style="font-family:var(--fm);font-size:.5rem;color:var(--mu);margin-top:3px">${LTV_ICONE[gar.veredito]||''} ${gar.veredito||''}</div>
         </div>` : ''}
         <div style="background:var(--c);padding:13px 14px;text-align:center">
           <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Parcela/Mês</div>
@@ -1676,6 +2337,7 @@ function renderParecer(data){
       </div>
       <div style="padding:12px 18px;background:var(--c);border-top:1px solid var(--b)">
         <div style="font-size:.84rem;color:var(--sb)">${c.justificativa||''}</div>
+        ${renderMemoria(c)}
       </div>
     </div>`;
   })() : `<div style="padding:14px;border-radius:10px;border:1px dashed var(--b);color:var(--mu);font-size:.8rem;margin-bottom:16px">Informe a Solicitação de Crédito na aba de entrada para gerar a conclusão de capacidade de pagamento.</div>`;
@@ -1687,9 +2349,12 @@ function renderParecer(data){
   const varESinal = varE >= 0 ? '+' : '';
   const fluxoGep = gep.receita_vendas ? `
     <div style="margin-top:0;padding:16px;border-radius:10px;border:1px solid var(--b);background:var(--bg2);margin-bottom:12px">
-      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">Fluxo de Caixa Completo — Método GEP</div>
+      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">Fluxo de Caixa Completo</div>
       <div style="display:grid;gap:4px;font-size:.82rem">
         ${mr2('(+) Receita de vendas', fR(gep.receita_vendas), 'g')}
+        ${gep.custo_manutencao != null ? mr2('(−) Manutenção do plantel', fR(gep.custo_manutencao), 'r') : ''}
+        ${gep.resultado_antes_reposicao != null ? mr2('(=) Resultado antes da reposição', fR(gep.resultado_antes_reposicao), gep.resultado_antes_reposicao>=0?'g':'r', true) : ''}
+        ${gep.custo_reposicao > 0 ? mr2('(−) Compra de animais para reposição', fR(gep.custo_reposicao), 'r') : ''}
         ${mr2('(−) Custo caixa (desembolso)', fR(gep.custo_operacional), 'r')}
         ${gep.reposicao_reprodutores > 0 ? mr2('(−) Reposição de reprodutores', fR(gep.reposicao_reprodutores), 'r') : ''}
         ${mr2('(=) Resultado operacional (caixa)', fR(gep.resultado_operacional), gep.resultado_operacional>=0?'g':'r', true)}
@@ -1698,24 +2363,77 @@ function renderParecer(data){
         ${gep.servico_divida_anual > 0 ? mr2('(−) Serviço da dívida (anual)', fR(gep.servico_divida_anual), 'r') : ''}
         ${gep.fluxo_livre != null ? mr2('(=) Fluxo livre após dívida', fR(gep.fluxo_livre), gep.fluxo_livre>=0?'g':'r', true) : ''}
       </div>
+      ${gep.compra_desmama_estimada ? `<div style="margin-top:10px;padding:10px 14px;background:var(--c2);border:1px solid var(--b);border-left:3px solid var(--am);border-radius:var(--rs);font-size:.76rem;color:var(--sb);line-height:1.6">
+        <strong style="color:var(--am)">Suposição — compra de desmama.</strong>
+        A coorte de 0–12 meses excede a produção própria em <strong>${gep.compra_desmama_estimada} animais</strong>, que só podem ter sido comprados.
+        ${gep.repoe_compra_desmama
+          ? `A projeção <strong>mantém</strong> essa compra todo ano (${fR(gep.custo_compra_desmama)} no ano 1), preservando a estrutura do rebanho.`
+          : `A projeção assume que o produtor <strong>deixa de comprar</strong>: não há custo de aquisição, mas o rebanho converge para a produção própria — e é isso que explica a variação de estoque negativa.`}
+        As duas leituras são legítimas e dão pareceres diferentes.
+      </div>` : ''}
+      ${(() => {
+        // Nível tecnológico: mostra a lotação medida, o perfil de custo que
+        // ela escolheu e as âncoras nacionais. Sem área, diz que não
+        // classificou — em vez de sumir e deixar o analista achar que o
+        // sistema levou o nível em conta.
+        const nt = (data.nivel_tecnologico)||null;
+        if(!nt) return '';
+        const NC={extensivo:'var(--am)',medio:'var(--cy)',intensivo:'var(--g)',indefinido:'var(--mu)'};
+        const cor=NC[nt.nivel]||'var(--mu)';
+        const PERFIL={extensivo:'perfil extensivo (+25%)',media:'perfil médio',top:'perfil top rentáveis'};
+        const indef = nt.nivel==='indefinido';
+        return `<div style="margin-top:8px;background:var(--c);border-radius:8px;border:1px solid var(--b);padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:170px">
+            <div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">Nível tecnológico</div>
+            <div style="font-family:var(--fn);font-weight:800;font-size:1.3rem;color:${cor}">${nt.rotulo}</div>
+            <div style="font-family:var(--fm);font-size:.55rem;color:var(--mu)">${PERFIL[nt.perfil_custo]||''}</div>
+          </div>
+          <div style="flex:1;min-width:170px">
+            ${indef
+              ? `<div style="font-family:var(--fm);font-size:.6rem;color:var(--mu);line-height:1.5">Informe a <strong>área de pastagem</strong> para classificar. Sem ela o custo segue o perfil médio.</div>`
+              : `<div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">Lotação · Produtividade</div>
+                 <div style="font-family:var(--fn);font-weight:700;font-size:1rem;color:var(--sb)">${nt.ua_ha} UA/ha${nt.arrobas_ha_ano?` · ${nt.arrobas_ha_ano} @/ha`:''}</div>
+                 <div style="font-family:var(--fm);font-size:.55rem;color:var(--mu)">${nt.ua} UA em ${fN(nt.area_pasto_ha)} ha · média BR 0,7 UA/ha e 4,77 @/ha</div>`}
+          </div>
+        </div>
+        ${nt.divergencia?`<div class="cb" style="margin-top:6px;border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.06);font-size:.72rem;line-height:1.6">
+          <strong style="color:var(--am)">Lotação alta, produção baixa.</strong> ${nt.divergencia.texto}
+        </div>`:''}`;
+      })()}
       ${(() => {
         const cb = gep.coe_benchmark;
         if(!cb) return '';
-        const NCOR = {excelente:'var(--g)',bom:'var(--cy)',atencao:'var(--am)',alto:'var(--rd)'};
-        const NLBL = {excelente:'Excelente',bom:'Bom',atencao:'Atenção',alto:'Acima'};
+        const NCOR = {excelente:'var(--g)',bom:'var(--cy)',dentro:'var(--cy)',atencao:'var(--am)',alto:'var(--rd)'};
+        const NLBL = {excelente:'Excelente',bom:'Bom',dentro:'Na faixa',atencao:'Atenção',alto:'Acima'};
         const cor = NCOR[cb.nivel] || 'var(--mu)';
-        const sinal = cb.delta_pct >= 0 ? '+' : '';
+        // A referência é a faixa entre os painéis publicados da modalidade.
+        // Com um painel só a faixa degenera no ponto — e aí mostra-se o ponto,
+        // porque anunciar "faixa" onde há uma medição só promete uma dispersão
+        // que ninguém apurou.
+        const temFaixa = cb.faixa_paineis && (cb.n_paineis || 1) > 1;
+        const rotuloRef = temFaixa
+          ? `Faixa Campo Futuro (${cb.n_paineis} painéis)`
+          : 'Referência Campo Futuro';
+        const valorRef = temFaixa
+          ? `${fR(cb.faixa_paineis[0])} – ${fR(cb.faixa_paineis[1])}`
+          : fR(cb.coe_referencia);
+        // Dentro da faixa o delta é zero por construção: dizer "+0% vs teto"
+        // parece precisão e é só ruído.
+        const veredito = cb.delta_pct > 0
+          ? `<span style="font-size:.8rem">+${cb.delta_pct}% ${temFaixa ? 'do teto' : 'vs ref'}</span>`
+          : '';
         return `<div style="margin-top:8px;background:var(--c);border-radius:8px;border:1px solid var(--b);padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div style="flex:1;min-width:160px">
             <div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">COE calculado (R$/@·vendida)</div>
             <div style="font-family:var(--fn);font-weight:800;font-size:1.3rem;color:${cor}">${fR(cb.coe_calculado)}</div>
+            <div style="font-family:var(--fm);font-size:.55rem;color:var(--mu)">${cb.base || ''}</div>
           </div>
           <div style="flex:1;min-width:160px">
-            <div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">Referência Campo Futuro 2025</div>
-            <div style="font-family:var(--fn);font-weight:700;font-size:1rem;color:var(--sb)">${fR(cb.coe_referencia)}<span style="font-family:var(--fm);font-size:.65rem;color:var(--mu);font-weight:400;margin-left:6px">${cb.local_ref}</span></div>
+            <div style="font-family:var(--fm);font-size:.57rem;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px">${rotuloRef}</div>
+            <div style="font-family:var(--fn);font-weight:700;font-size:1rem;color:var(--sb)">${valorRef}<span style="font-family:var(--fm);font-size:.65rem;color:var(--mu);font-weight:400;margin-left:6px">${temFaixa ? 'praça: ' : ''}${cb.local_ref}</span></div>
           </div>
           <div style="text-align:right">
-            <div style="font-family:var(--fn);font-weight:800;font-size:1rem;color:${cor}">${NLBL[cb.nivel]||''} <span style="font-size:.8rem">${sinal}${cb.delta_pct}% vs ref</span></div>
+            <div style="font-family:var(--fn);font-weight:800;font-size:1rem;color:${cor}">${NLBL[cb.nivel]||''} ${veredito}</div>
             <div style="font-family:var(--fm);font-size:.57rem;color:var(--mu)">${cb.fonte}</div>
           </div>
         </div>`;
@@ -1752,13 +2470,84 @@ function renderParecer(data){
       })()}
     </div>` : '';
 
+  // ── Projeção multianual — cenário conservador ──────────────────────────────
+  const proj = data.projecao_anos || [];
+  const projecaoHtml = proj.length ? (() => {
+    const maxRes = Math.max(...proj.map(a => Math.abs(a.resultado)), 1);
+    const barras = proj.map(a => {
+      const pos = a.resultado >= 0;
+      const h = Math.round(Math.abs(a.resultado) / maxRes * 80);
+      const cor = pos ? 'var(--g)' : 'var(--rd)';
+      const dscrBadge = a.dscr != null
+        ? `<div style="font-size:.48rem;padding:1px 4px;border-radius:3px;margin-top:2px;background:${a.dscr>=1.3?'rgba(74,222,128,.15)':a.dscr>=1.0?'rgba(251,191,36,.15)':'rgba(248,113,113,.15)'};color:${a.dscr>=1.3?'var(--g)':a.dscr>=1.0?'var(--am)':'var(--rd)'}">DSCR ${a.dscr}</div>`
+        : '';
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0">
+        <div style="font-size:.48rem;color:${cor};font-weight:700">${fR(a.resultado)}</div>
+        <div style="width:85%;height:${Math.max(h,4)}px;background:${cor};border-radius:3px 3px 0 0;min-height:4px"></div>
+        <div style="font-size:.5rem;color:var(--mu)">Ano ${a.ano}</div>
+        ${dscrBadge}
+      </div>`;
+    }).join('');
+
+    // Produção sobre venda: quanto do que a fazenda vendeu no ano ela também
+    // PRODUZIU (definição EXAGRO: variação de estoque + vendas − compras, em
+    // arroba). Abaixo de 100% ela está vendendo estoque, não safra — e o ano 1
+    // fica sempre baixo de propósito, porque liquida o rebanho declarado.
+    const prodCor = a => a.producao_sobre_venda_pct == null ? 'var(--mu)'
+      : a.producao_sobre_venda_pct >= 95 ? 'var(--g)'
+      : a.producao_sobre_venda_pct >= 70 ? 'var(--am)' : 'var(--rd)';
+    const prodTitulo = a => a.arrobas_produzidas == null ? ''
+      : `Produziu ${fN(a.arrobas_produzidas)}@ e vendeu ${fN(a.arrobas_vendidas)}@. `
+        + (a.producao_sobre_venda_pct < 100
+           ? 'Abaixo de 100% a fazenda vende mais do que produz — está consumindo estoque.'
+           : 'Produz o que vende ou mais: o plantel não está sendo consumido.');
+
+    const linhas = proj.map(a => {
+      const mCor = a.margem_pct >= 15 ? 'var(--g)' : a.margem_pct >= 0 ? 'var(--am)' : 'var(--rd)';
+      const dscrCor = a.dscr == null ? 'var(--mu)' : a.dscr >= 1.3 ? 'var(--g)' : a.dscr >= 1.0 ? 'var(--am)' : 'var(--rd)';
+      return `<tr style="border-bottom:1px solid var(--b)">
+        <td style="font-family:var(--fm);font-size:.72rem;padding:7px 10px">Ano ${a.ano}</td>
+        <td class="r" style="padding:7px 10px">${fN(a.rebanho)}</td>
+        <td class="r col-prod" style="padding:7px 10px;color:${prodCor(a)}" title="${prodTitulo(a)}">${a.producao_sobre_venda_pct != null ? a.producao_sobre_venda_pct + '%' : '—'}</td>
+        <td class="g r" style="padding:7px 10px">${fR(a.receita)}</td>
+        <td class="r2 r" style="padding:7px 10px">${fR(a.custo)}</td>
+        <td class="r" style="padding:7px 10px;font-weight:700;color:${a.resultado>=0?'var(--g)':'var(--rd)'}">${fR(a.resultado)}</td>
+        <td class="r" style="padding:7px 10px;color:${mCor}">${a.margem_pct}%</td>
+        ${a.dscr != null ? `<td class="r" style="padding:7px 10px;font-weight:700;color:${dscrCor}">${a.dscr}</td>` : '<td class="r" style="padding:7px 10px;color:var(--mu)">—</td>'}
+      </tr>`;
+    }).join('');
+
+    const temDscr = proj.some(a => a.dscr != null);
+    return `<div style="margin-bottom:16px">
+      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Projeção Multianual — Cenário Conservador</div>
+      <div style="background:var(--bg2);border:1px solid var(--b);border-radius:10px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:flex-end;gap:8px;height:110px">${barras}</div>
+      </div>
+      <div style="overflow-x:auto;border-radius:10px;border:1px solid var(--b)">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:var(--bg2)">
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:left;color:var(--mu)">Período</th>
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">Rebanho</th>
+            <th class="col-prod" style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)" title="Arroba produzida ÷ arroba vendida no ano. Abaixo de 100% a fazenda está vendendo estoque.">Produz/vende</th>
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--g)">Receita</th>
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--rd)">Custo</th>
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">Resultado</th>
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">Margem</th>
+            ${temDscr ? '<th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">DSCR</th>' : ''}
+          </tr></thead>
+          <tbody>${linhas}</tbody>
+        </table>
+      </div>
+    </div>`;
+  })() : '';
+
   // Sensibilidade de preço — 3 cards lado a lado
   const sens = data.sensibilidade || [];
   const SREC = {aprovar:'#4ADE80', ressalva:'#FBBF24', negar:'#F87171'};
   const SLBL = {aprovar:'APROVAR', ressalva:'RESSALVA', negar:'NEGAR'};
   const sensHtml = sens.length ? `
     <div>
-      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Sensibilidade de Preço — Cenário Conservador</div>
+      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Sensibilidade de Preço — Cenário Conservador<span style="font-family:var(--fm);font-size:.52rem;letter-spacing:.5px;text-transform:none;color:var(--mu);margin-left:8px">— DSCR do ano crítico do prazo, o mesmo da recomendação</span></div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
         ${sens.map(s=>{
           const isDown = s.variacao_pct < 0, isUp = s.variacao_pct > 0, isBase = s.variacao_pct === 0;
@@ -1794,7 +2583,7 @@ function renderParecer(data){
   const sensCusto = data.sensibilidade_custo || [];
   const sensCustoHtml = sensCusto.length ? `
     <div style="margin-top:16px">
-      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Sensibilidade de Custo — Cenário Conservador</div>
+      <div style="font-family:var(--fn);font-size:.68rem;font-weight:700;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Sensibilidade de Custo — Cenário Conservador<span style="font-family:var(--fm);font-size:.52rem;letter-spacing:.5px;text-transform:none;color:var(--mu);margin-left:8px">— DSCR do ano 1; a recomendação do parecer usa o ano crítico do prazo</span></div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
         ${sensCusto.map(s=>{
           const isDown=s.variacao_pct<0, isUp=s.variacao_pct>0, isBase=s.variacao_pct===0;
@@ -1829,8 +2618,11 @@ function renderParecer(data){
   return `<div class="card" style="margin-bottom:24px">
     <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Parecer de Crédito</div>
       <button class="btn-sm" onclick="baixarPdfParecer(window._lastParecer)">⬇ Baixar PDF</button></div>
-    <div class="cb" style="display:grid;gap:0">${concl}${fluxoGep}${sensHtml}${sensCustoHtml}</div>
-  </div>`;
+    <div class="cb" style="display:grid;gap:0">${renderAnalisesCredito(data,p)}${renderFluxoMensal(data,p)}${renderPraca(p.precos_regional)}${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
+  </div>
+  ${renderGarantia(p.garantia)}
+  ${renderEndividamento(p.endividamento)}
+  ${renderProveniencia(p.proveniencia)}`;
 }
 
 function renderResult(data){
@@ -1866,7 +2658,7 @@ function renderResult(data){
 
   const recs=getRecs(tipo,ind);
 
-  const tipoCards=['CRIA','RECRIA','ENGORDA','CICLO_COMPLETO'].map(t=>{
+  const tipoCards=['CRIA','RECRIA','ENGORDA','CICLO_COMPLETO','RECRIA_ENGORDA','CRIA_RECRIA'].map(t=>{
     const sel=t===tipo;
     return`<div class="tc" style="${sel?`border-color:${TC[t]};background:${TC[t]}12;border-width:2px`:''}">
       ${sel?`<div class="tc-sel" style="background:${TC[t]}25;color:${TC[t]}">← IDENTIFICADO</div>`:''}
@@ -1880,47 +2672,45 @@ function renderResult(data){
     <div class="rhero" style="border-color:${col}40;background:${col}08">
       <div class="rhero-grid">
         <div>
-          <div class="rhero-ey">Tipo de Exploração · ${faz} · ${mun}</div>
+          <div class="rhero-ey">Tipo de Exploração · ${escapeHtml(faz)} · ${escapeHtml(mun)}</div>
           <div class="rhero-tipo" style="color:${col}">${TL[tipo]}</div>
-          <div class="rhero-sub">${prop} &nbsp;·&nbsp; Confiança: ${data.confianca}%</div>
+          <div class="rhero-sub">${escapeHtml(prop)} &nbsp;·&nbsp; Confiança: ${data.confianca}%${
+            data.origem_decisao==='regra' && data.confianca_ml!==data.confianca
+              ? ` <span style="opacity:.65;font-size:.9em">(modelo ML: ${data.confianca_ml}%)</span>` : ''
+          }</div>
+          ${(()=>{
+            const chips=[];
+            if(data.origem_decisao==='regra'){
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--am);background:rgba(251,191,36,.1)">⚖ regra determinística: ${escapeHtml(data.regra_aplicada||'')}</span>`);
+            } else if(data.origem_decisao==='composicao_modelo'){
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--am);background:rgba(251,191,36,.1)">📋 inferido pela composição da ficha</span>`);
+            } else {
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(74,222,128,.35);color:var(--g);background:rgba(74,222,128,.1)">🧠 decidido pelo modelo ML</span>`);
+            }
+            const at=data.atipicidade;
+            if(at && at.nivel!=='tipico'){
+              const c = at.nivel==='muito_atipico' ? 'var(--rd)' : 'var(--am)';
+              const rgb = at.nivel==='muito_atipico' ? '248,113,113' : '251,191,36';
+              chips.push(`<span title="${escapeHtml(at.mensagem||'')}" style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(${rgb},.35);color:${c};background:rgba(${rgb},.1)">📊 rebanho ${at.nivel==='muito_atipico'?'muito atípico':'atípico'} · revisão recomendada</span>`);
+            }
+            return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${chips.join('')}</div>`;
+          })()}
+          ${data.classificacao_limitada ? `
+            <div style="margin-top:12px;padding:11px 13px;border:1px solid rgba(251,191,36,.38);border-radius:9px;background:rgba(251,191,36,.08);color:var(--sb);font-size:.76rem;line-height:1.5">
+              <b style="color:var(--am)">Classificação limitada:</b>
+              o ciclo inferido é <b>${escapeHtml(TL[data.tipo]||data.tipo||'')}</b>,
+              mas faltam ${escapeHtml((data.dados_faltantes||[]).join(', ')||'dados de produção')}.
+              Confirme esta informação antes de usar o resultado.
+            </div>` : ''}
           <div style="margin-top:22px">${confBars}</div>
         </div>
         <div class="rhero-em">${TE[tipo]}</div>
       </div>
     </div>
 
-    ${(()=>{
-      const shapData=data.shap_explicacao||{};
-      const fatores=shapData.fatores||[];
-      if(!fatores.length) return '';
-      const maxPct=Math.max(...fatores.map(f=>f.importancia_pct),1);
-      return `<div class="card" style="margin-bottom:24px">
-        <div class="ch"><div class="ct"><div class="cd" style="background:${col}"></div>
-          Fatores da Classificação (SHAP)
-          <span style="font-family:var(--fm);font-size:.56rem;opacity:.4;margin-left:8px;letter-spacing:.5px">CMN 4.966/2021</span>
-        </div></div>
-        <div class="cb">
-          <div style="font-family:var(--fm);font-size:.6rem;letter-spacing:.5px;opacity:.5;margin-bottom:16px;text-transform:uppercase">
-            Por que <b style="color:${col};opacity:1">${TL[tipo]}</b>? — fatores mais determinantes
-          </div>
-          ${fatores.map(f=>{
-            const pos=f.direcao==='positivo';
-            const cor=pos?'#4ADE80':'#F87171';
-            const w=Math.round(f.importancia_pct/maxPct*100);
-            return `<div class="cbar">
-              <div class="cbar-l" style="width:180px;text-transform:none;font-size:.58rem;opacity:.8">${f.feature}</div>
-              <div class="cbar-t" style="height:8px">
-                <div class="cbar-f" data-w="${w}" style="background:${cor};width:0%"></div>
-              </div>
-              <div class="cbar-p" style="width:56px;color:${cor}">${pos?'+':'−'}${f.importancia_pct}%</div>
-            </div>`;
-          }).join('')}
-          <div style="font-family:var(--fm);font-size:.5rem;opacity:.28;margin-top:14px;line-height:1.6">
-            ${shapData.metodo||''}<br>${shapData.conformidade||''}
-          </div>
-        </div>
-      </div>`;
-    })()}
+    ${renderTransparencia(data)}
+
+    ${data.shap_pendente ? shapPlaceholderHtml() : shapCardHtml(data.shap_explicacao||{}, tipo, col)}
 
     ${renderParecer(data)}
 
@@ -1933,6 +2723,10 @@ function renderResult(data){
       <div class="sc2"><div class="sc2-l">Adultos 25m+</div><div class="sc2-v cp">${fN(ind.adultos)}</div></div>
       ${_vr>0?`<div class="sc2" style="border-left:1px solid var(--g)22"><div class="sc2-l" style="color:var(--g)">Valor do Rebanho</div><div class="sc2-v" style="color:var(--g)">${fR(_vr)}</div></div>`:''}
     </div>
+
+    ${renderConfirmacao(data)}
+
+    ${renderDesfrute(data)}
 
     <div class="card" style="margin-bottom:24px">
       <div class="ch"><div class="ct"><div class="cd" style="background:var(--g)"></div>Benchmarks · Nacional</div></div>
@@ -1986,11 +2780,51 @@ function renderResult(data){
       </div>
     </div>
 
-    <div style="display:flex;gap:10px;margin-top:24px">
+    ${(data.narrativa_ia || data.narrativa_pendente) ? `<div class="card" style="margin-bottom:16px" id="card-narrativa">
+      <div class="ch"><div class="ct"><div class="cd" style="background:#A78BFA"></div>Análise Narrativa · IA</div>
+        <span style="font-family:var(--fm);font-size:.48rem;letter-spacing:1px;padding:2px 7px;border-radius:4px;background:rgba(167,139,250,.1);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">Llama 3.3 70B</span>
+      </div>
+      <div class="cb" id="narrativa-body" style="font-size:.84rem;line-height:1.7;color:var(--sb);white-space:pre-wrap">${
+        data.narrativa_ia ? escapeHtml(data.narrativa_ia)
+        : '<span style="font-family:var(--fm);font-size:.72rem;color:var(--mu);letter-spacing:2px">· · ·  gerando análise</span>'
+      }</div>
+    </div>` : ''}
+
+    <div style="display:flex;gap:10px;margin-top:24px;flex-wrap:wrap">
       <button class="btn-sm" onclick="document.getElementById('tab-cen').click()">Ver Simulação de Cenários</button>
       <button class="btn-sm" onclick="resetApp()">↩ Nova Classificação</button>
       <button class="btn-sm" onclick="window.print()">Imprimir</button>
     </div>`;
+
+  window._chatContexto = {
+    tipo: data.tipo, confianca: (data.confianca||0)/100,
+    total_rebanho: Math.round(v ? v.reduce((a,b)=>a+b,0) : 0),
+    receita_anual: (data.fluxo_gep||{}).receita_vendas || 0,
+    geracao_caixa_anual: ((data.parecer||{}).conclusao||{}).geracao_caixa_anual || 0,
+    dscr: ((data.parecer||{}).conclusao||{}).dscr || null,
+    recomendacao: ((data.parecer||{}).conclusao||{}).recomendacao || '',
+    limite_credito: ((data.parecer||{}).conclusao||{}).capacidade_maxima || null,
+    coe_por_arroba: (data.fluxo_gep||{}).coe_por_arroba || null,
+    consistencia_score: ((data.consistencia||{}).score_consistencia) || 100,
+    fazenda: document.getElementById('f_faz')?.value || '',
+    municipio: document.getElementById('f_mun')?.value || '',
+    proprietario: document.getElementById('f_prop')?.value || '',
+  };
+  initChat();
+
+  // Narrativa IA: buscada depois do parecer já estar na tela, para que a
+  // latência do Groq (até 20s) não atrase a análise de crédito.
+  if(data.narrativa_pendente && data.narrativa_contexto) carregarNarrativa(data.narrativa_contexto);
+
+  // SHAP: buscado depois do parecer na tela. Aqui o motivo é MEMÓRIA, não
+  // latência — construir os TreeExplainer aloca ~160 MB, e esse pico somado
+  // ao da classificação estourava o contêiner (502).
+  if(data.shap_pendente && data.shap_contexto){
+    window._shapRenderCtx = {tipo: data.tipo, col: TC[data.tipo] || 'var(--g)'};
+    carregarShap(data.shap_contexto);
+  }
+
+  animarDesfrute();
 
   setTimeout(()=>{
     document.querySelectorAll('.cbar-f[data-w]').forEach(el=>el.style.width=el.dataset.w+'%');
@@ -2025,9 +2859,39 @@ function renderResult(data){
   setTimeout(renderFluxoProjetado,250);
 }
 
+function renderTransparencia(data){
+  const q=data.qualidade_dados||{};
+  const e=data.explicacao_classificacao||{};
+  const vz=data.validacoes_zootecnicas||{};
+  const cc=data.comparacao_cenarios||{};
+  const campos=q.campos||{};
+  const contagem=(origem)=>Object.values(campos).filter(x=>x.origem===origem).length;
+  const alertas=vz.alertas||[];
+  const cen=(cc.cenarios||[]).map(x=>{
+    const ac=x.acumulado||{};
+    return `<tr><td>${escapeHtml(x.id||'—')}</td><td>${fR(ac.receita)}</td><td>${fR(ac.custo)}</td><td>${fR(ac.resultado)}</td><td>${x.dscr_minimo==null?'—':x.dscr_minimo}</td><td>${x.ano_critico==null?'—':x.ano_critico}</td></tr>`;
+  }).join('');
+  const fatores=(e.fatores||[]).slice(0,6).map(f=>`<li>${escapeHtml(f.evidencia||f.rotulo||'')}</li>`).join('');
+  const avisos=alertas.slice(0,5).map(a=>`<div style="padding:8px 0;border-bottom:1px solid var(--b)"><b>${escapeHtml(a.titulo||'Alerta')}</b><br><span style="color:var(--mu)">${escapeHtml(a.evidencia||'')} · ${escapeHtml(a.acao||'')}</span></div>`).join('');
+  return `<div class="g2" style="margin-bottom:24px">
+    <div class="card"><div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Qualidade dos dados</div></div><div class="cb">
+      <div style="font-size:.78rem;line-height:1.7">Documento: <b>${contagem('documento')}</b> · Usuário: <b>${contagem('usuario')}</b> · Estimativa: <b>${contagem('estimativa')}</b> · Ausente: <b>${contagem('ausente')}</b></div>
+      <div style="margin-top:10px;color:${q.resultado_financeiro_estimado?'var(--am)':'var(--g)'};font-size:.75rem">${q.resultado_financeiro_estimado?'Fluxo financeiro estimado: confirme as premissas faltantes.':'Premissas financeiras informadas.'}</div>
+    </div></div>
+    <div class="card"><div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Por que este ciclo?</div></div><div class="cb">
+      <div style="font-size:.78rem">Final: <b>${escapeHtml(e.ciclo_final||data.tipo||'—')}</b> · Modelo: <b>${escapeHtml(e.ciclo_modelo||'—')}</b> · Decisão: <b>${escapeHtml(e.decisao||'—')}</b></div>
+      ${fatores?`<ul style="margin:10px 0 0 18px;font-size:.72rem;color:var(--sb);line-height:1.6">${fatores}</ul>`:''}
+    </div></div>
+  </div>
+  <div class="card" style="margin-bottom:24px"><div class="ch"><div class="ct"><div class="cd" style="background:var(--rd)"></div>Riscos e cenários</div></div><div class="cb">
+    ${avisos||'<div style="font-size:.75rem;color:var(--g)">Nenhum alerta zootécnico encontrado com os dados disponíveis.</div>'}
+    ${cen?`<div style="overflow:auto;margin-top:14px"><table class="dt"><thead><tr><th>Cenário</th><th>Receita</th><th>Custo</th><th>Resultado</th><th>DSCR mín.</th><th>Ano crítico</th></tr></thead><tbody>${cen}</tbody></table></div>`:''}
+  </div></div>`;
+}
+
 function mr(k,v,c){return`<div class="mrow"><span class="mk">${k}</span><span class="mv ${c}">${v}</span></div>`}
 function mr2(k,v,c,bold){const w=bold?'font-weight:700;':'';return`<div class="mrow" style="${w}"><span class="mk">${k}</span><span class="mv ${c||''}">${v}</span></div>`}
-const BENCH_COR={excelente:'g',bom:'g',medio:'a',abaixo:'r'};
+const BENCH_COR={excelente:'g',bom:'g',medio:'a',abaixo:'r',acima:'a'};
 // ===== Benchmarks unificado (regional RO + nacional multi-fonte) =====
 // Sem repetir indicadores: natalidade e desfrute aparecem uma vez,
 // mesclando a faixa nacional (multi-fonte) com o corte regional de Rondônia.
@@ -2057,8 +2921,239 @@ function mfBloco(m,reg){
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${fonteChips(m.fontes)}</div></div>`;
 }
+// ── Confirmação do ciclo pelo analista ───────────────────────────────────
+// Único caminho pelo qual o projeto ganha dado rotulado por humano: todo o
+// treino é sintético, e a acurácia sobre ele só diz que o modelo aprendeu as
+// faixas que escrevemos. Cada confirmação aqui é um caso real.
+function renderConfirmacao(data){
+  const rid = data.registro_id;
+  if(!rid) return '';
+  const detectado = data.tipo;
+  const porRegra  = data.origem_decisao === 'regra';
+  const opcoes = ['CRIA','RECRIA','ENGORDA','CICLO_COMPLETO','RECRIA_ENGORDA','CRIA_RECRIA'];
+
+  const botoes = opcoes.map(t=>{
+    const sel = t===detectado;
+    return `<button onclick="confirmarCiclo(${rid},'${t}')" data-ciclo="${t}"
+      class="cf-op" style="
+        font-family:var(--fn);font-weight:700;font-size:.66rem;letter-spacing:.6px;
+        padding:8px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;min-height:40px;
+        border:1px solid ${sel?TC[t]+'66':'var(--b)'};
+        background:${sel?TC[t]+'14':'var(--c2)'};
+        color:${sel?TC[t]:'var(--sb)'}">${sel?'✓ ':''}${TL[t]}</button>`;
+  }).join('');
+
+  return `<div class="card" style="margin-bottom:24px" id="card-confirm">
+    <div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Confirmar o ciclo</div>
+      <span style="font-family:var(--fm);font-size:.5rem;letter-spacing:1px;color:var(--mu)">treina o modelo</span>
+    </div>
+    <div class="cb">
+      <div style="font-size:.8rem;color:var(--sb);line-height:1.6;margin-bottom:14px">
+        O sistema detectou <b style="color:${TC[detectado]}">${TL[detectado]}</b>${
+          porRegra ? ' por regra determinística' : ` com ${data.confianca}% de confiança`
+        }. Se estiver certo, confirme. Se não, aponte o correto — sua resposta
+        é o que ensina o modelo a acertar em rebanhos reais.
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap" id="cf-botoes">${botoes}</div>
+      <div id="cf-status" style="margin-top:12px;font-size:.78rem;line-height:1.55"></div>
+    </div>
+  </div>`;
+}
+
+async function confirmarCiclo(rid, ciclo){
+  const alvo = document.getElementById('cf-status');
+  document.querySelectorAll('.cf-op').forEach(b=>b.disabled=true);
+  if(alvo) alvo.innerHTML = '<span style="font-family:var(--fm);font-size:.72rem;color:var(--mu);letter-spacing:2px">· · ·</span>';
+  try{
+    const res = await fetch('/api/confirmar-ciclo',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({registro_id: rid, ciclo}),
+    });
+    const d = await lerRespostaJson(res, 'confirmar o ciclo');
+    if(!d){ document.querySelectorAll('.cf-op').forEach(b=>b.disabled=false); return; }
+
+    const cor = d.concordou ? 'var(--g)' : 'var(--am)';
+    const msg = d.concordou
+      ? `✓ Confirmado como <b>${TL[d.ciclo]}</b>. Registrado para validação do modelo.`
+      : `✓ Corrigido para <b>${TL[d.ciclo]}</b> — o sistema havia detectado ${TL[d.class_ml]||d.class_ml}. A correção vale mais que a confirmação: é ela que ensina.`;
+    alvo.innerHTML = `<div style="color:${cor}">${msg}</div>
+      <div style="font-family:var(--fm);font-size:.62rem;color:var(--mu);margin-top:5px">
+        ${d.total_confirmados} caso(s) real(is) rotulado(s) até agora</div>`;
+    document.querySelectorAll('.cf-op').forEach(b=>{
+      b.style.opacity = b.dataset.ciclo===d.ciclo ? '1' : '.35';
+    });
+  }catch(e){
+    console.error('[confirmar-ciclo]', e);
+    showToast('Não foi possível registrar a confirmação.', true);
+    document.querySelectorAll('.cf-op').forEach(b=>b.disabled=false);
+  }
+}
+
+// ── Leitura defensiva de resposta ────────────────────────────────────────
+// Um erro no servidor devolve HTML, não JSON. Sem tratar isso, o res.json()
+// lança, a exceção sobe sem catch e a tela fica muda: o spinner some, nada
+// aparece e o usuário não tem o que reportar. Aqui o erro vira mensagem
+// visível, com o identificador que o log do servidor registra.
+async function lerRespostaJson(res, contexto){
+  let data = null;
+  try { data = await res.json(); }
+  catch(e){ data = null; }
+
+  if(res.ok && data) return data;
+
+  if(data && (data.erro || data.mensagem)){
+    const id = data.trace_id ? ` (ref ${data.trace_id})` : '';
+    showToast(`${data.erro || data.mensagem}${id}`, true);
+  } else if(res.status === 401 || res.status === 403){
+    showToast('Sessão expirada. Faça login novamente.', true);
+    setTimeout(()=>location.href='/login', 1800);
+  } else {
+    showToast(`Falha ao ${contexto} (HTTP ${res.status}). Se persistir, informe este código ao suporte.`, true);
+  }
+  console.error(`[${contexto}] HTTP ${res.status}`, data);
+  return null;
+}
+
+// ── Memória de cálculo: por que a recomendação é essa ────────────────────
+// O analista precisa auditar o raciocínio, não só receber o veredicto.
+// Recolhido por padrão para não competir com o número principal.
+// `chave` distingue as memórias na mesma página (conclusão, garantia,
+// endividamento). Sem ela os IDs colidiriam e só a primeira abriria.
+function renderMemoria(c, chave='concl'){
+  const mem = c.memoria;
+  if(!mem || !mem.length) return '';
+  const rebaixado = c.rebaixado_no_prazo;
+  const passos = mem.map((m,i)=>{
+    const destaque = /Rebaixamento|Ano crítico/.test(m.passo);
+    const cor = destaque ? 'var(--am)' : 'var(--sb)';
+    return `<div style="display:flex;gap:12px;padding:10px 0${i?';border-top:1px solid var(--b)':''}">
+      <div style="font-family:var(--fm);font-size:.5rem;color:var(--mu);width:18px;flex-shrink:0;padding-top:3px">${String(i+1).padStart(2,'0')}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline">
+          <span style="font-family:var(--fn);font-weight:700;font-size:.72rem;letter-spacing:.4px;color:${cor}">${escapeHtml(m.passo)}</span>
+          <span style="font-family:var(--fm);font-size:.74rem;color:${destaque?'var(--am)':'var(--tx)'};font-weight:${destaque?'700':'400'}">${escapeHtml(m.valor)}</span>
+        </div>
+        <div style="font-size:.74rem;line-height:1.55;color:var(--mu);margin-top:3px">${escapeHtml(m.detalhe)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div style="margin-top:12px">
+    <div onclick="toggleMemoria('${chave}')" style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border:1px solid var(--b);border-radius:8px;background:var(--c2)">
+      <span style="font-family:var(--fn);font-weight:700;font-size:.68rem;letter-spacing:1.2px;text-transform:uppercase;color:${rebaixado?'var(--am)':'var(--sb)'}">
+        ${rebaixado?'⚠ ':''}Por que este resultado — memória de cálculo
+      </span>
+      <span id="mem-ico-${chave}" style="font-family:var(--fm);font-size:.62rem;color:var(--mu)">▼ ver</span>
+    </div>
+    <div id="mem-body-${chave}" style="display:none;padding:4px 14px 6px;border:1px solid var(--b);border-top:none;border-radius:0 0 8px 8px;background:var(--c2)">${passos}</div>
+  </div>`;
+}
+function toggleMemoria(chave='concl'){
+  const b=document.getElementById('mem-body-'+chave), i=document.getElementById('mem-ico-'+chave);
+  if(!b) return;
+  const abrir = b.style.display==='none';
+  b.style.display = abrir?'':'none';
+  if(i) i.textContent = abrir?'▲ ocultar':'▼ ver';
+}
+
+// ── Desfrute: hero + meter + KPI row ─────────────────────────────────────
+// Forma escolhida por ser "uma razão contra um limite": meter, não gráfico.
+// A cor carrega estado (dentro / acima da faixa) e vem acompanhada de ícone e
+// rótulo — nunca cor sozinha.
+function renderDesfrute(data){
+  const dp = data.desfrute_projetado;
+  if(!dp) return '';
+  const item = (data.benchmarks||[]).find(b=>b && b.key==='desfrute');
+  const acima = item && item.faixa==='acima';
+  const cor   = acima ? 'var(--am)' : 'var(--g)';
+  const rgb   = acima ? '251,191,36' : '74,222,128';
+
+  // Faixa de referência da modalidade, para posicionar o meter
+  const FAIXAS = {CRIA:[18,30],RECRIA:[35,55],ENGORDA:[80,120],
+                  CICLO_COMPLETO:[20,40],RECRIA_ENGORDA:[60,85],CRIA_RECRIA:[25,40]};
+  const [lo,hi] = FAIXAS[data.tipo] || [20,40];
+  // escala do trilho: acomoda o valor quando ele estoura a faixa
+  const max  = Math.max(hi*1.35, dp.valor*1.08);
+  const pct  = v => Math.max(Math.min(v/max*100,100),0);
+  const estado = acima ? '▲ Acima da faixa' : '✓ Dentro da faixa';
+  // Quando o analista informa um desfrute, o número avaliado pode divergir do
+  // que a simulação realiza — mostrar os dois evita um selo contradizendo o valor.
+  const divergente = dp.origem==='informado' && dp.projetado != null
+                     && Math.abs(dp.projetado - dp.valor) > 0.5;
+
+  return `<div class="card" style="margin-bottom:24px">
+    <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Desfrute do Rebanho</div>
+      <span style="font-family:var(--fm);font-size:.5rem;letter-spacing:1px;padding:3px 9px;border-radius:20px;background:rgba(${rgb},.1);color:${cor};border:1px solid rgba(${rgb},.28)">${estado}</span>
+    </div>
+    <div class="cb">
+      <div style="font-size:.8rem;color:var(--sb);line-height:1.6;margin-bottom:16px">
+        Percentual do rebanho comercializado no ano — quantos animais saem para venda
+        a cada 100 cabeças mantidas. Mede o giro da operação e alimenta diretamente a
+        projeção de caixa.
+      </div>
+
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <div class="df-hero" style="color:${cor}">${dp.valor.toFixed(1)}%</div>
+        <div style="font-family:var(--fm);font-size:.62rem;color:var(--mu)">
+          ${dp.origem==='informado'
+            ? `informado pelo analista${divergente?` · a simulação projeta <b style="color:var(--sb)">${dp.projetado.toFixed(1)}%</b>`:''}`
+            : `${fN(dp.vendidos)} de ${fN(dp.rebanho)} cabeças`}
+        </div>
+      </div>
+
+      <div class="df-track" id="df-track">
+        <div class="df-fill" id="df-fill" data-w="${pct(dp.valor)}"
+             style="background:linear-gradient(90deg,rgba(${rgb},.55),${cor})"></div>
+        <!-- limites da faixa desenhados SOBRE o preenchimento, senão somem -->
+        <div class="df-band" style="left:${pct(lo)}%;width:${pct(hi)-pct(lo)}%"></div>
+      </div>
+      <div class="df-scale">
+        <span>0%</span>
+        <span style="color:var(--sb)">faixa de referência ${lo}–${hi}%</span>
+        <span>${Math.round(max)}%</span>
+      </div>
+
+      <div class="df-grid">
+        <div class="df-tile" data-df="0">
+          <div class="df-tile-l">Animais vendidos</div>
+          <div class="df-tile-v" style="color:${cor}">${fN(dp.vendidos)}</div>
+          <div class="df-tile-d">projeção do ano 1</div>
+        </div>
+        <div class="df-tile" data-df="1">
+          <div class="df-tile-l">Rebanho total</div>
+          <div class="df-tile-v cc">${fN(dp.rebanho)}</div>
+          <div class="df-tile-d">cabeças declaradas</div>
+        </div>
+        <div class="df-tile" data-df="2">
+          <div class="df-tile-l">Referência ${TL[data.tipo]||data.tipo}</div>
+          <div class="df-tile-v" style="color:var(--sb)">${lo}–${hi}%</div>
+          <div class="df-tile-d">${acima?`excede em ${(dp.valor-hi).toFixed(1)} p.p.`:'dentro do esperado'}</div>
+        </div>
+      </div>
+
+      ${acima&&item.alerta?`<div style="margin-top:12px;font-size:.76rem;line-height:1.6;color:var(--am);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:11px 14px">⚠ ${escapeHtml(item.alerta)}</div>`:''}
+    </div>
+  </div>`;
+}
+
+// Dispara a entrada elástica depois que o HTML já está no DOM.
+function animarDesfrute(){
+  const f=document.getElementById('df-fill');
+  if(f) setTimeout(()=>{f.style.width=f.dataset.w+'%'},180);
+  document.querySelectorAll('.df-tile').forEach(el=>{
+    const i=+el.dataset.df||0;
+    setTimeout(()=>el.classList.add('in'), 260 + i*110);   // escalonado
+  });
+}
+
 function regRow(b){
   const c=BENCH_COR[b.faixa]||'c';
+  // 'acima' = giro acima do teto da modalidade. Não é excelência: mostra o
+  // quanto excedeu e o motivo, em vez de "faltam X para o próximo nível".
+  if(b.faixa==='acima'){
+    const det=`<span style="opacity:.6;font-size:.62rem">(+${b.falta}${b.unidade} sobre o teto)</span>`;
+    const linha=mr(b.label, `${b.valor}${b.unidade} · ACIMA DA FAIXA ${det}`, c);
+    return linha + (b.alerta ? `<div style="font-size:.72rem;line-height:1.5;color:var(--am);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:9px 12px;margin:2px 0 10px">⚠ ${escapeHtml(b.alerta)}</div>` : '');
+  }
   const prox=b.proximo_nivel?` <span style="opacity:.5;font-size:.62rem">(faltam ${b.falta}${b.unidade} p/ ${b.proximo_nivel.toUpperCase()})</span>`:'';
   return mr(b.label, `${b.valor}${b.unidade} · ${b.faixa.toUpperCase()}${prox}`, c);
 }
@@ -2325,7 +3420,7 @@ function updateDesembolsoInfo(){
     +(comparacao?` <span style="margin-left:6px">${comparacao}</span>`:'');
 }
 
-const _FP_DUR_DEFAULT={CRIA:12,RECRIA:8,ENGORDA:4,CICLO_COMPLETO:24};
+const _FP_DUR_DEFAULT={CRIA:12,RECRIA:8,ENGORDA:4,CICLO_COMPLETO:24,RECRIA_ENGORDA:6,CRIA_RECRIA:14};
 
 function renderFluxoProjetado(){
   const kpiEl=document.getElementById('fp-kpis');
@@ -2394,13 +3489,14 @@ function calcCiclo(){
   const femR=fem-bezV;
   const cresc=femR-desQ;
   const totReb=mat+fem+mac+boi+totBez;
+  const totCusto=mat+fem+mac+boi; // base de custo: apenas animais adultos/jovens (bezerros incluídos no custo da matriz)
   const totVend=bVend+desQ+bezV+bezMV;
   const pBezCab=pBezArr*pArr;
   const rBoi=bVend*pBoi,rMat=desQ*pMat,rBez=bezV*pBezCab,rBezM=bezMV*pBezCab,rTot=rBoi+rMat+rBez+rBezM;
   const desembMensal=desembolsoTotalMensal();
-  const cTot=totReb*desembMensal*12;  // custo anual do rebanho = cabeças × desembolso/mês × 12
+  const cTot=totCusto*desembMensal*12;
   const res=rTot-cTot;
-  return{mat,fem,mac,boi,nat,prop,rb,des,vbp,totBez,bezF,bezM,bNec,bExc,bRen,bVend,macRest,desQ,bezV,bezMV,femR,cresc,totReb,totVend,pBoi,pMat,pBezCab,rBoi,rMat,rBez,rBezM,rTot,desembMensal,cTot,res};
+  return{mat,fem,mac,boi,nat,prop,rb,des,vbp,totBez,bezF,bezM,bNec,bExc,bRen,bVend,macRest,desQ,bezV,bezMV,femR,cresc,totReb,totCusto,totVend,pBoi,pMat,pBezCab,rBoi,rMat,rBez,rBezM,rTot,desembMensal,cTot,res};
 }
 
 function makeBarsS(items,maxV,colors){
@@ -2463,7 +3559,7 @@ function recalcCiclo(){
   const tRec=document.querySelector('#s-tbl-rec tbody');
   if(tRec){tRec.innerHTML=[['Bois',d.bVend,fR(d.pBoi),d.rBoi],['Matrizes',d.desQ,fR(d.pMat),d.rMat],['Bezerras',d.bezV,fR(d.pBezCab),d.rBez],['Bezerros M.',d.bezMV,fR(d.pBezCab),d.rBezM]].map(([c,q,p,t])=>`<tr><td>${c}</td><td class="r">${fN(q)}</td><td class="r">${p}</td><td class="g">${fR(t)}</td></tr>`).join('');const el=ki('s-rec-tot');if(el)el.textContent=fR(d.rTot);}
   const tCus=document.querySelector('#s-tbl-cus tbody');
-  if(tCus){tCus.innerHTML=COMP_DESEMB.map(k=>{const m=parseFloat(document.getElementById('cd-'+k)?.value)||0;const tot=d.totReb*m*12;return `<tr><td>${COMP_LABEL[k]}</td><td class="r">${fR(m)}</td><td class="r">/cab·mês</td><td class="cr">${fR(tot)}</td></tr>`;}).join('');const el=ki('s-cus-tot');if(el)el.textContent=fR(d.cTot);}
+  if(tCus){tCus.innerHTML=COMP_DESEMB.map(k=>{const m=parseFloat(document.getElementById('cd-'+k)?.value)||0;const tot=d.totCusto*m*12;return `<tr><td>${COMP_LABEL[k]}</td><td class="r">${fR(m)}</td><td class="r">/cab·mês</td><td class="cr">${fR(tot)}</td></tr>`;}).join('');const el=ki('s-cus-tot');if(el)el.textContent=fR(d.cTot);}
   const resBox=ki('s-res-box');
   if(resBox){const pos=d.res>=0;resBox.innerHTML=`<div class="res-box ${pos?'pos':'neg'}"><div><div style="font-family:var(--fm);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:6px">Resultado Líquido Anual</div><div style="font-family:var(--fn);font-weight:800;font-size:2.2rem;line-height:1;color:${pos?'var(--g)':'var(--rd)'}">${fR(d.res)}</div></div>${d.totVend>0?`<div style="text-align:right"><div style="font-family:var(--fm);font-size:.6rem;color:var(--mu);margin-bottom:4px">Por animal vendido</div><div style="font-family:var(--fn);font-weight:700;font-size:1.2rem;color:${pos?'var(--g)':'var(--rd)'}">${fR(d.res/d.totVend)}</div></div>`:''}</div>`;}
   renderFluxoProjetado();
@@ -2618,7 +3714,7 @@ async function carregarEmpresaAtiva(){
     const d = await r.json();
     const sel = document.getElementById('empresa-ativa-select');
     if(!sel) return;
-    sel.innerHTML = (d.empresas||[]).map(e=>`<option value="${e.id}" ${e.id===d.ativa_id?'selected':''}>${e.nome}</option>`).join('');
+    sel.innerHTML = (d.empresas||[]).map(e=>`<option value="${e.id}" ${e.id===d.ativa_id?'selected':''}>${escapeHtml(e.nome)}</option>`).join('');
   }catch(e){}
 }
 async function trocarEmpresaAtiva(){
@@ -2678,7 +3774,7 @@ async function carregarFazendasSelect(){
     const r = await fetch('/api/fazendas');
     const d = await r.json();
     fazendasCache = d.fazendas || [];
-    const opts = fazendasCache.map(f=>`<option value="${f.id}">${f.nome}${f.municipio?' — '+f.municipio:''}</option>`).join('');
+    const opts = fazendasCache.map(f=>`<option value="${Number(f.id)}">${escapeHtml(f.nome||'')}${f.municipio?' — '+escapeHtml(f.municipio):''}</option>`).join('');
     const selEntrada = document.getElementById('f_fazenda_id');
     const selHist = document.getElementById('hist-fazenda-id');
     if(selEntrada) selEntrada.innerHTML = '<option value="">— análise avulsa (não salva histórico) —</option>' + opts;
@@ -2764,7 +3860,14 @@ async function carregarCotacaoDia(){
     const d = await r.json();
     if(!d || !d.ok) return;
     cotacaoDia = d.precos;
-    const set=(id,v)=>{const el=document.getElementById(id); if(el) el.value = (+v>0)? Math.round(+v*100)/100 : '';};
+    // Guarda o valor auto-preenchido: é o que distingue "cotação nacional que
+    // o sistema trouxe" de "preço que o analista digitou". Sem isso o servidor
+    // vê os dois iguais e nunca aplica o diferencial de praça.
+    const set=(id,v)=>{
+      const el=document.getElementById(id); if(!el) return;
+      el.value = (+v>0)? Math.round(+v*100)/100 : '';
+      el.dataset.auto = el.value;
+    };
     set('cot-boi', d.precos.boi);
     set('cot-vaca', d.precos.vaca);
     set('cot-bezerro', d.precos.bezerro);
@@ -2789,6 +3892,273 @@ function usarCotacaoDia(){
   if(boi>0){ const el=document.getElementById('s-preco-arr'); if(el){ el.value=boi; if(typeof recalcCiclo==='function') recalcCiclo(); if(typeof runSc==='function') runSc(); } }
 }
 
+// ================== NARRATIVA IA (assíncrona) ==================
+// Busca os fatores SHAP e os funde no parecer já renderizado.
+//
+// A fusão em window._lastParecer não é detalhe: é ele que vai para
+// /api/parecer/pdf. Sem isso o PDF sairia sem os fatores da classificação, e
+// a explicabilidade exigida pela CMN 4.966/2021 se perderia justamente no
+// documento que vai ao comitê.
+// Card dos fatores SHAP. Extraído do render principal porque agora é
+// desenhado em dois momentos: vazio no primeiro paint (o SHAP saiu do
+// caminho crítico por memória) e preenchido quando /api/shap responde.
+function shapCardHtml(shapData, tipo, col){
+      const fatores=shapData.fatores||[];
+      if(!fatores.length) return '';
+      const maxPct=Math.max(...fatores.map(f=>f.importancia_pct),1);
+      const porRegra = shapData.decisao_por_regra;
+      return `<div class="card" style="margin-bottom:24px">
+        <div class="ch"><div class="ct"><div class="cd" style="background:${col}"></div>
+          Fatores da Classificação (SHAP)
+          <span style="font-family:var(--fm);font-size:.56rem;opacity:.4;margin-left:8px;letter-spacing:.5px">CMN 4.966/2021</span>
+        </div></div>
+        <div class="cb">
+          ${porRegra ? `<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.28);border-radius:8px;padding:12px 14px;margin-bottom:16px">
+            <div style="font-family:var(--fn);font-weight:700;font-size:.7rem;letter-spacing:.5px;color:var(--am);margin-bottom:5px">⚠ DECISÃO POR REGRA DETERMINÍSTICA</div>
+            <div style="font-size:.76rem;line-height:1.6;color:var(--sb)">${escapeHtml(shapData.aviso||'')}</div>
+          </div>` : ''}
+          <div style="font-family:var(--fm);font-size:.6rem;letter-spacing:.5px;opacity:.5;margin-bottom:16px;text-transform:uppercase">
+            ${porRegra ? 'Contexto do modelo' : 'Por que'} <b style="color:${col};opacity:1">${TL[tipo]}</b>? — fatores mais determinantes
+          </div>
+          ${fatores.map(f=>{
+            const pos=f.direcao==='positivo';
+            const cor=pos?'#4ADE80':'#F87171';
+            const w=Math.round(f.importancia_pct/maxPct*100);
+            return `<div class="cbar">
+              <div class="cbar-l" style="width:180px;text-transform:none;font-size:.58rem;opacity:.8">${f.feature}</div>
+              <div class="cbar-t" style="height:8px">
+                <div class="cbar-f" data-w="${w}" style="background:${cor};width:0%"></div>
+              </div>
+              <div class="cbar-p" style="width:56px;color:${cor}">${pos?'+':'−'}${f.importancia_pct}%</div>
+            </div>`;
+          }).join('')}
+          <div style="font-family:var(--fm);font-size:.5rem;opacity:.28;margin-top:14px;line-height:1.6">
+            ${shapData.metodo||''}<br>${shapData.conformidade||''}
+          </div>
+        </div>
+      </div>`;
+}
+
+// Placeholder que reserva o lugar do card e dá âncora para a fusão.
+function shapPlaceholderHtml(){
+  return `<div class="card" id="card-shap" style="margin-bottom:24px">
+    <div class="cb" style="padding:18px 20px;font-family:var(--fm);font-size:.6rem;
+         letter-spacing:.5px;opacity:.45;text-transform:uppercase">
+      Calculando fatores da classificação (SHAP)…
+    </div></div>`;
+}
+
+// Substitui o placeholder pelo card real.
+function renderShap(shap, card){
+  const alvo = card || document.getElementById('card-shap');
+  if(!alvo) return;
+  const ctx = window._shapRenderCtx || {};
+  const html = shapCardHtml(shap, ctx.tipo, ctx.col);
+  if(!html){ alvo.remove(); return; }
+  alvo.outerHTML = html;
+  setTimeout(()=>{document.querySelectorAll('.cbar-f[data-w]')
+    .forEach(el=>el.style.width=el.dataset.w+'%');}, 60);
+}
+
+async function carregarShap(contexto){
+  const card = document.getElementById('card-shap');
+  try{
+    const r = await fetch('/api/shap', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({contexto}),
+    });
+    const d = await r.json();
+    const shap = d.shap_explicacao || {};
+    if(!(shap.fatores || []).length){ card?.remove(); return; }
+    if(window._lastParecer) window._lastParecer.shap_explicacao = shap;
+    renderShap(shap, card);
+  }catch(e){
+    card?.remove();
+  }
+}
+
+async function carregarNarrativa(contexto){
+  const body = document.getElementById('narrativa-body');
+  if(!body) return;
+  try{
+    const r = await fetch('/api/narrativa', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({contexto}),
+    });
+    const d = await r.json();
+    if(d.narrativa){
+      body.textContent = d.narrativa;
+    } else {
+      document.getElementById('card-narrativa')?.remove();
+    }
+  }catch(e){
+    document.getElementById('card-narrativa')?.remove();
+  }
+}
+
+// ================== CHAT COM PARECER (IA) ==================
+let _chatHistorico = [];
+
+function initChat() {
+  _chatHistorico = [];
+  const el = document.getElementById('chat-panel');
+  if (!el) return;
+  el.style.display = '';
+  el.innerHTML = `
+    <div class="card" id="chat-card">
+      <div class="ch" style="cursor:pointer;user-select:none" onclick="toggleChat()">
+        <div class="ct">
+          <div class="cd" style="background:#A78BFA"></div>
+          ✨ Perguntar à IA sobre este parecer
+        </div>
+        <span id="chat-toggle-icon" style="font-family:var(--fm);font-size:.7rem;color:var(--mu)">▼ expandir</span>
+      </div>
+      <div id="chat-body" style="display:none">
+        <div id="chat-msgs" style="padding:12px 16px;max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;min-height:60px"></div>
+        <div style="padding:0 12px 6px;display:flex;gap:6px;flex-wrap:wrap" id="chat-chips"></div>
+        <div style="padding:8px 12px 14px;display:flex;gap:8px;align-items:flex-end;border-top:1px solid var(--b)">
+          <textarea id="chat-input" rows="2" placeholder="Pergunte sobre o parecer…"
+            style="flex:1;background:var(--c2);border:1px solid var(--b);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.84rem;resize:none;font-family:var(--fb);line-height:1.5;min-height:44px"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarChat()}"></textarea>
+          <button onclick="enviarChat()" id="chat-send"
+            style="background:var(--g);color:#000;border:none;border-radius:8px;padding:10px 16px;font-family:var(--fn);font-weight:700;font-size:.72rem;letter-spacing:.5px;cursor:pointer;min-height:44px;white-space:nowrap">
+            Enviar
+          </button>
+        </div>
+        <div style="padding:0 14px 14px">
+          <div id="wa-linha" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px dashed var(--b);border-radius:8px">
+            <span style="font-size:.74rem;color:var(--mu)">
+              Continuar no WhatsApp — as mesmas perguntas, no celular, durante a visita.
+            </span>
+            <button class="btn-sm" onclick="gerarCodigoWhatsapp()">Vincular meu WhatsApp</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  // Quick chips
+  const perguntas = [
+    'Por que esse parecer?',
+    'Como melhorar o limite?',
+    'Quais são os principais riscos?',
+    'O que é DSCR?',
+    'Como o ciclo afeta o crédito?',
+  ];
+  document.getElementById('chat-chips').innerHTML = perguntas.map(p =>
+    `<button onclick="enviarChatChip(this)" style="font-family:var(--fm);font-size:.6rem;padding:5px 10px;border-radius:20px;border:1px solid var(--b);background:var(--c2);color:var(--sb);cursor:pointer;white-space:nowrap">${escapeHtml(p)}</button>`
+  ).join('');
+}
+
+// O código é de uso único e curto. Só quem está logado consegue gerar um, e é
+// isso que garante que o webhook nunca responda dado de crédito a um número
+// desconhecido.
+async function gerarCodigoWhatsapp(){
+  const caixa = document.getElementById('wa-linha');
+  if(!caixa) return;
+  try{
+    const r = await fetch('/api/whatsapp/codigo', {method:'POST'});
+    const d = await lerRespostaJson(r);
+    if(!r.ok){
+      caixa.innerHTML = `<span style="font-size:.74rem;color:var(--am)">${escapeHtml(d.erro||'Canal WhatsApp não configurado.')}</span>`;
+      return;
+    }
+    caixa.innerHTML = `
+      <div style="font-size:.74rem;color:var(--sb);line-height:1.6">
+        Envie este código pelo seu WhatsApp para o número da Orkavyn Agro Intelligence:
+        <div style="font-family:var(--fm);font-size:1.6rem;font-weight:800;letter-spacing:6px;color:var(--g);margin:6px 0 2px">${escapeHtml(d.codigo)}</div>
+        <span style="color:var(--mu)">Vale por ${d.validade_min} minutos e serve uma vez só.</span>
+      </div>`;
+  }catch(e){
+    caixa.innerHTML = `<span style="font-size:.74rem;color:var(--am)">Não foi possível gerar o código agora.</span>`;
+  }
+}
+
+function toggleChat() {
+  const body = document.getElementById('chat-body');
+  const icon = document.getElementById('chat-toggle-icon');
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  if (icon) icon.textContent = open ? '▲ recolher' : '▼ expandir';
+}
+
+function enviarChatChip(btn) {
+  const input = document.getElementById('chat-input');
+  if (input) { input.value = btn.textContent; enviarChat(); }
+}
+
+function _chatAppendMsg(role, text) {
+  const el = document.getElementById('chat-msgs');
+  if (!el) return;
+  const isUser = role === 'user';
+  const div = document.createElement('div');
+  div.style.cssText = `display:flex;justify-content:${isUser?'flex-end':'flex-start'}`;
+  div.innerHTML = `<div style="
+    max-width:82%;padding:10px 14px;border-radius:${isUser?'12px 12px 4px 12px':'12px 12px 12px 4px'};
+    background:${isUser?'rgba(74,222,128,.12)':'var(--c2)'};
+    border:1px solid ${isUser?'rgba(74,222,128,.25)':'var(--b)'};
+    font-size:.82rem;line-height:1.6;color:var(--tx);white-space:pre-wrap">${escapeHtml(text)}</div>`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function enviarChat() {
+  const input = document.getElementById('chat-input');
+  const sendBtn = document.getElementById('chat-send');
+  const mensagem = (input?.value || '').trim();
+  if (!mensagem) return;
+
+  // Abre o chat se estiver recolhido
+  const body = document.getElementById('chat-body');
+  if (body && body.style.display === 'none') toggleChat();
+
+  input.value = '';
+  _chatAppendMsg('user', mensagem);
+  _chatHistorico.push({ role: 'user', content: mensagem });
+
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '…'; }
+
+  // Placeholder de "digitando"
+  const loadId = 'chat-load-' + Date.now();
+  const msgs = document.getElementById('chat-msgs');
+  if (msgs) {
+    const ldiv = document.createElement('div');
+    ldiv.id = loadId;
+    ldiv.style.cssText = 'display:flex;justify-content:flex-start';
+    ldiv.innerHTML = `<div style="padding:10px 14px;border-radius:12px 12px 12px 4px;background:var(--c2);border:1px solid var(--b);font-family:var(--fm);font-size:.72rem;color:var(--mu);letter-spacing:2px">· · ·</div>`;
+    msgs.appendChild(ldiv);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mensagem,
+        historico: _chatHistorico.slice(-8),
+        contexto: window._chatContexto || {},
+      }),
+    });
+    const data = await res.json();
+    document.getElementById(loadId)?.remove();
+
+    if (data.erro) {
+      _chatAppendMsg('assistant', '⚠ ' + data.erro);
+    } else {
+      const resposta = data.resposta || '';
+      _chatAppendMsg('assistant', resposta);
+      _chatHistorico.push({ role: 'assistant', content: resposta });
+    }
+  } catch(e) {
+    document.getElementById(loadId)?.remove();
+    _chatAppendMsg('assistant', '⚠ Erro de conexão. Tente novamente.');
+  } finally {
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Enviar'; }
+    if (msgs) msgs.scrollTop = msgs.scrollHeight;
+  }
+}
+
 // ================== INIT ==================
 initParamsPorCiclo();
 carregarParametrosDoCiclo();
@@ -2805,3 +4175,4 @@ carregarFazendasSelect();
 </footer>
 </body>
 </html>
+

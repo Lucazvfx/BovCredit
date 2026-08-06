@@ -52,6 +52,14 @@ def extrair_texto_pdf(path: str) -> str:
         raise RuntimeError(f'Não foi possível extrair texto do PDF: {e}')
 
     # 3. OCR com Tesseract (PDF baseado em imagem / escaneado)
+    #
+    # --psm 6 ("um único bloco uniforme de texto") não é detalhe de ajuste
+    # fino: no modo automático (psm 3, o padrão) o Tesseract trata a coluna
+    # QUANTIDADE das fichas como região à parte e a descarta. Medido numa
+    # ficha real do INDEA escaneada — no padrão saem o cabeçalho, o produtor e
+    # o total, mas nenhuma linha de animal, e o parser devolve rebanho zerado
+    # com fazenda e CPF corretos. Silenciosamente errado é pior que falhar.
+    OCR_CONFIG = '--psm 6'
     try:
         import pytesseract
         import pdfplumber
@@ -61,11 +69,13 @@ def extrair_texto_pdf(path: str) -> str:
         ocr_text = ''
         with pdfplumber.open(path) as pdf:
             for page in pdf.pages:
-                img = page.to_image(resolution=300).original
+                img = page.to_image(resolution=200).original
                 try:
-                    ocr_text += pytesseract.image_to_string(img, lang='por+eng', config='--psm 6') + '\n'
+                    ocr_text += pytesseract.image_to_string(
+                        img, lang='por+eng', config=OCR_CONFIG) + '\n'
                 except Exception:
-                    ocr_text += pytesseract.image_to_string(img, lang='eng', config='--psm 6') + '\n'
+                    ocr_text += pytesseract.image_to_string(
+                        img, lang='eng', config=OCR_CONFIG) + '\n'
         if ocr_text.strip():
             return ocr_text
     except Exception:
@@ -90,6 +100,11 @@ def detectar_origem(text: str) -> str:
       'GENERICO'          — fallback
     """
     up = text.upper()
+    norm = _normalizar(text)
+
+    if ('FAZENDA' in norm and 'SITUA' in norm and 'TOTAL BOVINOS' in norm
+            and 'MACHO 0-12' in norm and 'FEMEA 0-12' in norm):
+        return 'RESUMO_FAZENDAS'
 
     # — RO (IDARON) — prioridade máxima pois 'IDARON' é inequívoco
     if 'DECLARAÇÃO Nº' in up and 'IDARON' in up:
@@ -318,11 +333,13 @@ def parsear_indea(text: str, pdf_path: str = None) -> dict:
                 continue
             animais[f'{faixa}_{sexo}'] = qtd
 
-    return _resultado({
+    valores = _para_valores(animais)
+    return {
         'fazenda': fazenda, 'municipio': municipio,
         'proprietario': proprietario, 'cpf': cpf,
-        'data_saldo': data_saldo,
-    }, animais, 'MT')
+        'data_saldo': data_saldo, 'total': sum(valores),
+        'animais': animais, 'valores': valores,
+    }
 
 # ─────────────────────────────────────────────
 # PARSER IDARON-RO — extração por tabela (formulário de anotações)
@@ -744,25 +761,8 @@ def parsear_go_declaracao_web(text: str) -> dict:
     # Extrai linha "Existentes" da seção "DECLARAÇÃO REBANHO" (não da seção "MORTES")
     secao_m = re.search(r'DECLARAÇÃO REBANHO', text, re.I)
     secao = text[secao_m.end():] if secao_m else text
-    # O PDF real coloca a linha "Existentes" junto das quantidades.
-    ex_linha = re.search(r'EXISTENTES\s+([^\n]+)', secao, re.I)
-    if ex_linha:
-        nums = [int(n) for n in re.findall(r'\d+', ex_linha.group(1))]
-        if len(nums) >= 9:
-            nums = nums[:8]
-            m0_4, m5_12 = _dividir_go_0_12(text, 'M')
-            f0_4, f5_12 = _dividir_go_0_12(text, 'F')
-            if m0_4 + m5_12 == 0:
-                m0_4, m5_12 = _dividir_faixa_0_12(nums[0])
-            if f0_4 + f5_12 == 0:
-                f0_4, f5_12 = _dividir_faixa_0_12(nums[1])
-            animais['f00_M'], animais['f05_M'] = m0_4, m5_12
-            animais['f00_F'], animais['f05_F'] = f0_4, f5_12
-            animais['f13_M'], animais['f13_F'] = nums[2], nums[3]
-            animais['f25_M'], animais['f25_F'] = nums[4], nums[5]
-            animais['fac_M'], animais['fac_F'] = nums[6], nums[7]
     ex_idx = secao.upper().find('EXISTENTES')
-    if ex_idx >= 0 and sum(animais.values()) == 0:
+    if ex_idx >= 0:
         after_ex = secao[ex_idx:]
         for line in after_ex.split('\n')[1:5]:
             nums = [int(n) for n in re.findall(r'\d+', line)]
@@ -780,48 +780,22 @@ def parsear_go_declaracao_web(text: str) -> dict:
                 animais['fac_F'] = nums[7]
                 break
 
-    return _resultado({
+    valores = _para_valores(animais)
+    return {
         'fazenda':      fazenda,
         'municipio':    municipio,
         'proprietario': proprietario,
         'cpf':          cpf,
         'data_saldo':   data_saldo,
-    }, animais, 'GO_DEC_WEB')
+        'total':        sum(valores),
+        'animais':      animais,
+        'valores':      valores,
+    }
 
 
 # ─────────────────────────────────────────────
 # PARSER GENÉRICO (fallback robusto)
 # ─────────────────────────────────────────────
-def _dividir_faixa_0_12(total: int) -> tuple[int, int]:
-    """Fallback quando a ficha não traz a abertura mensal de 0 a 12."""
-    primeiro = total // 2
-    return primeiro, total - primeiro
-
-
-def _dividir_go_0_12(text: str, sexo: str) -> tuple[int, int]:
-    """Soma a tabela mensal GO para obter 0-4 e 5-12 por sexo."""
-    upper = text.upper()
-    inicio = upper.find('IDADE TOTAL')
-    if inicio < 0:
-        return 0, 0
-    trecho = text[inicio:]
-    totais_por_mes = []
-    totais = []
-    for linha in trecho.splitlines():
-        if linha.strip().upper().startswith('TOTAL'):
-            break
-        encontrados = re.findall(
-            r'(?:AT[EÉ] 1|\d+)\s+M[EÊ]S(?:ES)?\s+(\d+)', linha, re.I
-        )
-        if len(encontrados) >= 2:
-            totais_por_mes.append([int(encontrados[0]), int(encontrados[1])])
-    if len(totais_por_mes) < 13:
-        return 0, 0
-    indice = 0 if sexo == 'M' else 1
-    totais = [linha[indice] for linha in totais_por_mes[:13]]
-    return sum(totais[:5]), sum(totais[5:13])
-
-
 _FAIXA_PATS_GENERICO = [
     (re.compile(r'\b(?:0?0\s*[aà\-]\s*0?6|at[ée]\s*0?6)(?:\s*m[eê]s(?:es)?)?\b', re.I), 'f00'),
     (re.compile(r'\b0?7\s*[aà\-]\s*12(?:\s*m[eê]s(?:es)?)?\b', re.I),               'f05'),
@@ -877,6 +851,85 @@ def _categoria_zootecnica(up: str):
         return faixa, sexo
     return None, None
 
+def parsear_resumo_fazendas(text: str, pdf_path: str = None) -> dict:
+    """Lê o resumo consolidado com uma linha por fazenda.
+
+    O formato distribui as oito faixas em duas páginas: a primeira traz
+    nome, município, situação e três colunas; a segunda traz as cinco colunas
+    restantes na mesma ordem das fazendas.
+    """
+    linhas = [linha.strip() for linha in text.splitlines() if linha.strip()]
+    prefixos = []
+    for linha in linhas:
+        m = re.match(
+            r'^(.*?)\s+(ATIVO|INATIVO)\s+'
+            r'(\d+)\s+(\d+)\s+(\d+)\s*$', linha, re.I)
+        if m:
+            prefixos.append({
+                'prefixo': m.group(1).strip(),
+                'situacao': m.group(2).upper(),
+                'm0': int(m.group(3)), 'f0': int(m.group(4)),
+                'm13': int(m.group(5)),
+            })
+
+    # Descobre municípios compostos pela repetição dos sufixos nas linhas.
+    sufixos = {}
+    for item in prefixos:
+        palavras = item['prefixo'].split()
+        for tamanho in (3, 2, 1):
+            if len(palavras) >= tamanho:
+                sufixo = ' '.join(palavras[-tamanho:])
+                sufixos[sufixo] = sufixos.get(sufixo, 0) + 1
+    municipios_repetidos = [s for s, n in sufixos.items() if n >= 2]
+    municipio_padrao = max(municipios_repetidos, key=len) if municipios_repetidos else ''
+    linhas_fazendas = []
+    for item in prefixos:
+        prefixo = item.pop('prefixo')
+        municipio = municipio_padrao if prefixo.upper().endswith(municipio_padrao.upper()) else prefixo.split()[-1]
+        nome = prefixo[:-len(municipio)].strip() if municipio else prefixo
+        linhas_fazendas.append({**item, 'fazenda': nome, 'municipio': municipio})
+
+    continuacoes = []
+    for linha in linhas:
+        nums = re.findall(r'\d+', linha)
+        if not re.fullmatch(r'[\d\s]+', linha):
+            continue
+        if len(nums) >= 6 and not re.search(r'FAZENDA|MUNIC[IÍ]PIO|SITUA', linha, re.I):
+            continuacoes.append([int(n) for n in nums])
+
+    fazendas = []
+    for base, cont in zip(linhas_fazendas, continuacoes):
+        animais = _animais_vazios()
+        _adicionar(animais, 'f00_12', 'M', base['m0'])
+        _adicionar(animais, 'f00_12', 'F', base['f0'])
+        _adicionar(animais, 'f13', 'M', base['m13'])
+        _adicionar(animais, 'f13', 'F', cont[0])
+        _adicionar(animais, 'f25', 'M', cont[1])
+        _adicionar(animais, 'f25', 'F', cont[2])
+        _adicionar(animais, 'fac', 'M', cont[3])
+        _adicionar(animais, 'fac', 'F', cont[4])
+        item = _resultado({
+            'fazenda': base['fazenda'], 'municipio': base['municipio'],
+            'situacao': base['situacao'], 'proprietario': '', 'cpf': '',
+            'ie': '', 'data_saldo': '',
+        }, animais)
+        item['total_bovinos_documento'] = cont[5]
+        fazendas.append(item)
+
+    agregado = _animais_vazios()
+    for fazenda in fazendas:
+        for chave, valor in fazenda['animais'].items():
+            agregado[chave] += valor
+    resultado = _resultado({
+        'fazenda': f'{len(fazendas)} fazendas', 'municipio': '',
+        'proprietario': '', 'cpf': '', 'ie': '', 'data_saldo': '',
+    }, agregado)
+    resultado['fazendas'] = fazendas
+    resultado['total_bovinos_documento'] = sum(
+        f['total_bovinos_documento'] for f in fazendas)
+    return resultado
+
+
 def parsear_generico(text: str) -> dict:
     animais = _animais_vazios()
     fazenda = municipio = proprietario = cpf = data_saldo = ''
@@ -894,6 +947,13 @@ def parsear_generico(text: str) -> dict:
     if not fazenda:
         m = re.search(r'(?m)^\s*(FAZENDA\s+[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ0-9\s]+?)\s*$',
                       text, re.I)
+        if m:
+            fazenda = m.group(1).strip()[:60]
+
+    # 3. Fallback: "— Fazenda NOME" ou "/ Fazenda NOME" em qualquer posição da linha
+    if not fazenda:
+        m = re.search(r'[—\-/]\s*FAZENDA\s+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ0-9\s]+?)(?:\s*$|\s{2,})',
+                      text, re.I | re.M)
         if m:
             fazenda = m.group(1).strip()[:60]
 
@@ -1023,14 +1083,10 @@ def _categorias_comerciais(animais: dict) -> dict:
     }
 
 
-def _resultado(meta: dict, animais: dict, estado: str = None) -> dict:
+def _resultado(meta: dict, animais: dict) -> dict:
     valores = _para_valores(animais)
-    resultado = {**meta, 'total': sum(valores), 'animais': animais, 'valores': valores,
-                 'categorias': _categorias_comerciais(animais)}
-    if estado:
-        from services.mapeamento_fichas import mapear_animais
-        resultado['mapeamento'] = mapear_animais(animais, estado)
-    return resultado
+    return {**meta, 'total': sum(valores), 'animais': animais, 'valores': valores,
+            'categorias': _categorias_comerciais(animais)}
 
 
 def _numeros_puros(bloco: str, n: int) -> list:
@@ -1114,7 +1170,7 @@ def parsear_iagro_ms(text: str) -> dict:
     if sum(animais.values()) == 0:
         return parsear_generico(text)
 
-    return _resultado(_meta_basica(text), animais, 'MS')
+    return _resultado(_meta_basica(text), animais)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1146,7 +1202,7 @@ def parsear_aged_ma(text: str) -> dict:
     if sum(animais.values()) == 0:
         return parsear_generico(text)
 
-    return _resultado(meta, animais, 'MA')
+    return _resultado(meta, animais)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1185,7 +1241,7 @@ def parsear_agrodefesa_go(text: str) -> dict:
     if sum(animais.values()) == 0:
         return parsear_generico(text)
 
-    return _resultado(meta, animais, 'AGRODEFESA_GO')
+    return _resultado(meta, animais)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1200,49 +1256,6 @@ def parsear_adapec_to(text: str, pdf_path: str = None) -> dict:
     """
     animais = _animais_vazios()
     meta = _meta_basica(text)
-
-    # O layout ADAPEC pode ser imagem/OCR. Nesse caso a linha de saldo vem
-    # inteira, e não como oito linhas numéricas independentes.
-    norm = _normalizar(text)
-    marcadores = list(re.finditer(r'BOVIDEOS?', norm, re.I))
-    fazendas = []
-    for i, marcador in enumerate(marcadores):
-        fim = marcadores[i + 1].start() if i + 1 < len(marcadores) else len(text)
-        bloco = text[marcador.start():fim]
-        saldo = re.search(r'SALDO[^\n]*', bloco, re.I)
-        if not saldo:
-            continue
-        numeros = [int(n) for n in re.findall(r'\d+', saldo.group(0))]
-        if len(numeros) < 2:
-            continue
-        total = numeros[-1]
-        candidatos = numeros[:-1]
-        if len(candidatos) == 2 and sum(candidatos) == total:
-            valores8 = [candidatos[0], 0, candidatos[1], 0, 0, 0, 0, 0]
-        elif len(candidatos) == 3 and candidatos[-1] == 0 and sum(candidatos) == total:
-            valores8 = [candidatos[0], 0, candidatos[1], 0, 0, 0, 0, 0]
-        else:
-            valores8 = (candidatos + [0] * 8)[:8]
-            residual = total - sum(valores8)
-            if residual > 0 and len(candidatos) < 8:
-                pos_residual = 4 if len(candidatos) >= 5 else len(candidatos)
-                valores8[pos_residual] += residual
-        if sum(valores8) != total:
-            continue
-        _aplicar_mapa8(animais, valores8)
-        cabecalho = bloco.splitlines()[0] if bloco.splitlines() else ''
-        m_faz = re.search(r'BOVIDEOS?\s+\d+\s+(.+?)\s+\d{8,}', cabecalho, re.I)
-        nome = m_faz.group(1).strip(' |') if m_faz else ''
-        fazendas.append({'fazenda': nome, 'total': total, 'valores': valores8})
-
-    if fazendas:
-        resultado = _resultado(meta, animais, 'TO')
-        resultado['fazendas'] = fazendas
-        if len(fazendas) > 1:
-            resultado['fazenda'] = ' + '.join(f['fazenda'] for f in fazendas if f['fazenda'])
-        elif fazendas[0]['fazenda']:
-            resultado['fazenda'] = fazendas[0]['fazenda']
-        return resultado
 
     # Tenta tabelas via pdfplumber (equivale ao Power Query do VBA)
     if pdf_path:
@@ -1285,7 +1298,7 @@ def parsear_adapec_to(text: str, pdf_path: str = None) -> dict:
     if sum(animais.values()) == 0:
         return parsear_generico(text)
 
-    return _resultado(meta, animais, 'TO')
+    return _resultado(meta, animais)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1454,4 +1467,4 @@ def parsear_adepara_pa(text: str) -> dict:
             return _resultado(meta, animais)
         return parsear_generico(text)
 
-    return _resultado(meta, animais, 'PA')
+    return _resultado(meta, animais)

@@ -8,9 +8,21 @@ from services.parametros_zootecnicos import (
 
 
 def test_taxas_sao_ponto_medio_do_benchmark():
-    assert NATALIDADE_PCT == midpoint(55, 75) == 65.0
-    assert PRENHEZ_PCT == 62.5
-    assert DESFRUTE_PCT['CICLO_COMPLETO'] == 30.0
+    # NATALIDADE_PCT é a exceção deliberada à regra do ponto médio: o benchmark
+    # nacional é 55–75 (meio 65), mas o módulo adota 70% como valor recomendado
+    # — ver comentário em services/parametros_zootecnicos.py.
+    # ATENÇÃO: 70% é MAIS OTIMISTA que o ponto médio (mais bezerros → mais
+    # receita → DSCR maior). Revisar se o objetivo for projeção conservadora.
+    assert NATALIDADE_PCT == 70.0
+    assert midpoint(55, 75) == 65.0
+    # Prenhez segue o valor de PROJEÇÃO do material de treinamento (70–75%,
+    # piso da faixa), não o ponto médio das faixas de mercado (50–75 → 62,5).
+    assert PRENHEZ_PCT == 70.0
+    # O ponto médio é DERIVADO da faixa, não escrito à mão — foi assim que
+    # três cópias das mesmas faixas divergiram. O teste confere a derivação.
+    from services.benchmarks_nacionais import DESFRUTE_MODALIDADE
+    lo, hi = DESFRUTE_MODALIDADE['CICLO_COMPLETO']
+    assert DESFRUTE_PCT['CICLO_COMPLETO'] == (lo + hi) / 2
     assert DESFRUTE_PCT['ENGORDA'] == 100.0
     assert MORTALIDADE_PCT == 3.0 and DESMAME_PCT == 82.0
     assert RENDIMENTO_CARCACA_PCT == 52.0
