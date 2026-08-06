@@ -22,7 +22,10 @@ from pdf_parsers import (
     _adicionar,
     _sexo_da_linha,
     _faixa_de_celula,
+    parsear_go_declaracao_web,
+    parsear_adapec_to,
 )
+from services.mapeamento_fichas import load_mapeamento, buscar_mapeamento, mapear_animais
 
 
 # ─────────────────────────────────────────────
@@ -104,6 +107,98 @@ def test_faixa_de_celula():
     assert _faixa_de_celula("07 A 12 MESES") == 'f05'
     assert _faixa_de_celula("0 A 12") == 'f00_12'  # faixa unificada (será dividida no _adicionar)
     assert _faixa_de_celula("XYZ") is None
+
+
+def test_mapeamento_carrega_regras_do_xlsm_do_projeto():
+    regras = load_mapeamento()
+
+    assert len(regras) == 74
+    assert regras['MT_DECLARACAO|FEMEA|00 A 04 MESES']['classificacao'] == 'Bezerra'
+    assert regras['TO_DECLARACAO|MACHO|25 A 36 MESES']['classificacao'] == 'Garrote'
+
+
+def test_buscar_mapeamento_normaliza_estado_sexo_e_faixa():
+    regra = buscar_mapeamento('TO', 'macho', '25 a 36 meses')
+
+    assert regra['chave'] == 'TO_DECLARACAO|MACHO|25 A 36 MESES'
+    assert regra['classificacao'] == 'Garrote'
+
+
+def test_mapear_animais_usa_faixa_0_a_12_do_xlsm():
+    registros = mapear_animais({'f00_F': 10, 'f05_F': 20}, 'TO')
+
+    bezerra = next(r for r in registros if r['classificacao'] == 'Bezerra')
+    assert bezerra['quantidade'] == 30
+    assert bezerra['chave'] == 'TO_DECLARACAO|FEMEA|0 A 12 MESES'
+
+
+GO_DECLARACAO_WEB_REALISTA = """
+Declaração Rebanho - 1/2026
+Propriedade
+Nome: FAZENDA ZERO III
+Produtor
+Nome: ELCIO BRUZA RIBEIRO
+UF/Município: GO/São Miguel do Araguaia
+CPF/CNPJ: 13511190878
+DECLARAÇÃO REBANHO
+Data: 26/05/2026 Tipo: Produtor Rural
+Bovinos
+Existentes 22 14 0 2199 0 60 1 23 2319
+ANIMAIS BOVINOS INDIVIDUALIZADOS
+EXISTENTES/VACINADOS MACHO EXISTENTES/VACINADOS FEMEA
+Idade Total Idade Total
+Até 1 mês 0 Até 1 mês 0
+1 mês 1 1 mês 1
+2 meses 3 2 meses 2
+3 meses 8 3 meses 4
+4 meses 5 4 meses 4
+5 meses 3 5 meses 3
+6 meses 1 6 meses 0
+7 meses 1 7 meses 0
+8 meses 0 8 meses 0
+9 meses 0 9 meses 0
+10 meses 0 10 meses 0
+11 meses 0 11 meses 0
+12 meses 0 12 meses 0
+TOTAL 22 TOTAL 14
+"""
+
+
+TO_DECLARACAO_REALISTA = """
+ADAPEC TOCANTINS
+DECLARAÇÃO DE DADOS CADASTRAIS
+Nome do Produtor MARCELA BERGAMASCHI PEREIRA LIMA
+Documento 21862651841
+Município Palmas
+Grupo Animal Quantidade Animais Propriedade Codigo Situacao
+Bovideos 687 FAZENDA TRES MENINAS 17213070396 Ativa
+Saldo 435 0 252 687
+VACINACOES: 3
+Grupo Animal Quantidade Animais Propriedade Codigo Situacao
+Bovideos 1886 BANANAL 17182041448 Ativa
+Saldo 75 244 372 880 41 23 1 250 1886
+VACINACOES: 21
+"""
+
+
+def test_parsear_go_declaracao_web_linha_existentes_e_meses():
+    dados = parsear_go_declaracao_web(GO_DECLARACAO_WEB_REALISTA)
+
+    assert dados['total'] == 2319
+    assert dados['valores'] == [11, 17, 3, 5, 2199, 0, 60, 0, 23, 1]
+    assert dados['fazenda'] == 'FAZENDA ZERO III'
+    assert any(r['classificacao'] == 'Vaca' and r['quantidade'] == 23 for r in dados['mapeamento'])
+
+
+def test_parsear_adapec_to_soma_varias_propriedades():
+    dados = parsear_adapec_to(TO_DECLARACAO_REALISTA)
+
+    assert dados['total'] == 2573
+    assert dados['valores'] == [122, 254, 122, 256, 880, 624, 23, 41, 250, 1]
+    assert [f['fazenda'] for f in dados['fazendas']] == [
+        'FAZENDA TRES MENINAS', 'BANANAL'
+    ]
+    assert any(r['classificacao'] == 'Boi Gordo' and r['quantidade'] == 1 for r in dados['mapeamento'])
 
 
 # ─────────────────────────────────────────────
