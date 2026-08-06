@@ -66,6 +66,10 @@ class MappingCatalog:
         ))
 
     def lookup(self, estado, sexo, estratificacao) -> MappingRule | None:
+        estado = {
+            'GO_DEC_WEB': 'GO_DECLARACAO',
+            'AGRODEFESA_GO': 'GO_DECLARACAO',
+        }.get(_normalizar(estado), estado)
         return self._by_key.get(self._key(estado, sexo, estratificacao))
 
     def __len__(self):

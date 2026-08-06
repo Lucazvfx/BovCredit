@@ -90,6 +90,8 @@ def _parser(origem: str, text: str, pdf_path: str | None = None) -> dict:
 
 
 def _origem_do_modelo(modelo: str, detectada: str) -> str:
+    if modelo == 'GO_DECLARACAO' and detectada == 'GO_DEC_WEB':
+        return 'GO_DEC_WEB'
     return {
         'MT_DECLARACAO': 'INDEA',
         'RO_DECLARACAO': 'IDARON',
@@ -188,6 +190,10 @@ def read_ficha_text(
         }
     origem = detectar_origem(text)
     modelo_real = _modelo(estado, modelo, origem)
+    # A declaraÃ§Ã£o web de GO possui cinco faixas; o modelo GO_DECLARACAO
+    # manual continua representando o layout de quatro faixas.
+    if not estado and not modelo and origem == 'GO_DEC_WEB':
+        modelo_real = 'GO_DEC_WEB'
     if modelo_real == 'GO IR':
         from .reader_go_ir import read as read_go_ir
         return read_go_ir(text, arquivo=arquivo)
