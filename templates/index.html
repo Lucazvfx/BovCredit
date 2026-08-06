@@ -457,6 +457,16 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
   <div class="ptitle">Ler PDF do <em>INDEA</em></div>
   <p class="psub">Upload do "Saldo Atual da Exploração". Selecione vários arquivos para somar o rebanho de todas as fazendas.</p>
 
+  <div class="field" style="max-width:320px;margin-bottom:12px">
+    <label for="pdf-estado">Estado da ficha (opcional)</label>
+    <select id="pdf-estado">
+      <option value="">Automático</option><option value="RO">Rondônia (RO)</option>
+      <option value="PA">Pará (PA)</option><option value="MT">Mato Grosso (MT)</option>
+      <option value="GO">Goiás (GO)</option><option value="MA">Maranhão (MA)</option>
+      <option value="TO">Tocantins (TO)</option><option value="MS">Mato Grosso do Sul (MS)</option>
+    </select>
+  </div>
+
   <div class="upzone" id="dz" onclick="document.getElementById('pdf-inp').click()">
     <span class="upzone-icon"></span>
     <h2 class="upzone-title">Carregue o PDF<span></span></h2>
@@ -1266,10 +1276,11 @@ async function lerPDFsInserir(fileList){
   const somaV=new Array(10).fill(0);
   const fazendas=[];
   let primeiraMeta=null, falhas=0;
+  const estadoPdf=(document.getElementById('pdf-estado')?.value||'').trim();
   const estado=(document.getElementById('insr-estado')?.value||'').trim();
   try{
     for(const file of files){
-      const fd=new FormData();fd.append('pdf',file);
+      const fd=new FormData();fd.append('pdf',file);if(estadoPdf)fd.append('estado',estadoPdf);
       if(estado)fd.append('estado',estado);
       try{
         const res=await fetch('/api/ler-pdf',{method:'POST',body:fd});
@@ -1509,15 +1520,20 @@ async function lerPDFs(fileList){
   const somaV=new Array(10).fill(0);
   const fazendas=[];
   let primeiraMeta=null, falhas=0;
+  const estadoPdf=(document.getElementById('pdf-estado')?.value||'').trim();
   try{
     for(const file of files){
-      const fd=new FormData();fd.append('pdf',file);
+      const fd=new FormData();fd.append('pdf',file);if(estadoPdf)fd.append('estado',estadoPdf);
       try{
         const res=await fetch('/api/ler-pdf',{method:'POST',body:fd});
         const data=await res.json();
         if(data.erro){falhas++;showToast(`${file.name}: ${data.erro}`,true);continue}
         data.valores.forEach((val,i)=>somaV[i]+=(parseFloat(val)||0));
-        fazendas.push({nome:data.fazenda||file.name,municipio:data.municipio||'',total:data.total||0,origem:data.origem||'—'});
+        if(Array.isArray(data.fazendas)&&data.fazendas.length){
+          data.fazendas.forEach(f=>fazendas.push({nome:f.fazenda||file.name,municipio:data.municipio||'',total:f.total||0,origem:data.origem||'—'}));
+        }else{
+          fazendas.push({nome:data.fazenda||file.name,municipio:data.municipio||'',total:data.total||0,origem:data.origem||'—'});
+        }
         if(!primeiraMeta)primeiraMeta=data;
         if(data.texto_raw) _last_pdf_raw = data.texto_raw;
       }catch(e){
@@ -1535,6 +1551,10 @@ async function lerPDFs(fileList){
       origem: fazendas.length===1 ? fazendas[0].origem : 'MÚLTIPLOS',
       fazendas_combinadas: fazendas,
     });
+    setValsFromApi(somaV);
+    document.getElementById('f_faz').value=fazendas.length===1?fazendas[0].nome:`${fazendas.length} fazendas combinadas`;
+    document.getElementById('f_mun').value=fazendas.length===1?(fazendas[0].municipio||''):'';
+    document.getElementById('f_prop').value=primeiraMeta?.proprietario||'';
     const okMsg=fazendas.length>1 ? `${fazendas.length} PDFs combinados (${fN(totalGeral)} animais no total)` : `PDF carregado: ${fazendas[0].nome} (${fN(totalGeral)} animais)`;
     showToast(falhas?`${okMsg} · ${falhas} arquivo(s) falharam`:okMsg);
   }finally{hideLoading()}

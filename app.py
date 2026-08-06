@@ -995,12 +995,12 @@ def extrair_texto_pdf(path: str) -> str:
         ocr_text = ''
         with pdfplumber.open(path) as pdf:
             for page in pdf.pages:
-                img = page.to_image(resolution=200).original
+                img = page.to_image(resolution=300).original
                 # 'por+eng' se disponível, senão 'eng'
                 try:
-                    ocr_text += pytesseract.image_to_string(img, lang='por+eng') + '\n'
+                    ocr_text += pytesseract.image_to_string(img, lang='por+eng', config='--psm 6') + '\n'
                 except pytesseract.TesseractError:
-                    ocr_text += pytesseract.image_to_string(img, lang='eng') + '\n'
+                    ocr_text += pytesseract.image_to_string(img, lang='eng', config='--psm 6') + '\n'
         if ocr_text.strip():
             logger.info("PDF escaneado: texto extraído via OCR (%d chars)", len(ocr_text))
             return ocr_text
@@ -1037,7 +1037,13 @@ def api_ler_pdf():
             'GO': 'AGRODEFESA_GO', 'MA': 'AGED_MA',
             'TO': 'ADAPEC_TO', 'PA': 'ADEPARA_PA',
         }
-        orig = _ESTADO_ORIGEM.get(estado) or detectar_origem(text)
+        detectada = detectar_origem(text)
+        # A seleção manual fixa o estado, mas preserva o subtipo GO detectado
+        # (declaração web x ficha Agrodefesa), como no seletor da planilha.
+        if estado == 'GO' and detectada in {'GO_DEC_WEB', 'AGRODEFESA_GO'}:
+            orig = detectada
+        else:
+            orig = _ESTADO_ORIGEM.get(estado) or detectada
         if orig == 'DECLARACAO_IDARON':
             dados = parsear_declaracao_idaron(text)
         elif orig == 'IDARON':
