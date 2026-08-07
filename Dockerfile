@@ -45,6 +45,7 @@ RUN apt-get update \
 
 COPY --from=builder /app/.venv .venv/
 COPY . .
+ENV PATH="/app/.venv/bin:${PATH}"
 
 # Espelha o Procfile. Bind, workers, timeout e o hook do scheduler ficam em
 # gunicorn.conf.py — ver lá por que preload_app é obrigatório aqui.

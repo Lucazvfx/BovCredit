@@ -144,6 +144,11 @@ def test_dockerfile_usa_a_configuracao():
     assert 'gunicorn.conf.py' in _raiz('Dockerfile')
 
 
+def test_runtime_encontra_gunicorn_dentro_da_venv():
+    assert '.venv/bin/gunicorn' in _raiz('Procfile')
+    assert 'PATH="/app/.venv/bin:${PATH}"' in _raiz('Dockerfile')
+
+
 def test_nem_procfile_nem_dockerfile_fixam_workers():
     """
     Se fixassem, a configuração seria ignorada e a briga entre os dois voltaria.

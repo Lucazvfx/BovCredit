@@ -1,1 +1,1 @@
-web: gunicorn -c gunicorn.conf.py app:app
+web: .venv/bin/gunicorn -c gunicorn.conf.py app:app
