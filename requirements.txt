@@ -21,7 +21,8 @@ apscheduler==3.11.3
 requests==2.33.1
 lightgbm==4.7.0
 reportlab==5.0.0
-shap==0.51.0
+# SHAP 0.51 exige numpy>=2; o modelo versionado usa numpy 1.26.4.
+shap==0.49.1
 flask-limiter==4.1.1
 groq==1.6.0
 # Ponte para o binário do Tesseract (instalado no Dockerfile). Só o wrapper: se
