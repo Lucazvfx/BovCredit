@@ -1,9 +1,6 @@
 from pathlib import Path
 import io
 
-import database as db
-import app as app_module
-from app import app
 from services.fichas_rebanho.base_reader import registros_do_parse
 
 
@@ -28,7 +25,22 @@ def test_preview_pdf_e_botao_classificacao_ficam_disponiveis_na_entrada():
     assert 'document.getElementById(\'pdf-status-main\')' in html
 
 
+def test_frontend_exibe_fluxo_de_analise_e_estados_acessiveis():
+    html = TEMPLATE.read_text(encoding='utf-8')
+
+    assert 'class="analysis-flow"' in html
+    assert 'aria-controls="panel-entrada"' in html
+    assert 'aria-selected="true"' in html
+    assert '--surface-2:var(--c2)' in html
+    assert 'button:focus-visible' in html
+    assert 'prefers-reduced-motion:reduce' in html
+
+
 def test_endpoint_importacao_entrega_valores_prontos_para_classificar(monkeypatch):
+    import database as db
+    import app as app_module
+    from app import app
+
     db.init_db()
     email = 'pdf-flow-test@example.com'
     usuario = db.buscar_usuario_email(email)

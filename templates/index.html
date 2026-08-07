@@ -26,6 +26,8 @@
   --sb:#8892AA;
   --fn: 'Barlow Condensed', sans-serif;--fb: 'Barlow', sans-serif;--fm:'DM Mono', monospace;
   --r:16px;--rs:10px;
+  --surface-2:var(--c2);--border:var(--b);--border-accent:rgba(74,222,128,.28);
+  --text-primary:var(--tx);--text-secondary:var(--sb);--text-muted:var(--mu);--text-accent:var(--g);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -66,7 +68,24 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 
 .panel{display:none;animation:rise .35s cubic-bezier(.22,1,.36,1)}
 .panel.active{display:block}
+.panel[hidden]{display:none}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--g);outline-offset:3px}
+.tab-btn[aria-selected="true"]{background:var(--g);color:#000}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 @keyframes rise{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+.analysis-flow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:14px;align-items:stretch;margin:0 0 18px;padding:18px;background:linear-gradient(135deg,rgba(74,222,128,.08),rgba(22,27,42,.72));border:1px solid var(--border-accent);border-radius:var(--r)}
+.analysis-flow-copy{display:flex;flex-direction:column;justify-content:center;gap:6px}
+.analysis-flow-kicker{font-family:var(--fm);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--g)}
+.analysis-flow-title{font-family:var(--fn);font-size:1.35rem;font-weight:800;letter-spacing:-.2px}
+.analysis-flow-sub{font-size:.78rem;line-height:1.5;color:var(--sb);max-width:48ch}
+.analysis-flow-steps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.analysis-step{display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid var(--b2);border-radius:var(--rs);background:rgba(6,8,16,.32);font-family:var(--fm);font-size:.58rem;color:var(--sb);white-space:nowrap}
+.analysis-step strong{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--g);color:#060810;font-size:.68rem}
+.analysis-flow-cta{display:flex;align-items:center;justify-content:center;min-width:178px}
+.analysis-flow-cta .btn-p{width:100%;margin:0}
+@media(max-width:900px){.analysis-flow{grid-template-columns:1fr}.analysis-flow-steps{justify-content:flex-start}.analysis-flow-cta{justify-content:flex-start}}
+@media(max-width:600px){.analysis-flow{padding:14px}.analysis-flow-title{font-size:1.15rem}.analysis-flow-steps{display:grid;grid-template-columns:1fr 1fr}.analysis-step{font-size:.54rem}.analysis-flow-cta{min-width:0}.analysis-flow-cta .btn-p{min-height:44px}}
 
 .card{background:var(--c);border:1px solid var(--b);border-radius:var(--r);overflow:hidden}
 .ch{padding:16px 22px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between}
@@ -479,16 +498,32 @@ main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-
 
 <main>
 <div class="tab-bar">
-  <button class="tab-btn active" onclick="showTab('entrada',this)">Inserir Dados</button>
-  <button class="tab-btn tab-locked" id="tab-res" onclick="showTab('resultado',this)">Resultado</button>
-  <button class="tab-btn tab-locked" id="tab-cen" onclick="showTab('cenarios',this)">Simular Cenários</button>
-  <button class="tab-btn" onclick="showTab('historico',this)">Histórico</button>
-  <button class="tab-btn" onclick="showTab('ajuda',this)">Ajuda</button>
+  <button class="tab-btn active" aria-controls="panel-entrada" aria-selected="true" role="tab" onclick="showTab('entrada',this)">Inserir Dados</button>
+  <button class="tab-btn tab-locked" id="tab-res" aria-controls="panel-resultado" aria-selected="false" aria-disabled="true" role="tab" onclick="showTab('resultado',this)">Resultado</button>
+  <button class="tab-btn tab-locked" id="tab-cen" aria-controls="panel-cenarios" aria-selected="false" aria-disabled="true" role="tab" onclick="showTab('cenarios',this)">Simular Cenários</button>
+  <button class="tab-btn" aria-controls="panel-historico" aria-selected="false" role="tab" onclick="showTab('historico',this)">Histórico</button>
+  <button class="tab-btn" aria-controls="panel-ajuda" aria-selected="false" role="tab" onclick="showTab('ajuda',this)">Ajuda</button>
 </div>
 
 <!-- ═══ ENTRADA MANUAL ═══ -->
 <div class="panel active" id="panel-entrada">
   <div id="pdf-status-main" style="margin-bottom:16px;display:none"></div>
+  <section class="analysis-flow" aria-label="Fluxo de análise do rebanho">
+    <div class="analysis-flow-copy">
+      <div class="analysis-flow-kicker">Mesa de análise rural</div>
+      <div class="analysis-flow-title">Comece pelo documento do rebanho</div>
+      <p class="analysis-flow-sub">A Orkavyn transforma a ficha em evidência classificada, fluxo de caixa e decisão de crédito auditável.</p>
+    </div>
+    <div class="analysis-flow-steps" aria-label="Etapas da análise">
+      <div class="analysis-step"><strong>1</strong> Ler</div>
+      <div class="analysis-step"><strong>2</strong> Conferir</div>
+      <div class="analysis-step"><strong>3</strong> Decidir</div>
+    </div>
+    <div class="analysis-flow-cta">
+      <button class="btn-p" type="button" onclick="document.getElementById('pdf-inp-main').click()">Ler PDF do rebanho</button>
+    </div>
+  </section>
+
   <div class="ptitle">Inserir dados do <em>rebanho</em></div>
   <p class="psub">Preencha as quantidades por faixa etária.</p>
 
@@ -1384,12 +1419,18 @@ document.addEventListener('DOMContentLoaded', ()=>{
     bgEl.style.opacity = '0';
   });
 
-  // Ticker de notícias agropecuárias
-  (async function iniciarTicker(){
+  // Ticker de notícias agropecuárias. A primeira chamada retorna rápido;
+  // o servidor atualiza os RSS em segundo plano.
+  let _tentativasTicker=0;
+  async function iniciarTicker(){
     try {
       const r = await fetch('/api/noticias');
       const d = await r.json();
-      if (!d.ok || !d.noticias?.length) return;
+      if (!d.ok) return;
+      if (!d.noticias?.length) {
+        if (d.atualizando && _tentativasTicker++ < 5) setTimeout(iniciarTicker,1200);
+        return;
+      }
       const inner = document.getElementById('ticker-inner');
       const track = document.getElementById('ticker-track');
       // Constrói itens separados por ponto verde
@@ -1409,8 +1450,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
       track.addEventListener('mouseleave', () => track.style.animationPlayState = 'running');
     } catch(e) {
       console.warn('Ticker: falha ao carregar notícias', e);
+      if (_tentativasTicker++ < 2) setTimeout(iniciarTicker,1500);
     }
-  })();
+  }
+  iniciarTicker();
 });
 
 // ================== BUILD TABLE ==================
@@ -1648,6 +1691,8 @@ async function classificar(){
     showTab('resultado',null);
     document.getElementById('tab-res').classList.remove('tab-locked');
     document.getElementById('tab-cen').classList.remove('tab-locked');
+    document.getElementById('tab-res').setAttribute('aria-disabled','false');
+    document.getElementById('tab-cen').setAttribute('aria-disabled','false');
     window.scrollTo({top:0,behavior:'smooth'});
     document.getElementById('s-mat').value=v[6]+v[8];
     document.getElementById('s-fem').value=v[0]+v[2]+v[4];
@@ -3699,11 +3744,20 @@ function renderSc(d){
 
 // ================== NAVEGAÇÃO ==================
 function showTab(id,btn){
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('panel-'+id).classList.add('active');
-  if(btn)btn.classList.add('active');
-  else document.querySelectorAll('.tab-btn')[{entrada:0,resultado:1,cenarios:2}[id]]?.classList.add('active');
+  const panel=document.getElementById('panel-'+id);
+  if(!panel)return;
+  const idx={entrada:0,resultado:1,cenarios:2,historico:3,ajuda:4};
+  document.querySelectorAll('.panel').forEach(p=>{
+    const active=p===panel;
+    p.classList.toggle('active',active);
+    p.hidden=!active;
+  });
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    const active=b===btn || b.getAttribute('aria-controls')===panel.id;
+    b.classList.toggle('active',active);
+    b.setAttribute('aria-selected',active?'true':'false');
+  });
+  if(!btn)document.querySelectorAll('.tab-btn')[idx[id]]?.classList.add('active');
 }
 function resetApp(){clearAll();document.getElementById('tab-res').style.display='none';document.getElementById('tab-cen').style.display='none';showTab('entrada',document.querySelectorAll('.tab-btn')[0]);lastVals=null;document.getElementById('result-wrap').innerHTML='';document.getElementById('sc-result').innerHTML=''}
 

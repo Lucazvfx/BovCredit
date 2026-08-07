@@ -7,6 +7,7 @@ import re
 import io
 import tempfile
 import subprocess
+import threading
 from functools import wraps
 
 from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, send_from_directory, send_file, session, abort
@@ -2360,6 +2361,8 @@ def api_precos_live():
 import xml.etree.ElementTree as _ET
 _noticias_cache: list = []
 _noticias_cache_ts: float = 0.0
+_noticias_refreshing = False
+_noticias_lock = threading.Lock()
 _NOTICIAS_TTL = 20 * 60   # 20 minutos
 
 _RSS_FEEDS = [
@@ -2414,19 +2417,39 @@ def _filtrar_agro(itens: list[dict]) -> list[dict]:
     return resultado or itens  # sem filtro se nenhum passou
 
 
+def _atualizar_noticias_em_background() -> None:
+    """Atualiza o ticker fora da requisição que abre o painel."""
+    global _noticias_cache, _noticias_cache_ts, _noticias_refreshing
+    try:
+        sess = _session_com_retry()
+        todos = []
+        for url in _RSS_FEEDS:
+            todos.extend(_buscar_rss(url, sess))
+        filtrados = _filtrar_agro(todos)[:30]
+        if filtrados:
+            with _noticias_lock:
+                _noticias_cache = filtrados
+                _noticias_cache_ts = _time.monotonic()
+    finally:
+        with _noticias_lock:
+            _noticias_refreshing = False
+
+
+def _solicitar_atualizacao_noticias() -> None:
+    global _noticias_refreshing
+    with _noticias_lock:
+        if _noticias_refreshing:
+            return
+        _noticias_refreshing = True
+    threading.Thread(target=_atualizar_noticias_em_background,
+                     name='noticias-rss', daemon=True).start()
+
+
 def _noticias_fresh() -> list:
-    global _noticias_cache, _noticias_cache_ts
     agora = _time.monotonic()
     if _noticias_cache and (agora - _noticias_cache_ts) < _NOTICIAS_TTL:
         return _noticias_cache
-    sess = _session_com_retry()
-    todos = []
-    for url in _RSS_FEEDS:
-        todos.extend(_buscar_rss(url, sess))
-    filtrados = _filtrar_agro(todos)[:30]
-    if filtrados:
-        _noticias_cache = filtrados
-        _noticias_cache_ts = agora
+    _solicitar_atualizacao_noticias()
     return _noticias_cache or []
 
 
@@ -2439,7 +2462,8 @@ def api_noticias():
     """
     try:
         itens = _noticias_fresh()
-        return jsonify({'ok': True, 'noticias': itens, 'total': len(itens)})
+        return jsonify({'ok': True, 'noticias': itens, 'total': len(itens),
+                        'atualizando': _noticias_refreshing})
     except Exception as e:
         logger.error(f'[RSS] Erro no endpoint: {e}', exc_info=True)
         return jsonify({'ok': False, 'noticias': [], 'erro': str(e)}), 500
