@@ -58,6 +58,15 @@ def _needs_category_distribution(
     return category in calendar or category in seasonality
 
 
+def _estimated_warning(row_warnings: list[str]) -> str | None:
+    lowered_warnings = [warning.lower() for warning in row_warnings]
+    if any("linear monthly fallback" in warning for warning in lowered_warnings):
+        return "monthly values estimated from linear fallback"
+    if any("flat fallback" in warning or "seasonality fallback" in warning for warning in lowered_warnings):
+        return "monthly values estimated from seasonality fallback"
+    return None
+
+
 def _generic_amounts(year_row: dict) -> dict[str, float]:
     entradas = year_row.get("entradas")
     if entradas is None:
@@ -261,7 +270,9 @@ def project_cashflow(
         saldo = saldo_final
 
         if row_estimated:
-            row_warnings.append("monthly values estimated from linear fallback")
+            fallback_warning = _estimated_warning(row_warnings)
+            if fallback_warning:
+                row_warnings.append(fallback_warning)
         row_warnings = [warning for warning in dict.fromkeys(row_warnings) if warning]
         top_warnings.extend(row_warnings)
 

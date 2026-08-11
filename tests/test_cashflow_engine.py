@@ -100,6 +100,7 @@ def test_project_cashflow_keeps_valid_calendar_when_seasonality_overlay_is_inval
     assert rows[0]["entradas"] == pytest.approx(0.0, abs=0.01)
     assert sum(row["entradas"] for row in rows) == pytest.approx(120.0, abs=0.01)
     assert any("seasonality" in warning.lower() for warning in result["warnings"])
+    assert not any("linear fallback" in warning.lower() for warning in result["warnings"])
 
 
 def test_project_cashflow_preserves_source_ano_labels_when_present():
