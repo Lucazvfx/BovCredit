@@ -68,6 +68,47 @@ def test_project_cashflow_applies_custom_calendar_by_category():
     assert sum(row["investimentos"] for row in rows) == pytest.approx(60.0, abs=0.01)
 
 
+def test_project_cashflow_preserves_source_ano_labels_when_present():
+    annual_projection = {
+        "years": [
+            {"ano": 2024, "receita": 120.0, "custo": 24.0, "servico_divida_anual": 12.0},
+            {"ano": 2027, "receita": 120.0, "custo": 24.0, "servico_divida_anual": 12.0},
+        ]
+    }
+
+    result = project_cashflow(annual_projection, {}, horizon_months=24)
+    rows = result["months"]
+
+    assert rows[0]["ano"] == 2024
+    assert rows[11]["ano"] == 2024
+    assert rows[12]["ano"] == 2027
+    assert rows[-1]["ano"] == 2027
+
+
+def test_project_cashflow_marks_zero_sum_seasonality_as_estimated():
+    annual_projection = {
+        "years": [
+            {"receita": 120.0, "custo": 0.0, "servico_divida_anual": 0.0},
+        ]
+    }
+
+    result = project_cashflow(
+        annual_projection,
+        {"servico_divida_anual": 0.0},
+        horizon_months=12,
+        seasonality={
+            "entradas": [0] * 12,
+            "custos_operacionais": [1] * 12,
+            "investimentos": [1] * 12,
+        },
+    )
+
+    rows = result["months"]
+    assert result["estimated"] is True
+    assert rows[0]["estimated"] is True
+    assert any("seasonality" in warning.lower() for warning in result["warnings"])
+
+
 @pytest.mark.parametrize("horizon_months", [12, 24, 36, 48, 60])
 def test_project_cashflow_rolls_forward_for_supported_horizons(horizon_months):
     annual_projection = {

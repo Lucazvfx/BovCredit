@@ -44,6 +44,12 @@ def _coerce_month_weights(spec: Any) -> tuple[list[float], bool, list[str]]:
                 warnings.append(f"invalid weight for month {month}")
         if not seen:
             return list(_DEFAULT_MONTH_WEIGHTS), True, ["seasonality mapping did not contain month weights"]
+        if warnings:
+            warnings.append("seasonality weights were malformed; using flat fallback")
+            return list(_DEFAULT_MONTH_WEIGHTS), True, warnings
+        if sum(weights) <= 0:
+            warnings.append("seasonality weights summed to zero; using flat fallback")
+            return list(_DEFAULT_MONTH_WEIGHTS), True, warnings
         return _normalize_weights(weights), False, warnings
 
     if isinstance(spec, Sequence) and not isinstance(spec, (str, bytes, bytearray)):
@@ -57,6 +63,12 @@ def _coerce_month_weights(spec: Any) -> tuple[list[float], bool, list[str]]:
             except (TypeError, ValueError):
                 warnings.append("seasonality contained a non-numeric weight")
                 weights.append(0.0)
+        if warnings:
+            warnings.append("seasonality weights were malformed; using flat fallback")
+            return list(_DEFAULT_MONTH_WEIGHTS), True, warnings
+        if sum(weights) <= 0:
+            warnings.append("seasonality weights summed to zero; using flat fallback")
+            return list(_DEFAULT_MONTH_WEIGHTS), True, warnings
         return _normalize_weights(weights), False, warnings
 
     raise ValueError("seasonality must be a 12-month sequence or a mapping of month weights")
@@ -98,7 +110,16 @@ def resolve_month_weights(
     if sea_weights is None:
         return cal_weights, cal_estimated, warnings
 
+    if cal_estimated or sea_estimated:
+        flat_warnings = list(dict.fromkeys(warnings))
+        flat_warnings.append(f"{category} seasonality fallback applied because weights were malformed or summed to zero")
+        return list(_DEFAULT_MONTH_WEIGHTS), True, flat_warnings
+
     combined = [a * b for a, b in zip(cal_weights, sea_weights)]
+    if sum(combined) <= 0:
+        flat_warnings = list(dict.fromkeys(warnings))
+        flat_warnings.append(f"{category} seasonality fallback applied because combined weights summed to zero")
+        return list(_DEFAULT_MONTH_WEIGHTS), True, flat_warnings
     return _normalize_weights(combined), cal_estimated or sea_estimated, warnings
 
 

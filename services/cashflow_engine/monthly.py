@@ -95,6 +95,16 @@ def _generic_amounts(year_row: dict) -> dict[str, float]:
     }
 
 
+def _year_label(year_row: dict, fallback: int) -> int:
+    label = year_row.get("ano")
+    if label is None or isinstance(label, bool):
+        return fallback
+    try:
+        return int(label)
+    except (TypeError, ValueError):
+        return fallback
+
+
 def _split_loan_schedule(
     debt_schedule: dict | None,
     horizon_months: int,
@@ -189,6 +199,7 @@ def project_cashflow(
         year_index = min(month_index // 12, len(year_rows) - 1)
         month_in_year = month_index % 12
         year_row = year_rows[year_index]
+        year_label = _year_label(year_row, year_index + 1)
 
         detailed = _category_amounts(year_row)
         row_warnings: list[str] = []
@@ -256,7 +267,7 @@ def project_cashflow(
 
         months.append(
             CashflowMonth(
-                ano=year_index + 1,
+                ano=year_label,
                 mes=month_in_year + 1,
                 saldo_inicial=round(saldo_inicial, 2),
                 entradas=round(entradas, 2),
