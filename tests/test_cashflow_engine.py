@@ -103,6 +103,31 @@ def test_project_cashflow_keeps_valid_calendar_when_seasonality_overlay_is_inval
     assert not any("linear fallback" in warning.lower() for warning in result["warnings"])
 
 
+def test_project_cashflow_marks_malformed_seasonality_mapping_without_weights_as_estimated():
+    annual_projection = {
+        "years": [
+            {
+                "calf_sales": 120.0,
+                "finished_sales": 0.0,
+                "purchases": 0.0,
+                "costs": 0.0,
+                "investments": 0.0,
+            }
+        ]
+    }
+
+    result = project_cashflow(
+        annual_projection,
+        {"servico_divida_anual": 0.0},
+        horizon_months=12,
+        seasonality={"calf_sales": {"jan": 1.0}},
+    )
+
+    assert result["estimated"] is True
+    assert any("estimated" in warning.lower() for warning in result["warnings"])
+    assert any("month weights" in warning.lower() for warning in result["warnings"])
+
+
 def test_project_cashflow_preserves_source_ano_labels_when_present():
     annual_projection = {
         "years": [

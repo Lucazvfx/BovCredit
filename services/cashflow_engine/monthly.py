@@ -62,6 +62,8 @@ def _estimated_warning(row_warnings: list[str]) -> str | None:
     lowered_warnings = [warning.lower() for warning in row_warnings]
     if any("linear monthly fallback" in warning for warning in lowered_warnings):
         return "monthly values estimated from linear fallback"
+    if any("seasonality mapping did not contain month weights" in warning for warning in lowered_warnings):
+        return "monthly values estimated from seasonality mapping without month weights"
     if any("flat fallback" in warning or "seasonality fallback" in warning for warning in lowered_warnings):
         return "monthly values estimated from seasonality fallback"
     return None
