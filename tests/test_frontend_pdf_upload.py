@@ -1,5 +1,6 @@
 from pathlib import Path
 import io
+import re
 
 from services.fichas_rebanho.base_reader import registros_do_parse
 
@@ -9,8 +10,10 @@ TEMPLATE = Path(__file__).parents[1] / 'templates' / 'index.html'
 
 def test_upload_pdf_fica_visivel_na_area_de_entrada():
     html = TEMPLATE.read_text(encoding='utf-8')
-    entrada = html.split('<div class="panel active" id="panel-entrada">', 1)[1]
-    entrada = entrada.split('<div class="panel" id="panel-pdf">', 1)[0]
+    inicio = re.search(r'<div class="[^"]*\bpanel\b[^"]*" id="panel-entrada">', html)
+    fim = re.search(r'<div class="[^"]*\bpanel\b[^"]*" id="panel-pdf">', html)
+    assert inicio is not None and fim is not None
+    entrada = html[inicio.end():fim.start()]
 
     assert 'id="pdf-inp-main"' in entrada
     assert 'onchange="lerPDFs(this.files);this.value=\'\'"' in entrada
@@ -28,12 +31,31 @@ def test_preview_pdf_e_botao_classificacao_ficam_disponiveis_na_entrada():
 def test_frontend_exibe_fluxo_de_analise_e_estados_acessiveis():
     html = TEMPLATE.read_text(encoding='utf-8')
 
-    assert 'class="analysis-flow"' in html
+    assert re.search(r'class="[^"]*\banalysis-flow\b[^"]*"', html)
     assert 'aria-controls="panel-entrada"' in html
     assert 'aria-selected="true"' in html
     assert '--surface-2:var(--c2)' in html
     assert 'button:focus-visible' in html
     assert 'prefers-reduced-motion:reduce' in html
+
+
+def test_primary_import_control_keeps_multiple_pdf_contract():
+    html = TEMPLATE.read_text(encoding='utf-8')
+
+    assert 'id="pdf-inp-main"' in html
+    assert 'accept=".pdf"' in html
+    assert 'multiple' in html
+    assert 'onchange="lerPDFs(this.files);this.value=\'\'"' in html
+
+
+def test_import_status_is_accessible_and_actionable():
+    html = TEMPLATE.read_text(encoding='utf-8')
+
+    status = re.search(r'<div id="pdf-status-main"(?P<attrs>[^>]*)>', html)
+    assert status is not None
+    assert 'aria-live="polite"' in status.group('attrs')
+    assert 'role="status"' in status.group('attrs')
+    assert 'class="analysis-flow ork-panel ork-import-panel"' in html
 
 
 def test_endpoint_importacao_entrega_valores_prontos_para_classificar(monkeypatch):

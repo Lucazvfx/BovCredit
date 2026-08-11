@@ -513,9 +513,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 </div>
 
 <!-- ═══ ENTRADA MANUAL ═══ -->
-<div class="panel active" id="panel-entrada">
-  <div id="pdf-status-main" style="margin-bottom:16px;display:none"></div>
-  <section class="analysis-flow" aria-label="Fluxo de análise do rebanho">
+<div class="panel active ork-entry-view" id="panel-entrada">
+  <section class="analysis-flow ork-panel ork-import-panel" aria-label="Fluxo de análise do rebanho">
     <div class="analysis-flow-copy">
       <div class="analysis-flow-kicker">Mesa de análise rural</div>
       <div class="analysis-flow-title">Comece pelo documento do rebanho</div>
@@ -527,14 +526,28 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       <div class="analysis-step"><strong>3</strong> Decidir</div>
     </div>
     <div class="analysis-flow-cta">
-      <button class="btn-p" type="button" onclick="document.getElementById('pdf-inp-main').click()">Ler PDF do rebanho</button>
+      <button class="btn-p ork-action" type="button" onclick="document.getElementById('pdf-inp-main').click()">Selecionar PDF do rebanho</button>
+      <div class="ork-import-alternatives" aria-label="Formas alternativas de entrada">
+        <button class="ork-action" type="button" onclick="document.getElementById('insr-xlsx-inp').click()">Ler planilha</button>
+        <button class="ork-action" type="button" onclick="document.querySelector('.ork-section-herd').scrollIntoView({behavior:'smooth'})">Digitar manualmente</button>
+      </div>
+      <div class="ork-import-correction">
+        <label for="insr-uf-ficha">Estado, somente se a detecção automática falhar</label>
+        <select id="insr-uf-ficha">
+          <option value="">Detecção automática</option>
+          <option value="MT">MT</option><option value="RO">RO</option><option value="MS">MS</option>
+          <option value="GO">GO</option><option value="MA">MA</option><option value="TO">TO</option>
+          <option value="PA">PA</option><option value="MG">MG</option><option value="BA">BA</option><option value="SP">SP</option>
+        </select>
+      </div>
     </div>
   </section>
+  <div id="pdf-status-main" class="ork-state ork-import-status" role="status" aria-live="polite" aria-atomic="true" style="display:none"></div>
 
   <div class="ptitle">Inserir dados do <em>rebanho</em></div>
   <p class="psub">Preencha as quantidades por faixa etária.</p>
 
-  <div class="card" style="margin-bottom:16px">
+  <div class="card ork-section-property" style="margin-bottom:16px">
     <div class="ch"><div class="ct"><div class="cd"></div>Dados</div></div>
     <div class="cb">
       <div class="fgrid">
@@ -560,7 +573,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
   </div>
 
-  <div class="card" style="margin-bottom:16px">
+  <div class="card ork-section-credit" style="margin-bottom:16px">
     <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Solicitação de Crédito <span style="font-size:.65rem;opacity:.6">(opcional)</span></div></div>
     <div class="cb">
       <div class="fgrid">
@@ -596,7 +609,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
   </div>
 
-  <div class="card" style="margin-bottom:16px">
+  <div class="card ork-section-herd" style="margin-bottom:16px">
     <div class="ch">
       <div class="ct"><div class="cd" style="background:var(--cy)"></div>Composição por Faixa Etária</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -609,19 +622,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <input type="file" id="insr-xlsx-inp" accept=".xlsx,.xlsm" style="display:none" onchange="lerPlanilha(this.files[0]);this.value=''">
         <button class="btn-sm" onclick="document.getElementById('pdf-inp-main').click()" title="Ler saldo de rebanho em PDF">📄 Ler PDF</button>
         <input type="file" id="pdf-inp-main" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files);this.value=''">
-        <select id="insr-uf-ficha" class="btn-sm" style="padding:2px 4px;cursor:pointer;font-size:.75rem">
-          <option value="">🗺 UF: Todas</option>
-          <option value="MT">MT</option>
-          <option value="RO">RO</option>
-          <option value="MS">MS</option>
-          <option value="GO">GO</option>
-          <option value="MA">MA</option>
-          <option value="TO">TO</option>
-          <option value="PA">PA</option>
-          <option value="MG">MG</option>
-          <option value="BA">BA</option>
-          <option value="SP">SP</option>
-        </select>
           <button class="btn-sm" onclick="window.location='/api/ficha/download'" title="Baixar ficha XLSM com macros">⬇ Baixar Ficha XLSM</button>
           <button class="btn-sm" onclick="window.location='/api/ficha/instrucoes'" title="Baixar instruções de preenchimento">📄 Instruções</button>
         <button class="btn-sm" onclick="document.getElementById('insr-ficha-inp').click()">📋 Importar Ficha</button>
@@ -731,7 +731,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <span>Bezerro: <strong id="cs-bez" style="color:var(--cy)">—</strong></span>
     <span style="opacity:.5">· cotações usadas no cálculo de valor do rebanho</span>
   </div>
-  <button class="btn-p" id="btn-class" onclick="classificar()"><span>Classificar</span></button>
+  <button class="btn-p ork-action ork-submit-analysis" id="btn-class" onclick="classificar()"><span>Executar análise econômico-produtiva</span></button>
 </div>
 
 <!-- ═══ PDF ═══ -->
@@ -1974,6 +1974,7 @@ function renderConsistencia(c){
 async function lerPDFs(fileList){
   const files=[...fileList].filter(f=>f.name.toLowerCase().endsWith('.pdf'));
   if(!files.length)return;
+  setPDFStatusState('loading', files.length>1 ? `Processando ${files.length} PDFs...` : 'Processando PDF...');
   showLoading(files.length>1?`Lendo ${files.length} PDFs...`:'Lendo PDF...');
   const somaV=new Array(10).fill(0);
   const fazendas=[];
@@ -2004,7 +2005,7 @@ async function lerPDFs(fileList){
         falhas++;showToast(`${file.name}: erro ao processar (${e.message})`,true);
       }
     }
-    if(!fazendas.length){showToast('Nenhum PDF pôde ser lido.',true);return}
+    if(!fazendas.length){setPDFStatusState('error','Nenhum PDF pôde ser lido. Revise o arquivo ou informe o estado para tentar novamente.');showToast('Nenhum PDF pôde ser lido.',true);return}
     const totalGeral=somaV.reduce((a,b)=>a+b,0);
     mostrarPDFPreview({
       valores:somaV,
@@ -2043,6 +2044,7 @@ function mostrarPDFPreview(data){
       </div>
     </div>` : '';
   const status = document.getElementById('pdf-status-main') || document.getElementById('pdf-status');
+  status.className=`ork-state ork-import-status ${pendencias.length?'is-partial':'is-success'}`;
   status.style.display='block';
   status.innerHTML=`
     <div class="card">
@@ -2079,6 +2081,14 @@ function mostrarPDFPreview(data){
   window._pdfPreviewData = data;
   status.scrollIntoView({behavior:'smooth', block:'start'});
   document.getElementById('dz').innerHTML=`<span class="upzone-icon">✅</span><h2 class="upzone-title">PDF carregado: <span>${escapeHtml(data.fazenda||'Exploração')}</span></h2><p class="upzone-sub">${fN(data.total)} animais · Clique para carregar outro(s)</p><input type="file" id="pdf-inp" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files)">`;
+}
+
+function setPDFStatusState(state,message){
+  const status=document.getElementById('pdf-status-main')||document.getElementById('pdf-status');
+  if(!status)return;
+  status.className=`ork-state ork-import-status is-${state}`;
+  status.style.display='block';
+  status.textContent=message;
 }
 
 async function reparsarPDF(){

@@ -29,6 +29,20 @@
 .ork-surface {
   margin: 0;
   padding: 0;
+  --bg: var(--ork-surface);
+  --bg2: var(--ork-sand);
+  --c: var(--ork-surface-raised);
+  --c2: var(--ork-sand);
+  --b: var(--ork-line);
+  --b2: var(--ork-line-strong);
+  --g: var(--ork-forest);
+  --am: var(--ork-warning);
+  --cy: var(--ork-moss);
+  --rd: var(--ork-danger);
+  --pu: var(--ork-clay);
+  --tx: var(--ork-ink);
+  --mu: var(--ork-copy);
+  --sb: #52645a;
   color: var(--ork-ink);
   background: var(--ork-surface);
   font-family: var(--ork-font-body);
@@ -311,6 +325,94 @@
   border-radius: var(--ork-radius-panel);
   color: var(--ork-copy);
   text-align: center;
+}
+
+/* Entrada de análise: o documento é a ação dominante e os formulários seguem
+   a sequência de decisão sem alterar IDs ou funções do fluxo legado. */
+.panel.active.ork-entry-view {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ork-entry-view > .ptitle,
+.ork-entry-view > .psub { margin: 0; }
+.ork-entry-view > .ptitle { order: 2; }
+.ork-entry-view > .psub { order: 2; margin-top: -12px; }
+.ork-entry-view > .ork-import-panel { order: 0; }
+.ork-entry-view > .ork-import-status { order: 1; }
+.ork-entry-view > .ork-section-property { order: 3; }
+.ork-entry-view > .ork-section-herd { order: 4; }
+.ork-entry-view > .ork-section-credit { order: 5; }
+.ork-entry-view > #cot-strip { order: 6; }
+.ork-entry-view > .ork-submit-analysis { order: 7; }
+
+.ork-entry-view .card {
+  color: var(--ork-ink);
+  background: var(--ork-surface-raised);
+  border-color: var(--ork-line);
+  box-shadow: var(--ork-shadow-soft);
+}
+
+.ork-entry-view .ch { background: var(--ork-sand); border-color: var(--ork-line); }
+.ork-entry-view .ct { color: var(--ork-ink); }
+.ork-entry-view .field label { color: var(--ork-ink); }
+.ork-entry-view .field input,
+.ork-entry-view .field select,
+.ork-entry-view .field textarea {
+  min-height: 44px;
+  color: var(--ork-ink);
+  background: var(--ork-surface-raised);
+  border-color: var(--ork-line-strong);
+}
+
+.ork-import-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
+  gap: 24px;
+  align-items: center;
+  color: var(--ork-surface-raised);
+  background: var(--ork-forest);
+  border-color: var(--ork-forest);
+  box-shadow: var(--ork-shadow);
+}
+
+.ork-import-panel .analysis-flow-copy { grid-column: 1; }
+.ork-import-panel .analysis-flow-kicker { color: var(--ork-oat); }
+.ork-import-panel .analysis-flow-title { color: var(--ork-surface-raised); font-size: clamp(2rem, 4vw, 3.5rem); line-height: 0.98; }
+.ork-import-panel .analysis-flow-sub { max-width: 58ch; color: var(--ork-sand); }
+.ork-import-panel .analysis-flow-steps { grid-column: 1; }
+.ork-import-panel .analysis-step { color: var(--ork-sand); border-color: rgba(246, 240, 230, 0.18); }
+.ork-import-panel .analysis-flow-cta { grid-column: 2; grid-row: 1 / span 2; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding-left: 24px; border-left: 1px solid rgba(246, 240, 230, 0.16); }
+.ork-import-panel .ork-action { width: 100%; color: var(--ork-forest); background: var(--ork-surface-raised); border-color: var(--ork-surface-raised); }
+.ork-import-panel .ork-action:hover { background: var(--ork-sand); }
+.ork-import-alternatives { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ork-import-alternatives .ork-action { min-height: 40px; padding: 8px 10px; color: var(--ork-sand); background: transparent; border-color: rgba(246, 240, 230, 0.24); font-size: 0.76rem; }
+.ork-import-correction { display: grid; gap: 6px; margin-top: 4px; }
+.ork-import-correction label { color: var(--ork-sage); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.ork-import-correction select { min-height: 40px; padding: 8px 10px; border: 1px solid rgba(246, 240, 230, 0.24); border-radius: var(--ork-radius-control); color: var(--ork-surface-raised); background: #214d38; }
+
+.ork-import-status { margin: 0 !important; }
+.ork-import-status .card { box-shadow: none; }
+.ork-import-status.is-success { border-color: #a8bba9; background: #edf1e9; }
+.ork-import-status.is-partial { border-color: #cfad70; background: #f3e9d3; }
+.ork-import-status.is-error { border-color: #c69187; background: #f2dfda; }
+
+.ork-entry-view .btn-sm,
+.ork-entry-view .btn-p { min-height: 44px; border-radius: var(--ork-radius-control); }
+.ork-entry-view .itbl,
+.ork-entry-view .ytbl { color: var(--ork-ink); background: var(--ork-surface-raised); }
+.ork-entry-view .itbl th,
+.ork-entry-view .ytbl th { color: var(--ork-copy); background: var(--ork-sand); border-color: var(--ork-line); }
+.ork-entry-view .itbl td,
+.ork-entry-view .ytbl td { border-color: var(--ork-line); }
+
+@media (max-width: 760px) {
+  .ork-import-panel { grid-template-columns: 1fr; }
+  .ork-import-panel .analysis-flow-copy,
+  .ork-import-panel .analysis-flow-steps,
+  .ork-import-panel .analysis-flow-cta { grid-column: 1; grid-row: auto; }
+  .ork-import-panel .analysis-flow-cta { padding: 18px 0 0; border-top: 1px solid rgba(246, 240, 230, 0.16); border-left: 0; }
 }
 
 .ork-evidence-ribbon {
