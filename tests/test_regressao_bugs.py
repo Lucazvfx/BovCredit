@@ -5,6 +5,8 @@ Cada teste nomeia o bug que protege e falha se o comportamento errado retornar.
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
+import math
+
 import pytest
 import database as db
 from app import app
@@ -254,3 +256,13 @@ def test_sensibilidade_custo_deduz_reposicao(client):
         if gc is not None:
             # Validamos que o campo existe e é numérico (não None)
             assert isinstance(gc, (int, float)), f'geracao_caixa não é numérico: {gc}'
+
+@pytest.mark.parametrize("bad_value", [math.inf, math.nan])
+def test_classificar_rejeita_valores_nao_finitos_sem_500(client, bad_value):
+    payload = {
+        'valores': [10, 10, 8, 8, 6, 6, 30, 2, 40, 3],
+        'taxa_natalidade': bad_value,
+    }
+    r = client.post('/api/classificar', json=payload)
+    assert r.status_code == 400, f'/api/classificar retornou {r.status_code}: {r.data[:200]}'
+    assert r.get_json()['erro'].startswith('Envie 10 valores >= 0')

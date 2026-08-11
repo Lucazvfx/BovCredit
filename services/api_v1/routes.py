@@ -38,13 +38,12 @@ def _rate_limit_spec() -> str:
 
 
 def _rate_limit_key() -> str:
-    raw_key = (
-        request.headers.get("X-API-Key")
-        or request.headers.get("Authorization")
-        or request.remote_addr
-        or ""
-    ).strip()
-    return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+    identity = getattr(g, "api_key_identity", None)
+    if identity is not None:
+        token = f"api-key:{identity.api_key_id}"
+    else:
+        token = f"ip:{request.remote_addr or ''}".strip()
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def _check_rate_limit(scope: str) -> None:

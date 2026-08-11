@@ -362,3 +362,26 @@ def test_v1_errors_docs_and_rate_limit_are_machine_readable(api_env, monkeypatch
     assert "/api/v1/full-analysis" in spec["paths"]
     assert "ApiKeyAuth" in spec["components"]["securitySchemes"]
     assert "Authorization" in spec["components"]["securitySchemes"]
+
+
+def test_v1_rate_limit_uses_the_authenticated_api_key_identity(api_env, monkeypatch):
+    monkeypatch.setattr(v1routes, "analyze_herd", lambda state, ml_result=None: {"system": "CRIA", "score": 99})
+    monkeypatch.setitem(app.config, "API_V1_RATE_LIMIT", "1 per minute")
+
+    raw_key, _ = _issue_key(api_env["org1"]["id"], scopes=["herd:analyze"])
+    herd_body = {"valores": HerdPayload["valores"]}
+
+    first = api_env["client"].post(
+        "/api/v1/herd/analyze",
+        json=herd_body,
+        headers={"X-API-Key": raw_key},
+    )
+    assert first.status_code == 200
+
+    second = api_env["client"].post(
+        "/api/v1/herd/analyze",
+        json=herd_body,
+        headers={"Authorization": f"Bearer {raw_key}"},
+    )
+    assert second.status_code == 429
+    assert second.get_json()["error"]["code"] == "rate_limited"

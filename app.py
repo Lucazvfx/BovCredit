@@ -2,6 +2,7 @@
 Plataforma de Análise de Crédito Pecuário — Servidor Flask
 """
 import logging
+import math
 import os
 import re
 import io
@@ -942,18 +943,43 @@ def app_main():
                            usuario=current_user, fazendas=fazendas, cotacoes=cotacoes_dia,
                            eh_admin=is_admin(current_user.email))
 
+
+_CLASSIFICAR_ERRO_VALIDACAO = (
+    'Envie 10 valores >= 0 (f?meas e machos por faixa) com total >= 10'
+)
+
+
+def _eh_numero_finito(valor) -> bool:
+    try:
+        return math.isfinite(float(valor))
+    except (TypeError, ValueError):
+        return False
+
+
+def _erro_validacao_classificar():
+    return jsonify({'erro': _CLASSIFICAR_ERRO_VALIDACAO}), 400
+
+
 @app.route('/api/classificar', methods=['POST'])
 @login_required
 def api_classificar():
     data = request.json
     v = data.get('valores', [])
-    if len(v) != 10 or not all(isinstance(x, (int, float)) and x >= 0 for x in v) or sum(v) < 10:
+    if len(v) != 10 or not all(isinstance(x, (int, float)) and x >= 0 and math.isfinite(float(x)) for x in v) or sum(float(x) for x in v) < 10:
         return jsonify({'erro': 'Envie 10 valores >= 0 (fêmeas e machos por faixa) com total >= 10'}), 400
 
-    credito_valor = float(data.get('credito_valor') or 0)
-    prazo_credito = int(data.get('prazo_meses') or 0)
-    carencia_credito = int(data.get('carencia_meses') or 0)
-    juros_credito = float(data.get('juros_aa') or 0)
+    credito_raw = data.get('credito_valor')
+    prazo_raw = data.get('prazo_meses')
+    carencia_raw = data.get('carencia_meses')
+    juros_raw = data.get('juros_aa')
+    if any(raw not in (None, '') and not _eh_numero_finito(raw)
+           for raw in (credito_raw, prazo_raw, carencia_raw, juros_raw)):
+        return _erro_validacao_classificar()
+
+    credito_valor = float(credito_raw or 0)
+    prazo_credito = int(prazo_raw or 0)
+    carencia_credito = int(carencia_raw or 0)
+    juros_credito = float(juros_raw or 0)
     if credito_valor > 0:
         if prazo_credito < 1 or prazo_credito > 60:
             return jsonify({'erro': 'O prazo do crédito deve estar entre 1 e 60 meses.'}), 400
@@ -964,10 +990,16 @@ def api_classificar():
 
     kwargs = {}
     if 'taxa_natalidade' in data:
+        if not _eh_numero_finito(data['taxa_natalidade']):
+            return _erro_validacao_classificar()
         kwargs['taxa_natalidade'] = float(data['taxa_natalidade'])
     if 'bois_vendidos' in data:
+        if not _eh_numero_finito(data['bois_vendidos']):
+            return _erro_validacao_classificar()
         kwargs['bois_vendidos'] = float(data['bois_vendidos'])
     if 'bezerros_vendidos' in data:
+        if not _eh_numero_finito(data['bezerros_vendidos']):
+            return _erro_validacao_classificar()
         kwargs['bezerros_vendidos'] = float(data['bezerros_vendidos'])
 
     result = classificar(v, **kwargs)
