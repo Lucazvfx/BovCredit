@@ -281,8 +281,9 @@ def _build_period_analysis(
     existing_monthly: float,
 ) -> list[dict]:
     periods: list[dict] = []
+    cronograma_anos = cronograma["anos"] if cronograma["anos"] else []
     for index, row in enumerate(cashflow_rows):
-        debt_row = cronograma["anos"][min(index, max(len(cronograma["anos"]) - 1, 0))] if cronograma["anos"] else {
+        debt_row = cronograma_anos[index] if index < len(cronograma_anos) else {
             "ano": row["ano"],
             "parcelas_nova_operacao": 0,
             "servico_nova_operacao": 0.0,
@@ -296,7 +297,7 @@ def _build_period_analysis(
                 "ano": row["ano"],
                 "resultado": round(resultado, 2),
                 "servico_nova_operacao": round(servico_nova, 2),
-                "parcela_nova_mensal": cronograma["parcela_mensal"],
+                "parcela_nova_mensal": cronograma["parcela_mensal"] if index < len(cronograma_anos) else 0.0,
                 "parcela_existente_mensal": round(existing_monthly, 2),
                 "servico_divida_anual": servico_total,
                 "cobertura": dscr,

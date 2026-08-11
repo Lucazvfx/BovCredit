@@ -127,3 +127,37 @@ def test_calculate_payment_capacity_marks_uncovered_periods_and_keeps_estimate()
     assert result["analysis"]["caixa_disponivel"] > 0
     assert result["analysis"]["capacidade_maxima_estimativa"] > 0
     assert result["legacy"]["recomendacao"] in {"aprovar", "ressalva", "negar"}
+
+
+def test_calculate_payment_capacity_zeros_debt_service_after_loan_term():
+    cashflow = {
+        "geracao_caixa_anual": 180_000.0,
+        "projecao_anos": [
+            {"ano": 1, "resultado": 180_000.0},
+            {"ano": 2, "resultado": 140_000.0},
+            {"ano": 3, "resultado": 95_000.0},
+            {"ano": 4, "resultado": 90_000.0},
+            {"ano": 5, "resultado": 85_000.0},
+        ],
+    }
+    debt_request = {
+        "credito_valor": 500_000.0,
+        "prazo_meses": 30,
+        "juros_aa": 0.125,
+        "carencia_meses": 6,
+    }
+
+    result = calculate_payment_capacity(cashflow, debt_request)
+    periods = result["periods"]
+    cronograma = result["analysis"]["cronograma_divida"]
+
+    assert [row["servico_nova_operacao"] for row in periods[:3]] == [
+        pytest.approx(cronograma[0]["servico_nova_operacao"], abs=0.01),
+        pytest.approx(cronograma[1]["servico_nova_operacao"], abs=0.01),
+        pytest.approx(cronograma[2]["servico_nova_operacao"], abs=0.01),
+    ]
+    for period in periods[3:]:
+        assert period["servico_nova_operacao"] == 0.0
+        assert period["servico_divida_anual"] == 0.0
+        assert period["dscr"] is None
+        assert period["uncovered"] is False

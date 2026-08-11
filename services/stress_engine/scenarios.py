@@ -58,6 +58,13 @@ def _service_from_base(base_analysis: dict, rows: list[dict]) -> float:
     return 0.0
 
 
+def _row_service(row: dict, fallback: float) -> float:
+    for key in ("servico_divida_anual", "servico_divida_total_anual", "debt_service"):
+        if key in row:
+            return _coerce_float(row.get(key))
+    return fallback
+
+
 def _apply_multiplier(value: float, pct: float | None, *, invert: bool = False) -> float:
     if pct is None:
         return value
@@ -164,6 +171,7 @@ def run_stress_tests(base_analysis: dict, scenarios: list[dict] | None) -> dict:
             receita_base = _coerce_float(row.get("receita"), _coerce_float(row.get("resultado")))
             custo_base = _coerce_float(row.get("custo"))
             resultado_base = _coerce_float(row.get("resultado"), receita_base - custo_base)
+            service_row = _row_service(row, service_divida)
 
             if receita_base or custo_base:
                 receita = round(receita_base * revenue_multiplier, 2)
@@ -174,14 +182,14 @@ def run_stress_tests(base_analysis: dict, scenarios: list[dict] | None) -> dict:
                 receita = round(_coerce_float(row.get("receita"), resultado), 2)
                 custo = round(_coerce_float(row.get("custo"), 0.0) * cost_multiplier, 2)
 
-            dscr = round(resultado / service_divida, 2) if service_divida > 0 else None
+            dscr = round(resultado / service_row, 2) if service_row > 0 else None
             stressed_rows.append(
                 {
                     **row,
                     "receita": receita,
                     "custo": custo,
                     "resultado": resultado,
-                    "servico_divida_anual": service_divida,
+                    "servico_divida_anual": service_row,
                     "dscr": dscr,
                     "uncovered": dscr is not None and dscr < 1.0,
                 }

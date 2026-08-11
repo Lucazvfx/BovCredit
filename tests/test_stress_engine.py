@@ -75,3 +75,54 @@ def test_run_stress_tests_preserves_base_analysis_and_lists_applied_changes():
     ]
     assert severe["base_analysis"] == original
     assert severe["analysis"]["base_analysis"] == original
+
+
+def test_run_stress_tests_keeps_each_period_own_debt_service():
+    base = {
+        "projecao_anos": [
+            {
+                "ano": 1,
+                "receita": 300_000.0,
+                "custo": 120_000.0,
+                "resultado": 180_000.0,
+                "servico_divida_anual": 60_000.0,
+                "dscr": 3.0,
+            },
+            {
+                "ano": 2,
+                "receita": 260_000.0,
+                "custo": 150_000.0,
+                "resultado": 110_000.0,
+                "servico_divida_anual": 90_000.0,
+                "dscr": 1.22,
+            },
+            {
+                "ano": 3,
+                "receita": 240_000.0,
+                "custo": 160_000.0,
+                "resultado": 80_000.0,
+                "servico_divida_anual": 30_000.0,
+                "dscr": 2.67,
+            },
+        ],
+        "conclusao": {
+            "dscr_minimo": 1.22,
+            "ano_critico": 2,
+            "recomendacao": "ressalva",
+        },
+        "servico_divida_anual": 60_000.0,
+        "geracao_caixa_anual": 180_000.0,
+    }
+
+    result = run_stress_tests(base, [{"nome": "neutro"}])
+    scenario = result["scenarios"][0]
+    periods = scenario["analysis"]["projecao_anos"]
+
+    assert [period["servico_divida_anual"] for period in periods] == [
+        60_000.0,
+        90_000.0,
+        30_000.0,
+    ]
+    assert [period["dscr"] for period in periods] == [3.0, 1.22, 2.67]
+    assert scenario["analysis"]["pior_periodo"]["ano"] == 2
+    assert scenario["analysis"]["conclusao"]["ano_critico"] == 2
