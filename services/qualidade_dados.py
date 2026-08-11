@@ -31,6 +31,15 @@ _CAMPOS_OPERACIONAIS = {
 _CAMPOS_COM_ESTIMATIVA_SEGURA = {"peso_medio_kg"}
 
 
+def _normalizar_aliases_para_analise(dados: dict | None) -> dict:
+    normalizados = dict(dados or {})
+    if normalizados.get("taxa_natalidade_pct") in (None, "") and normalizados.get("natalidade_pct") not in (None, ""):
+        normalizados["taxa_natalidade_pct"] = normalizados["natalidade_pct"]
+    if normalizados.get("taxa_mortalidade_pct") in (None, "") and normalizados.get("mortalidade_pct") not in (None, ""):
+        normalizados["taxa_mortalidade_pct"] = normalizados["mortalidade_pct"]
+    return normalizados
+
+
 def analisar_qualidade_dados(valores: list, dados: dict | None = None) -> dict:
     """Classifica a evidencia disponivel sem inventar indices produtivos."""
     dados = dados or {}
@@ -103,8 +112,9 @@ def analisar_qualidade_dados(valores: list, dados: dict | None = None) -> dict:
             "Sem historico reprodutivo, natalidade e desmama nao sao indices medidos da fazenda."
         )
 
+    dados_para_analise = _normalizar_aliases_para_analise(dados)
     qualidade_consolidada = assess_data_quality(
-        dados,
+        dados_para_analise,
         {"values": list(valores or [])},
         None,
     )

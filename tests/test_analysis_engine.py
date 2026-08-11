@@ -33,7 +33,62 @@ def test_quality_wrapper_preserves_legacy_fields_and_adds_status_layers():
     assert resultado['status'] == 'COMPLETO'
     assert resultado['confidence_score'] > 0
     assert resultado['assumed_fields']
-    assert resultado['extra_fields'] == {'observacao_interna': 'keep-me'}
+    assert resultado['extra_fields'] == {
+        'observacao_interna': [{'source': 'input_data', 'value': 'keep-me'}]
+    }
+
+
+def test_quality_wrapper_normalizes_legacy_aliases_before_analysis():
+    resultado = analisar_qualidade_dados(
+        [10, 20, 30],
+        {
+            'preco_arroba': 320.0,
+            'custo_arroba': 118.0,
+            'peso_medio_kg': 420.0,
+            'natalidade_pct': 72.0,
+            'mortalidade_pct': 3.0,
+        },
+    )
+
+    assert resultado['campos']['natalidade_pct']['origem'] == 'usuario'
+    assert resultado['campos']['mortalidade_pct']['origem'] == 'usuario'
+    assert resultado['status'] == 'COMPLETO'
+    assert 'taxa_natalidade_pct' not in resultado['missing_fields']
+    assert 'taxa_mortalidade_pct' not in resultado['missing_fields']
+
+
+def test_analysis_engine_preserves_all_duplicate_unknown_fields_with_sources():
+    data_quality = _load('services.analysis_engine.data_quality')
+
+    resultado = data_quality.assess_data_quality(
+        {
+            'preco_arroba': 320.0,
+            'custo_arroba': 118.0,
+            'peso_medio_kg': 420.0,
+            'taxa_natalidade_pct': 72.0,
+            'taxa_mortalidade_pct': 3.0,
+            'observacao_interna': 'input-data',
+        },
+        {
+            'values': [10, 20, 30],
+            'observacao_interna': 'herd-data',
+        },
+        {
+            'receita_prevista': 180_000.0,
+            'observacao_interna': 'production-data',
+        },
+    )
+
+    assert resultado['extra_fields']['observacao_interna'] == [
+        {'source': 'input_data', 'value': 'input-data'},
+        {'source': 'herd', 'value': 'herd-data'},
+        {'source': 'production', 'value': 'production-data'},
+    ]
+    assert resultado['provenance']['input_data']['extra_fields']['observacao_interna'] == [
+        {'source': 'input_data', 'value': 'input-data'},
+        {'source': 'herd', 'value': 'herd-data'},
+        {'source': 'production', 'value': 'production-data'},
+    ]
 
 
 def test_quality_levels_cover_complete_partial_and_insufficient():

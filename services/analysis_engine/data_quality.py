@@ -120,12 +120,18 @@ def assess_data_quality(
     impossible_fields: list[str] = []
     conflicting_fields: list[str] = []
     assumed_fields: list[dict[str, Any]] = []
-    extra_fields: dict[str, Any] = {}
+    extra_fields: dict[str, list[dict[str, Any]]] = {}
 
-    for source_data in (input_data, herd, production):
+    for source_name, source_data in (
+        ("input_data", input_data),
+        ("herd", herd),
+        ("production", production),
+    ):
         for key, value in source_data.items():
             if key not in _TRACKED_FIELDS and key not in _SPECIAL_HERD_KEYS:
-                extra_fields[key] = deepcopy(value)
+                extra_fields.setdefault(key, []).append(
+                    {"source": source_name, "value": deepcopy(value)}
+                )
 
     for field in sorted(_TRACKED_FIELDS):
         occurrences = source_index.get(field, [])
@@ -259,7 +265,7 @@ def assess_data_quality(
     provenance = {
         "input_data": {
             "fields": sorted(k for k in input_data if k not in _SPECIAL_HERD_KEYS),
-            "extra_fields": sorted(extra_fields),
+            "extra_fields": deepcopy(extra_fields),
         },
         "herd": {
             "has_values": bool(herd_values),
