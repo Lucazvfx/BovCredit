@@ -28,15 +28,25 @@ def calculate_economic_result(
         receita_total = 0.0
 
     custo_operacional = _coerce_float(costs.get("custo_operacional"))
-    if custo_operacional is None:
-        warnings.append("missing operational cost")
-        custo_operacional = 0.0
-
     custo_manutencao = _coerce_float(costs.get("custo_manutencao"))
     custo_reposicao = _coerce_float(costs.get("custo_reposicao"))
     reposicao_reprodutores = _coerce_float(costs.get("reposicao_reprodutores"))
     servico_divida_anual = _coerce_float(costs.get("servico_divida_anual"))
     custo_investimento = _coerce_float(costs.get("custo_investimento"))
+
+    if custo_operacional is None:
+        if custo_manutencao is not None or custo_reposicao is not None:
+            if custo_manutencao is None:
+                custo_manutencao = 0.0
+                assumptions.append("missing maintenance cost assumed zero")
+            if custo_reposicao is None:
+                custo_reposicao = 0.0
+                assumptions.append("missing replacement cost assumed zero")
+            custo_operacional = custo_manutencao + custo_reposicao
+            assumptions.append("operational cost reconstructed from maintenance + replacement")
+        else:
+            warnings.append("missing operational cost")
+            custo_operacional = 0.0
 
     if custo_manutencao is None:
         custo_manutencao = 0.0

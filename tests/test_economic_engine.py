@@ -99,6 +99,27 @@ def test_calculate_costs_keeps_maintenance_plus_replacement_as_operational_cost(
     assert result["reposicao_reprodutores"] == pytest.approx(7_419.54, abs=0.01)
 
 
+def test_calculate_costs_flags_partial_operating_input_without_losing_numbers():
+    production = {
+        "cabecas": 800,
+        "arrobas_vendidas": 137.0,
+    }
+    cost_parameters = {
+        "custo_fixo_operacional": 120_000.0,
+        "custo_reposicao": 972_203.71,
+    }
+
+    result = calculate_costs(production, cost_parameters)
+
+    assert result["valid"] is True
+    assert result["partial_input"] is True
+    assert any("fixed" in warning or "variable" in warning for warning in result["warnings"])
+    assert result["custo_manutencao"] == pytest.approx(120_000.0, abs=0.01)
+    assert result["custo_operacional"] == pytest.approx(
+        result["custo_manutencao"] + result["custo_reposicao"], abs=0.01
+    )
+
+
 def test_calculate_economic_result_matches_current_fluxo_gep_contract():
     revenues = {"receita_total": 1_354_167.79}
     costs = {
@@ -140,4 +161,30 @@ def test_calculate_economic_result_matches_current_fluxo_gep_contract():
     )
     assert result["receita_por_cabeca"] == pytest.approx(
         revenues["receita_total"] / costs["cabecas"], abs=0.01
+    )
+
+
+def test_calculate_economic_result_reconstructs_missing_operational_cost_from_components():
+    revenues = {"receita_total": 1_354_167.79}
+    costs = {
+        "custo_manutencao": 399_000.0,
+        "custo_reposicao": 972_203.71,
+        "reposicao_reprodutores": 7_419.54,
+        "custo_investimento": 0.0,
+        "cabecas": 800,
+        "arrobas_vendidas": 137.0,
+    }
+
+    result = calculate_economic_result(revenues, costs, inventory_change=76_108.68)
+
+    assert result["valid"] is True
+    assert result["warnings"] == []
+    assert result["custo_operacional"] == pytest.approx(
+        costs["custo_manutencao"] + costs["custo_reposicao"], abs=0.01
+    )
+    assert result["margem_bruta"] == pytest.approx(
+        revenues["receita_total"] - result["custo_operacional"], abs=0.01
+    )
+    assert result["resultado_antes_reposicao"] == pytest.approx(
+        revenues["receita_total"] - costs["custo_manutencao"], abs=0.01
     )

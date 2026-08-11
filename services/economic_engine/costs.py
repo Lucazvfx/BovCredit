@@ -27,6 +27,7 @@ def calculate_costs(production: dict[str, Any], cost_parameters: dict[str, Any])
     warnings: list[str] = []
     assumptions: list[str] = []
     valid = True
+    partial_input = False
 
     fixed = _coerce_float(_lookup(cost_parameters, "custo_fixo_operacional", "fixed_operating_cost"))
     variable = _coerce_float(_lookup(cost_parameters, "custo_variavel_operacional", "variable_operating_cost"))
@@ -38,11 +39,24 @@ def calculate_costs(production: dict[str, Any], cost_parameters: dict[str, Any])
             valid = False
             maintenance = None
         else:
+            partial_input = fixed is None or variable is None
+            if partial_input:
+                missing_parts = []
+                if fixed is None:
+                    missing_parts.append("fixed")
+                if variable is None:
+                    missing_parts.append("variable")
+                warnings.append(
+                    "partial operating maintenance input; missing "
+                    + " and ".join(missing_parts)
+                    + " component(s) treated as zero for compatibility"
+                )
             maintenance = (fixed or 0.0) + (variable or 0.0)
     else:
         if fixed is None and variable is None:
             assumptions.append("maintenance cost supplied directly")
         elif fixed is not None or variable is not None:
+            partial_input = fixed is None or variable is None
             expected = (fixed or 0.0) + (variable or 0.0)
             if abs(expected - maintenance) > 0.01:
                 warnings.append(
@@ -91,6 +105,7 @@ def calculate_costs(production: dict[str, Any], cost_parameters: dict[str, Any])
         "valid": valid and custo_operacional is not None,
         "warnings": warnings,
         "assumptions": assumptions,
+        "partial_input": partial_input,
         "custo_fixo_operacional": round(fixed, 2) if fixed is not None else None,
         "custo_variavel_operacional": round(variable, 2) if variable is not None else None,
         "custo_manutencao": round(maintenance, 2) if maintenance is not None else None,
