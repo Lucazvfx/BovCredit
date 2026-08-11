@@ -41,6 +41,7 @@ def _ano(
     preco_vaca_arr: float | None,
     preco_bezerra_cab: float | None,
     preco_bezerro_cab: float | None,
+    custo_arroba: float,
 ) -> dict[str, Any]:
     bezerros = matrizes * nat_pct
     bois_nec = max(round(matrizes / max(prop_boi, 1.0)), 1)
@@ -91,13 +92,6 @@ def _ano(
         peso_bezerra=peso_bezerra,
         peso_garrote=peso_garrote,
     )
-    custos_fase = [
-        (custo_cria, matrizes + femeas_024),
-        (custo_recria, machos_024),
-        (custo_engorda, bois),
-    ]
-    ativos = [(c, n) for c, n in custos_fase if n > 0]
-    custo_arroba = sum(c * n for c, n in ativos) / sum(n for _, n in ativos) if ativos else custo_cria
     custo_tot = arrobas_rebanho * custo_arroba
     resultado = receita - custo_tot
 
@@ -205,6 +199,7 @@ def project_full_cycle(state: HerdState, parameters: dict, years: int = 5) -> di
             preco_vaca_arr=preco_vaca_arr,
             preco_bezerra_cab=preco_bezerra_cab,
             preco_bezerro_cab=preco_bezerro_cab,
+            custo_arroba=_custo_completo,
         )
         anos_proj.append(
             {

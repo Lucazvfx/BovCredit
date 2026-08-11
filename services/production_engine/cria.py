@@ -118,6 +118,10 @@ def project_cria(state: HerdState, parameters: dict, years: int = 5) -> dict[str
         bois_prox = max(bois - bois * mort, 0.0)
         bez_F_prox = max(_desm_F - _antecip_F, 0.0)
         bez_M_prox = max(_desm_M - _antecip_M, 0.0)
+        if repoe_compra_desmama and compra_desmama > 0:
+            frac_f_jov = (bez_F / (bez_F + bez_M)) if (bez_F + bez_M) > 0 else 0.5
+            bez_F_prox += compra_desmama * frac_f_jov
+            bez_M_prox += compra_desmama * (1 - frac_f_jov)
         mac_R_prox = 0.0
         total_fim = int(
             matrizes_prox

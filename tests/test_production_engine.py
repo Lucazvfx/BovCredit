@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+import ml_engine
 from ml_engine import CENARIOS, PARAMS_POR_CICLO, simular_cenario
 from services.engine.contracts import HerdState
 from services.engine.parameter_registry import resolve_parameters
@@ -125,6 +126,10 @@ def _legacy_year1(values: list[float], ciclo: str, **kwargs) -> dict:
     return simular_cenario(values, cenario="conservador", ciclo=ciclo, anos=1, **kwargs)["anos"][0]
 
 
+def _legacy_years(values: list[float], ciclo: str, years: int, **kwargs) -> list[dict]:
+    return simular_cenario(values, cenario="conservador", ciclo=ciclo, anos=years, **kwargs)["anos"]
+
+
 def _compare_years(new: dict, legacy: dict, *, keys: tuple[str, ...]) -> None:
     tolerances = {
         "bezerros": 1.0,
@@ -186,6 +191,31 @@ def test_project_cria_matches_legacy_characterization():
         legacy | {"receita": legacy["receita"], "custo": legacy["custo"], "resultado": legacy["resultado"]},
         keys=("receita", "custo", "resultado"),
     )
+
+
+def test_project_cria_replica_legacy_purchase_carry_forward(monkeypatch):
+    state = _state(CRIA)
+    params = _cria_parameters()
+    params["repoe_compra_desmama"] = True
+    monkeypatch.setattr(ml_engine, "_REPOR_COMPRA_DESMAMA", True)
+    legacy = _legacy_years(
+        CRIA,
+        "CRIA",
+        2,
+        preco_arroba=330.0,
+        custo_arroba=11.31,
+        venda_bez_pct=PARAMS_POR_CICLO["CRIA"]["venda_bez_pct"],
+    )
+
+    projected = project_cria(state, params, years=2)
+
+    assert projected["anos"][0]["repoe_compra_desmama"] is True
+    assert projected["anos"][0]["compra_desmama_estimada"] == legacy[0]["compra_desmama_estimada"]
+    assert projected["anos"][0]["custo_compra_desmama"] == pytest.approx(legacy[0]["custo_compra_desmama"], abs=1.0)
+    assert projected["anos"][0]["total"] == legacy[0]["total"]
+    assert projected["anos"][1]["total"] == legacy[1]["total"]
+    assert projected["anos"][1]["jovens_f_fim"] == legacy[1]["jovens_f_fim"]
+    assert projected["anos"][1]["jovens_m_fim"] == legacy[1]["jovens_m_fim"]
 
 
 def test_project_recria_matches_legacy_characterization_and_pricing():
@@ -300,6 +330,53 @@ def test_project_full_cycle_matches_legacy_and_never_double_counts_sales():
         + ano1["bezerras_vendidas"]
         + ano1["machos_vendidos"]
     )
+
+
+def test_project_full_cycle_keeps_legacy_opening_mix_cost_when_phase_costs_differ():
+    state = _state(CICLO_COMPLETO)
+    params = _full_cycle_parameters()
+    params.update(
+        {
+            "custo_arroba_cria": 40.0,
+            "custo_arroba_recria": 80.0,
+            "custo_arroba_engorda": 120.0,
+        }
+    )
+    legacy = _legacy_years(
+        CICLO_COMPLETO,
+        "CICLO_COMPLETO",
+        3,
+        preco_arroba=320.0,
+        custo_arroba=122.0,
+        custo_arroba_cria=40.0,
+        custo_arroba_recria=80.0,
+        custo_arroba_engorda=120.0,
+    )
+
+    projected = project_full_cycle(state, params, years=3)
+
+    for idx in range(3):
+        _compare_years(
+            projected["anos"][idx],
+            legacy[idx],
+            keys=(
+                "total",
+                "matrizes",
+                "bezerros",
+                "vendidos",
+                "bois_vendidos",
+                "matrizes_descartadas",
+                "bezerras_vendidas",
+                "machos_vendidos",
+                "aumento_matrizes",
+                "receita",
+                "custo",
+                "resultado",
+                "bois_fim",
+                "jovens_f_fim",
+                "jovens_m_fim",
+            ),
+        )
 
 
 @pytest.mark.parametrize(
