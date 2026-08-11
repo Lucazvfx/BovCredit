@@ -68,6 +68,40 @@ def test_project_cashflow_applies_custom_calendar_by_category():
     assert sum(row["investimentos"] for row in rows) == pytest.approx(60.0, abs=0.01)
 
 
+def test_project_cashflow_keeps_valid_calendar_when_seasonality_overlay_is_invalid():
+    annual_projection = {
+        "years": [
+            {
+                "calf_sales": 120.0,
+                "finished_sales": 0.0,
+                "purchases": 0.0,
+                "costs": 0.0,
+                "investments": 0.0,
+            }
+        ]
+    }
+    calendar = {
+        "calf_sales": [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    }
+    seasonality = {
+        "calf_sales": [0] * 12,
+    }
+
+    result = project_cashflow(
+        annual_projection,
+        {"servico_divida_anual": 0.0},
+        horizon_months=12,
+        calendar=calendar,
+        seasonality=seasonality,
+    )
+
+    rows = result["months"]
+    assert rows[2]["entradas"] == pytest.approx(120.0, abs=0.01)
+    assert rows[0]["entradas"] == pytest.approx(0.0, abs=0.01)
+    assert sum(row["entradas"] for row in rows) == pytest.approx(120.0, abs=0.01)
+    assert any("seasonality" in warning.lower() for warning in result["warnings"])
+
+
 def test_project_cashflow_preserves_source_ano_labels_when_present():
     annual_projection = {
         "years": [

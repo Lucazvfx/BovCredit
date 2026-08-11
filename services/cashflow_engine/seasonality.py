@@ -55,7 +55,9 @@ def _coerce_month_weights(spec: Any) -> tuple[list[float], bool, list[str]]:
     if isinstance(spec, Sequence) and not isinstance(spec, (str, bytes, bytearray)):
         values = list(spec)
         if len(values) != 12:
-            raise ValueError("seasonality sequences must contain exactly 12 monthly weights")
+            return list(_DEFAULT_MONTH_WEIGHTS), True, [
+                "seasonality sequences must contain exactly 12 monthly weights",
+            ]
         weights = []
         for value in values:
             try:
@@ -110,7 +112,11 @@ def resolve_month_weights(
     if sea_weights is None:
         return cal_weights, cal_estimated, warnings
 
-    if cal_estimated or sea_estimated:
+    if cal_estimated and not sea_estimated:
+        return sea_weights, True, warnings
+    if sea_estimated and not cal_estimated:
+        return cal_weights, True, warnings
+    if cal_estimated and sea_estimated:
         flat_warnings = list(dict.fromkeys(warnings))
         flat_warnings.append(f"{category} seasonality fallback applied because weights were malformed or summed to zero")
         return list(_DEFAULT_MONTH_WEIGHTS), True, flat_warnings
