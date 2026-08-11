@@ -53,13 +53,24 @@
       <main class="ork-main" id="ork-main-content">
     <div class="wrap">
         <div class="topbar">
-            <h2>Administração de Acesso</h2>
+            <h2>Controles operacionais</h2>
             <div>
                 <a href="{{ url_for('app_main') }}">← Voltar ao app</a>
                 &nbsp;|&nbsp;
                 <a href="{{ url_for('logout') }}">Sair</a>
             </div>
         </div>
+
+        <section class="ork-admin-governance" aria-labelledby="governanca-title">
+            <div>
+                <h2 id="governanca-title">Auditoria e LGPD</h2>
+                <p>Revise vínculos por empresa, remova acessos sem uso e consulte as regras de tratamento e retenção de dados.</p>
+            </div>
+            <div class="ork-cluster">
+                <a class="ork-action ork-action--secondary" href="/privacidade">Política de privacidade</a>
+                <a class="ork-action ork-action--quiet" href="/termos">Termos de uso</a>
+            </div>
+        </section>
 
         {% if erro %}<div class="erro">{{ erro }}</div>{% endif %}
 
@@ -93,7 +104,7 @@
             </form>
         </div>
 
-        <div class="card">
+        <div class="card ork-admin-table">
             <h3>Usuários com acesso ({{ usuarios|length }})</h3>
             <table>
                 <thead><tr><th>ID</th><th>Nome</th><th>E-mail</th><th></th></tr></thead>
@@ -164,7 +175,7 @@
             </form>
         </div>
 
-        <div class="card">
+        <div class="card ork-admin-table">
             <h3>Membros por empresa ({{ membros|length }})</h3>
             <table>
                 <thead><tr><th>Empresa</th><th>Usuário</th><th></th></tr></thead>

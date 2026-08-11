@@ -110,3 +110,23 @@ def test_login_preserves_field_names_and_uses_auth_layout():
     assert 'name="email"' in html
     assert 'name="senha"' in html
     assert 'class="ork-auth-layout' in html
+
+
+def test_landing_keeps_real_routes_and_avoids_unverified_telemetry():
+    html = (ROOT / "templates" / "landing.html").read_text(encoding="utf-8")
+
+    assert "url_for('login')" in html
+    assert "Orkavyn Agro Intelligence" in html
+    assert "orkavyn-fields.css" in html
+    assert "99,8%" not in html
+    assert "< 4min" not in html
+    assert "BovCredit" not in html
+
+
+def test_admin_keeps_operational_access_controls():
+    html = (ROOT / "templates" / "admin.html").read_text(encoding="utf-8")
+
+    for marker in ("empresas", "auditoria", "LGPD"):
+        assert marker.lower() in html.lower()
+    assert "admin_criar_empresa" in html
+    assert "admin_vincular_empresa" in html

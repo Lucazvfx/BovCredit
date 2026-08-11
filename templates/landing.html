@@ -1,678 +1,108 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Orkavyn Agro Intelligence — Inteligência para o Agro</title>
-<meta name="description" content="Plataforma especializada em análise de crédito rural. Classifica o ciclo de produção por Machine Learning, projeta geração de caixa e emite parecer com DSCR em menos de 4 minutos.">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="icon" type="image/png" href="/static/favicon-cow.png">
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-
-:root{
-  --bg:#060810;
-  --bg2:#0C0F18;
-  --c:#111520;
-  --b:#1E2535;
-  --b2:#28304A;
-  --g:#4ADE80;
-  --rd:#F87171;
-  --am:#FBBF24;
-  --tx:#E8ECF5;
-  --mu:#4A5570;
-  --sb:#8892AA;
-  --fn:'Barlow Condensed',sans-serif;
-  --fb:'Barlow',sans-serif;
-  --fm:'DM Mono',monospace;
-  --r:8px;
-}
-
-body{font-family:var(--fb);background:var(--bg);color:var(--tx);min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
-
-body::before{
-  content:'';position:fixed;inset:0;
-  background:
-    radial-gradient(ellipse 50% 40% at 5% 5%,rgba(74,222,128,.04) 0%,transparent 60%),
-    radial-gradient(ellipse 40% 30% at 95% 90%,rgba(34,211,238,.03) 0%,transparent 60%);
-  pointer-events:none;z-index:0
-}
-
-/* ── NAV ─────────────────────────────── */
-nav{
-  position:sticky;top:0;z-index:200;
-  background:rgba(6,8,16,.95);backdrop-filter:blur(16px);
-  border-bottom:1px solid var(--b);
-  height:60px;display:flex;align-items:center;justify-content:space-between;
-  padding:0 40px;
-}
-
-.logo{font-family:var(--fn);font-weight:800;font-size:20px;letter-spacing:-.5px;color:var(--tx)}
-.logo span{color:var(--g)}
-
-.nav-right{display:flex;align-items:center;gap:28px}
-
-.nav-link{font-size:12px;color:var(--mu);text-decoration:none;letter-spacing:.3px;transition:color .2s}
-.nav-link:hover{color:var(--sb)}
-
-.nav-cta{
-  font-size:11px;font-weight:700;color:var(--g);text-decoration:none;
-  border:1px solid rgba(74,222,128,.3);padding:7px 20px;border-radius:4px;
-  letter-spacing:.5px;transition:background .2s,border-color .2s;
-}
-.nav-cta:hover{background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.5)}
-
-/* ── HERO ─────────────────────────────── */
-.hero{
-  padding:72px 40px 64px;
-  border-bottom:1px solid var(--b);
-  position:relative;overflow:hidden;
-  display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;
-}
-
-.hero::before{
-  content:'';position:absolute;top:-80px;left:-80px;
-  width:480px;height:480px;
-  background:radial-gradient(ellipse,rgba(74,222,128,.05) 0%,transparent 65%);
-  pointer-events:none;
-}
-
-.hero-label{
-  font-family:var(--fm);font-size:9px;letter-spacing:3px;text-transform:uppercase;
-  color:var(--g);margin-bottom:22px;display:flex;align-items:center;gap:8px;
-}
-.hero-label::before{
-  content:'';display:inline-block;width:6px;height:6px;
-  border-radius:50%;background:var(--g);animation:blink 2s infinite;
-}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
-
-.hero h1{
-  font-family:var(--fn);font-weight:900;font-size:56px;
-  line-height:.92;letter-spacing:-1.5px;margin-bottom:24px;
-}
-.hero h1 em{
-  font-style:normal;color:var(--b2);
-  text-decoration:line-through;text-decoration-color:var(--rd);
-  text-decoration-thickness:2px;
-}
-.hero h1 strong{font-style:normal;color:var(--g)}
-
-.hero-sub{font-size:13px;color:var(--sb);max-width:400px;line-height:1.65;margin-bottom:28px}
-
-.hero-scroll{
-  font-family:var(--fm);font-size:9px;color:var(--b2);
-  letter-spacing:2px;text-transform:uppercase;display:flex;align-items:center;gap:8px;
-}
-
-/* Card flutuante */
-.hero-right{display:flex;flex-direction:column;gap:10px;position:relative;z-index:1}
-
-.result-card{
-  background:var(--bg2);border:1px solid var(--b);border-radius:10px;overflow:hidden;
-}
-
-.result-card-top{
-  background:rgba(74,222,128,.07);border-bottom:1px solid rgba(74,222,128,.15);
-  padding:12px 16px;display:flex;align-items:center;justify-content:space-between;
-}
-
-.badge-aprovar{
-  background:var(--g);color:#000;font-family:var(--fn);
-  font-weight:900;font-size:12px;letter-spacing:1px;
-  padding:4px 12px;border-radius:3px;
-}
-
-.dscr-val{font-family:var(--fm);font-size:20px;color:var(--g)}
-.dscr-lbl{font-family:var(--fm);font-size:7px;color:var(--mu);letter-spacing:1px;text-align:right}
-
-.result-card-body{padding:12px 16px}
-
-.ciclo-line{
-  font-family:var(--fm);font-size:8px;color:var(--mu);
-  display:flex;align-items:center;gap:6px;margin-bottom:10px;
-}
-.ciclo-line::before{
-  content:'';display:inline-block;width:4px;height:4px;
-  border-radius:50%;background:var(--g);
-}
-
-.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-
-.kpi{background:var(--c);border:1px solid var(--b);border-radius:6px;padding:9px 10px}
-.kpi-lbl{font-family:var(--fm);font-size:7px;color:var(--mu);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
-.kpi-val{font-family:var(--fm);font-size:13px;color:var(--tx)}
-.kpi-val.green{color:var(--g)}
-
-/* mini sensibilidade */
-.mini-sens{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-
-.sens-mini{
-  background:var(--bg2);border:1px solid var(--b);
-  border-radius:6px;padding:10px 8px;text-align:center;
-}
-.sens-mini .si{font-family:var(--fm);font-size:10px;margin-bottom:5px;display:block}
-.sens-mini .sr{font-family:var(--fn);font-weight:800;font-size:11px;letter-spacing:.5px}
-.sens-mini .sd{font-family:var(--fm);font-size:8px;color:var(--mu);margin-top:2px}
-
-/* ── PROBLEMA ────────────────────────── */
-.problema{padding:64px 40px;border-bottom:1px solid var(--b)}
-
-.sec-lbl{
-  font-family:var(--fm);font-size:9px;letter-spacing:3px;text-transform:uppercase;
-  margin-bottom:28px;
-}
-.sec-lbl.red{color:var(--rd)}
-.sec-lbl.green{color:var(--g)}
-.sec-lbl.muted{color:var(--mu)}
-
-.prob-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-
-.prob-card{
-  background:var(--bg2);border:1px solid var(--b);
-  border-top:2px solid var(--rd);border-radius:var(--r);padding:22px 20px;
-}
-
-.prob-num{font-family:var(--fm);font-size:11px;color:var(--rd);margin-bottom:14px;letter-spacing:1px}
-
-.prob-card h3{font-family:var(--fn);font-size:16px;font-weight:700;color:var(--tx);margin-bottom:8px;letter-spacing:-.2px}
-.prob-card p{font-size:11px;color:var(--mu);line-height:1.6}
-
-/* ── SOLUÇÃO ─────────────────────────── */
-.solucao{padding:64px 40px 52px;border-bottom:1px solid var(--b);background:linear-gradient(180deg,var(--bg2) 0%,var(--bg) 60%)}
-
-.solucao h2{font-family:var(--fn);font-weight:900;font-size:38px;line-height:1;letter-spacing:-.5px;margin-bottom:24px}
-.solucao h2 span{color:var(--g)}
-
-/* Mockup */
-.mockup{background:var(--bg2);border:1px solid var(--b);border-radius:10px;overflow:hidden}
-
-.mock-bar{
-  background:var(--c);border-bottom:1px solid var(--b);
-  padding:10px 16px;display:flex;align-items:center;justify-content:space-between;
-}
-.mock-dots{display:flex;gap:5px}
-.mock-dots span{width:8px;height:8px;border-radius:50%;background:var(--b)}
-.mock-dots span:nth-child(1){background:var(--rd)}
-.mock-dots span:nth-child(2){background:var(--am)}
-.mock-dots span:nth-child(3){background:var(--g)}
-
-.mock-url{
-  font-family:var(--fm);font-size:9px;color:var(--mu);
-  background:var(--bg2);padding:3px 14px;border-radius:4px;border:1px solid var(--b);
-}
-
-.mock-body{padding:16px}
-
-.mock-tabs{
-  display:flex;gap:2px;background:var(--c);border:1px solid var(--b);
-  border-radius:var(--r);padding:3px;margin-bottom:12px;width:fit-content;
-}
-.mock-tab{
-  font-family:var(--fn);font-size:9px;font-weight:700;letter-spacing:1px;
-  text-transform:uppercase;padding:5px 12px;border-radius:6px;color:var(--mu);
-}
-.mock-tab.active{background:var(--g);color:#000}
-
-.mock-banner{
-  background:linear-gradient(135deg,rgba(74,222,128,.08),rgba(74,222,128,.03));
-  border:1px solid rgba(74,222,128,.25);border-radius:var(--r);
-  padding:14px 18px;margin-bottom:12px;
-  display:flex;align-items:center;justify-content:space-between;
-}
-.mock-banner-l{display:flex;align-items:center;gap:12px}
-.mock-badge{
-  background:var(--g);color:#000;font-family:var(--fn);
-  font-weight:900;font-size:13px;letter-spacing:1px;padding:4px 12px;border-radius:4px;
-}
-.mock-desc{font-size:10px;color:var(--sb);line-height:1.4}
-.mock-desc strong{color:var(--tx);display:block;font-size:12px}
-.mock-dscr-val{font-family:var(--fm);font-size:22px;color:var(--g)}
-.mock-dscr-lbl{font-size:8px;color:var(--mu);letter-spacing:1px;text-transform:uppercase;text-align:right}
-
-.mock-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
-.mock-kpi{background:var(--c);border:1px solid var(--b);border-radius:6px;padding:10px}
-.mk-lbl{font-family:var(--fm);font-size:7px;color:var(--mu);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
-.mk-val{font-family:var(--fm);font-size:13px;color:var(--tx)}
-
-.mock-fc{background:var(--c);border:1px solid var(--b);border-radius:6px;padding:12px}
-.mock-fc-title{font-family:var(--fn);font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:10px}
-.fc-row{display:flex;justify-content:space-between;font-size:9px;padding:3px 0;border-bottom:1px solid rgba(30,37,53,.6);color:var(--sb)}
-.fc-row:last-child{border-bottom:none}
-.fc-row.res{color:var(--g);font-weight:600;font-family:var(--fm);font-size:10px;margin-top:4px;padding-top:6px;border-top:1px solid var(--b);border-bottom:none}
-
-/* ── SENSIBILIDADE ───────────────────── */
-.sensibilidade{padding:64px 40px;border-bottom:1px solid var(--b)}
-
-.sens-title{font-family:var(--fn);font-weight:900;font-size:28px;letter-spacing:-.3px;margin-bottom:6px}
-.sens-sub{font-size:12px;color:var(--mu);margin-bottom:30px}
-
-.sens-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-
-.sens-card{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r);overflow:hidden}
-.sens-top{padding:14px 16px 12px;border-bottom:1px solid var(--b)}
-.sens-icon{font-family:var(--fm);font-size:12px;margin-bottom:8px;display:block}
-.sens-nome{font-family:var(--fn);font-size:13px;font-weight:700;color:var(--sb);margin-bottom:3px}
-.sens-fator{font-family:var(--fm);font-size:10px}
-.sens-body{padding:14px 16px}
-.sens-rec{font-family:var(--fn);font-weight:900;font-size:17px;letter-spacing:.5px;margin-bottom:4px}
-.sens-dscr{font-family:var(--fm);font-size:11px;color:var(--mu)}
-.sens-caixa{font-size:10px;color:var(--mu);margin-top:6px}
-
-/* ── COMO FUNCIONA ───────────────────── */
-.como{padding:64px 40px;border-bottom:1px solid var(--b)}
-
-.como-steps{display:grid;grid-template-columns:repeat(3,1fr)}
-
-.como-step{padding:26px;border:1px solid var(--b);border-right:none}
-.como-step:first-child{border-radius:var(--r) 0 0 var(--r)}
-.como-step:last-child{border-right:1px solid var(--b);border-radius:0 var(--r) var(--r) 0}
-
-.step-num{font-family:var(--fm);font-size:9px;color:var(--g);margin-bottom:14px;letter-spacing:1px}
-.como-step h3{font-family:var(--fn);font-size:20px;font-weight:800;color:var(--tx);margin-bottom:8px;letter-spacing:-.3px}
-.como-step p{font-size:11px;color:var(--mu);line-height:1.6}
-
-.tags{margin-top:14px;display:flex;flex-wrap:wrap;gap:4px}
-.tag{
-  font-family:var(--fm);font-size:8px;color:var(--mu);
-  background:var(--bg2);border:1px solid var(--b);
-  padding:3px 7px;border-radius:3px;
-}
-
-/* ── DIFERENCIAIS ────────────────────── */
-.diff{padding:64px 40px;border-bottom:1px solid var(--b);background:var(--bg2)}
-
-.diff-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-
-.diff-item{
-  display:flex;gap:16px;align-items:flex-start;
-  padding:18px;border:1px solid var(--b);border-radius:var(--r);background:var(--bg);
-}
-
-.diff-icon{
-  font-family:var(--fm);font-size:11px;color:var(--g);
-  background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.15);
-  border-radius:6px;width:34px;height:34px;
-  display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;letter-spacing:0;
-}
-
-.diff-text h4{font-family:var(--fn);font-size:14px;font-weight:700;color:var(--tx);margin-bottom:5px}
-.diff-text p{font-size:10px;color:var(--mu);line-height:1.55}
-
-/* ── NÚMEROS ─────────────────────────── */
-.numeros{padding:0 40px 64px;border-bottom:1px solid var(--b)}
-
-.num-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--b);border-radius:var(--r);overflow:hidden}
-
-.num-item{padding:28px 16px;border-right:1px solid var(--b);background:var(--bg2);text-align:center}
-.num-item:last-child{border-right:none}
-.num-val{font-family:var(--fm);font-size:26px;color:var(--g);margin-bottom:8px}
-.num-lbl{font-size:10px;color:var(--mu);line-height:1.4}
-
-/* ── RODAPÉ ──────────────────────────── */
-footer{
-  padding:28px 40px;
-  display:flex;justify-content:space-between;align-items:center;
-  border-top:1px solid var(--b);
-}
-
-.footer-logo{font-family:var(--fn);font-weight:800;font-size:16px;color:var(--mu)}
-.footer-logo span{color:var(--g)}
-
-.footer-contact{font-family:var(--fm);font-size:10px;color:var(--mu)}
-.footer-contact a{color:var(--g);text-decoration:none}
-.footer-contact a:hover{text-decoration:underline}
-
-.footer-copy{font-size:10px;color:var(--b)}
-/* ── Celular ─────────────────────────────────────────────────────────────────
-   Esta página não tinha NENHUMA media query. O hero é um grid de duas colunas
-   fixas (1fr 1fr) que nunca colapsava, então num iPhone 13 a coluna da direita
-   — o card de parecer que é a prova visual do produto — ficava cortada pela
-   borda: saía "APRO[VAR]", "R$ 312.4[…]", "PARCELA/[…]".
-
-   Medido antes: elementos chegando a 551px num viewport de 466px.
-
-   Ironia que vale registrar: a landing vende análise de crédito para o
-   pecuarista, e o pecuarista abre link no celular. A página que convence
-   estava quebrada justamente em quem ela precisa convencer. */
-@media (max-width: 760px) {
-  /* O hero vira uma coluna: texto em cima, card embaixo. O card é a prova
-     do produto — some do topo, mas aparece inteiro. */
-  .hero { padding: 40px 20px 44px; grid-template-columns: 1fr; gap: 32px; }
-  .hero h1 { font-size: 34px; line-height: 1.02; letter-spacing: -.5px; }
-  .hero-sub { font-size: 15px; }
-
-  /* Grades de duas e três colunas não cabem em 390px de largura. */
-  .diff-grid, .kpi-grid, .como-steps { grid-template-columns: 1fr; }
-
-  /* Estas três a captura pegou e a medição de estouro não: cabem em 390px sem
-     passar da borda, e mesmo assim ficam ilegíveis. `.prob-grid` e
-     `.sens-grid` são texto corrido em três colunas de ~110px — sai uma
-     palavra por linha. `.num-grid` são quatro números com rótulo embaixo. */
-  .prob-grid, .sens-grid { grid-template-columns: 1fr; }
-  .num-grid { grid-template-columns: repeat(2, 1fr); }
-
-  /* Fica em três: são só o valor e a seta de cada cenário, não texto. */
-  .mini-sens { grid-template-columns: repeat(3, 1fr); gap: 6px; }
-
-  /* Menu: os links quebravam em duas linhas dentro do cabeçalho. */
-  nav { padding: 0 16px; }
-  .nav-links { display: none; }
-
-  section, .como, .diff, footer { padding-left: 20px; padding-right: 20px; }
-
-  /* As abas do mockup são decorativas e `width:fit-content` as fazia passar
-     2px da borda. Rolam dentro do próprio card em vez de esticar a página. */
-  .mock-tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
-  .mock-tabs::-webkit-scrollbar { display: none; }
-  .mock-tab { flex: 0 0 auto; }
-
-  /* Nada pode ultrapassar a borda — é o que produzia o corte do card. */
-  * { min-width: 0; }
-  img, svg, table { max-width: 100%; }
-}
-
-/* iPhone com notch: `viewport-fit=cover` faz o conteúdo ir até a borda, e sem
-   compensar o texto encosta na curvatura da tela. */
-@supports (padding: max(0px)) {
-  @media (max-width: 760px) {
-    nav, .hero, section, footer {
-      padding-left: max(20px, env(safe-area-inset-left));
-      padding-right: max(20px, env(safe-area-inset-right));
-    }
-  }
-}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Orkavyn Agro Intelligence — inteligência econômico-produtiva</title>
+  <meta name="description" content="Transforme fichas de rebanho em diagnóstico produtivo, fluxo de caixa, capacidade de pagamento e análise de risco explicável.">
+  <link rel="icon" type="image/png" href="/static/favicon-cow.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Barlow:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-fields.css') }}">
 </head>
-<body>
+<body class="ork-surface ork-landing">
+  <a class="ork-skip-link" href="#conteudo">Ir para o conteúdo</a>
 
-<!-- NAV -->
-<nav>
-  <div class="logo"><img src="/static/img/logo-dark.svg" alt="Orkavyn Agro Intelligence" style="height:28px;display:block"></div>
-  <div class="nav-right">
-    <a href="#como" class="nav-link">Como funciona</a>
-    <a href="#diferenciais" class="nav-link">Diferenciais</a>
-    <a href="{{ url_for('login') }}" class="nav-cta">Entrar →</a>
-  </div>
-</nav>
+  <header class="ork-landing-nav">
+    <a href="/" class="ork-landing-brand" aria-label="Orkavyn Agro Intelligence — início">
+      <img src="/static/img/logo-dark.svg" alt="Orkavyn Agro Intelligence">
+    </a>
+    <nav aria-label="Navegação pública">
+      <a href="#motor">O motor</a>
+      <a href="#capacidades">Capacidades</a>
+      <a href="{{ url_for('demo') }}">Demonstração</a>
+      <a class="ork-action ork-action--light" href="{{ url_for('login') }}">Entrar</a>
+    </nav>
+  </header>
 
-<!-- HERO -->
-<section class="hero">
-  <div class="hero-left">
-    <div class="hero-label">Análise de crédito pecuário</div>
-    <h1>
-      <em>Planilha.</em><br/>
-      <em>Sem padrão.</em><br/>
-      <em>PDF genérico.</em><br/>
-      <strong>Acabou.</strong>
-    </h1>
-    <p class="hero-sub">
-      Orkavyn Agro Intelligence classifica o ciclo de produção por Machine Learning, projeta a geração de caixa com metodologia especializada e emite parecer de crédito com DSCR — em menos de 4 minutos, com o PDF na marca da sua consultoria.
-    </p>
-    <div class="hero-scroll">↓ &nbsp; ver como funciona</div>
-  </div>
-
-  <div class="hero-right">
-    <div class="result-card">
-      <div class="result-card-top">
-        <div class="badge-aprovar">APROVAR</div>
-        <div>
-          <div class="dscr-val">1.45</div>
-          <div class="dscr-lbl">DSCR</div>
+  <main id="conteudo">
+    <section class="ork-landing-hero">
+      <div class="ork-landing-hero__copy">
+        <p class="ork-kicker">Orkavyn Livestock Intelligence Engine</p>
+        <h1>A inteligência que transforma dados do campo em decisões melhores.</h1>
+        <p class="ork-landing-lead">Leia a ficha do rebanho, entenda o sistema produtivo e conecte produção, caixa, dívida e risco em uma análise que um profissional consegue revisar.</p>
+        <div class="ork-cluster">
+          <a class="ork-action ork-action--light" href="{{ url_for('login') }}">Acessar plataforma</a>
+          <a class="ork-action ork-action--outline-light" href="{{ url_for('demo') }}">Ver demonstração</a>
         </div>
+        <p class="ork-landing-note">Apoio à decisão para consultorias, cooperativas, distribuidores, fintechs e operações de crédito rural.</p>
       </div>
-      <div class="result-card-body">
-        <div class="ciclo-line">CICLO_COMPLETO · 98% confiança · Sinop-MT</div>
-        <div class="kpi-grid">
-          <div class="kpi"><div class="kpi-lbl">Geração caixa/ano</div><div class="kpi-val">R$ 312.480</div></div>
-          <div class="kpi"><div class="kpi-lbl">Crédito máximo</div><div class="kpi-val">R$ 680.000</div></div>
-          <div class="kpi"><div class="kpi-lbl">Parcela/mês</div><div class="kpi-val">R$ 4.200</div></div>
-          <div class="kpi"><div class="kpi-lbl">Consistência</div><div class="kpi-val green">87/100</div></div>
-        </div>
-      </div>
-    </div>
 
-    <div class="mini-sens">
-      <div class="sens-mini">
-        <span class="si" style="color:var(--rd)">▼ −15%</span>
-        <div class="sr" style="color:var(--rd)">NEGAR</div>
-        <div class="sd">0.87</div>
+      <div class="ork-engine-map" aria-label="Fluxo do motor Orkavyn">
+        <div class="ork-engine-map__head"><span>Fluxo da análise</span><strong>Rastreável de ponta a ponta</strong></div>
+        <ol>
+          <li><span>01</span><div><strong>Documento</strong><small>PDF, ficha Excel ou entrada manual</small></div></li>
+          <li><span>02</span><div><strong>Rebanho</strong><small>Normalização e diagnóstico produtivo</small></div></li>
+          <li><span>03</span><div><strong>Produção e economia</strong><small>Receitas, custos e fluxo temporal</small></div></li>
+          <li><span>04</span><div><strong>Crédito e stress</strong><small>DSCR, capacidade e sensibilidade</small></div></li>
+          <li><span>05</span><div><strong>Parecer</strong><small>Evidências, premissas e limitações</small></div></li>
+        </ol>
       </div>
-      <div class="sens-mini" style="border-color:rgba(74,222,128,.3)">
-        <span class="si" style="color:var(--sb)">● Base</span>
-        <div class="sr" style="color:var(--g)">APROVAR</div>
-        <div class="sd">1.45</div>
-      </div>
-      <div class="sens-mini">
-        <span class="si" style="color:var(--g)">▲ +15%</span>
-        <div class="sr" style="color:var(--g)">APROVAR</div>
-        <div class="sd">1.67</div>
-      </div>
-    </div>
-  </div>
-</section>
+    </section>
 
-<!-- PROBLEMA -->
-<section class="problema">
-  <div class="sec-lbl red">// o problema</div>
-  <div class="prob-grid">
-    <div class="prob-card">
-      <div class="prob-num">[ 01 ]</div>
-      <h3>Análise sem metodologia</h3>
-      <p>Cada analista usa uma planilha diferente. Sem padrão, sem auditoria, sem rastreabilidade entre operações.</p>
-    </div>
-    <div class="prob-card">
-      <div class="prob-num">[ 02 ]</div>
-      <h3>Rebanho declarado sem checagem</h3>
-      <p>O produtor informa qualquer número. Sem cruzamento com os documentos sanitários e fiscais, o risco fica invisível.</p>
-    </div>
-    <div class="prob-card">
-      <div class="prob-num">[ 03 ]</div>
-      <h3>Parecer sem identidade</h3>
-      <p>PDF genérico ou Word editado à mão. A consultoria perde credibilidade no momento mais importante da relação com o cliente.</p>
-    </div>
-  </div>
-</section>
+    <section class="ork-landing-section" id="motor">
+      <div class="ork-landing-heading">
+        <p class="ork-kicker">Da declaração à análise</p>
+        <h2>Um motor único para a interface web e para integrações B2B.</h2>
+        <p>Os cálculos determinísticos permanecem separados da apresentação. O mesmo núcleo pode atender a plataforma própria, relatórios e APIs versionadas.</p>
+      </div>
+      <div class="ork-workflow-grid">
+        <article><span>01</span><h3>Ler e conferir</h3><p>Importação de fichas de rebanho, tratamento por modelo estadual e revisão explícita de linhas não reconhecidas.</p></article>
+        <article><span>02</span><h3>Diagnosticar</h3><p>Classificação híbrida por regras zootécnicas, modelo estatístico e validações de consistência, sempre acompanhada de explicação.</p></article>
+        <article><span>03</span><h3>Projetar</h3><p>Produção, receitas, custos e estoque projetados conforme cria, recria, engorda ou ciclo completo.</p></article>
+        <article><span>04</span><h3>Avaliar risco</h3><p>Capacidade de pagamento, serviço da dívida, DSCR e stress de preço, custo e desempenho produtivo.</p></article>
+      </div>
+    </section>
 
-<!-- SOLUÇÃO -->
-<section class="solucao">
-  <div class="sec-lbl green">// a solução</div>
-  <h2>Orkavyn<br/><span>resolve os três.</span></h2>
+    <section class="ork-landing-section ork-landing-section--sand" id="capacidades">
+      <div class="ork-landing-heading">
+        <p class="ork-kicker">Capacidades em operação</p>
+        <h2>O resultado vem acompanhado da memória que o sustenta.</h2>
+      </div>
+      <div class="ork-capability-grid">
+        <article><strong>Leitura documental</strong><p>PDFs e planilhas de fichas de rebanho com detecção automática e alternativas de correção.</p></article>
+        <article><strong>Diagnóstico do rebanho</strong><p>Composição, estrutura etária, matrizes, touros, animais comerciais e sistema produtivo.</p></article>
+        <article><strong>Fluxo econômico</strong><p>Receitas, custos, resultado operacional, variação de estoque e projeções por período.</p></article>
+        <article><strong>Capacidade de pagamento</strong><p>Operação solicitada, parcelas, cobertura, folga financeira e limite estimado.</p></article>
+        <article><strong>Cenários e stress</strong><p>Comparação entre condições de preço, custo e produtividade sem alterar o cálculo determinístico.</p></article>
+        <article><strong>Relatório e histórico</strong><p>Parecer em PDF, premissas, fontes, limitações e análises salvas por propriedade.</p></article>
+      </div>
+    </section>
 
-  <div class="mockup">
-    <div class="mock-bar">
-      <div class="mock-dots"><span></span><span></span><span></span></div>
-      <div class="mock-url">orkavyn.ai / parecer</div>
-      <div style="width:52px"></div>
-    </div>
-    <div class="mock-body">
-      <div class="mock-tabs">
-        <div class="mock-tab">Rebanho</div>
-        <div class="mock-tab active">Parecer</div>
-        <div class="mock-tab">Simulação</div>
-        <div class="mock-tab">Histórico</div>
+    <section class="ork-landing-evidence">
+      <div>
+        <p class="ork-kicker">Explicabilidade por projeto</p>
+        <h2>Uma conclusão nunca aparece sozinha.</h2>
+        <p>A Orkavyn liga a recomendação às informações que um analista precisa conferir antes de decidir.</p>
       </div>
-      <div class="mock-banner">
-        <div class="mock-banner-l">
-          <div class="mock-badge">APROVAR</div>
-          <div class="mock-desc">
-            <strong>Fazenda Modelo — Ciclo Completo</strong>
-            Cobertura confortável sobre o serviço da dívida · Sinop-MT
-          </div>
-        </div>
-        <div>
-          <div class="mock-dscr-val">1.45</div>
-          <div class="mock-dscr-lbl">DSCR</div>
-        </div>
+      <div class="ork-evidence-ribbon" aria-label="Elementos de evidência da análise">
+        <div><span>Dados</span><strong>Qualidade visível</strong></div>
+        <div><span>Premissas</span><strong>Origem registrada</strong></div>
+        <div><span>Fontes</span><strong>Referência explícita</strong></div>
+        <div><span>Limitações</span><strong>Sem descarte silencioso</strong></div>
       </div>
-      <div class="mock-kpis">
-        <div class="mock-kpi"><div class="mk-lbl">Geração de caixa/ano</div><div class="mk-val">R$ 312.480</div></div>
-        <div class="mock-kpi"><div class="mk-lbl">Parcela Price/mês</div><div class="mk-val">R$ 4.200</div></div>
-        <div class="mock-kpi"><div class="mk-lbl">Crédito máximo</div><div class="mk-val">R$ 680.000</div></div>
-        <div class="mock-kpi"><div class="mk-lbl">Consistência rebanho</div><div class="mk-val" style="color:var(--g)">87 / 100</div></div>
-      </div>
-      <div class="mock-fc">
-        <div class="mock-fc-title">Orkavyn Agro Intelligence — Resultado Operacional</div>
-        <div class="fc-row"><span>(+) Receita de vendas</span><span>R$ 684.000</span></div>
-        <div class="fc-row"><span>(−) Custo operacional</span><span>R$ 312.480</span></div>
-        <div class="fc-row"><span>(−) Reposição de reprodutores</span><span>R$ 59.040</span></div>
-        <div class="fc-row res"><span>(=) Resultado operacional</span><span>R$ 312.480</span></div>
-        <div class="fc-row" style="margin-top:4px"><span>(±) Variação de estoque</span><span style="color:var(--sb)">+ R$ 84.200</span></div>
-        <div class="fc-row" style="color:var(--tx)"><span>(=) Resultado econômico total</span><span>R$ 396.680</span></div>
-      </div>
-    </div>
-  </div>
-</section>
+    </section>
 
-<!-- SENSIBILIDADE -->
-<section class="sensibilidade">
-  <div class="sec-lbl muted">// análise de risco</div>
-  <div class="sens-title">O crédito sobrevive<br/>a uma queda no boi?</div>
-  <p class="sens-sub">3 cenários automáticos calculados a cada análise — sem configuração adicional.</p>
+    <section class="ork-landing-cta">
+      <div><p class="ork-kicker">Orkavyn Agro Intelligence</p><h2>Veja o fluxo completo antes de usar dados reais.</h2></div>
+      <div class="ork-cluster"><a class="ork-action ork-action--light" href="{{ url_for('demo') }}">Executar demonstração</a><a class="ork-action ork-action--outline-light" href="{{ url_for('login') }}">Entrar</a></div>
+    </section>
+  </main>
 
-  <div class="sens-grid">
-    <div class="sens-card">
-      <div class="sens-top" style="border-top:2px solid var(--rd)">
-        <span class="sens-icon" style="color:var(--rd)">▼</span>
-        <div class="sens-nome">Queda de preço</div>
-        <div class="sens-fator" style="color:var(--rd)">−15% na arroba</div>
-      </div>
-      <div class="sens-body">
-        <div class="sens-rec" style="color:var(--rd)">NEGAR</div>
-        <div class="sens-dscr">DSCR 0.87</div>
-        <div class="sens-caixa">Caixa R$ 265.608 · insuficiente</div>
-      </div>
-    </div>
-
-    <div class="sens-card" style="border-color:rgba(74,222,128,.3)">
-      <div class="sens-top" style="border-top:2px solid var(--g);background:rgba(74,222,128,.04)">
-        <span class="sens-icon" style="color:var(--sb)">●</span>
-        <div class="sens-nome">Cotação do dia</div>
-        <div class="sens-fator" style="color:var(--sb)">Base atual</div>
-      </div>
-      <div class="sens-body">
-        <div class="sens-rec" style="color:var(--g)">APROVAR</div>
-        <div class="sens-dscr">DSCR 1.45</div>
-        <div class="sens-caixa">Caixa R$ 312.480 · folga confortável</div>
-      </div>
-    </div>
-
-    <div class="sens-card">
-      <div class="sens-top" style="border-top:2px solid var(--g)">
-        <span class="sens-icon" style="color:var(--g)">▲</span>
-        <div class="sens-nome">Alta de preço</div>
-        <div class="sens-fator" style="color:var(--g)">+15% na arroba</div>
-      </div>
-      <div class="sens-body">
-        <div class="sens-rec" style="color:var(--g)">APROVAR</div>
-        <div class="sens-dscr">DSCR 1.67</div>
-        <div class="sens-caixa">Caixa R$ 359.352 · margem ampla</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- COMO FUNCIONA -->
-<section class="como" id="como">
-  <div class="sec-lbl muted">// como funciona</div>
-  <div class="como-steps">
-    <div class="como-step">
-      <div class="step-num">01 —</div>
-      <h3>Inserir dados</h3>
-      <p>Composição manual, upload de PDF dos órgãos estaduais de defesa agropecuária ou planilha Excel. Cotações preenchidas automaticamente.</p>
-      <div class="tags">
-        <span class="tag">RO</span><span class="tag">MT</span><span class="tag">MS</span>
-        <span class="tag">GO</span><span class="tag">TO</span><span class="tag">PA</span>
-        <span class="tag">MA</span><span class="tag">.xlsx</span>
-      </div>
-    </div>
-    <div class="como-step">
-      <div class="step-num">02 —</div>
-      <h3>Classificar</h3>
-      <p>ML classifica o ciclo, calcula indicadores e benchmarks, audita a consistência do rebanho e gera o fluxo de caixa pecuário.</p>
-      <div class="tags">
-        <span class="tag">CRIA</span><span class="tag">RECRIA</span>
-        <span class="tag">ENGORDA</span><span class="tag">CICLO COMPLETO</span>
-      </div>
-    </div>
-    <div class="como-step">
-      <div class="step-num">03 —</div>
-      <h3>Parecer pronto</h3>
-      <p>Banner APROVAR / RESSALVA / NEGAR, DSCR, crédito máximo, 3 cenários de sensibilidade e PDF com a marca da consultoria.</p>
-      <div class="tags">
-        <span class="tag">PDF</span><span class="tag">DSCR</span><span class="tag">SENSIBILIDADE</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- DIFERENCIAIS -->
-<section class="diff" id="diferenciais">
-  <div class="sec-lbl muted">// diferenciais</div>
-  <div class="diff-grid">
-    <div class="diff-item">
-      <div class="diff-icon">ML</div>
-      <div class="diff-text">
-        <h4>Machine Learning para classificação</h4>
-        <p>Ensemble com RandomForest, GradientBoosting, XGBoost e rede neural. 99,8% de acurácia. Melhora a cada confirmação do analista.</p>
-      </div>
-    </div>
-    <div class="diff-item">
-      <div class="diff-icon">FC</div>
-      <div class="diff-text">
-        <h4>Fluxo de caixa pecuário</h4>
-        <p>Resultado operacional com variação de estoque do rebanho. Valoração por categoria, peso e rendimento de carcaça.</p>
-      </div>
-    </div>
-    <div class="diff-item">
-      <div class="diff-icon">AU</div>
-      <div class="diff-text">
-        <h4>Auditoria de consistência</h4>
-        <p>Score 0–100 com flags automáticos: pirâmide invertida, touro impossível, crescimento implausível, cruzamento de documentos.</p>
-      </div>
-    </div>
-    <div class="diff-item">
-      <div class="diff-icon">MB</div>
-      <div class="diff-text">
-        <h4>Multiempresa com isolamento total</h4>
-        <p>Cada consultoria vê apenas seus clientes. PDF com logo e nome próprio. Histórico de pareceres por fazenda.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- NÚMEROS -->
-<section class="numeros">
-  <div class="num-grid">
-    <div class="num-item">
-      <div class="num-val">99,8%</div>
-      <div class="num-lbl">acurácia do modelo ML de classificação</div>
-    </div>
-    <div class="num-item">
-      <div class="num-val">&lt; 4min</div>
-      <div class="num-lbl">para emitir um parecer completo</div>
-    </div>
-    <div class="num-item">
-      <div class="num-val">7</div>
-      <div class="num-lbl">estados com importação automática de PDF</div>
-    </div>
-    <div class="num-item">
-      <div class="num-val">6</div>
-      <div class="num-lbl">fontes de benchmark (CEPEA, Embrapa, Scot…)</div>
-    </div>
-  </div>
-</section>
-
-<!-- RODAPÉ -->
-<footer>
-  <div class="footer-logo">Bov<span>Credit</span></div>
-  <div class="footer-contact">
-    Interesse? <a href="mailto:viniciuslukas353@gmail.com">viniciuslukas353@gmail.com</a>
-  </div>
-  <div class="footer-copy">© 2026 Orkavyn Agro Intelligence</div>
-</footer>
-
+  <footer class="ork-landing-footer">
+    <div><strong>Orkavyn Agro Intelligence</strong><span>Inteligência econômico-produtiva aplicada à pecuária bovina.</span></div>
+    <nav aria-label="Links legais"><a href="/termos">Termos</a><a href="/privacidade">Privacidade</a><a href="mailto:viniciuslukas353@gmail.com">Contato</a></nav>
+  </footer>
 </body>
 </html>

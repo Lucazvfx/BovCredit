@@ -667,6 +667,123 @@
 .ork-reading-layout th,
 .ork-reading-layout td { border-color: var(--ork-line); }
 
+/* Página pública */
+.ork-landing { min-height: 100vh; background: var(--ork-surface); }
+.ork-landing-nav {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px clamp(20px, 5vw, 72px);
+  background: rgba(23, 58, 42, 0.96);
+  border-bottom: 1px solid rgba(246, 240, 230, 0.12);
+}
+.ork-landing-brand img { display: block; width: 176px; height: auto; }
+.ork-landing-nav nav { display: flex; align-items: center; gap: clamp(14px, 2.5vw, 32px); }
+.ork-landing-nav nav > a:not(.ork-action) { color: var(--ork-sand); font-size: 0.82rem; font-weight: 700; text-decoration: none; }
+.ork-action--light { color: var(--ork-forest); background: var(--ork-surface-raised); border-color: var(--ork-surface-raised); }
+.ork-action--light:hover { color: var(--ork-forest); background: var(--ork-sand); }
+.ork-action--outline-light { color: var(--ork-surface-raised); background: transparent; border-color: rgba(246, 240, 230, 0.45); }
+.ork-action--outline-light:hover { background: rgba(246, 240, 230, 0.1); }
+
+.ork-landing-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
+  min-height: calc(100vh - 76px);
+  gap: clamp(36px, 7vw, 100px);
+  align-items: center;
+  padding: clamp(56px, 9vw, 120px) clamp(20px, 6vw, 88px);
+  color: var(--ork-surface-raised);
+  background: var(--ork-forest);
+}
+.ork-landing-hero .ork-kicker { color: var(--ork-oat); }
+.ork-landing-hero h1 { max-width: 880px; margin: 0; font-family: var(--ork-font-display); font-size: clamp(3.5rem, 8vw, 7.4rem); font-weight: 900; line-height: 0.85; letter-spacing: -0.06em; }
+.ork-landing-lead { max-width: 720px; margin: 28px 0; color: var(--ork-sand); font-size: clamp(1.05rem, 1.8vw, 1.35rem); line-height: 1.55; }
+.ork-landing-note { max-width: 660px; margin: 22px 0 0; color: var(--ork-sage); font-size: 0.82rem; }
+
+.ork-engine-map { overflow: hidden; border: 1px solid rgba(246, 240, 230, 0.18); border-radius: 24px; background: rgba(246, 240, 230, 0.07); box-shadow: var(--ork-shadow); }
+.ork-engine-map__head { display: flex; justify-content: space-between; gap: 18px; padding: 20px 22px; border-bottom: 1px solid rgba(246, 240, 230, 0.14); }
+.ork-engine-map__head span { color: var(--ork-sage); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.ork-engine-map__head strong { font-size: 0.78rem; }
+.ork-engine-map ol { margin: 0; padding: 0; list-style: none; }
+.ork-engine-map li { display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: center; padding: 18px 22px; border-bottom: 1px solid rgba(246, 240, 230, 0.1); }
+.ork-engine-map li:last-child { border-bottom: 0; }
+.ork-engine-map li > span { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 12px; color: var(--ork-oat); background: rgba(246, 240, 230, 0.09); font-family: var(--ork-font-mono); font-size: 0.72rem; }
+.ork-engine-map li strong, .ork-engine-map li small { display: block; }
+.ork-engine-map li small { margin-top: 3px; color: var(--ork-sage); }
+
+.ork-landing-section { padding: clamp(72px, 10vw, 132px) clamp(20px, 6vw, 88px); }
+.ork-landing-section--sand { background: var(--ork-sand); }
+.ork-landing-heading { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.7fr); gap: 24px 80px; align-items: end; margin-bottom: 48px; }
+.ork-landing-heading .ork-kicker { grid-column: 1 / -1; margin: 0; }
+.ork-landing-heading h2,
+.ork-landing-evidence h2,
+.ork-landing-cta h2 { max-width: 760px; margin: 0; font-family: var(--ork-font-display); font-size: clamp(2.6rem, 5vw, 5rem); line-height: 0.94; letter-spacing: -0.05em; }
+.ork-landing-heading > p:last-child,
+.ork-landing-evidence > div > p:last-child { margin: 0; color: var(--ork-copy); font-size: 1.05rem; line-height: 1.65; }
+.ork-workflow-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--ork-line); border-left: 1px solid var(--ork-line); }
+.ork-workflow-grid article { min-height: 280px; padding: 28px; border-right: 1px solid var(--ork-line); border-bottom: 1px solid var(--ork-line); background: var(--ork-surface-raised); }
+.ork-workflow-grid article > span { color: var(--ork-soil); font: 700 0.75rem var(--ork-font-mono); }
+.ork-workflow-grid h3 { margin: 64px 0 12px; font-family: var(--ork-font-display); font-size: 1.8rem; }
+.ork-workflow-grid p, .ork-capability-grid p { color: var(--ork-copy); line-height: 1.6; }
+.ork-capability-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ork-capability-grid article { min-height: 180px; padding: 26px; border: 1px solid var(--ork-line); border-radius: 18px; background: var(--ork-surface-raised); }
+.ork-capability-grid strong { font-family: var(--ork-font-display); font-size: 1.45rem; }
+
+.ork-landing-evidence { display: grid; grid-template-columns: minmax(260px, 0.65fr) minmax(0, 1.35fr); gap: 48px; align-items: end; padding: clamp(72px, 10vw, 120px) clamp(20px, 6vw, 88px); }
+.ork-landing-evidence .ork-evidence-ribbon { align-self: end; }
+.ork-landing-cta { display: flex; align-items: end; justify-content: space-between; gap: 36px; padding: clamp(56px, 8vw, 96px) clamp(20px, 6vw, 88px); color: var(--ork-surface-raised); background: var(--ork-forest); }
+.ork-landing-cta .ork-kicker { color: var(--ork-oat); }
+.ork-landing-footer { display: flex; justify-content: space-between; gap: 28px; padding: 34px clamp(20px, 6vw, 88px); color: var(--ork-copy); background: var(--ork-sand); }
+.ork-landing-footer strong, .ork-landing-footer span { display: block; }
+.ork-landing-footer span { margin-top: 5px; font-size: 0.78rem; }
+.ork-landing-footer nav { display: flex; flex-wrap: wrap; gap: 20px; }
+.ork-landing-footer a { color: var(--ork-forest); font-weight: 700; text-decoration: none; }
+
+/* Administração */
+.ork-admin-shell .ork-main { max-width: 1280px; }
+.ork-admin-shell .wrap { max-width: none; margin: 0; }
+.ork-admin-shell .topbar { margin-bottom: 20px; padding: 14px 16px; border: 1px solid var(--ork-line); border-radius: 12px; background: var(--ork-sand); }
+.ork-admin-shell .card,
+.ork-admin-governance { padding: 24px; border: 1px solid var(--ork-line); border-radius: 16px; background: var(--ork-surface-raised); box-shadow: var(--ork-shadow-soft); }
+.ork-admin-shell .row { align-items: end; }
+.ork-admin-shell label { color: var(--ork-ink); font-weight: 700; }
+.ork-admin-shell input,
+.ork-admin-shell select { min-height: 44px; padding: 10px 12px; border: 1px solid var(--ork-line-strong); border-radius: var(--ork-radius-control); color: var(--ork-ink); background: var(--ork-surface-raised); }
+.ork-admin-shell button { min-height: 44px; border-radius: var(--ork-radius-control); background: var(--ork-forest); }
+.ork-admin-shell .btn-del { min-height: 36px; background: var(--ork-danger); }
+.ork-admin-shell table { min-width: 620px; color: var(--ork-ink); }
+.ork-admin-shell th { color: var(--ork-copy); background: var(--ork-sand); }
+.ork-admin-shell th, .ork-admin-shell td { border-color: var(--ork-line); }
+.ork-admin-table { overflow-x: auto; }
+.ork-admin-governance { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; margin-bottom: 24px; }
+.ork-admin-governance h2 { margin: 0 0 6px; font-family: var(--ork-font-display); }
+.ork-admin-governance p { margin: 0; color: var(--ork-copy); }
+
+@media (max-width: 900px) {
+  .ork-landing-hero { grid-template-columns: 1fr; }
+  .ork-engine-map { width: min(620px, 100%); }
+  .ork-workflow-grid { grid-template-columns: 1fr 1fr; }
+  .ork-capability-grid { grid-template-columns: 1fr 1fr; }
+  .ork-landing-evidence { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .ork-landing-nav nav > a:not(.ork-action) { display: none; }
+  .ork-landing-brand img { width: 148px; }
+  .ork-landing-hero { min-height: auto; }
+  .ork-landing-heading { grid-template-columns: 1fr; }
+  .ork-workflow-grid,
+  .ork-capability-grid { grid-template-columns: 1fr; }
+  .ork-landing-cta,
+  .ork-landing-footer { align-items: flex-start; flex-direction: column; }
+  .ork-admin-governance { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 760px) {
   .ork-auth-page { padding: 0 !important; place-items: stretch; }
   .ork-auth-layout { grid-template-columns: 1fr; min-height: 100dvh; border: 0; border-radius: 0; }
