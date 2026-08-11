@@ -34,10 +34,29 @@ _LABEL_RECOMENDACAO = {
 
 def _styles():
     ss = getSampleStyleSheet()
-    ss.add(ParagraphStyle('Titulo', parent=ss['Heading1'], fontSize=16, spaceAfter=4))
-    ss.add(ParagraphStyle('Subtitulo', parent=ss['Normal'], fontSize=9, textColor=colors.grey))
-    ss.add(ParagraphStyle('SecaoTitulo', parent=ss['Heading2'], fontSize=12, spaceBefore=14, spaceAfter=6))
-    ss.add(ParagraphStyle('Corpo', parent=ss['Normal'], fontSize=10, leading=14))
+    floresta = colors.HexColor('#173A2A')
+    terra = colors.HexColor('#765038')
+    texto = colors.HexColor('#46544B')
+    ss.add(ParagraphStyle(
+        'Titulo', parent=ss['Heading1'], fontSize=18, leading=21,
+        textColor=floresta, spaceAfter=5,
+    ))
+    ss.add(ParagraphStyle(
+        'Subtitulo', parent=ss['Normal'], fontSize=8.5, leading=12,
+        textColor=colors.HexColor('#647067'),
+    ))
+    ss.add(ParagraphStyle(
+        'SecaoTitulo', parent=ss['Heading2'], fontSize=12, leading=15,
+        textColor=floresta, spaceBefore=16, spaceAfter=7,
+    ))
+    ss.add(ParagraphStyle(
+        'Corpo', parent=ss['Normal'], fontSize=9.5, leading=14,
+        textColor=texto,
+    ))
+    ss.add(ParagraphStyle(
+        'Rotulo', parent=ss['Normal'], fontSize=7, leading=9,
+        textColor=terra, uppercase=True,
+    ))
     return ss
 
 
@@ -97,8 +116,13 @@ def _append_b2b_sections(story, ss, parecer: dict):
     ]
     t_resumo = Table(resumo_lin, colWidths=[4*cm, 12*cm])
     t_resumo.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.whitesmoke),
-        ('GRID', (0, 0), (-1, -1), 0.35, colors.HexColor('#D8D8D8')),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F6F0E6')),
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#E8DCC7')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#203127')),
+        ('GRID', (0, 0), (-1, -1), 0.35, colors.HexColor('#D8C9B3')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
     ]))
@@ -270,10 +294,10 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         'consultoria. Este documento não substitui a conferência documental, '
         'a visita à propriedade ou a decisão final do agente de crédito.',
         ss['Subtitulo']))
-    story.append(HRFlowable(width='100%', color=colors.HexColor('#CCCCCC'), spaceBefore=8, spaceAfter=4))
+    story.append(HRFlowable(width='100%', color=colors.HexColor('#D8C9B3'), spaceBefore=8, spaceAfter=4))
 
     _append_b2b_sections(story, ss, parecer)
-    story.append(HRFlowable(width='100%', color=colors.HexColor('#CCCCCC'), spaceBefore=8, spaceAfter=4))
+    story.append(HRFlowable(width='100%', color=colors.HexColor('#D8C9B3'), spaceBefore=8, spaceAfter=4))
 
     composicao = parecer.get('composicao') or {}
     story.append(Paragraph('Composição do Rebanho', ss['SecaoTitulo']))

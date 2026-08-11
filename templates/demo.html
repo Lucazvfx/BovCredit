@@ -5,60 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Demonstração — Orkavyn Agro Intelligence</title>
   <meta name="description" content="Demonstração fictícia da análise econômico-produtiva Orkavyn.">
-  <style>
-    :root { color-scheme: light; --forest:#173a2a; --sand:#f4eee3; --oat:#e8dcc7; --soil:#765038; --ink:#203127; --muted:#647067; }
-    * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; background:var(--sand); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
-    header,main { width:min(1120px,calc(100% - 32px)); margin-inline:auto; }
-    header { padding:28px 0 18px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
-    .brand { font-weight:800; letter-spacing:-.02em; }
-    .brand small { display:block; color:var(--soil); font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; }
-    .back { color:var(--forest); font-weight:700; }
-    .notice { padding:12px 18px; border-radius:12px; background:var(--forest); color:#f8f3e9; font-size:.78rem; font-weight:800; letter-spacing:.12em; text-align:center; text-transform:uppercase; }
-    .hero { margin:24px 0; padding:clamp(28px,5vw,56px); border:1px solid #d8c9b3; border-radius:24px; background:#fbf7ef; }
-    .eyebrow { margin:0 0 8px; color:var(--soil); font-size:.75rem; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
-    h1 { margin:0; max-width:760px; font-size:clamp(2.2rem,6vw,4.6rem); line-height:.98; letter-spacing:-.055em; }
-    .lead { max-width:680px; margin:20px 0 0; color:var(--muted); font-size:1.1rem; }
-    .decision { margin-top:32px; display:grid; grid-template-columns:1.5fr repeat(3,1fr); gap:12px; }
-    .metric { min-height:128px; padding:20px; border:1px solid #ded1bf; border-radius:18px; background:var(--sand); }
-    .metric:first-child { background:var(--forest); color:#fff; }
-    .metric span { display:block; margin-bottom:18px; color:inherit; opacity:.72; font-size:.72rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
-    .metric strong { display:block; font-size:clamp(1.35rem,3vw,2.1rem); line-height:1.05; }
-    .section-title { margin:40px 0 16px; font-size:1.6rem; }
-    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-    .panel { padding:22px; border:1px solid #d8c9b3; border-radius:18px; background:#fbf7ef; }
-    .panel h3 { margin:0 0 18px; font-size:1rem; }
-    dl { margin:0; }
-    dl div { display:flex; justify-content:space-between; gap:16px; padding:10px 0; border-top:1px solid var(--oat); }
-    dt { color:var(--muted); } dd { margin:0; font-weight:750; text-align:right; }
-    footer { padding:36px 0 54px; color:var(--muted); font-size:.88rem; }
-    @media (max-width:760px) { .decision,.grid { grid-template-columns:1fr 1fr; } .metric:first-child { grid-column:1/-1; } }
-    @media (max-width:480px) { header { align-items:flex-start; flex-direction:column; } .decision,.grid { grid-template-columns:1fr; } }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-fields.css') }}">
 </head>
-<body>
-  <header>
-    <div class="brand">Orkavyn Agro Intelligence<small>Livestock Intelligence</small></div>
-    <a class="back" href="/">Voltar ao início</a>
-  </header>
-  <main>
-    <div class="notice" role="status">Modo demonstração — dados fictícios</div>
-    <section class="hero">
-      <p class="eyebrow">Análise econômico-produtiva demonstrativa</p>
-      <h1>{{ demo_report.summary.fazenda }}</h1>
-      <p class="lead">{{ demo_report.summary.municipio }} · {{ demo_report.report.note }}</p>
-      <div class="decision" aria-label="Resumo da decisão">
-        <article class="metric"><span>Recomendação</span><strong>{{ demo_report.summary.recomendacao }}</strong></article>
-        <article class="metric"><span>DSCR médio</span><strong>{{ '%.2f'|format(demo_report.summary.dscr)|replace('.', ',') }}x</strong></article>
-        <article class="metric"><span>Qualidade</span><strong>{{ demo_report.summary.quality_status }}</strong></article>
-        <article class="metric"><span>Confiança</span><strong>{{ demo_report.summary.confidence }}%</strong></article>
+<body class="ork-surface ork-demo">
+  <a class="ork-skip-link" href="#demo-main">Ir para o resultado</a>
+  <aside class="ork-demo-sidebar" aria-label="Contexto da demonstração">
+    <a class="ork-brand" href="/"><span class="ork-brand__name">Orkavyn</span><span class="ork-brand__descriptor">Agro Intelligence</span></a>
+    <div>
+      <p class="ork-kicker">Demonstração comercial</p>
+      <h1>Da ficha à decisão.</h1>
+      <p>Este fluxo usa uma propriedade fictícia para apresentar a estrutura da análise sem persistir dados.</p>
+    </div>
+    <a class="ork-action ork-action--light" href="{{ url_for('login') }}">Acessar plataforma</a>
+  </aside>
+
+  <main class="ork-demo-main" id="demo-main">
+    <div class="ork-demo-notice" role="status">Modo demonstração — dados fictícios</div>
+    <header class="ork-demo-header">
+      <div><p class="ork-kicker">Análise econômico-produtiva demonstrativa</p><h2>{{ demo_report.summary.fazenda }}</h2><p>{{ demo_report.summary.municipio }}</p></div>
+      <a class="ork-action ork-action--secondary" href="/">Voltar ao início</a>
+    </header>
+
+    <section class="ork-decision-summary" aria-label="Resumo da decisão demonstrativa">
+      <div class="ork-decision-summary__primary"><span>Recomendação</span><strong>{{ demo_report.summary.recomendacao }}</strong><small>{{ demo_report.report.note }}</small></div>
+      <div class="ork-decision-summary__metrics">
+        <div><span>DSCR médio</span><strong>{{ '%.2f'|format(demo_report.summary.dscr)|replace('.', ',') }}x</strong></div>
+        <div><span>Qualidade</span><strong>{{ demo_report.summary.quality_status }}</strong></div>
+        <div><span>Confiança dos dados</span><strong>{{ demo_report.summary.confidence }}%</strong></div>
+        <div><span>DSCR mínimo</span><strong>{{ '%.2f'|format(demo_report.stress.dscr_minimo)|replace('.', ',') }}x</strong></div>
       </div>
     </section>
 
-    <h2 class="section-title">Fundamentos da análise</h2>
-    <section class="grid">
-      <article class="panel">
-        <h3>Estrutura do rebanho</h3>
+    <aside class="ork-evidence-ribbon" aria-label="Evidências da demonstração">
+      <div><span>Dados</span><strong>Fictícios</strong></div>
+      <div><span>Premissas</span><strong>{{ demo_report.premises.origem }}</strong></div>
+      <div><span>Persistência</span><strong>Desativada</strong></div>
+      <div><span>Uso</span><strong>Somente demonstração</strong></div>
+    </aside>
+
+    <section class="ork-demo-grid" aria-label="Fundamentos da análise">
+      <article class="ork-panel">
+        <p class="ork-kicker">Rebanho</p><h3>Estrutura produtiva</h3>
         <dl>
           <div><dt>Total</dt><dd>{{ demo_report.herd.total }}</dd></div>
           <div><dt>Fêmeas</dt><dd>{{ demo_report.herd.femeas }}</dd></div>
@@ -66,24 +53,25 @@
           <div><dt>Matrizes</dt><dd>{{ demo_report.herd.matrizes }}</dd></div>
         </dl>
       </article>
-      <article class="panel">
-        <h3>Resultado financeiro</h3>
+      <article class="ork-panel">
+        <p class="ork-kicker">Financeiro</p><h3>Resultado projetado</h3>
         <dl>
           <div><dt>Receita</dt><dd>R$ {{ '{:,.0f}'.format(demo_report.financial.receita)|replace(',', '.') }}</dd></div>
           <div><dt>Custos</dt><dd>R$ {{ '{:,.0f}'.format(demo_report.financial.custos)|replace(',', '.') }}</dd></div>
           <div><dt>Resultado</dt><dd>R$ {{ '{:,.0f}'.format(demo_report.financial.resultado)|replace(',', '.') }}</dd></div>
         </dl>
       </article>
-      <article class="panel">
-        <h3>Crédito e resiliência</h3>
+      <article class="ork-panel">
+        <p class="ork-kicker">Crédito</p><h3>Capacidade e stress</h3>
         <dl>
           <div><dt>Parcela mensal</dt><dd>R$ {{ '{:,.0f}'.format(demo_report.debt.parcela_mensal)|replace(',', '.') }}</dd></div>
           <div><dt>Capacidade estimada</dt><dd>R$ {{ '{:,.0f}'.format(demo_report.debt.capacidade_maxima)|replace(',', '.') }}</dd></div>
-          <div><dt>DSCR mínimo</dt><dd>{{ '%.2f'|format(demo_report.stress.dscr_minimo)|replace('.', ',') }}x</dd></div>
+          {% for cenario in demo_report.stress.cenarios %}<div><dt>{{ cenario.nome }}</dt><dd>{{ '%.2f'|format(cenario.dscr)|replace('.', ',') }}x</dd></div>{% endfor %}
         </dl>
       </article>
     </section>
-    <footer>{{ demo_report.premises.origem }}. Esta demonstração não representa uma propriedade ou decisão de crédito real.</footer>
+
+    <footer class="ork-demo-footer">Esta demonstração não representa uma propriedade ou decisão de crédito real.</footer>
   </main>
 </body>
 </html>

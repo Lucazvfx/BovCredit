@@ -2,6 +2,7 @@ import io
 
 import pdfplumber
 
+import database
 from app import app
 from services.parecer_pdf import gerar_pdf_parecer
 
@@ -51,3 +52,47 @@ def test_pdf_contains_b2b_section_titles():
     assert "Resumo executivo" in text
     assert "Qualidade dos dados" in text
     assert "Limitações" in text
+
+
+def test_pdf_b2b_sections_follow_review_order():
+    text = _extract_pdf_text(gerar_pdf_parecer(_sample_parecer()))
+    lines = [line.strip() for line in text.splitlines()]
+    sections = (
+        "Resumo executivo",
+        "Rebanho",
+        "Produção",
+        "Receitas",
+        "Custos",
+        "Fluxo de caixa",
+        "Dívida",
+        "DSCR",
+        "Stress",
+        "Risco",
+        "Qualidade dos dados",
+        "Premissas",
+        "Fontes",
+        "Limitações",
+    )
+
+    positions = [lines.index(section) for section in sections]
+    assert positions == sorted(positions)
+
+
+def test_demo_does_not_persist_analysis(monkeypatch):
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("a demonstração pública não pode persistir análise")
+
+    monkeypatch.setattr(database, "save_analysis_snapshot", fail_if_called)
+
+    response = app.test_client().get("/demo")
+
+    assert response.status_code == 200
+
+
+def test_demo_uses_shared_fields_visual_system():
+    response = app.test_client().get("/demo")
+    html = response.get_data(as_text=True)
+
+    assert "orkavyn-fields.css" in html
+    assert 'class="ork-surface ork-demo"' in html
+    assert "DADOS FICTÍCIOS" in html.upper()
