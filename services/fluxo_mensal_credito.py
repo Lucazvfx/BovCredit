@@ -1,39 +1,57 @@
 """Projeção mensal de caixa para análise de crédito.
 
-Quando a ficha não traz calendário de vendas e despesas, a distribuição mensal
-é uma aproximação linear. Ela é explicitamente marcada como estimada.
+Camada de compatibilidade sobre ``services.cashflow_engine``.
 """
 from __future__ import annotations
 
+from services.cashflow_engine import project_cashflow
+
 
 def projetar_fluxo_mensal(anos: list[dict]) -> dict:
-    meses = []
-    saldo = 0.0
-    for ano in anos or []:
-        receita = float(ano.get('receita', 0) or 0) / 12.0
-        custo = float(ano.get('custo', 0) or 0) / 12.0
-        servico = float(ano.get('servico_divida_anual', 0) or 0) / 12.0
-        for mes in range(1, 13):
-            entrada = receita
-            saidas = custo + servico
-            fluxo_livre = entrada - saidas
-            saldo += fluxo_livre
-            meses.append({
-                'ano': int(ano.get('ano', 1)),
-                'mes': mes,
-                'receita_estimada': round(entrada, 2),
-                'custo_operacional_estimado': round(custo, 2),
-                'servico_divida': round(servico, 2),
-                'fluxo_livre': round(fluxo_livre, 2),
-                'saldo_acumulado': round(saldo, 2),
-            })
-    min_mes = min(meses, key=lambda x: x['saldo_acumulado']) if meses else None
-    return {
-        'metodo': 'distribuicao_linear_anual_estimada',
-        'meses': meses,
-        'saldo_minimo': min_mes['saldo_acumulado'] if min_mes else 0.0,
-        'mes_critico': ({'ano': min_mes['ano'], 'mes': min_mes['mes']}
-                        if min_mes else None),
-        'aviso': 'Sem calendário mensal informado, receitas e custos foram distribuídos linearmente. Use dados mensais reais para decisão final.',
-    }
+    result = project_cashflow(
+        {"years": anos or []},
+        {},
+        horizon_months=12 * len(anos or []),
+    )
 
+    meses = []
+    for row in result["months"]:
+        saldo_livre = round(row["saldo_final"] - row["saldo_inicial"], 2)
+        meses.append({
+            "ano": row["ano"],
+            "mes": row["mes"],
+            "receita_estimada": round(row["entradas"], 2),
+            "custo_operacional_estimado": round(row["custos_operacionais"], 2),
+            "servico_divida": round(row["parcelas"] + row["juros"], 2),
+            "fluxo_livre": saldo_livre,
+            "saldo_acumulado": round(row["saldo_final"], 2),
+            "estimated": row["estimated"],
+            "warnings": list(row["warnings"]),
+            "saldo_inicial": round(row["saldo_inicial"], 2),
+            "entradas": round(row["entradas"], 2),
+            "custos_operacionais": round(row["custos_operacionais"], 2),
+            "investimentos": round(row["investimentos"], 2),
+            "parcelas": round(row["parcelas"], 2),
+            "juros": round(row["juros"], 2),
+            "saldo_operacional": round(row["saldo_operacional"], 2),
+            "saldo_final": round(row["saldo_final"], 2),
+        })
+
+    top_warning = (
+        "Sem calendário mensal informado, a distribuição linear é estimada. "
+        "Use dados mensais reais para decisão final."
+    )
+    if result.get("warnings"):
+        top_warning = f"{top_warning} {'; '.join(result['warnings'])}"
+
+    legacy_method = "distribuicao_linear_anual_estimada" if result.get("estimated") else result.get("method")
+    return {
+        "metodo": legacy_method,
+        "meses": meses,
+        "saldo_minimo": result.get("saldo_minimo", 0.0),
+        "mes_critico": result.get("mes_critico"),
+        "aviso": top_warning,
+        "estimated": result.get("estimated", False),
+        "warnings": list(result.get("warnings") or []),
+        "months": result["months"],
+    }
