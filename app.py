@@ -1974,20 +1974,20 @@ def api_classificar():
         'narrativa_contexto': _ctx_narrativa if not _NARRATIVA_INLINE else None,
     }
 
-    try:
-        organization_id = _resolver_empresa_ativa()
-        if organization_id:
-            analysis_pipeline_result = run_full_analysis(
-                data,
-                {
-                    'organization_id': organization_id,
-                    'user_id': current_user.id,
-                },
-            )
+    organization_id = _resolver_empresa_ativa()
+    if organization_id:
+        analysis_pipeline_result = run_full_analysis(
+            data,
+            {
+                'organization_id': organization_id,
+                'user_id': current_user.id,
+            },
+        )
+        try:
             db.save_analysis_snapshot(
                 organization_id=organization_id,
                 user_id=current_user.id,
-                payload=data,
+                payload=analysis_pipeline_result.get('payload', data),
                 context={
                     'organization_id': organization_id,
                     'user_id': current_user.id,
@@ -1995,8 +1995,8 @@ def api_classificar():
                 result=analysis_pipeline_result,
                 version=analysis_pipeline_result.get('version'),
             )
-    except Exception as e:
-        logger.warning(f'Falha ao salvar snapshot da análise: {e}')
+        except Exception as e:
+            logger.warning(f'Falha ao salvar snapshot da análise: {e}')
 
     return jsonify(response_payload)
 

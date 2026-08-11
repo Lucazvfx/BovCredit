@@ -6,6 +6,7 @@ from pathlib import Path
 import database as db
 import pytest
 
+import app as app_module
 import services.analysis_pipeline as pipeline
 from app import app
 from services.engine.versions import engine_version
@@ -73,6 +74,37 @@ def test_run_full_analysis_executes_blocks_in_order_and_attaches_version_metadat
     assert result["context"]["user_id"] == 41
 
 
+def test_herd_block_uses_legacy_default_when_taxa_natalidade_is_omitted(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def _classificar(values, **kwargs):
+        captured.update(kwargs)
+        return {
+            "tipo": "CRIA",
+            "classificacao": "CRIA",
+            "confianca": 92.0,
+            "origem_decisao": "ml",
+            "regra_aplicada": None,
+        }
+
+    monkeypatch.setattr(pipeline, "classificar", _classificar)
+    monkeypatch.setattr(pipeline, "calcular_indicadores", lambda values: {"total_animals": sum(values)})
+    monkeypatch.setattr(pipeline, "montar_explicacao_classificacao", lambda classification, indicators: {"ok": True})
+    monkeypatch.setattr(pipeline, "analyze_herd", lambda herd_state, ml_result=None: {"ok": True})
+
+    block = pipeline._build_herd_block({"valores": PAYLOAD["valores"]}, {}, {})
+
+    assert "taxa_natalidade" not in captured
+    assert block["output"]["classification"]["tipo"] == "CRIA"
+
+
+def test_normalize_payload_maps_preco_into_preco_arroba():
+    normalized = pipeline._normalize_payload({"valores": PAYLOAD["valores"], "preco": 344})
+
+    assert normalized["preco"] == 344
+    assert normalized["preco_arroba"] == 344
+
+
 def test_snapshot_round_trip_is_immutable_and_organization_scoped(tmp_path, monkeypatch):
     db_path = tmp_path / "analysis_snapshots.db"
     monkeypatch.setattr(db, "_DB_PATH", str(db_path))
@@ -136,3 +168,16 @@ def test_api_classificar_keeps_legacy_fields_after_pipeline_work(client=None):
     assert data["qualidade_dados"]["campos"]
     assert data["analises_credito"]["capacidade_pagamento"]["dscr"] is not None
     assert data["desfrute_projetado"]["origem"] in {"informado", "projetado"}
+
+
+def test_api_classificar_does_not_swallow_pipeline_errors(monkeypatch):
+    client = _client()
+    app_module.app.config["TESTING"] = True
+
+    def _explode(*args, **kwargs):
+        raise RuntimeError("pipeline exploded")
+
+    monkeypatch.setattr(app_module, "run_full_analysis", _explode)
+
+    response = client.post("/api/classificar", json=PAYLOAD)
+    assert response.status_code == 500

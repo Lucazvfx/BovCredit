@@ -41,7 +41,10 @@ def _normalize_payload(payload: dict | None) -> dict:
         return {}
     if not isinstance(payload, dict):
         raise ValueError("payload must be a dict")
-    return deepcopy(payload)
+    normalized = deepcopy(payload)
+    if "preco_arroba" not in normalized and "preco" in normalized:
+        normalized["preco_arroba"] = float(normalized["preco"])
+    return normalized
 
 
 def _normalize_context(context: dict | None) -> dict:
@@ -96,11 +99,16 @@ def _build_validation_block(payload: dict, context: dict, state: dict) -> dict:
 
 def _build_herd_block(payload: dict, context: dict, state: dict) -> dict:
     values = payload.get("valores") or payload.get("values") or []
+    classification_kwargs = {
+        "bois_vendidos": payload.get("bois_vendidos"),
+        "bezerros_vendidos": payload.get("bezerros_vendidos"),
+    }
+    taxa_natalidade = payload.get("taxa_natalidade")
+    if taxa_natalidade is not None:
+        classification_kwargs["taxa_natalidade"] = float(taxa_natalidade)
     classification = classificar(
         values,
-        taxa_natalidade=payload.get("taxa_natalidade"),
-        bois_vendidos=payload.get("bois_vendidos"),
-        bezerros_vendidos=payload.get("bezerros_vendidos"),
+        **classification_kwargs,
     )
     indicators = calcular_indicadores(values)
     explanation = montar_explicacao_classificacao(classification, indicators)
