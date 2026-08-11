@@ -11,6 +11,7 @@ Módulo puro — só constantes e helpers, sem I/O.
 """
 from __future__ import annotations
 
+from services.engine.parameter_registry import register_parameter
 from services.proveniencia import referencia, medido
 
 
@@ -399,3 +400,102 @@ def avaliar_reposicao(matrizes: float, novilhas: float,
         'sustenta_manutencao': sustentada >= float(REPOSICAO_MINIMA_PCT),
         'fonte': str(_CPATSA_1985),
     }
+
+
+def _registrar_parametros_zootecnicos() -> None:
+    cria_sistemas = ('CRIA', 'CICLO_COMPLETO', 'CRIA_RECRIA')
+    recria_sistemas = ('RECRIA', 'RECRIA_ENGORDA', 'CICLO_COMPLETO', 'CRIA_RECRIA')
+    engorda_sistemas = ('ENGORDA', 'RECRIA_ENGORDA', 'CICLO_COMPLETO')
+
+    for system in cria_sistemas:
+        register_parameter(
+            'natalidade_pct',
+            NATALIDADE_PCT,
+            unit='%',
+            system=system,
+            plausible_range=(55.0, 80.0),
+        )
+        register_parameter(
+            'mortalidade_pct',
+            MORTALIDADE_PCT,
+            unit='%',
+            system=system,
+            plausible_range=(1.5, 5.0),
+        )
+        register_parameter(
+            'relacao_fm',
+            RELACAO_FM,
+            unit=':1',
+            system=system,
+            source='Benchmark regional — relação fêmeas/macho adulto',
+            plausible_range=(1.8, 2.8),
+        )
+        register_parameter(
+            'pct_matrizes',
+            PCT_MATRIZES,
+            unit='%',
+            system=system,
+            source='Benchmark regional — % matrizes no rebanho',
+            plausible_range=(28.0, 42.0),
+        )
+
+    for system in recria_sistemas:
+        register_parameter(
+            'ganho_arroba_mes',
+            GANHO_ARROBA_MES,
+            unit='@/mes',
+            system=system,
+            plausible_range=(0.5, 0.9),
+        )
+        register_parameter(
+            'peso_garrote_arr',
+            PESO_GARROTE_ARR,
+            unit='@ carcaca',
+            system=system,
+            source='GEP Araguaia / Fazenda Alvorada',
+            reference_year=2025,
+            editable=False,
+            plausible_range=(float(PESO_GARROTE_ARR), float(PESO_GARROTE_ARR)),
+        )
+        register_parameter(
+            'peso_bezerra_arr',
+            PESO_BEZERRA_ARR,
+            unit='@ carcaca',
+            system=system,
+            source='GEP Araguaia / Fazenda Alvorada',
+            reference_year=2025,
+            editable=False,
+            plausible_range=(float(PESO_BEZERRA_ARR), float(PESO_BEZERRA_ARR)),
+        )
+
+    for system in engorda_sistemas:
+        register_parameter(
+            'rendimento_carcaca_pct',
+            RENDIMENTO_CARCACA_PCT,
+            unit='%',
+            system=system,
+            plausible_range=(50.0, 54.0),
+        )
+        register_parameter(
+            'peso_boi_arr',
+            PESO_BOI_ARR,
+            unit='@ carcaca',
+            system=system,
+            source='GEP Araguaia / Fazenda Alvorada',
+            reference_year=2025,
+            editable=False,
+            plausible_range=(float(PESO_BOI_ARR), float(PESO_BOI_ARR)),
+        )
+        register_parameter(
+            'peso_vaca_arr',
+            PESO_VACA_ARR,
+            unit='@ carcaca',
+            system=system,
+            source='GEP Araguaia / Fazenda Alvorada',
+            reference_year=2025,
+            editable=False,
+            plausible_range=(float(PESO_VACA_ARR), float(PESO_VACA_ARR)),
+        )
+
+
+_registrar_parametros_zootecnicos()
