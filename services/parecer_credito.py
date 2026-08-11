@@ -151,49 +151,22 @@ def avaliar_capacidade_pagamento(
     carencia_meses: int = 0,
     dividas_mensais: float = 0.0,
 ) -> dict:
-    cronograma = cronograma_price(
-        credito_valor, juros_aa, prazo_meses, carencia_meses)
-    _pv = cronograma['principal_amortizado']
-    parcela = cronograma['parcela_mensal']
-    _cap_carencia = ({
-        'carencia_meses':       carencia_meses,
-        'principal_liberado':   round(credito_valor, 2),
-        'principal_amortizado': round(_pv, 2),
-        'acrescimo_pct':        round((_pv / credito_valor - 1) * 100, 1),
-    } if _pv > credito_valor > 0 else None)
-    # A capacidade nominal usa um ano cheio de amortização; o cronograma
-    # multianual abaixo substitui esse número pelo serviço efetivo de cada ano.
-    servico_anual = 12 * (parcela + max(dividas_mensais, 0.0))
-    cap_max = credito_maximo(geracao_caixa_anual, juros_aa, prazo_meses,
-                             carencia_meses, dividas_mensais)
+    from services.payment_capacity_engine import calculate_payment_capacity
 
-    if servico_anual <= 0:
-        return {'dscr': None, 'parcela_mensal': round(parcela, 2),
-                'capitalizacao_carencia': _cap_carencia,
-                'cronograma_divida': cronograma['anos'],
-                'servico_divida_anual': 0.0,
-                'geracao_caixa_anual': round(geracao_caixa_anual, 2),
-                'capacidade_maxima': cap_max,
-                'recomendacao': None, 'faixa': None,
-                'justificativa': 'Sem crédito a avaliar.'}
-
-    dscr = geracao_caixa_anual / servico_anual
-    if geracao_caixa_anual <= 0:
-        rec, just = 'negar', 'Operação não gera caixa positivo — sem capacidade de pagamento.'
-    elif dscr >= DSCR_APROVAR:
-        rec, just = 'aprovar', f'Cobertura {dscr:.2f} — folga confortável sobre o serviço da dívida.'
-    elif dscr >= DSCR_RESSALVA:
-        rec, just = 'ressalva', f'Cobertura {dscr:.2f} — operação cobre a dívida com folga estreita.'
-    else:
-        rec, just = 'negar', f'Cobertura {dscr:.2f} — geração de caixa insuficiente para o serviço da dívida.'
-
-    return {'dscr': round(dscr, 2), 'parcela_mensal': round(parcela, 2),
-            'servico_divida_anual': round(servico_anual, 2),
-            'geracao_caixa_anual': round(geracao_caixa_anual, 2),
-            'capacidade_maxima': cap_max,
-            'capitalizacao_carencia': _cap_carencia,
-            'cronograma_divida': cronograma['anos'],
-            'recomendacao': rec, 'faixa': rec, 'justificativa': just}
+    result = calculate_payment_capacity(
+        {
+            'geracao_caixa_anual': geracao_caixa_anual,
+            'projecao_anos': [{'ano': 1, 'resultado': geracao_caixa_anual}],
+        },
+        {
+            'credito_valor': credito_valor,
+            'prazo_meses': prazo_meses,
+            'juros_aa': juros_aa,
+            'carencia_meses': carencia_meses,
+        },
+        {'parcela_existente_mensal': dividas_mensais},
+    )
+    return result['legacy']
 
 
 def _fmt_rs(v) -> str:
