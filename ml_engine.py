@@ -1172,37 +1172,29 @@ def _composicao_suporta(principal, secundario,
 # 6. INDICADORES ZOOTÉCNICOS
 # ==================================================================
 def calcular_indicadores(v: list) -> dict:
-    v = np.array(v, dtype=float)
-    total      = v.sum() or 1
-    femeas_024 = v[0]+v[2]+v[4]
-    machos_024 = v[1]+v[3]+v[5]
-    matrizes   = v[6]+v[8]
-    bois       = v[7]+v[9]
-    tot_fem    = femeas_024 + matrizes
-    tot_mac    = machos_024 + bois
-    cria       = v[0]+v[1]+v[2]+v[3]
-    recria     = v[4]+v[5]
+    from services.livestock_engine import calculate_herd_indicators
 
+    indicators = calculate_herd_indicators(v)
     return {
-        'total':           int(total),
-        'total_femeas':    int(tot_fem),
-        'total_machos':    int(tot_mac),
-        'femeas_024':      int(femeas_024),
-        'machos_024':      int(machos_024),
-        'matrizes':        int(matrizes),
-        'bois':            int(bois),
-        'fem_adultas':     int(matrizes),
-        'mac_adultos':     int(bois),
-        'cria':            int(cria),
-        'recria':          int(recria),
-        'adultos':         int(matrizes+bois),
-        'pct_cria':        round(cria/total*100, 1),
-        'pct_recria':      round(recria/total*100, 1),
-        'pct_adultos':     round((matrizes+bois)/total*100, 1),
-        'pct_matrizes':    round(matrizes/total*100, 1),
-        'pct_mac_adultos': round(bois/total*100, 1),
-        'ratio_fm':        round(tot_fem/max(tot_mac, 1), 2),
-        'bezerros_est':    int(matrizes * NATALIDADE_PCT / 100),
+        'total':           indicators['total_animals'],
+        'total_femeas':    indicators['total_females'],
+        'total_machos':    indicators['total_males'],
+        'femeas_024':      indicators['females_0_24_months'],
+        'machos_024':      indicators['males_0_24_months'],
+        'matrizes':        indicators['matrices'],
+        'bois':            indicators['bois'],
+        'fem_adultas':     indicators['adult_females'],
+        'mac_adultos':     indicators['adult_males'],
+        'cria':            indicators['cria'],
+        'recria':          indicators['recria'],
+        'adultos':         indicators['adults'],
+        'pct_cria':        indicators['pct_cria'],
+        'pct_recria':      indicators['pct_recria'],
+        'pct_adultos':     indicators['pct_adults'],
+        'pct_matrizes':    indicators['pct_matrices'],
+        'pct_mac_adultos': indicators['pct_adult_males'],
+        'ratio_fm':        indicators['female_male_ratio'],
+        'bezerros_est':    indicators['estimated_calves'],
     }
 
 # ==================================================================
