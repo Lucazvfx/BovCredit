@@ -78,6 +78,7 @@ from services.checklist_credito import checklist_credito
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services.rating_credito import calcular_rating
 from services.precos_regionais import aplicar as aplicar_preco_regional
+from services.analysis_pipeline import run_full_analysis
 from services import auditoria as _aud
 from services import totp as _totp
 import time as _time
@@ -1917,7 +1918,7 @@ def api_classificar():
     }
     _narrativa_ia = _gerar_narrativa_groq(**_ctx_narrativa) if _NARRATIVA_INLINE else None
 
-    return jsonify({
+    response_payload = {
         **result,
         'indicadores': ind,
         'qualidade_dados': qualidade_dados,
@@ -1971,7 +1972,33 @@ def api_classificar():
         'shap_contexto':  _shap_ctx if not _SHAP_INLINE else None,
         'narrativa_pendente': (not _NARRATIVA_INLINE) and _narrativa_ativa(),
         'narrativa_contexto': _ctx_narrativa if not _NARRATIVA_INLINE else None,
-    })
+    }
+
+    try:
+        organization_id = _resolver_empresa_ativa()
+        if organization_id:
+            analysis_pipeline_result = run_full_analysis(
+                data,
+                {
+                    'organization_id': organization_id,
+                    'user_id': current_user.id,
+                },
+            )
+            db.save_analysis_snapshot(
+                organization_id=organization_id,
+                user_id=current_user.id,
+                payload=data,
+                context={
+                    'organization_id': organization_id,
+                    'user_id': current_user.id,
+                },
+                result=analysis_pipeline_result,
+                version=analysis_pipeline_result.get('version'),
+            )
+    except Exception as e:
+        logger.warning(f'Falha ao salvar snapshot da análise: {e}')
+
+    return jsonify(response_payload)
 
 
 @app.route('/api/confirmar-ciclo', methods=['POST'])

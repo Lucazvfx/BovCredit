@@ -2,6 +2,7 @@
 Fluxo de Gestão — Camada de persistência
 Usa PostgreSQL (via DATABASE_URL) em produção e SQLite localmente.
 """
+import hashlib
 import json, os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -161,6 +162,192 @@ def _migrar_usuarios_para_empresas():
               (eid, u['id']), commit=True)
 
 
+def _ensure_analysis_tables():
+    _exec(f'''
+        CREATE TABLE IF NOT EXISTS analysis_snapshots (
+            id              {_AI},
+            organization_id INTEGER NOT NULL,
+            user_id         INTEGER,
+            snapshot_hash   TEXT NOT NULL,
+            payload_json    TEXT NOT NULL,
+            context_json    TEXT NOT NULL,
+            result_json     TEXT NOT NULL,
+            block_order_json TEXT NOT NULL,
+            version_json    TEXT NOT NULL,
+            created_at      TIMESTAMP DEFAULT {_NOW},
+            UNIQUE(organization_id, snapshot_hash)
+        )
+    ''', commit=True)
+    _exec(f'''
+        CREATE TABLE IF NOT EXISTS analysis_api_keys (
+            id              {_AI},
+            organization_id INTEGER NOT NULL,
+            user_id         INTEGER,
+            name            TEXT NOT NULL,
+            key_prefix      TEXT NOT NULL,
+            key_hash        TEXT NOT NULL UNIQUE,
+            scopes_json     TEXT NOT NULL DEFAULT '[]',
+            revoked_at      TIMESTAMP,
+            created_at      TIMESTAMP DEFAULT {_NOW}
+        )
+    ''', commit=True)
+    for sql in (
+        'CREATE INDEX IF NOT EXISTS ix_analysis_snapshots_org ON analysis_snapshots (organization_id)',
+        'CREATE INDEX IF NOT EXISTS ix_analysis_snapshots_user ON analysis_snapshots (user_id)',
+        'CREATE INDEX IF NOT EXISTS ix_analysis_api_keys_org ON analysis_api_keys (organization_id)',
+        'CREATE INDEX IF NOT EXISTS ix_analysis_api_keys_user ON analysis_api_keys (user_id)',
+    ):
+        try:
+            _exec(sql, commit=True)
+        except Exception:
+            pass
+
+
+def _stable_json(value) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'), default=str)
+
+
+def _load_json(value):
+    if value in (None, ''):
+        return None
+    return json.loads(value)
+
+
+def _snapshot_hash(payload_json: str, context_json: str, result_json: str, version_json: str) -> str:
+    digest = hashlib.sha256()
+    digest.update(payload_json.encode('utf-8'))
+    digest.update(b'|')
+    digest.update(context_json.encode('utf-8'))
+    digest.update(b'|')
+    digest.update(result_json.encode('utf-8'))
+    digest.update(b'|')
+    digest.update(version_json.encode('utf-8'))
+    return digest.hexdigest()
+
+
+def save_analysis_snapshot(*, organization_id: int, user_id: int | None, payload: dict,
+                           context: dict, result: dict, version: dict | None = None) -> int:
+    """Salva uma análise imutável escopada por organização e usuário."""
+    _ensure_analysis_tables()
+    if organization_id is None:
+        raise ValueError('organization_id is required')
+    payload_json = _stable_json(payload or {})
+    context_json = _stable_json(context or {})
+    result_json = _stable_json(result or {})
+    version_json = _stable_json(version or {})
+    snapshot_hash = _snapshot_hash(payload_json, context_json, result_json, version_json)
+    existing = _exec(
+        f'''SELECT id FROM analysis_snapshots
+            WHERE organization_id={_PH} AND snapshot_hash={_PH}''',
+        (organization_id, snapshot_hash), fetch='one')
+    if existing:
+        return int(existing['id'])
+    snapshot_id = _exec(
+        f'''INSERT INTO analysis_snapshots
+            (organization_id, user_id, snapshot_hash, payload_json, context_json,
+             result_json, block_order_json, version_json)
+            VALUES ({_PH},{_PH},{_PH},{_PH},{_PH},{_PH},{_PH},{_PH})''',
+        (
+            organization_id,
+            user_id,
+            snapshot_hash,
+            payload_json,
+            context_json,
+            result_json,
+            _stable_json(result.get('block_order') if isinstance(result, dict) else []),
+            version_json,
+        ),
+        fetch='lastrow',
+        commit=True,
+    )
+    return int(snapshot_id)
+
+
+def load_analysis_snapshot(snapshot_id: int, *, organization_id: int,
+                           user_id: int | None = None) -> dict | None:
+    """Carrega uma análise somente dentro do escopo autorizado."""
+    _ensure_analysis_tables()
+    if organization_id is None:
+        raise ValueError('organization_id is required')
+    sql = f'''
+        SELECT * FROM analysis_snapshots
+         WHERE id={_PH} AND organization_id={_PH}
+    '''
+    params = [snapshot_id, organization_id]
+    if user_id is not None:
+        sql += f' AND user_id={_PH}'
+        params.append(user_id)
+    row = _exec(sql, tuple(params), fetch='one')
+    if not row:
+        return None
+    return {
+        'id': int(row['id']),
+        'organization_id': int(row['organization_id']),
+        'user_id': row.get('user_id'),
+        'snapshot_hash': row.get('snapshot_hash'),
+        'payload': _load_json(row.get('payload_json')) or {},
+        'context': _load_json(row.get('context_json')) or {},
+        'result': _load_json(row.get('result_json')) or {},
+        'block_order': _load_json(row.get('block_order_json')) or [],
+        'version': _load_json(row.get('version_json')) or {},
+        'created_at': str(row.get('created_at', '')),
+    }
+
+
+def save_analysis_api_key(*, organization_id: int, user_id: int | None, name: str,
+                          raw_key: str, scopes: list | None = None) -> int:
+    """Registra uma chave de API por organização sem armazenar o segredo em claro."""
+    _ensure_analysis_tables()
+    if organization_id is None:
+        raise ValueError('organization_id is required')
+    if not (raw_key or '').strip():
+        raise ValueError('raw_key is required')
+    key_hash = hashlib.sha256(raw_key.encode('utf-8')).hexdigest()
+    key_prefix = raw_key[:8]
+    scopes_json = _stable_json(scopes or [])
+    existing = _exec(
+        f'SELECT id FROM analysis_api_keys WHERE key_hash={_PH}',
+        (key_hash,), fetch='one')
+    if existing:
+        return int(existing['id'])
+    key_id = _exec(
+        f'''INSERT INTO analysis_api_keys
+            (organization_id, user_id, name, key_prefix, key_hash, scopes_json)
+            VALUES ({_PH},{_PH},{_PH},{_PH},{_PH},{_PH})''',
+        (organization_id, user_id, (name or '')[:120], key_prefix, key_hash, scopes_json),
+        fetch='lastrow',
+        commit=True,
+    )
+    return int(key_id)
+
+
+def load_analysis_api_key(raw_key: str, *, organization_id: int | None = None) -> dict | None:
+    _ensure_analysis_tables()
+    if not (raw_key or '').strip():
+        return None
+    key_hash = hashlib.sha256(raw_key.encode('utf-8')).hexdigest()
+    sql = f'SELECT * FROM analysis_api_keys WHERE key_hash={_PH}'
+    params = [key_hash]
+    if organization_id is not None:
+        sql += f' AND organization_id={_PH}'
+        params.append(organization_id)
+    row = _exec(sql, tuple(params), fetch='one')
+    if not row:
+        return None
+    if row.get('revoked_at'):
+        return None
+    return {
+        'id': int(row['id']),
+        'organization_id': int(row['organization_id']),
+        'user_id': row.get('user_id'),
+        'name': row.get('name'),
+        'key_prefix': row.get('key_prefix'),
+        'key_hash': row.get('key_hash'),
+        'scopes': _load_json(row.get('scopes_json')) or [],
+        'created_at': str(row.get('created_at', '')),
+    }
+
+
 # ─────────────────────────────────────────────
 # SCHEMA
 # ─────────────────────────────────────────────
@@ -249,6 +436,8 @@ def init_db():
             valor  TEXT NOT NULL
         )
     ''', commit=True)
+
+    _ensure_analysis_tables()
 
     # Pareceres de crédito (histórico consultável por fazenda)
     _exec(f'''
