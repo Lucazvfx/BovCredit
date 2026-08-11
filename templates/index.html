@@ -429,8 +429,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
            padding-right: max(14px, env(safe-area-inset-right)); }
 }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-fields.css') }}">
+<script defer src="{{ url_for('static', filename='orkavyn-shell.js') }}"></script>
 </head>
-<body>
+<body class="ork-surface">
 
 <div id="bg-rebanho"></div>
 <div class="loading-overlay" id="loading-ov" role="status" aria-live="polite" aria-atomic="true" aria-busy="true">
@@ -439,7 +441,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 </div>
 <div class="toast" id="toast"></div>
 
-<header>
+<div class="ork-shell">
+{% include 'partials/fields_sidebar.html' %}
+<div class="ork-workspace">
+
+<header class="ork-context-header">
   <div class="logo"><img src="/static/img/logo-dark.svg" alt="Orkavyn Agro Intelligence" style="height:20px;display:block"></div>
   <div class="hdr-r">
     <span id="hdr-boi" class="ml-acc" style="cursor:default" title="Cotação Boi (R$/arroba)">Boi: --</span>
@@ -497,8 +503,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   </div>
 </div>
 
-<main>
-<div class="tab-bar">
+<main class="ork-main" id="ork-main-content">
+<div class="tab-bar ork-legacy-tabs" aria-label="Navegação de compatibilidade">
   <button class="tab-btn active" aria-controls="panel-entrada" aria-selected="true" role="tab" onclick="showTab('entrada',this)">Inserir Dados</button>
   <button class="tab-btn tab-locked" id="tab-res" aria-controls="panel-resultado" aria-selected="false" aria-disabled="true" role="tab" onclick="showTab('resultado',this)">Resultado</button>
   <button class="tab-btn tab-locked" id="tab-cen" aria-controls="panel-cenarios" aria-selected="false" aria-disabled="true" role="tab" onclick="showTab('cenarios',this)">Simular Cenários</button>
@@ -3747,6 +3753,8 @@ function renderSc(d){
 function showTab(id,btn){
   const panel=document.getElementById('panel-'+id);
   if(!panel)return;
+  const legacyTab=document.querySelector(`.tab-btn[aria-controls="${panel.id}"]`);
+  if(btn?.hasAttribute?.('data-ork-nav') && legacyTab?.classList.contains('tab-locked'))return;
   const idx={entrada:0,resultado:1,cenarios:2,historico:3,ajuda:4};
   document.querySelectorAll('.panel').forEach(p=>{
     const active=p===panel;
@@ -3757,6 +3765,11 @@ function showTab(id,btn){
     const active=b===btn || b.getAttribute('aria-controls')===panel.id;
     b.classList.toggle('active',active);
     b.setAttribute('aria-selected',active?'true':'false');
+  });
+  document.querySelectorAll('[data-ork-nav]').forEach(b=>{
+    const active=b.dataset.orkNav===id;
+    b.classList.toggle('is-active',active);
+    if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
   if(!btn)document.querySelectorAll('.tab-btn')[idx[id]]?.classList.add('active');
 }
@@ -4252,6 +4265,9 @@ carregarFazendasSelect();
 <footer style="text-align: center; padding: 24px 16px 16px; border-top: 1px solid var(--border); margin-top: 32px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted);">
   <p>Desenvolvido por <strong style="color: var(--green);">Lucas Vinicius</strong>. &nbsp;·&nbsp; <a href="/privacidade" target="_blank" style="color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border)">Privacidade</a> &nbsp;·&nbsp; <a href="/termos" target="_blank" style="color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border)">Termos de Uso</a></p>
 </footer>
+{% include 'partials/fields_mobile_nav.html' %}
+</div>
+</div>
 </body>
 </html>
 

@@ -40,3 +40,27 @@ def test_shell_controller_exposes_safe_initializer():
     assert "window.OrkavynShell" in javascript
     assert "init()" in javascript
     assert "DOMContentLoaded" in javascript
+
+
+def test_index_shell_preserves_critical_controls():
+    html = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+
+    for selector in (
+        'id="empresa-ativa-select"',
+        'id="pdf-inp-main"',
+        'id="tab-res"',
+        'id="tab-cen"',
+        'id="loading-ov"',
+    ):
+        assert selector in html
+    assert "{% include 'partials/fields_sidebar.html' %}" in html
+    assert "{% include 'partials/fields_mobile_nav.html' %}" in html
+    assert "orkavyn-fields.css" in html
+    assert "orkavyn-shell.js" in html
+
+
+def test_admin_loads_the_shared_fields_surface():
+    html = (ROOT / "templates" / "admin.html").read_text(encoding="utf-8")
+
+    assert "orkavyn-fields.css" in html
+    assert 'class="ork-shell' in html

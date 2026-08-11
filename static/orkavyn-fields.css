@@ -27,6 +27,8 @@
 }
 
 .ork-surface {
+  margin: 0;
+  padding: 0;
   color: var(--ork-ink);
   background: var(--ork-surface);
   font-family: var(--ork-font-body);
@@ -326,6 +328,18 @@
 .ork-evidence-ribbon strong { display: block; margin-top: 5px; color: var(--ork-ink); }
 
 .ork-mobile-nav { display: none; }
+
+.ork-legacy-tabs {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
 
 .ork-loading-overlay {
   position: fixed;

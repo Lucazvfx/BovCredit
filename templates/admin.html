@@ -29,8 +29,28 @@
         .topbar a { color: #2980b9; text-decoration: none; font-size: 0.9rem; }
         .badge { background: #f1c40f22; color: #b7950b; border: 1px solid #f1c40f66; border-radius: 4px; padding: 2px 8px; font-size: 0.72rem; }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-fields.css') }}">
 </head>
-<body>
+<body class="ork-surface">
+  <div class="ork-shell ork-admin-shell">
+    <aside class="ork-sidebar" aria-label="Navegação administrativa">
+      <a class="ork-brand" href="{{ url_for('app_main') }}">
+        <span class="ork-brand__name">Orkavyn</span>
+        <span class="ork-brand__descriptor">Agro Intelligence</span>
+      </a>
+      <nav class="ork-nav">
+        <span class="ork-nav__label">Administração</span>
+        <a class="ork-nav__item is-active" href="{{ url_for('admin') }}" aria-current="page"><span class="ork-nav__icon">AD</span><span>Acessos</span></a>
+        <a class="ork-nav__item" href="{{ url_for('app_main') }}"><span class="ork-nav__icon">AP</span><span>Voltar ao app</span></a>
+        <a class="ork-nav__item" href="{{ url_for('logout') }}"><span class="ork-nav__icon">SA</span><span>Sair</span></a>
+      </nav>
+    </aside>
+    <div class="ork-workspace">
+      <header class="ork-context-header">
+        <div><p class="ork-kicker">Gestão da plataforma</p><h1 class="ork-page-title">Administração de acesso</h1></div>
+        <a class="ork-action ork-action--secondary" href="{{ url_for('app_main') }}">Voltar ao app</a>
+      </header>
+      <main class="ork-main" id="ork-main-content">
     <div class="wrap">
         <div class="topbar">
             <h2>Administração de Acesso</h2>
@@ -168,5 +188,8 @@
             </table>
         </div>
     </div>
+      </main>
+    </div>
+  </div>
 </body>
 </html>
