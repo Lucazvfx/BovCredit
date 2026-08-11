@@ -4,6 +4,7 @@ from .rules import (
     P_MATRIZES_CRIA,
     RAZAO_MATRIZ_MADURA_CRIA,
     current_rule_metrics,
+    mixed_cycle_evidence,
 )
 
 
@@ -46,25 +47,39 @@ def explain_system(system: str, indicators: dict, ml_result: dict | None = None)
         evidence.extend(
             [
                 _deterministic_item(
-                    "pct_matrices",
-                    indicators["pct_matrices"],
-                    (
-                        f"Matrizes em {indicators['pct_matrices']}% do rebanho "
-                        f"(limiar atual {P_MATRIZES_CRIA:.0%}) sustentam base de cria."
-                    ),
+                    "p_matrizes",
+                    metrics["p_matrizes"],
+                    f"Matrizes em {metrics['p_matrizes']:.1%} do rebanho sustentam a base de cria (limiar {P_MATRIZES_CRIA:.0%}).",
                 ),
                 _deterministic_item(
-                    "pct_calves",
-                    indicators["pct_calves"],
-                    f"Animais até 24 meses somam {indicators['pct_calves']}% e reforçam perfil de cria.",
+                    "p_bez",
+                    metrics["p_bez"],
+                    f"Bezerros de 0-24 meses somam {metrics['p_bez']:.1%} e reforcam o perfil de cria.",
                 ),
                 _deterministic_item(
                     "mature_matrix_ratio",
-                    indicators["mature_matrix_ratio"],
-                    (
-                        f"Razão de matrizes maduras em {indicators['mature_matrix_ratio']}"
-                        f" (mínimo atual {RAZAO_MATRIZ_MADURA_CRIA:.2f})."
-                    ),
+                    metrics["mature_matrix_ratio"],
+                    f"Razao de matrizes maduras em {metrics['mature_matrix_ratio']} mantem o corte atual de {RAZAO_MATRIZ_MADURA_CRIA:.2f}.",
+                ),
+            ]
+        )
+    elif system == "CRIA_RECRIA":
+        evidence.extend(
+            [
+                _deterministic_item(
+                    "p_matrizes",
+                    metrics["p_matrizes"],
+                    "Base reprodutiva presente sustenta a parte de cria do sistema misto.",
+                ),
+                _deterministic_item(
+                    "p_mac_13_24",
+                    metrics["p_mac_13_24"],
+                    "Machos de 13-24 meses relevantes sustentam a parte de recria do sistema misto.",
+                ),
+                _deterministic_item(
+                    "p_bez",
+                    metrics["p_bez"],
+                    "Coorte jovem relevante indica continuidade entre cria e recria.",
                 ),
             ]
         )
@@ -72,19 +87,39 @@ def explain_system(system: str, indicators: dict, ml_result: dict | None = None)
         evidence.extend(
             [
                 _deterministic_item(
-                    "pct_adult_males",
-                    indicators["pct_adult_males"],
-                    "Concentração de animais terminados sustenta perfil de engorda.",
+                    "p_matrizes",
+                    metrics["p_matrizes"],
+                    "Baixa participacao de matrizes acompanha a regra de engorda pura.",
                 ),
                 _deterministic_item(
-                    "pct_matrices",
-                    indicators["pct_matrices"],
-                    "Baixa participação de matrizes afasta base reprodutiva.",
+                    "p_fem_total",
+                    metrics["p_fem_total"],
+                    "Baixa participacao total de femeas afasta base reprodutiva no perfil de terminacao.",
                 ),
                 _deterministic_item(
-                    "female_share",
-                    round(metrics["female_share"] * 100, 1),
-                    "Participação feminina contida reforça leitura de terminação.",
+                    "p_garrotes_25_36",
+                    metrics["p_garrotes_25_36"],
+                    "Garrotes de 25-36 meses relevantes sustentam a regra de engorda pura.",
+                ),
+            ]
+        )
+    elif system == "RECRIA_ENGORDA":
+        evidence.extend(
+            [
+                _deterministic_item(
+                    "p_mac_13_24",
+                    metrics["p_mac_13_24"],
+                    "Machos de 13-24 meses mostram etapa de recria ativa.",
+                ),
+                _deterministic_item(
+                    "p_bois",
+                    metrics["p_bois"],
+                    "Bois adultos mostram etapa de engorda ativa.",
+                ),
+                _deterministic_item(
+                    "intensidade_engorda",
+                    metrics["intensidade_engorda"],
+                    "Intensidade de engorda acompanha a leitura de recria-engorda quando ha informacao de venda.",
                 ),
             ]
         )
@@ -92,27 +127,29 @@ def explain_system(system: str, indicators: dict, ml_result: dict | None = None)
         evidence.extend(
             [
                 _deterministic_item(
-                    "pct_matrices",
-                    indicators["pct_matrices"],
-                    "Matrizes relevantes mostram base reprodutiva ativa.",
+                    "p_matrizes",
+                    metrics["p_matrizes"],
+                    "Participacao de matrizes alimenta o score do ciclo completo.",
                 ),
                 _deterministic_item(
-                    "pct_young_males",
-                    indicators["pct_young_males"],
-                    "Machos jovens relevantes mostram etapa de recria ativa.",
+                    "p_mac_13_24",
+                    metrics["p_mac_13_24"],
+                    "Machos de 13-24 meses alimentam o score do ciclo completo.",
                 ),
                 _deterministic_item(
-                    "pct_adult_males",
-                    indicators["pct_adult_males"],
-                    "Animais terminados relevantes mostram etapa de engorda ativa.",
+                    "p_bois",
+                    metrics["p_bois"],
+                    "Bois adultos alimentam o score do ciclo completo.",
                 ),
                 _deterministic_item(
-                    "pct_calves",
-                    indicators["pct_calves"],
-                    (
-                        f"Composição mista atinge score {metrics['full_cycle_score']}/4 "
-                        "pelos critérios atuais do ciclo completo."
-                    ),
+                    "p_bez",
+                    metrics["p_bez"],
+                    "Bezerros de 0-24 meses alimentam o score do ciclo completo.",
+                ),
+                _deterministic_item(
+                    "indice_ciclo",
+                    metrics["indice_ciclo"],
+                    f"Score de ciclo completo em {metrics['indice_ciclo']}/4 pelos sinais atuais.",
                 ),
             ]
         )
@@ -120,19 +157,19 @@ def explain_system(system: str, indicators: dict, ml_result: dict | None = None)
         evidence.extend(
             [
                 _deterministic_item(
-                    "pct_young_males",
-                    indicators["pct_young_males"],
-                    "Concentração de animais jovens sustenta perfil de recria.",
+                    "p_mac_13_24",
+                    metrics["p_mac_13_24"],
+                    "Machos de 13-24 meses sustentam o perfil de recria.",
                 ),
                 _deterministic_item(
-                    "pct_recria",
-                    indicators["pct_recria"],
-                    "Faixa de recria relevante indica permanência na fase intermediária.",
+                    "p_matrizes",
+                    metrics["p_matrizes"],
+                    "Participacao de matrizes abaixo do perfil de cria mantem a leitura em recria.",
                 ),
                 _deterministic_item(
-                    "pct_matrices",
-                    indicators["pct_matrices"],
-                    "Base reprodutiva insuficiente para tratar o sistema como cria.",
+                    "mature_matrix_ratio",
+                    metrics["mature_matrix_ratio"],
+                    "Razao de matrizes maduras ajuda a separar recria de um sistema de cria consolidado.",
                 ),
             ]
         )
@@ -141,5 +178,6 @@ def explain_system(system: str, indicators: dict, ml_result: dict | None = None)
         "system": system,
         "deterministic_evidence": evidence,
         "ml_evidence": _ml_evidence(ml_result),
+        "mixed_cycle": mixed_cycle_evidence(system, indicators, ml_result),
         "missing_data": list((ml_result or {}).get("dados_faltantes") or []),
     }

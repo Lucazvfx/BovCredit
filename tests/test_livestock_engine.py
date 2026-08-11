@@ -2,8 +2,9 @@ import pytest
 
 from ml_engine import calcular_indicadores
 from services.engine.contracts import HerdState
-from services.parametros_zootecnicos import NATALIDADE_PCT
 from services.livestock_engine import analyze_herd, calculate_herd_indicators, explain_system
+from services.livestock_engine.rules import current_rule_metrics
+from services.parametros_zootecnicos import NATALIDADE_PCT
 
 
 def _legacy_projection(indicators: dict) -> dict:
@@ -33,7 +34,16 @@ def _legacy_projection(indicators: dict) -> dict:
 def test_calculate_herd_indicators_preserves_totals_percentages_and_ratios():
     indicators = calculate_herd_indicators([12, 10, 8, 9, 15, 7, 5, 4, 40, 6])
 
-    assert indicators == {
+    assert indicators | {
+        "p_matrizes": round(indicators["p_matrizes"], 3),
+        "p_mac_13_24": round(indicators["p_mac_13_24"], 3),
+        "p_bois": round(indicators["p_bois"], 3),
+        "p_bez": round(indicators["p_bez"], 3),
+        "p_fem_total": round(indicators["p_fem_total"], 3),
+        "p_garrotes_25_36": round(indicators["p_garrotes_25_36"], 3),
+        "intensidade_engorda": round(indicators["intensidade_engorda"], 3),
+        "intensidade_cria": round(indicators["intensidade_cria"], 3),
+    } == {
         "total_animals": 116,
         "total_females": 80,
         "total_males": 36,
@@ -57,6 +67,16 @@ def test_calculate_herd_indicators_preserves_totals_percentages_and_ratios():
         "pct_young_males": 13.8,
         "pct_calves": 52.6,
         "mature_matrix_ratio": 8.0,
+        "p_matrizes": 0.388,
+        "p_mac_13_24": 0.138,
+        "p_bois": 0.086,
+        "p_bez": 0.526,
+        "p_fem_total": 0.69,
+        "p_garrotes_25_36": 0.034,
+        "intensidade_engorda": 0.0,
+        "intensidade_cria": 0.158,
+        "indice_ciclo": 3,
+        "bois_vendidos_informados": False,
     }
 
 
@@ -78,6 +98,26 @@ def test_calculate_herd_indicators_is_zero_safe(
     assert indicators["female_male_ratio"] == expected_ratio_fm
     assert indicators["matrix_bull_ratio"] == expected_ratio_matrix_bull
     assert indicators["estimated_calves"] == int(indicators["matrices"] * NATALIDADE_PCT / 100)
+
+
+def test_current_rule_metrics_match_live_classifier_signal_names_and_values():
+    indicators = calculate_herd_indicators([12, 10, 8, 9, 15, 7, 5, 4, 40, 6])
+
+    metrics = current_rule_metrics(indicators)
+
+    assert metrics == {
+        "p_matrizes": pytest.approx(45 / 116),
+        "p_mac_13_24": pytest.approx(16 / 116),
+        "p_bois": pytest.approx(10 / 116),
+        "p_bez": pytest.approx(61 / 116),
+        "p_fem_total": pytest.approx(80 / 116),
+        "p_garrotes_25_36": pytest.approx(4 / 116),
+        "intensidade_engorda": 0.0,
+        "intensidade_cria": pytest.approx((61 * 0.3) / 116),
+        "indice_ciclo": 3,
+        "mature_matrix_ratio": 8.0,
+        "bois_vendidos_informados": False,
+    }
 
 
 def test_explain_system_separates_deterministic_ml_and_missing_data():
@@ -103,8 +143,8 @@ def test_explain_system_separates_deterministic_ml_and_missing_data():
         "deterministic",
     ]
     assert {item["key"] for item in explanation["deterministic_evidence"]} == {
-        "pct_matrices",
-        "pct_calves",
+        "p_matrizes",
+        "p_bez",
         "mature_matrix_ratio",
     }
     assert explanation["ml_evidence"] == {
@@ -126,7 +166,7 @@ def test_analyze_herd_keeps_ml_as_evidence_not_deterministic_fact():
     analysis = analyze_herd(
         state,
         ml_result={
-            "tipo": "ENGORDA",
+            "tipo": "RECRIA",
             "tipo_modelo": "ENGORDA",
             "confianca_ml": 88.0,
             "probabilidades": {"ENGORDA": 88.0, "RECRIA": 10.0},
@@ -139,7 +179,65 @@ def test_analyze_herd_keeps_ml_as_evidence_not_deterministic_fact():
     assert analysis["explanation"]["deterministic_evidence"][0]["source"] == "deterministic"
 
 
-def test_analyze_herd_identifies_supported_full_cycle_composition():
+def test_analyze_herd_applies_live_no_sale_post_processing_to_raw_model_signal():
+    state = HerdState(
+        values=[20, 18, 40, 42, 65, 70, 55, 20, 110, 45],
+        source="MANUAL",
+        farm_id=4,
+        metadata={},
+    )
+
+    analysis = analyze_herd(
+        state,
+        ml_result={
+            "tipo_modelo": "ENGORDA",
+            "confianca_ml": 91.0,
+            "probabilidades": {
+                "ENGORDA": 91.0,
+                "CRIA_RECRIA": 72.0,
+                "CRIA": 61.0,
+                "RECRIA": 44.0,
+            },
+            "dados_faltantes": ["bois_vendidos"],
+        },
+    )
+
+    assert analysis["system"] == "CRIA_RECRIA"
+    assert analysis["ml_predicted_system"] == "ENGORDA"
+
+
+def test_analyze_herd_preserves_live_mixed_cycle_metadata():
+    state = HerdState(
+        values=[80, 70, 60, 60, 50, 250, 30, 5, 200, 5],
+        source="MANUAL",
+        farm_id=5,
+        metadata={},
+    )
+
+    analysis = analyze_herd(
+        state,
+        ml_result={
+            "tipo": "CRIA",
+            "tipo_modelo": "CRIA",
+            "probabilidades": {
+                "CRIA": 55.0,
+                "RECRIA": 35.0,
+                "ENGORDA": 5.0,
+                "CICLO_COMPLETO": 5.0,
+            },
+            "tipo_secundario": "RECRIA",
+            "combinacao": "CRIA+RECRIA",
+            "confianca_secundaria": 35.0,
+        },
+    )
+
+    assert analysis["system"] == "CRIA"
+    assert analysis["secondary_system"] == "RECRIA"
+    assert analysis["system_combination"] == "CRIA+RECRIA"
+    assert analysis["secondary_confidence"] == 35.0
+
+
+def test_explain_system_uses_live_cycle_score_signals_for_ciclo_completo():
     state = HerdState(
         values=[300, 280, 200, 180, 150, 140, 120, 90, 260, 110],
         source="MANUAL",
@@ -147,16 +245,50 @@ def test_analyze_herd_identifies_supported_full_cycle_composition():
         metadata={},
     )
 
-    analysis = analyze_herd(state)
+    indicators = calculate_herd_indicators(state.values)
+    explanation = explain_system("CICLO_COMPLETO", indicators)
 
-    assert analysis["system"] == "CICLO_COMPLETO"
-    assert {item["key"] for item in analysis["explanation"]["deterministic_evidence"]} == {
-        "pct_matrices",
-        "pct_young_males",
-        "pct_adult_males",
-        "pct_calves",
+    assert {item["key"] for item in explanation["deterministic_evidence"]} == {
+        "p_matrizes",
+        "p_mac_13_24",
+        "p_bois",
+        "p_bez",
+        "indice_ciclo",
     }
-    assert analysis["explanation"]["ml_evidence"] is None
+    assert explanation["ml_evidence"] is None
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "CRIA",
+        "RECRIA",
+        "ENGORDA",
+        "CICLO_COMPLETO",
+        "CRIA_RECRIA",
+        "RECRIA_ENGORDA",
+    ],
+)
+def test_analyze_herd_preserves_all_six_live_classifier_labels(label):
+    state = HerdState(
+        values=[20, 18, 40, 42, 65, 70, 55, 20, 110, 45],
+        source="MANUAL",
+        farm_id=3,
+        metadata={},
+    )
+
+    analysis = analyze_herd(
+        state,
+        ml_result={
+            "tipo": label,
+            "tipo_modelo": label,
+            "confianca_ml": 77.0,
+            "probabilidades": {label: 77.0},
+        },
+    )
+
+    assert analysis["system"] == label
+    assert analysis["ml_predicted_system"] == label
 
 
 @pytest.mark.parametrize(
