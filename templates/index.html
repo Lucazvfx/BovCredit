@@ -435,7 +435,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <body class="ork-surface">
 
 <div id="bg-rebanho"></div>
-<div class="loading-overlay" id="loading-ov" role="status" aria-live="polite" aria-atomic="true" aria-busy="true">
+<div class="loading-overlay" id="loading-ov" role="status" aria-live="polite" aria-atomic="true" aria-busy="false" aria-hidden="true">
   <div class="lspin"></div>
   <div class="ltxt" id="loading-txt">Processando...</div>
 </div>
@@ -3838,11 +3838,20 @@ function showLoading(msgs){
   const arr=Array.isArray(msgs)?msgs:[msgs];
   const el=document.getElementById('loading-txt');
   el.textContent=arr[0];
-  document.getElementById('loading-ov').classList.add('show');
+  const overlay=document.getElementById('loading-ov');
+  overlay.classList.add('show');
+  overlay.setAttribute('aria-hidden','false');
+  overlay.setAttribute('aria-busy','true');
   if(_loadTimer){clearInterval(_loadTimer);_loadTimer=null;}
   if(arr.length>1){let i=0;_loadTimer=setInterval(()=>{i=(i+1)%arr.length;el.textContent=arr[i];},1400);}
 }
-function hideLoading(){document.getElementById('loading-ov').classList.remove('show');if(_loadTimer){clearInterval(_loadTimer);_loadTimer=null;}}
+function hideLoading(){
+  const overlay=document.getElementById('loading-ov');
+  overlay.classList.remove('show');
+  overlay.setAttribute('aria-hidden','true');
+  overlay.setAttribute('aria-busy','false');
+  if(_loadTimer){clearInterval(_loadTimer);_loadTimer=null;}
+}
 function toast(msg,err=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(err?' err':'')+' show';setTimeout(()=>t.classList.remove('show'),3500)}
 
 

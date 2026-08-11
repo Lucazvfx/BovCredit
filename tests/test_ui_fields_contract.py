@@ -130,3 +130,24 @@ def test_admin_keeps_operational_access_controls():
         assert marker.lower() in html.lower()
     assert "admin_criar_empresa" in html
     assert "admin_vincular_empresa" in html
+
+
+def test_motion_and_focus_contracts_exist():
+    css = (ROOT / "static" / "orkavyn-fields.css").read_text(encoding="utf-8")
+
+    assert ":focus-visible" in css
+    assert "@media (prefers-reduced-motion: reduce)" in css
+
+
+def test_loading_overlay_is_announced_only_while_active():
+    html = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="loading-ov"' in html
+    assert 'role="status"' in html
+    assert 'aria-live="polite"' in html
+    assert 'aria-hidden="true"' in html
+    assert 'aria-busy="false"' in html
+    assert "overlay.setAttribute('aria-hidden','false')" in html
+    assert "overlay.setAttribute('aria-busy','true')" in html
+    assert "overlay.setAttribute('aria-hidden','true')" in html
+    assert "overlay.setAttribute('aria-busy','false')" in html

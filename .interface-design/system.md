@@ -57,3 +57,22 @@ Carregando, sucesso, parcial, alerta, erro e vazio possuem texto além da cor. E
 ## Acessibilidade
 
 Controles nativos são preservados, o foco é visível, as navegações possuem rótulo, o alvo mínimo é de `44px` e `prefers-reduced-motion` é respeitado. Fundo fotográfico nunca fica atrás de texto longo ou dados críticos.
+
+## Entradas de manutenção
+
+- `static/orkavyn-fields.css`: fonte única dos tokens e componentes compartilhados.
+- `static/orkavyn-shell.js`: somente comportamento de navegação; não contém regra de negócio.
+- `templates/partials/fields_sidebar.html`: navegação lateral da aplicação.
+- `templates/partials/fields_mobile_nav.html`: navegação inferior móvel.
+- `templates/index.html`: preserva os IDs e renderizadores do fluxo de análise.
+
+## Breakpoints
+
+- `> 900px`: sidebar fixa de `256px` e workspace deslocado.
+- `≤ 900px`: sidebar recolhível, bottom navigation e espaço inferior seguro.
+- `≤ 760px`: grids de importação, decisão, landing e demo são empilhados.
+- `≤ 480px`: painéis usam gutters de `16px` e métricas ficam em uma coluna.
+
+## Roteiro de QA visual
+
+Verificar landing, login, aplicação, administração, demonstração e páginas legais em `1440×900`, `1280×800`, `768×1024`, `390×844` e `320×720`. Exercitar documento → revisão → classificação → cenários → histórico → PDF. Conferir foco, loading anunciado, ausência de overflow horizontal, ação dominante e faixa de evidências. As capturas devem ser atualizadas somente após inspeção em navegador real.

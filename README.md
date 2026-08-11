@@ -8,6 +8,34 @@ Este documento descreve o sistema **como ele está**. A Orkavyn Agro Intelligenc
 
 ---
 
+## Interface Fields Executivo
+
+A interface compartilhada fica em:
+
+- `static/orkavyn-fields.css` — tokens, shell, componentes, estados, páginas públicas, acesso, demonstração e responsividade;
+- `static/orkavyn-shell.js` — abertura segura da navegação lateral;
+- `templates/partials/fields_sidebar.html` — navegação desktop da aplicação;
+- `templates/partials/fields_mobile_nav.html` — navegação móvel inferior;
+- `.interface-design/system.md` — decisões do sistema visual e regras de manutenção.
+
+Breakpoints de referência:
+
+- acima de `900px`: sidebar fixa de `256px`;
+- até `900px`: sidebar recolhível e navegação inferior na aplicação;
+- até `760px`: formulários, demonstração e blocos executivos empilhados;
+- até `480px`: gutters de `16px`, métricas em uma coluna e controles com alvo mínimo de `44px`.
+
+QA visual recomendado:
+
+1. Inicie com `SECRET_KEY=visual-qa python app.py`.
+2. Revise `/`, `/login`, `/demo`, `/app`, `/admin`, `/termos` e `/privacidade` em `1440×900`, `1280×800`, `768×1024`, `390×844` e `320×720`.
+3. Confirme ausência de scroll horizontal, foco visível, navegação lateral no desktop, barra inferior no celular e status legível na importação.
+4. Execute `pytest -q tests/test_ui_fields_contract.py tests/test_frontend_pdf_upload.py` e depois `pytest -q`.
+
+As imagens em `docs/screenshots/` devem ser regeneradas após alterações visuais; não são usadas como fonte de verdade para os cálculos.
+
+---
+
 ## Screenshots
 
 **Landing page**
