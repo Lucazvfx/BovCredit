@@ -343,6 +343,8 @@ else:
 db.init_db()
 logger.info("🗃️  Banco SQLite inicializado.")
 garantir_admins()
+from services.api_v1 import api_v1_bp
+app.register_blueprint(api_v1_bp)
 
 # ── Automação: Cotações Diárias (Scraper) ────────────────────────────────────
 def rotina_diaria_cotacoes():

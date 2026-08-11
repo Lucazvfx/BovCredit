@@ -191,11 +191,24 @@ def _ensure_analysis_tables():
             created_at      TIMESTAMP DEFAULT {_NOW}
         )
     ''', commit=True)
+    _exec(f'''
+        CREATE TABLE IF NOT EXISTS analysis_idempotency_keys (
+            id              {_AI},
+            organization_id INTEGER NOT NULL,
+            idempotency_key TEXT NOT NULL,
+            request_hash    TEXT NOT NULL,
+            analysis_id     INTEGER,
+            response_json   TEXT NOT NULL,
+            created_at      TIMESTAMP DEFAULT {_NOW},
+            UNIQUE(organization_id, idempotency_key)
+        )
+    ''', commit=True)
     for sql in (
         'CREATE INDEX IF NOT EXISTS ix_analysis_snapshots_org ON analysis_snapshots (organization_id)',
         'CREATE INDEX IF NOT EXISTS ix_analysis_snapshots_user ON analysis_snapshots (user_id)',
         'CREATE INDEX IF NOT EXISTS ix_analysis_api_keys_org ON analysis_api_keys (organization_id)',
         'CREATE INDEX IF NOT EXISTS ix_analysis_api_keys_user ON analysis_api_keys (user_id)',
+        'CREATE INDEX IF NOT EXISTS ix_analysis_idempotency_org ON analysis_idempotency_keys (organization_id)',
     ):
         try:
             _exec(sql, commit=True)
@@ -303,7 +316,7 @@ def save_analysis_api_key(*, organization_id: int, user_id: int | None, name: st
     if not (raw_key or '').strip():
         raise ValueError('raw_key is required')
     key_hash = hashlib.sha256(raw_key.encode('utf-8')).hexdigest()
-    key_prefix = raw_key[:8]
+    key_prefix = raw_key.split('.', 1)[0][:120]
     scopes_json = _stable_json(scopes or [])
     existing = _exec(
         f'SELECT id FROM analysis_api_keys WHERE key_hash={_PH}',
@@ -321,7 +334,34 @@ def save_analysis_api_key(*, organization_id: int, user_id: int | None, name: st
     return int(key_id)
 
 
-def load_analysis_api_key(raw_key: str, *, organization_id: int | None = None) -> dict | None:
+def issue_analysis_api_key(*, organization_id: int, user_id: int | None = None,
+                           name: str, scopes: list | None = None) -> dict:
+    """Gera uma API key nova, armazena apenas o hash e devolve o segredo."""
+    import secrets
+
+    prefix = secrets.token_hex(4)
+    secret = secrets.token_urlsafe(24)
+    raw_key = f'lii_{prefix}.{secret}'
+    key_id = save_analysis_api_key(
+        organization_id=organization_id,
+        user_id=user_id,
+        name=name,
+        raw_key=raw_key,
+        scopes=scopes or [],
+    )
+    return {
+        'id': key_id,
+        'raw_key': raw_key,
+        'key_prefix': raw_key.split('.', 1)[0],
+        'organization_id': organization_id,
+        'user_id': user_id,
+        'name': name,
+        'scopes': scopes or [],
+    }
+
+
+def load_analysis_api_key(raw_key: str, *, organization_id: int | None = None,
+                          include_revoked: bool = False) -> dict | None:
     _ensure_analysis_tables()
     if not (raw_key or '').strip():
         return None
@@ -334,7 +374,7 @@ def load_analysis_api_key(raw_key: str, *, organization_id: int | None = None) -
     row = _exec(sql, tuple(params), fetch='one')
     if not row:
         return None
-    if row.get('revoked_at'):
+    if row.get('revoked_at') and not include_revoked:
         return None
     return {
         'id': int(row['id']),
@@ -344,8 +384,111 @@ def load_analysis_api_key(raw_key: str, *, organization_id: int | None = None) -
         'key_prefix': row.get('key_prefix'),
         'key_hash': row.get('key_hash'),
         'scopes': _load_json(row.get('scopes_json')) or [],
+        'revoked_at': str(row.get('revoked_at')) if row.get('revoked_at') else None,
         'created_at': str(row.get('created_at', '')),
     }
+
+
+def revoke_analysis_api_key(key_id: int, *, organization_id: int | None = None) -> bool:
+    """Marca uma key como revogada. Idempotente e escopada por organização."""
+    _ensure_analysis_tables()
+    ph = _PH
+    sql = f'SELECT id FROM analysis_api_keys WHERE id={ph}'
+    params = [key_id]
+    if organization_id is not None:
+        sql += f' AND organization_id={ph}'
+        params.append(organization_id)
+    existing = _exec(sql, tuple(params), fetch='one')
+    if not existing:
+        return False
+    _exec(
+        f'UPDATE analysis_api_keys SET revoked_at={_NOW} WHERE id={ph}',
+        (key_id,),
+        commit=True,
+    )
+    return True
+
+
+def list_analysis_api_keys(*, organization_id: int | None = None, include_revoked: bool = True) -> list:
+    _ensure_analysis_tables()
+    sql = 'SELECT * FROM analysis_api_keys'
+    params: list = []
+    if organization_id is not None:
+        sql += f' WHERE organization_id={_PH}'
+        params.append(organization_id)
+    if not include_revoked:
+        sql += ' WHERE revoked_at IS NULL' if not params else ' AND revoked_at IS NULL'
+    sql += ' ORDER BY created_at DESC, id DESC'
+    rows = _exec(sql, tuple(params), fetch='all') or []
+    out = []
+    for row in rows:
+        out.append({
+            'id': int(row['id']),
+            'organization_id': int(row['organization_id']),
+            'user_id': row.get('user_id'),
+            'name': row.get('name'),
+            'key_prefix': row.get('key_prefix'),
+            'scopes': _load_json(row.get('scopes_json')) or [],
+            'revoked_at': str(row.get('revoked_at')) if row.get('revoked_at') else None,
+            'created_at': str(row.get('created_at', '')),
+        })
+    return out
+
+
+def _stable_hash_dict(value: dict | None) -> str:
+    return hashlib.sha256(_stable_json(value or {}).encode('utf-8')).hexdigest()
+
+
+def load_analysis_idempotency(*, organization_id: int, idempotency_key: str) -> dict | None:
+    _ensure_analysis_tables()
+    ph = _PH
+    row = _exec(
+        f'''SELECT * FROM analysis_idempotency_keys
+             WHERE organization_id={ph} AND idempotency_key={ph}''',
+        (organization_id, idempotency_key), fetch='one')
+    if not row:
+        return None
+    return {
+        'id': int(row['id']),
+        'organization_id': int(row['organization_id']),
+        'idempotency_key': row['idempotency_key'],
+        'request_hash': row['request_hash'],
+        'analysis_id': row.get('analysis_id'),
+        'response': _load_json(row.get('response_json')) or {},
+        'created_at': str(row.get('created_at', '')),
+    }
+
+
+def save_analysis_idempotency(*, organization_id: int, idempotency_key: str,
+                              request: dict, response: dict, analysis_id: int | None) -> int:
+    _ensure_analysis_tables()
+    if organization_id is None:
+        raise ValueError('organization_id is required')
+    if not (idempotency_key or '').strip():
+        raise ValueError('idempotency_key is required')
+    request_hash = _stable_hash_dict(request)
+    existing = load_analysis_idempotency(organization_id=organization_id, idempotency_key=idempotency_key)
+    response_json = _stable_json(response or {})
+    if existing:
+        if existing['request_hash'] != request_hash:
+            raise ValueError('idempotency key already used with a different request')
+        _exec(
+            f'''UPDATE analysis_idempotency_keys
+                   SET response_json={_PH}, analysis_id={_PH}
+                 WHERE organization_id={_PH} AND idempotency_key={_PH}''',
+            (response_json, analysis_id, organization_id, idempotency_key),
+            commit=True,
+        )
+        return int(existing['id'])
+    row_id = _exec(
+        f'''INSERT INTO analysis_idempotency_keys
+            (organization_id, idempotency_key, request_hash, analysis_id, response_json)
+            VALUES ({_PH},{_PH},{_PH},{_PH},{_PH})''',
+        (organization_id, idempotency_key, request_hash, analysis_id, response_json),
+        fetch='lastrow',
+        commit=True,
+    )
+    return int(row_id)
 
 
 # ─────────────────────────────────────────────
