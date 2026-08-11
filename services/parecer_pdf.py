@@ -66,6 +66,179 @@ def _logo_flowable(logo_base64: str):
         return None
 
 
+def _fmt_pct(v) -> str:
+    try:
+        return f"{float(v):.1f}%".replace('.', ',')
+    except (TypeError, ValueError):
+        return '—'
+
+
+def _append_b2b_sections(story, ss, parecer: dict):
+    """Adiciona as seções B2B principais sem alterar o miolo legado do PDF."""
+    composicao = parecer.get('composicao') or {}
+    indicadores = parecer.get('indicadores') or {}
+    fluxo_gep = parecer.get('fluxo_gep') or {}
+    conclusao = parecer.get('conclusao') or {}
+    qualidade = parecer.get('qualidade_dados') or {}
+    prove = parecer.get('proveniencia') or {}
+    garantia = parecer.get('garantia') or {}
+    endiv = parecer.get('endividamento') or {}
+    validacoes = parecer.get('validacoes_zootecnicas') or {}
+    rating = parecer.get('rating') or {}
+    sens = parecer.get('sensibilidade') or []
+    cenarios = (parecer.get('comparacao_cenarios') or {}).get('cenarios') or []
+
+    story.append(Paragraph('Resumo executivo', ss['SecaoTitulo']))
+    resumo_lin = [
+        ['Recomendação', _LABEL_RECOMENDACAO.get(conclusao.get('recomendacao'), '—')],
+        ['DSCR', str(conclusao.get('dscr_minimo') if conclusao.get('dscr_minimo') is not None else conclusao.get('dscr', '—'))],
+        ['Qualidade', qualidade.get('nivel_confianca', qualidade.get('status', '—'))],
+        ['Risco', rating.get('faixa', rating.get('rotulo', '—'))],
+    ]
+    t_resumo = Table(resumo_lin, colWidths=[4*cm, 12*cm])
+    t_resumo.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.whitesmoke),
+        ('GRID', (0, 0), (-1, -1), 0.35, colors.HexColor('#D8D8D8')),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+    ]))
+    story.append(t_resumo)
+    if conclusao.get('justificativa'):
+        story.append(Paragraph(conclusao.get('justificativa'), ss['Corpo']))
+
+    story.append(Paragraph('Rebanho', ss['SecaoTitulo']))
+    story.append(Paragraph(
+        f"Total de animais: <b>{composicao.get('total', '—')}</b> · "
+        f"Fêmeas: <b>{indicadores.get('total_femeas', indicadores.get('femeas', '—'))}</b> · "
+        f"Machos: <b>{indicadores.get('total_machos', indicadores.get('machos', '—'))}</b>",
+        ss['Corpo']))
+    story.append(Paragraph(
+        f"Cria: <b>{indicadores.get('cria', '—')}</b> · "
+        f"Recria: <b>{indicadores.get('recria', '—')}</b> · "
+        f"Adultos: <b>{indicadores.get('adultos', indicadores.get('total_adultos', '—'))}</b>",
+        ss['Corpo']))
+
+    story.append(Paragraph('Produção', ss['SecaoTitulo']))
+    arrobas_vendidas = fluxo_gep.get('arrobas_vendidas', '—')
+    story.append(Paragraph(
+        f"Arrobas vendidas: <b>{arrobas_vendidas}</b> · "
+        f"Produz/vende: <b>{_fmt_pct(fluxo_gep.get('producao_sobre_venda_pct'))}</b> · "
+        f"Desfrute projetado: <b>{_fmt_pct((parecer.get('desfrute_projetado') or {}).get('valor'))}</b>",
+        ss['Corpo']))
+    if fluxo_gep.get('valor_rebanho_ini') is not None or fluxo_gep.get('valor_rebanho_fim') is not None:
+        story.append(Paragraph(
+            f"Estoque inicial: {_fmt_moeda(fluxo_gep.get('valor_rebanho_ini'))} · "
+            f"Estoque final: {_fmt_moeda(fluxo_gep.get('valor_rebanho_fim'))}",
+            ss['Subtitulo']))
+
+    story.append(Paragraph('Receitas', ss['SecaoTitulo']))
+    story.append(Paragraph(
+        f"Receita de vendas: <b>{_fmt_moeda(fluxo_gep.get('receita_vendas'))}</b> · "
+        f"Receita por cabeça: <b>{_fmt_moeda(fluxo_gep.get('receita_por_cab_vendida'))}</b>",
+        ss['Corpo']))
+
+    story.append(Paragraph('Custos', ss['SecaoTitulo']))
+    story.append(Paragraph(
+        f"Custo operacional: <b>{_fmt_moeda(fluxo_gep.get('custo_operacional'))}</b> · "
+        f"Custo por cabeça: <b>{_fmt_moeda(fluxo_gep.get('custo_por_cabeca'))}</b> · "
+        f"COE por arroba: <b>{_fmt_moeda(fluxo_gep.get('coe_por_arroba'))}</b>",
+        ss['Corpo']))
+    if fluxo_gep.get('custo_manutencao') is not None or fluxo_gep.get('custo_reposicao') is not None:
+        story.append(Paragraph(
+            f"Manutenção: {_fmt_moeda(fluxo_gep.get('custo_manutencao'))} · "
+            f"Reposição: {_fmt_moeda(fluxo_gep.get('custo_reposicao'))}",
+            ss['Subtitulo']))
+
+    story.append(Paragraph('Fluxo de caixa', ss['SecaoTitulo']))
+    story.append(Paragraph(
+        f"Resultado operacional: <b>{_fmt_moeda(fluxo_gep.get('resultado_operacional'))}</b> · "
+        f"Fluxo livre: <b>{_fmt_moeda(fluxo_gep.get('fluxo_livre'))}</b> · "
+        f"Variação de estoque: <b>{_fmt_moeda(fluxo_gep.get('variacao_estoque'))}</b>",
+        ss['Corpo']))
+
+    story.append(Paragraph('Dívida', ss['SecaoTitulo']))
+    if endiv.get('itens'):
+        for item in endiv.get('itens')[:3]:
+            story.append(Paragraph(
+                f"• {item.get('instituicao', '—')}: {_fmt_moeda(item.get('parcela_mensal'))} / mês",
+                ss['Corpo']))
+    story.append(Paragraph(
+        f"Parcela mensal: <b>{_fmt_moeda(conclusao.get('parcela_mensal'))}</b> · "
+        f"Serviço anual: <b>{_fmt_moeda(conclusao.get('servico_divida_anual'))}</b> · "
+        f"Capacidade máxima: <b>{_fmt_moeda(conclusao.get('capacidade_maxima'))}</b>",
+        ss['Corpo']))
+
+    story.append(Paragraph('DSCR', ss['SecaoTitulo']))
+    story.append(Paragraph(
+        f"DSCR calculado: <b>{conclusao.get('dscr_minimo', conclusao.get('dscr', '—'))}</b> · "
+        f"Ano crítico: <b>{conclusao.get('ano_critico', '—')}</b>",
+        ss['Corpo']))
+
+    story.append(Paragraph('Stress', ss['SecaoTitulo']))
+    if sens:
+        for item in sens[:3]:
+            story.append(Paragraph(
+                f"• {item.get('variacao_pct', '—')}%: DSCR {item.get('dscr', '—')} · {item.get('recomendacao', '—')}",
+                ss['Corpo']))
+    if cenarios:
+        for item in cenarios[:2]:
+            story.append(Paragraph(
+                f"• {item.get('id', '—')}: DSCR mín. {item.get('dscr_minimo', '—')} · ano crítico {item.get('ano_critico', '—')}",
+                ss['Corpo']))
+
+    story.append(Paragraph('Risco', ss['SecaoTitulo']))
+    if rating:
+        story.append(Paragraph(
+            f"Rating: <b>{rating.get('faixa', '—')}</b> · Score: <b>{rating.get('score', '—')}</b>",
+            ss['Corpo']))
+    if garantia:
+        story.append(Paragraph(
+            f"Garantia: {_fmt_moeda(garantia.get('valor_garantia'))} · LTV {garantia.get('ltv', '—')}",
+            ss['Corpo']))
+    if validacoes.get('alertas'):
+        story.append(Paragraph(
+            f"Alertas zootécnicos: {len(validacoes.get('alertas') or [])}",
+            ss['Subtitulo']))
+
+    story.append(Paragraph('Qualidade dos dados', ss['SecaoTitulo']))
+    story.append(Paragraph(
+        f"Nível: <b>{qualidade.get('nivel_confianca', qualidade.get('status', '—'))}</b> · "
+        f"Origem principal: <b>{qualidade.get('origem_principal', '—')}</b>",
+        ss['Corpo']))
+
+    story.append(Paragraph('Premissas', ss['SecaoTitulo']))
+    params = prove.get('parametros') or []
+    if params:
+        for param in params[:4]:
+            story.append(Paragraph(
+                f"• {param.get('rotulo', '—')}: {param.get('valor', '—')} ({param.get('origem_rotulo', '—')})",
+                ss['Corpo']))
+    else:
+        story.append(Paragraph('Sem premissas detalhadas informadas.', ss['Corpo']))
+
+    story.append(Paragraph('Fontes', ss['SecaoTitulo']))
+    fontes = []
+    for param in params[:6]:
+        fonte = param.get('fonte')
+        if fonte and fonte not in fontes:
+            fontes.append(fonte)
+    if fontes:
+        for fonte in fontes:
+            story.append(Paragraph(f'• {fonte}', ss['Corpo']))
+    else:
+        story.append(Paragraph('Sem fontes adicionais registradas.', ss['Corpo']))
+
+    story.append(Paragraph('Limitações', ss['SecaoTitulo']))
+    limitacoes = [
+        'Premissas sem medição direta continuam estimadas.',
+        'O relatório apoia a análise, mas não substitui a conferência documental.',
+    ]
+    if qualidade.get('resultado_financeiro_estimado'):
+        limitacoes.append('Parte do resultado financeiro depende de premissas estimadas.')
+    for texto in limitacoes:
+        story.append(Paragraph(f'• {texto}', ss['Corpo']))
+
+
 def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
     ss = _styles()
     buf = io.BytesIO()
@@ -97,6 +270,9 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         'consultoria. Este documento não substitui a conferência documental, '
         'a visita à propriedade ou a decisão final do agente de crédito.',
         ss['Subtitulo']))
+    story.append(HRFlowable(width='100%', color=colors.HexColor('#CCCCCC'), spaceBefore=8, spaceAfter=4))
+
+    _append_b2b_sections(story, ss, parecer)
     story.append(HRFlowable(width='100%', color=colors.HexColor('#CCCCCC'), spaceBefore=8, spaceAfter=4))
 
     composicao = parecer.get('composicao') or {}

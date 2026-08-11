@@ -26,8 +26,9 @@
   --sb:#8892AA;
   --fn: 'Barlow Condensed', sans-serif;--fb: 'Barlow', sans-serif;--fm:'DM Mono', monospace;
   --r:16px;--rs:10px;
-  --surface-2:var(--c2);--border:var(--b);--border-accent:rgba(74,222,128,.28);
-  --text-primary:var(--tx);--text-secondary:var(--sb);--text-muted:var(--mu);--text-accent:var(--g);
+--surface-2:var(--c2);--border:var(--b);--border-accent:rgba(74,222,128,.28);
+--text-primary:var(--tx);--text-secondary:var(--sb);--text-muted:var(--mu);--text-accent:var(--g);
+--paper:#F5EFE4;--paper-2:#EFE4D1;--soil:#5D4A3B;--pasture:#4F7B56;--ochre:#B88942;--clay:#A85B3E;--ink:#241A14;--paper-muted:#7A695B;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -432,7 +433,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <body>
 
 <div id="bg-rebanho"></div>
-<div class="loading-overlay" id="loading-ov">
+<div class="loading-overlay" id="loading-ov" role="status" aria-live="polite" aria-atomic="true" aria-busy="true">
   <div class="lspin"></div>
   <div class="ltxt" id="loading-txt">Processando...</div>
 </div>

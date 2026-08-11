@@ -919,6 +919,131 @@ def api_parecer_pdf():
     return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
                      as_attachment=True, download_name='parecer_credito.pdf')
 
+
+def _snapshot_report_payload(snapshot: dict) -> dict:
+    """Empacota um snapshot salvo no mesmo formato usado pela API v1."""
+    result = snapshot.get('result') or {}
+    legacy = result.get('legacy_response') or {}
+    summary = {
+        'analysis_id': snapshot.get('id'),
+        'organization_id': snapshot.get('organization_id'),
+        'version': result.get('version') or snapshot.get('version') or {},
+        'block_order': result.get('block_order') or snapshot.get('block_order') or [],
+        'quality_status': (legacy.get('qualidade_dados') or {}).get('status'),
+        'recommended_action': ((legacy.get('analises_credito') or {}).get('conclusao') or {}).get('recomendacao'),
+    }
+    return {
+        'summary': summary,
+        'sections': legacy,
+        'analysis': result.get('analysis', {}),
+    }
+
+
+def _load_web_snapshot_or_404(analysis_id: int):
+    organization_id = _resolver_empresa_ativa()
+    if organization_id is None:
+        return None, (jsonify({'erro': 'Usuário sem empresa vinculada'}), 400)
+    snapshot = db.load_analysis_snapshot(
+        analysis_id,
+        organization_id=organization_id,
+    )
+    if not snapshot:
+        return None, (jsonify({'erro': 'Análise não encontrada'}), 404)
+    return snapshot, None
+
+
+@app.route('/api/analysis/<int:analysis_id>', methods=['GET'])
+@login_required
+def api_analysis_snapshot(analysis_id):
+    snapshot, erro = _load_web_snapshot_or_404(analysis_id)
+    if erro:
+        return erro
+    return jsonify({
+        'ok': True,
+        'analysis': {
+            'id': snapshot['id'],
+            'analysis_id': snapshot['id'],
+            'organization_id': snapshot['organization_id'],
+            'user_id': snapshot.get('user_id'),
+            'payload': snapshot.get('payload', {}),
+            'context': snapshot.get('context', {}),
+            'result': snapshot.get('result', {}),
+            'block_order': snapshot.get('block_order', []),
+            'version': snapshot.get('version', {}),
+            'created_at': snapshot.get('created_at', ''),
+        },
+    })
+
+
+@app.route('/api/report/<int:analysis_id>', methods=['GET'])
+@login_required
+def api_report_snapshot(analysis_id):
+    snapshot, erro = _load_web_snapshot_or_404(analysis_id)
+    if erro:
+        return erro
+    return jsonify({
+        'ok': True,
+        'report': _snapshot_report_payload(snapshot),
+    })
+
+
+@app.route('/demo')
+def demo():
+    demo_report = {
+        'summary': {
+            'fazenda': 'Fazenda Demonstrativa Serra do Campo',
+            'municipio': 'Alta Floresta - MT',
+            'recomendacao': 'APROVAR COM RESSALVA',
+            'dscr': 1.42,
+            'quality_status': 'COMPLETO',
+            'confidence': 88,
+        },
+        'herd': {
+            'total': 1280,
+            'femeas': 720,
+            'machos': 560,
+            'matrizes': 310,
+        },
+        'production': {
+            'arrobas_vendidas': 1860,
+            'producao_sobre_venda_pct': 94,
+            'desfrute': 28.4,
+        },
+        'financial': {
+            'receita': 1864000,
+            'custos': 1398000,
+            'resultado': 466000,
+        },
+        'cashflow': {
+            'fluxo_livre': 192400,
+            'resultado_operacional': 344100,
+            'variacao_estoque': 121900,
+        },
+        'debt': {
+            'parcela_mensal': 28400,
+            'capacidade_maxima': 980000,
+        },
+        'stress': {
+            'dscr_minimo': 1.11,
+            'cenarios': [
+                {'nome': 'preço -10%', 'dscr': 1.18},
+                {'nome': 'custo +10%', 'dscr': 1.11},
+            ],
+        },
+        'premises': {
+            'preco_boi': 'R$ 318/@',
+            'custo_arroba': 'R$ 154/@',
+            'origem': 'Premissas demonstrativas',
+        },
+        'report': {
+            'note': 'Dados fictícios para demonstração da interface B2B.',
+        },
+    }
+    return render_template(
+        'demo.html',
+        demo_report=demo_report,
+    )
+
 # ── Landing page pública ───────────────────────────────────────────────────────
 @app.route('/healthz')
 def healthz():
