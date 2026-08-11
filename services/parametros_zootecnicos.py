@@ -428,6 +428,7 @@ def _registrar_parametros_zootecnicos() -> None:
             unit=':1',
             system=system,
             source='Benchmark regional — relação fêmeas/macho adulto',
+            reference_year=None,
             plausible_range=(1.8, 2.8),
         )
         register_parameter(
@@ -436,6 +437,7 @@ def _registrar_parametros_zootecnicos() -> None:
             unit='%',
             system=system,
             source='Benchmark regional — % matrizes no rebanho',
+            reference_year=None,
             plausible_range=(28.0, 42.0),
         )
 
@@ -454,8 +456,8 @@ def _registrar_parametros_zootecnicos() -> None:
             system=system,
             source='GEP Araguaia / Fazenda Alvorada',
             reference_year=2025,
-            editable=False,
-            plausible_range=(float(PESO_GARROTE_ARR), float(PESO_GARROTE_ARR)),
+            editable=True,
+            plausible_range=(9.0, 13.0),
         )
         register_parameter(
             'peso_bezerra_arr',
@@ -464,8 +466,8 @@ def _registrar_parametros_zootecnicos() -> None:
             system=system,
             source='GEP Araguaia / Fazenda Alvorada',
             reference_year=2025,
-            editable=False,
-            plausible_range=(float(PESO_BEZERRA_ARR), float(PESO_BEZERRA_ARR)),
+            editable=True,
+            plausible_range=(5.0, 8.0),
         )
 
     for system in engorda_sistemas:
@@ -474,8 +476,14 @@ def _registrar_parametros_zootecnicos() -> None:
             RENDIMENTO_CARCACA_PCT,
             unit='%',
             system=system,
+            editable=True,
             plausible_range=(50.0, 54.0),
         )
+        # Os pesos por categoria têm o default sourced abaixo, mas não existe
+        # no acervo uma banda benchmark independente para cada categoria.
+        # Mantemos o default atual como ponto de partida e expomos uma faixa de
+        # edição conservadora apenas como guardrail operacional, sem rotulá-la
+        # como benchmark.
         register_parameter(
             'peso_boi_arr',
             PESO_BOI_ARR,
@@ -483,8 +491,8 @@ def _registrar_parametros_zootecnicos() -> None:
             system=system,
             source='GEP Araguaia / Fazenda Alvorada',
             reference_year=2025,
-            editable=False,
-            plausible_range=(float(PESO_BOI_ARR), float(PESO_BOI_ARR)),
+            editable=True,
+            plausible_range=(16.0, 22.0),
         )
         register_parameter(
             'peso_vaca_arr',
@@ -493,8 +501,8 @@ def _registrar_parametros_zootecnicos() -> None:
             system=system,
             source='GEP Araguaia / Fazenda Alvorada',
             reference_year=2025,
-            editable=False,
-            plausible_range=(float(PESO_VACA_ARR), float(PESO_VACA_ARR)),
+            editable=True,
+            plausible_range=(13.0, 18.0),
         )
 
 

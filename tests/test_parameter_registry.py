@@ -43,13 +43,30 @@ def test_registry_keeps_existing_defaults_for_current_parameters():
 
 def test_registry_metadata_carries_source_year_unit_system_and_range():
     boi = get_parameter("peso_boi_arr", "ENGORDA")
+    vaca = get_parameter("peso_vaca_arr", "ENGORDA")
+    garrote = get_parameter("peso_garrote_arr", "RECRIA")
+    bezerra = get_parameter("peso_bezerra_arr", "RECRIA")
+    relacao_fm = get_parameter("relacao_fm", "CRIA")
+    pct_matrizes = get_parameter("pct_matrizes", "CRIA")
 
-    assert isinstance(boi, Parameter)
-    assert boi.source == "GEP Araguaia / Fazenda Alvorada"
-    assert boi.reference_year == 2025
-    assert boi.unit == "@ carcaca"
+    for parameter in (boi, vaca, garrote, bezerra):
+        assert isinstance(parameter, Parameter)
+        assert parameter.source == "GEP Araguaia / Fazenda Alvorada"
+        assert parameter.reference_year == 2025
+        assert parameter.unit == "@ carcaca"
+        assert parameter.editable is True
+        assert parameter.plausible_range[0] > 0
+        assert parameter.plausible_range[0] < parameter.plausible_range[1]
+
     assert boi.system == "ENGORDA"
-    assert boi.plausible_range == (float(PESO_BOI_ARR), float(PESO_BOI_ARR))
+    assert vaca.system == "ENGORDA"
+    assert garrote.system == "RECRIA"
+    assert bezerra.system == "RECRIA"
+
+    assert relacao_fm.reference_year is None
+    assert pct_matrizes.reference_year is None
+    assert relacao_fm.source.startswith("Benchmark regional")
+    assert pct_matrizes.source.startswith("Benchmark regional")
 
 
 def test_resolve_parameters_accepts_valid_override_and_marks_it_declared():
@@ -59,6 +76,13 @@ def test_resolve_parameters_accepts_valid_override_and_marks_it_declared():
     assert resolved["natalidade_pct"].origem == DECLARADO
     assert resolved["mortalidade_pct"].origem == REFERENCIA
     assert resolved["mortalidade_pct"] == MORTALIDADE_PCT
+
+
+def test_resolve_parameters_accepts_weight_override_within_plausible_range():
+    resolved = resolve_parameters({"peso_boi_arr": 21.0}, system="ENGORDA")
+
+    assert resolved["peso_boi_arr"] == 21.0
+    assert resolved["peso_boi_arr"].origem == DECLARADO
 
 
 def test_resolve_parameters_rejects_unknown_names_and_out_of_range_values():
