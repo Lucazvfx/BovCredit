@@ -1,4 +1,6 @@
 import importlib
+import subprocess
+import sys
 
 import pytest
 
@@ -60,6 +62,44 @@ def test_contracts_are_immutable_after_construction():
         context.input_data["x"] = 2
 
 
+def test_contracts_deep_freeze_nested_mutations():
+    nested_metadata = {"nested": {"items": [1, {"x": 2}]}}
+    nested_input_data = {"payload": {"items": [1, {"x": 2}]}}
+    nested_source_documents = [{"payload": {"items": [1, {"x": 2}]}}]
+
+    state = HerdState(values=[0] * 10, source="API", farm_id=None, metadata=nested_metadata)
+    context = AnalysisContext(
+        organization_id=1,
+        user_id=2,
+        input_data=nested_input_data,
+        source_documents=nested_source_documents,
+    )
+
+    nested_metadata["nested"]["items"].append(3)
+    nested_input_data["payload"]["items"].append(3)
+    nested_source_documents[0]["payload"]["items"].append(3)
+
+    assert state.metadata["nested"]["items"] == (
+        1,
+        {"x": 2},
+    )
+    assert context.input_data["payload"]["items"] == (
+        1,
+        {"x": 2},
+    )
+    assert context.source_documents[0]["payload"]["items"] == (
+        1,
+        {"x": 2},
+    )
+
+    with pytest.raises(TypeError):
+        state.metadata["nested"]["items"][1]["x"] = 3  # type: ignore[index]
+    with pytest.raises(TypeError):
+        context.input_data["payload"]["items"][1]["x"] = 3  # type: ignore[index]
+    with pytest.raises(TypeError):
+        context.source_documents[0]["payload"]["items"][1]["x"] = 3  # type: ignore[index]
+
+
 def test_analysis_context_normalizes_nested_inputs():
     context = AnalysisContext(
         organization_id=None,
@@ -95,6 +135,15 @@ def test_engine_version_dataclass_round_trips():
 
 
 def test_engine_package_imports_without_flask_or_database():
-    module = importlib.import_module("services.engine")
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import services.engine; import sys; sys.stdout.write(','.join(services.engine.__all__))",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
 
-    assert hasattr(module, "__all__")
+    assert result.stdout == "AnalysisContext,EngineVersion,HerdState,engine_version"

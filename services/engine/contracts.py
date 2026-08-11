@@ -8,12 +8,24 @@ from typing import Any, Iterable
 _ALLOWED_SOURCES = frozenset({"MANUAL", "PDF", "EXCEL", "API"})
 
 
+def _freeze_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return MappingProxyType({key: _freeze_value(inner) for key, inner in value.items()})
+    if isinstance(value, list):
+        return tuple(_freeze_value(item) for item in value)
+    if isinstance(value, tuple):
+        return tuple(_freeze_value(item) for item in value)
+    if isinstance(value, set):
+        return frozenset(_freeze_value(item) for item in value)
+    return value
+
+
 def _as_frozen_mapping(value: dict | None, *, field_name: str) -> MappingProxyType:
     if value is None:
         value = {}
     if not isinstance(value, dict):
         raise ValueError(f"{field_name} must be a dict")
-    return MappingProxyType(dict(value))
+    return _freeze_value(value)
 
 
 def _as_frozen_documents(values: list[dict] | None) -> tuple[MappingProxyType, ...]:
