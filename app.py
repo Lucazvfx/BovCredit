@@ -67,8 +67,9 @@ from services.custos_desembolso import (
     perfil_do_nivel as _perfil_do_nivel,
     desembolso_operacional as _desembolso_operacional,
 )
+from services.economic_engine import calculate_economic_result
 from services.reconciliacao import reconciliar
-from services.fluxo_caixa_gep import valor_rebanho_gep, calcular_fluxo_gep
+from services.fluxo_caixa_gep import valor_rebanho_gep
 from services.garantia import avaliar_garantia
 from services.qualidade_dados import analisar_qualidade_dados
 from services.explicacao_classificacao import montar_explicacao_classificacao
@@ -1390,13 +1391,18 @@ def api_classificar():
     )
     _servico_gep = (_servico_nova_no_ano(1)
                     + 12 * endividamento['parcela_existente_mensal'])
-    fluxo_gep = calcular_fluxo_gep(
-        receita_caixa            = _ano1['receita'],
-        custo_caixa              = _ano1['custo'],
-        valor_rebanho_ini        = _val_ini_cmp['valor_total'],
-        valor_rebanho_fim        = _val_fim['valor_total'],
-        servico_divida_anual     = _servico_gep,
-        reposicao_reprodutores   = _reposicao_reprodutores,
+    fluxo_gep = calculate_economic_result(
+        {'receita_total': _ano1['receita']},
+        {
+            'custo_manutencao': float(_ano1.get('custo_manutencao', 0.0) or 0.0),
+            'custo_reposicao': float(_ano1.get('custo_reposicao', 0.0) or 0.0),
+            'custo_operacional': float(_ano1.get('custo', 0.0) or 0.0),
+            'reposicao_reprodutores': float(_reposicao_reprodutores or 0.0),
+            'servico_divida_anual': float(_servico_gep or 0.0),
+            'valor_rebanho_ini': float(_val_ini_cmp['valor_total']),
+            'valor_rebanho_fim': float(_val_fim['valor_total']),
+        },
+        inventory_change=float(_val_fim['valor_total'] - _val_ini_cmp['valor_total']),
     )
     # Decomposição auditável do custo do primeiro ano. O custo operacional
     # continua sendo o desembolso completo (manutenção + reposição de animais)
