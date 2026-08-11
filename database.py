@@ -459,6 +459,47 @@ def load_analysis_idempotency(*, organization_id: int, idempotency_key: str) -> 
     }
 
 
+def reserve_analysis_idempotency(*, organization_id: int, idempotency_key: str,
+                                 request: dict) -> dict:
+    """Atomically reserves an idempotency key before running the pipeline."""
+    _ensure_analysis_tables()
+    if organization_id is None:
+        raise ValueError('organization_id is required')
+    if not (idempotency_key or '').strip():
+        raise ValueError('idempotency_key is required')
+    request_hash = _stable_hash_dict(request)
+    try:
+        row_id = _exec(
+            f'''INSERT INTO analysis_idempotency_keys
+                (organization_id, idempotency_key, request_hash, analysis_id, response_json)
+                VALUES ({_PH},{_PH},{_PH},{_PH},{_PH})''',
+            (organization_id, idempotency_key, request_hash, None, ''),
+            fetch='lastrow',
+            commit=True,
+        )
+        return {
+            'id': int(row_id),
+            'organization_id': organization_id,
+            'idempotency_key': idempotency_key,
+            'request_hash': request_hash,
+            'analysis_id': None,
+            'response': {},
+            'created': True,
+            'created_at': '',
+        }
+    except Exception:
+        existing = load_analysis_idempotency(
+            organization_id=organization_id,
+            idempotency_key=idempotency_key,
+        )
+        if not existing:
+            raise
+        if existing['request_hash'] != request_hash:
+            raise ValueError('idempotency key already used with a different request')
+        existing['created'] = False
+        return existing
+
+
 def save_analysis_idempotency(*, organization_id: int, idempotency_key: str,
                               request: dict, response: dict, analysis_id: int | None) -> int:
     _ensure_analysis_tables()

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+import time
 import uuid
 
 import database as db
@@ -218,6 +220,109 @@ def test_full_analysis_idempotency_and_retrieval(api_env, monkeypatch):
     )
     assert report.status_code == 200
     assert report.get_json()["report"]["summary"]["analysis_id"] == analysis_id
+
+
+def test_full_analysis_idempotency_deduplicates_concurrent_requests(api_env, monkeypatch):
+    started = threading.Event()
+    release = threading.Event()
+    calls = {"count": 0}
+
+    def _pipeline(payload, context):
+        calls["count"] += 1
+        started.set()
+        assert release.wait(timeout=5), "pipeline did not get released in time"
+        return {
+            "version": {"schema_version": "1"},
+            "context": context,
+            "payload": payload,
+            "blocks": [{"name": "herd", "output": {"system": "CRIA"}, "version": {"schema_version": "1"}}],
+            "analysis": {"herd": {"system": "CRIA"}},
+            "legacy_response": {"qualidade_dados": {"status": "COMPLETO"}},
+            "block_order": ["herd"],
+            "warnings": {},
+        }
+
+    monkeypatch.setattr(v1routes, "run_full_analysis", _pipeline)
+    raw_key, _ = _issue_key(api_env["org1"]["id"], scopes=["analysis:write", "analysis:read", "report:read"])
+    headers = _auth_headers(raw_key, idempotency_key="concurrent-request")
+    body = {"valores": HerdPayload["valores"], "preco": 320}
+
+    results: dict[str, object] = {}
+
+    def _post(label: str):
+        client = app.test_client()
+        results[label] = client.post("/api/v1/full-analysis", json=body, headers=headers)
+
+    first = threading.Thread(target=_post, args=("first",))
+    second = threading.Thread(target=_post, args=("second",))
+
+    first.start()
+    assert started.wait(timeout=5), "first request never entered the pipeline"
+    second.start()
+    time.sleep(0.15)
+    release.set()
+    first.join(timeout=5)
+    second.join(timeout=5)
+
+    assert calls["count"] == 1
+    assert "first" in results and "second" in results
+
+    first_response = results["first"]
+    second_response = results["second"]
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+    assert first_response.get_json()["analysis_id"] == second_response.get_json()["analysis_id"]
+
+
+@pytest.mark.parametrize("literal", ["NaN", "Infinity", "-Infinity"])
+def test_v1_rejects_non_finite_numbers_in_required_arrays(api_env, literal):
+    raw_key, _ = _issue_key(api_env["org1"]["id"], scopes=["herd:analyze"])
+    payload = (
+        '{"valores":[%s,0,0,0,0,0,0,0,0,10]}'
+        % literal
+    )
+    response = api_env["client"].post(
+        "/api/v1/herd/analyze",
+        data=payload,
+        headers=_auth_headers(raw_key),
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    assert response.get_json()["error"]["code"] == "validation_error"
+
+
+@pytest.mark.parametrize("literal", ["NaN", "Infinity", "-Infinity"])
+def test_v1_rejects_non_finite_numbers_in_optional_scalars(api_env, literal):
+    raw_key, _ = _issue_key(api_env["org1"]["id"], scopes=["herd:analyze"])
+    payload = (
+        '{"valores":[0,0,0,0,0,0,0,0,0,10],"taxa_natalidade":%s}'
+        % literal
+    )
+    response = api_env["client"].post(
+        "/api/v1/herd/analyze",
+        data=payload,
+        headers=_auth_headers(raw_key),
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    assert response.get_json()["error"]["code"] == "validation_error"
+
+
+def test_v1_rate_limit_survives_local_cache_reset(api_env, monkeypatch):
+    monkeypatch.setattr(v1routes, "analyze_herd", lambda state, ml_result=None: {"system": "CRIA", "score": 99})
+    raw_key, _ = _issue_key(api_env["org1"]["id"], scopes=["herd:analyze"])
+    headers = _auth_headers(raw_key)
+
+    app.config["API_V1_RATE_LIMIT"] = "1 per minute"
+    first = api_env["client"].post("/api/v1/herd/analyze", json={"valores": HerdPayload["valores"]}, headers=headers)
+    assert first.status_code == 200
+
+    local_cache = getattr(v1routes, "_RATE_BUCKETS", None)
+    if local_cache is not None:
+        local_cache.clear()
+    second = api_env["client"].post("/api/v1/herd/analyze", json={"valores": HerdPayload["valores"]}, headers=headers)
+    assert second.status_code == 429
+    assert second.get_json()["error"]["code"] == "rate_limited"
 
 
 def test_v1_errors_docs_and_rate_limit_are_machine_readable(api_env, monkeypatch):

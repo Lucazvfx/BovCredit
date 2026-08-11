@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from copy import deepcopy
 from typing import Any
 
@@ -24,6 +25,8 @@ def _coerce_number(value: Any, field: str, *, minimum: float | None = None) -> f
         result = float(value)
     except (TypeError, ValueError) as exc:
         raise ValidationError(f"Field '{field}' must be numeric.") from exc
+    if not math.isfinite(result):
+        raise ValidationError(f"Field '{field}' must be finite.")
     if minimum is not None and result < minimum:
         raise ValidationError(f"Field '{field}' must be >= {minimum}.")
     return result
@@ -34,7 +37,7 @@ def _coerce_int(value: Any, field: str, *, minimum: int | None = None) -> int:
         raise ValidationError(f"Field '{field}' must be an integer.")
     try:
         result = int(value)
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, OverflowError) as exc:
         raise ValidationError(f"Field '{field}' must be an integer.") from exc
     if minimum is not None and result < minimum:
         raise ValidationError(f"Field '{field}' must be >= {minimum}.")

@@ -12,8 +12,6 @@ from functools import wraps
 
 from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, send_from_directory, send_file, session, abort
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from ml_engine import (
@@ -88,6 +86,7 @@ from services.groq_narrativa import (
     gerar_narrativa as _gerar_narrativa_groq,
     _feature_ativa as _narrativa_ativa,
 )
+from services.rate_limit import limiter
 
 # Narrativa IA: por padrão assíncrona (endpoint /api/narrativa), para não
 # somar até 20s de latência do Groq ao parecer. NARRATIVA_INLINE=1 restaura
@@ -228,12 +227,10 @@ def _erro_json(e):
 
 
 # ── Rate limiting (proteção contra força bruta) ───────────────────────────────
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=[],          # sem limite global — só endpoints sensíveis
-    storage_uri='memory://',
-)
+# memory:// é o fallback explícito para desenvolvimento/testes; em produção,
+# defina RATELIMIT_STORAGE_URI para um backend compartilhado.
+app.config.setdefault('RATELIMIT_STORAGE_URI', os.environ.get('RATELIMIT_STORAGE_URI', 'memory://'))
+limiter.init_app(app)
 
 # ── Controle de acesso: administradores ───────────────────────────────────────
 # Defina ADMIN_EMAILS no Railway (ex.: "voce@email.com"). Só admins acessam

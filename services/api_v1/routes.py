@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import hashlib
-import re
 import time
 from copy import deepcopy
-from functools import wraps
 
 from flask import current_app, g, jsonify, request
 
@@ -18,7 +16,7 @@ from services.production_engine import project_production
 from services.stress_engine import run_stress_tests
 
 from .authentication import APIKeyIdentity, authenticate_api_key
-from .errors import APIError, ConflictError, NotFoundError, ValidationError
+from .errors import ConflictError, NotFoundError, ValidationError
 from .schemas import (
     load_json_body,
     parse_cashflow_payload,
@@ -29,9 +27,7 @@ from .schemas import (
     parse_stress_payload,
 )
 from . import api_v1_bp
-
-_RATE_BUCKETS: dict[tuple[int, str], list[float]] = {}
-_RATE_SPEC_RE = re.compile(r"^(\d+)\s*(?:per|/)\s*(second|minute|hour|day)s?$", re.I)
+from services.rate_limit import limiter
 
 
 def _rate_limit_spec() -> str:
@@ -41,26 +37,22 @@ def _rate_limit_spec() -> str:
     return str(value)
 
 
-def _rate_window_seconds(spec: str) -> tuple[int, int]:
-    match = _RATE_SPEC_RE.match((spec or "").strip())
-    if not match:
-        return 120, 60
-    count = int(match.group(1))
-    unit = match.group(2).lower()
-    window = {"second": 1, "minute": 60, "hour": 3600, "day": 86400}[unit]
-    return count, window
+def _rate_limit_key() -> str:
+    raw_key = (
+        request.headers.get("X-API-Key")
+        or request.headers.get("Authorization")
+        or request.remote_addr
+        or ""
+    ).strip()
+    return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
 
 
-def _enforce_rate_limit(identity: APIKeyIdentity, bucket: str) -> None:
-    limit_count, window_seconds = _rate_window_seconds(_rate_limit_spec())
-    key = (identity.api_key_id, bucket)
-    now = time.monotonic()
-    timestamps = _RATE_BUCKETS.setdefault(key, [])
-    cutoff = now - window_seconds
-    timestamps[:] = [stamp for stamp in timestamps if stamp >= cutoff]
-    if len(timestamps) >= limit_count:
-        raise APIError("rate_limited", "Too many requests. Please retry later.", 429)
-    timestamps.append(now)
+def _check_rate_limit(scope: str) -> None:
+    @limiter.limit(_rate_limit_spec, key_func=_rate_limit_key, scope=scope)
+    def _noop():
+        return None
+
+    _noop()
 
 
 def _requested_organization(body: dict | None) -> int | None:
@@ -75,13 +67,12 @@ def _requested_organization(body: dict | None) -> int | None:
         raise ValidationError("Field 'organization_id' must be an integer.") from exc
 
 
-def _current_identity(*, scopes: tuple[str, ...] | list[str] = (), organization_id: int | None = None, bucket: str) -> APIKeyIdentity:
+def _current_identity(*, scopes: tuple[str, ...] | list[str] = (), organization_id: int | None = None) -> APIKeyIdentity:
     identity = authenticate_api_key(
         required_scopes=scopes,
         organization_id=organization_id,
         request_organization_id=organization_id,
     )
-    _enforce_rate_limit(identity, bucket)
     g.api_key_identity = identity
     return identity
 
@@ -302,7 +293,8 @@ def _openapi_document() -> dict:
 @api_v1_bp.route("/api/v1/herd/analyze", methods=["POST"])
 def herd_analyze():
     body = parse_herd_payload(load_json_body())
-    identity = _current_identity(scopes=("herd:analyze",), organization_id=_requested_organization(body), bucket="api.v1.herd.analyze")
+    identity = _current_identity(scopes=("herd:analyze",), organization_id=_requested_organization(body))
+    _check_rate_limit("api.v1.herd.analyze")
     herd_state = HerdState(
         values=body["valores"],
         source="API",
@@ -324,7 +316,8 @@ def herd_analyze():
 @api_v1_bp.route("/api/v1/production/project", methods=["POST"])
 def production_project():
     body = parse_production_payload(load_json_body())
-    identity = _current_identity(scopes=("production:project",), organization_id=_requested_organization(body), bucket="api.v1.production.project")
+    identity = _current_identity(scopes=("production:project",), organization_id=_requested_organization(body))
+    _check_rate_limit("api.v1.production.project")
     herd_state = HerdState(
         values=body["valores"],
         source="API",
@@ -346,7 +339,8 @@ def production_project():
 @api_v1_bp.route("/api/v1/cashflow/project", methods=["POST"])
 def cashflow_project():
     body = parse_cashflow_payload(load_json_body())
-    identity = _current_identity(scopes=("cashflow:project",), organization_id=_requested_organization(body), bucket="api.v1.cashflow.project")
+    identity = _current_identity(scopes=("cashflow:project",), organization_id=_requested_organization(body))
+    _check_rate_limit("api.v1.cashflow.project")
     result = project_cashflow(
         body["annual_projection"],
         body["debt_schedule"],
@@ -364,7 +358,8 @@ def cashflow_project():
 @api_v1_bp.route("/api/v1/payment-capacity", methods=["POST"])
 def payment_capacity():
     body = parse_payment_capacity_payload(load_json_body())
-    identity = _current_identity(scopes=("payment-capacity:analyze",), organization_id=_requested_organization(body), bucket="api.v1.payment.capacity")
+    identity = _current_identity(scopes=("payment-capacity:analyze",), organization_id=_requested_organization(body))
+    _check_rate_limit("api.v1.payment.capacity")
     result = calculate_payment_capacity(body["cashflow"], body["debt_request"], body.get("existing_debt"))
     return jsonify({
         "organization_id": identity.organization_id,
@@ -376,7 +371,8 @@ def payment_capacity():
 @api_v1_bp.route("/api/v1/stress-test", methods=["POST"])
 def stress_test():
     body = parse_stress_payload(load_json_body())
-    identity = _current_identity(scopes=("stress:analyze",), organization_id=_requested_organization(body), bucket="api.v1.stress.test")
+    identity = _current_identity(scopes=("stress:analyze",), organization_id=_requested_organization(body))
+    _check_rate_limit("api.v1.stress.test")
     result = run_stress_tests(body["base_analysis"], body.get("scenarios"))
     return jsonify({
         "organization_id": identity.organization_id,
@@ -389,27 +385,47 @@ def stress_test():
 def full_analysis():
     body = parse_full_analysis_payload(load_json_body())
     organization_id = _requested_organization(body)
-    identity = _current_identity(scopes=("analysis:write",), organization_id=organization_id, bucket="api.v1.full.analysis")
+    identity = _current_identity(scopes=("analysis:write",), organization_id=organization_id)
+    _check_rate_limit("api.v1.full.analysis")
     idempotency_key = (request.headers.get("Idempotency-Key") or "").strip()
     if not idempotency_key:
         raise ValidationError("Header 'Idempotency-Key' is required.")
 
     analysis_input = _analysis_payload_for_storage(body)
-    existing = db.load_analysis_idempotency(
+    reservation = db.reserve_analysis_idempotency(
         organization_id=identity.organization_id,
         idempotency_key=idempotency_key,
+        request=analysis_input,
     )
     request_hash = _stable_request_hash(body)
-    if existing:
-        if existing["request_hash"] != request_hash:
+    if not reservation.get("created"):
+        if reservation["request_hash"] != request_hash:
             raise ConflictError(
                 "Idempotency key already exists for a different request.",
                 details={"idempotency_key": idempotency_key},
             )
-        response = deepcopy(existing["response"])
-        response.setdefault("organization_id", identity.organization_id)
-        response.setdefault("analysis_id", existing.get("analysis_id"))
-        return jsonify(response)
+        response = deepcopy(reservation["response"])
+        if response and reservation.get("analysis_id") is not None:
+            response.setdefault("organization_id", identity.organization_id)
+            response.setdefault("analysis_id", reservation.get("analysis_id"))
+            return jsonify(response)
+
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            current = db.load_analysis_idempotency(
+                organization_id=identity.organization_id,
+                idempotency_key=idempotency_key,
+            )
+            if current and current["request_hash"] == request_hash and current.get("analysis_id") is not None and current.get("response"):
+                response = deepcopy(current["response"])
+                response.setdefault("organization_id", identity.organization_id)
+                response.setdefault("analysis_id", current.get("analysis_id"))
+                return jsonify(response)
+            time.sleep(0.05)
+        raise ConflictError(
+            "Analysis is still being processed.",
+            details={"idempotency_key": idempotency_key},
+        )
 
     context = {
         "organization_id": identity.organization_id,
@@ -444,7 +460,8 @@ def full_analysis():
 
 @api_v1_bp.route("/api/v1/analysis/<int:analysis_id>", methods=["GET"])
 def analysis_retrieve(analysis_id: int):
-    identity = _current_identity(scopes=("analysis:read",), bucket="api.v1.analysis.retrieve")
+    identity = _current_identity(scopes=("analysis:read",))
+    _check_rate_limit("api.v1.analysis.retrieve")
     snapshot = db.load_analysis_snapshot(analysis_id, organization_id=identity.organization_id)
     if not snapshot:
         raise NotFoundError("Analysis not found.", code="analysis_not_found", details={"analysis_id": analysis_id})
@@ -458,7 +475,8 @@ def analysis_retrieve(analysis_id: int):
 
 @api_v1_bp.route("/api/v1/report/<int:analysis_id>", methods=["GET"])
 def report_retrieve(analysis_id: int):
-    identity = _current_identity(scopes=("report:read",), bucket="api.v1.report.retrieve")
+    identity = _current_identity(scopes=("report:read",))
+    _check_rate_limit("api.v1.report.retrieve")
     snapshot = db.load_analysis_snapshot(analysis_id, organization_id=identity.organization_id)
     if not snapshot:
         raise NotFoundError("Analysis not found.", code="analysis_not_found", details={"analysis_id": analysis_id})
