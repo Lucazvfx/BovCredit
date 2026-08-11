@@ -17,3 +17,4 @@ gestao.db
 *.db
 *.pkl
 *.bak
+.worktrees/
