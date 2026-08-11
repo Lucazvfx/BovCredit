@@ -20,9 +20,17 @@
         .flash { padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .ajuda { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #eee; font-size: .82rem; color: #777; line-height: 1.6; }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-fields.css') }}">
 </head>
-<body>
-    <div class="login-card">
+<body class="ork-surface ork-auth-page">
+  <main class="ork-auth-layout">
+    <aside class="ork-auth-intro">
+      <a class="ork-brand" href="/"><span class="ork-brand__name">Orkavyn</span><span class="ork-brand__descriptor">Agro Intelligence</span></a>
+      <p class="ork-kicker">Acesso protegido</p>
+      <h1>Segurança para decisões sensíveis.</h1>
+      <p>A segunda etapa protege análises, dados de propriedades e histórico econômico-financeiro.</p>
+    </aside>
+    <section class="login-card ork-auth-card">
         <h2>Verificação em duas etapas</h2>
         <p class="sub">Digite o código de 6 dígitos do seu aplicativo autenticador.</p>
 
@@ -48,6 +56,7 @@
         <div class="links">
             <a href="/login">Voltar</a>
         </div>
-    </div>
+    </section>
+  </main>
 </body>
 </html>

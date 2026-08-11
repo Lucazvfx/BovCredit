@@ -87,3 +87,26 @@ def test_result_renderer_keeps_decision_contract_and_evidence_targets():
     assert "ork-decision-summary" in html
     for target in ("ev-quality", "ev-assumptions", "ev-sources", "ev-limitations"):
         assert f'id="{target}"' in html
+
+
+def test_auth_and_legal_templates_load_fields_stylesheet():
+    for name in (
+        "login.html",
+        "login_2fa.html",
+        "register.html",
+        "cadastro.html",
+        "esqueci_senha.html",
+        "redefinir_senha.html",
+        "termos.html",
+        "privacidade.html",
+    ):
+        html = (ROOT / "templates" / name).read_text(encoding="utf-8")
+        assert "orkavyn-fields.css" in html, name
+
+
+def test_login_preserves_field_names_and_uses_auth_layout():
+    html = (ROOT / "templates" / "login.html").read_text(encoding="utf-8")
+
+    assert 'name="email"' in html
+    assert 'name="senha"' in html
+    assert 'class="ork-auth-layout' in html

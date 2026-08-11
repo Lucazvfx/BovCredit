@@ -22,9 +22,17 @@
     .back{display:block;text-align:center;margin-top:1.25rem;color:#2980b9;text-decoration:none;font-size:.9rem}
     .back:hover{text-decoration:underline}
   </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-fields.css') }}">
 </head>
-<body>
-<div class="card">
+<body class="ork-surface ork-auth-page">
+<main class="ork-auth-layout">
+  <aside class="ork-auth-intro">
+    <a class="ork-brand" href="/"><span class="ork-brand__name">Orkavyn</span><span class="ork-brand__descriptor">Agro Intelligence</span></a>
+    <p class="ork-kicker">Recuperação de acesso</p>
+    <h1>Retome seu trabalho com segurança.</h1>
+    <p>O processo de recuperação protege o acesso sem expor os dados das propriedades analisadas.</p>
+  </aside>
+<section class="card ork-auth-card">
   <h2>Recuperar Senha</h2>
   <p class="sub">Informe seu e-mail de cadastro e enviaremos um link para criar uma nova senha.</p>
 
@@ -42,7 +50,8 @@
 
   <div id="msg" class="msg" style="display:none"></div>
   <a class="back" href="{{ url_for('login') }}">← Voltar ao login</a>
-</div>
+</section>
+</main>
 
 <script>
 async function enviar(e){
