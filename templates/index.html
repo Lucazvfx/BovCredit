@@ -750,13 +750,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 </div>
 
 <!-- ═══ RESULTADO ═══ -->
-<div class="panel" id="panel-resultado">
+<div class="panel ork-result-view" id="panel-resultado">
   <div id="result-wrap"></div>
   <div id="chat-panel" style="display:none;margin-top:16px"></div>
 </div>
 
 <!-- ═══ CENÁRIOS ═══ -->
-<div class="panel" id="panel-cenarios">
+<div class="panel ork-scenario-view" id="panel-cenarios">
   <div class="ptitle">Ciclo Completo — <em>Análise Detalhada</em></div>
   <p class="psub">Gestão financeira completa: rebanho, reprodução, vendas e projeção 5 anos.</p>
 
@@ -948,7 +948,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 </div>
 
 <!-- ═══ HISTÓRICO DE PARECERES ═══ -->
-<div class="panel" id="panel-historico">
+<div class="panel ork-history-view" id="panel-historico">
   <div class="ptitle">Histórico de <em>Pareceres</em></div>
   <p class="psub">Pareceres salvos por fazenda cliente.</p>
   <div class="card">
@@ -2711,6 +2711,46 @@ function renderParecer(data){
   ${renderProveniencia(p.proveniencia)}`;
 }
 
+function renderDecisionSummary(data){
+  const parecer=data.parecer||{};
+  const conclusao=parecer.conclusao||{};
+  const fluxo=data.fluxo_gep||parecer.fluxo_gep||{};
+  const qualidade=data.qualidade_dados||parecer.qualidade_dados||{};
+  const rating=parecer.rating||data.rating||{};
+  const proveniencia=parecer.proveniencia||data.proveniencia||{};
+  const parametros=proveniencia.parametros||[];
+  const fontes=[...new Set(parametros.map(item=>item.fonte).filter(Boolean))];
+  const premissasAlteradas=parametros.filter(item=>['usuario','medido'].includes(item.origem)).length;
+  const limitacoes=(qualidade.avisos||[]).length+(data.dados_faltantes||[]).length;
+  const recomendacoes={aprovar:'Aprovar',ressalva:'Aprovar com ressalva',negar:'Não aprovar'};
+  const recomendacao=recomendacoes[conclusao.recomendacao]||'Análise sem recomendação';
+  const dscr=conclusao.dscr_minimo??conclusao.dscr;
+  const capacidade=conclusao.capacidade_maxima;
+  const resultado=fluxo.resultado_operacional;
+  const risco=rating.faixa||rating.rotulo||'—';
+  const nivelQualidade=qualidade.nivel_confianca||qualidade.status||'—';
+
+  return `<section class="ork-decision-summary" aria-label="Resumo executivo da análise">
+    <div class="ork-decision-summary__primary">
+      <span>Recomendação econômico-produtiva</span>
+      <strong>${escapeHtml(recomendacao)}</strong>
+      <small>Sistema identificado: ${escapeHtml(TL[data.tipo]||data.tipo||'—')}</small>
+    </div>
+    <div class="ork-decision-summary__metrics">
+      <div><span>Capacidade estimada</span><strong>${capacidade==null?'—':fR(capacidade)}</strong></div>
+      <div><span>DSCR mínimo</span><strong class="${dscr!=null&&dscr<1?'is-critical':''}">${dscr==null?'—':Number(dscr).toFixed(2)+'x'}</strong></div>
+      <div><span>Resultado operacional</span><strong class="${resultado!=null&&resultado<0?'is-critical':''}">${resultado==null?'—':fR(resultado)}</strong></div>
+      <div><span>Risco</span><strong>${escapeHtml(String(risco))}</strong></div>
+    </div>
+  </section>
+  <aside class="ork-evidence-ribbon" aria-label="Evidências da conclusão">
+    <div><span>Qualidade dos dados</span><strong id="ev-quality">${escapeHtml(String(nivelQualidade))}</strong></div>
+    <div><span>Premissas informadas</span><strong id="ev-assumptions">${premissasAlteradas?premissasAlteradas+' confirmada(s)':'Nenhuma registrada'}</strong></div>
+    <div><span>Fontes</span><strong id="ev-sources">${fontes.length?fontes.length+' registrada(s)':'Não informadas'}</strong></div>
+    <div><span>Limitações</span><strong id="ev-limitations">${limitacoes?limitacoes+' ponto(s)':'Nenhuma crítica'}</strong></div>
+  </aside>`;
+}
+
 function renderResult(data){
   const tipo=data.tipo, col=TC[tipo];
   const ind=data.indicadores;
@@ -2755,6 +2795,7 @@ function renderResult(data){
   }).join('');
 
   document.getElementById('result-wrap').innerHTML=`
+    ${renderDecisionSummary(data)}
     <div class="rhero" style="border-color:${col}40;background:${col}08">
       <div class="rhero-grid">
         <div>

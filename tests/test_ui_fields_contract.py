@@ -64,3 +64,26 @@ def test_admin_loads_the_shared_fields_surface():
 
     assert "orkavyn-fields.css" in html
     assert 'class="ork-shell' in html
+
+
+def test_result_renderer_keeps_decision_contract_and_evidence_targets():
+    html = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+
+    for key in (
+        "parecer",
+        "qualidade_dados",
+        "fluxo_mensal",
+        "comparacao_cenarios",
+        "explicacao_classificacao",
+    ):
+        assert key in html
+    for panel in (
+        "panel-resultado",
+        "panel-cenarios",
+        "panel-historico",
+        "panel-ajuda",
+    ):
+        assert f'id="{panel}"' in html
+    assert "ork-decision-summary" in html
+    for target in ("ev-quality", "ev-assumptions", "ev-sources", "ev-limitations"):
+        assert f'id="{target}"' in html
