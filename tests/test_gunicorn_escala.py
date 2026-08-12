@@ -21,6 +21,7 @@ Multiplicar workers ingenuamente multiplica duas coisas, e as duas quebram:
 """
 import os
 import re
+import json
 
 import pytest
 
@@ -147,6 +148,19 @@ def test_dockerfile_usa_a_configuracao():
 def test_runtime_encontra_gunicorn_dentro_da_venv():
     assert '.venv/bin/gunicorn' in _raiz('Procfile')
     assert 'PATH="/app/.venv/bin:${PATH}"' in _raiz('Dockerfile')
+
+
+def test_railway_inicia_o_gunicorn_da_imagem_docker():
+    """O painel do Railway não pode substituir o CMD por `gunicorn` solto."""
+    config = json.loads(_raiz('railway.json'))
+    assert config['build'] == {
+        'builder': 'DOCKERFILE',
+        'dockerfilePath': 'Dockerfile',
+    }
+    assert config['deploy']['startCommand'].startswith(
+        '/app/.venv/bin/gunicorn -c /app/gunicorn.conf.py '
+    )
+    assert config['deploy']['healthcheckPath'] == '/healthz'
 
 
 def test_nem_procfile_nem_dockerfile_fixam_workers():
