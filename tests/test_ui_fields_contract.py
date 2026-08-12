@@ -213,3 +213,20 @@ def test_dashboard_uses_forest_text_and_readable_translucent_surfaces():
     assert "var(--ork-sand)" in surface
     assert "rgba(251, 247, 239" in panels
     assert "var(--ork-forest)" in headings
+
+
+def test_light_sidebar_uses_reference_surface_and_static_hover():
+    css = (ROOT / "static" / "orkavyn-fields.css").read_text(encoding="utf-8")
+
+    root = _css_rule(css, ":root")
+    sidebar = _css_rule(css, ".ork-sidebar")
+    active = _css_rule(css, ".ork-nav__item.is-active")
+    hover = _css_rule(css, ".ork-nav__item:hover")
+
+    assert "--ork-sidebar-width: 280px" in root
+    assert "padding: 28px 24px" in sidebar
+    assert "var(--ork-sand)" in sidebar or "rgba(251, 247, 239" in sidebar
+    assert "var(--ork-forest)" in active
+    assert "translate" not in hover
+    assert "scale(" not in hover
+    assert "box-shadow" not in hover

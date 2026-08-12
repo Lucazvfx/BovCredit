@@ -9,7 +9,7 @@ O sistema visual combina uma âncora orgânica com composição executiva. Verde
 - Escala de espaçamento: múltiplos de `4px`.
 - Controles: raio de `10px`, altura mínima de toque de `44px`.
 - Painéis: raio de `20px`, borda quente e sombra sutil.
-- Barra lateral no desktop: `256px`, fixa e verde floresta.
+- Barra lateral no desktop: `280px`, fixa, com superfície clara e item ativo verde floresta.
 - Navegação móvel: barra inferior flutuante, respeitando `safe-area-inset-bottom`.
 - Movimento: transições de até `180ms`; o modo de movimento reduzido elimina animações perceptíveis.
 
@@ -37,7 +37,7 @@ O sistema visual combina uma âncora orgânica com composição executiva. Verde
 --ork-space: 4px;
 --ork-radius-control: 10px;
 --ork-radius-panel: 20px;
---ork-sidebar-width: 256px;
+--ork-sidebar-width: 280px;
 ```
 
 ## Padrões centrais
@@ -50,6 +50,15 @@ O sistema visual combina uma âncora orgânica com composição executiva. Verde
 - Hover: somente cor e borda; nunca deslocamento, escala, revelação ou mudança de profundidade.
 - Exceções de movimento: skip link, toast, drawer/sidebar e feedback de estado, sempre respeitando movimento reduzido.
 - Informação crítica nunca depende de hover.
+
+### Barra lateral desktop
+
+- Superfície areia clara com borda direita quente e sem sombra forte.
+- Largura de `280px` e padding lateral de `24px`.
+- Marca oficial no topo; seção analítica no centro; usuário e “Sair da conta” no rodapé.
+- Ícones SVG lineares usam `currentColor` e não dependem de bibliotecas externas.
+- Item ativo em verde floresta; itens inativos e hover permanecem claros.
+- Hover altera somente cor, fundo e borda, sem deslocamento, escala ou mudança de profundidade.
 
 ### Ação dominante
 
@@ -77,7 +86,7 @@ Controles nativos são preservados, o foco é visível, as navegações possuem 
 
 ## Breakpoints
 
-- `> 900px`: sidebar fixa de `256px` e workspace deslocado.
+- `> 900px`: sidebar fixa de `280px` e workspace deslocado.
 - `≤ 900px`: sidebar recolhível, bottom navigation e espaço inferior seguro.
 - `≤ 760px`: grids de importação, decisão, landing e demo são empilhados.
 - `≤ 480px`: painéis usam gutters de `16px` e métricas ficam em uma coluna.

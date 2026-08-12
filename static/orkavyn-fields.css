@@ -13,7 +13,7 @@
   --ork-space: 4px;
   --ork-radius-control: 10px;
   --ork-radius-panel: 20px;
-  --ork-sidebar-width: 256px;
+  --ork-sidebar-width: 280px;
   --ork-surface: #f6f0e6;
   --ork-surface-raised: #fbf7ef;
   --ork-line: #d8c9b3;
@@ -106,18 +106,24 @@
   display: flex;
   width: var(--ork-sidebar-width);
   flex-direction: column;
-  padding: 28px 18px 20px;
+  padding: 28px 24px 24px;
   overflow-y: auto;
-  color: var(--ork-surface-raised);
-  background: var(--ork-forest);
-  border-right: 1px solid rgba(246, 240, 230, 0.12);
+  color: var(--ork-forest);
+  background: rgba(251, 247, 239, 0.96);
+  border-right: 1px solid var(--ork-line);
 }
 
 .ork-brand {
   display: block;
-  margin: 0 8px 32px;
+  margin: 4px 8px 48px;
   color: inherit;
   text-decoration: none;
+}
+
+.ork-brand__mark {
+  display: block;
+  width: min(200px, 100%);
+  height: auto;
 }
 
 .ork-brand__name {
@@ -139,19 +145,23 @@
   text-transform: uppercase;
 }
 
+.ork-sidebar .ork-brand__descriptor { color: var(--ork-soil); }
+
 .ork-nav {
   display: grid;
   gap: calc(var(--ork-space) * 2);
 }
 
 .ork-nav__label {
-  margin: 12px 12px 4px;
-  color: var(--ork-sage);
+  margin: 0 12px 12px;
+  color: var(--ork-soil);
   font-size: 0.65rem;
   font-weight: 800;
   letter-spacing: 0.15em;
   text-transform: uppercase;
 }
+
+.ork-nav__label--support { margin-top: 24px; }
 
 .ork-nav__item {
   display: flex;
@@ -162,7 +172,7 @@
   padding: 10px 12px;
   border: 1px solid transparent;
   border-radius: 12px;
-  color: rgba(246, 240, 230, 0.76);
+  color: var(--ork-forest);
   background: transparent;
   font: 700 0.88rem/1 var(--ork-font-body);
   text-align: left;
@@ -171,12 +181,22 @@
   transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
 }
 
-.ork-nav__item:hover,
-.ork-nav__item.is-active,
+.ork-nav__item:hover {
+  color: var(--ork-forest);
+  background: rgba(23, 58, 42, 0.06);
+  border-color: rgba(23, 58, 42, 0.08);
+}
+
+.ork-nav__item.is-active {
+  color: var(--ork-surface-raised);
+  background: var(--ork-forest);
+  border-color: var(--ork-forest);
+}
+
 .ork-nav__item[aria-current="page"] {
   color: var(--ork-surface-raised);
-  background: rgba(246, 240, 230, 0.1);
-  border-color: rgba(246, 240, 230, 0.1);
+  background: var(--ork-forest);
+  border-color: var(--ork-forest);
 }
 
 .ork-nav__icon {
@@ -185,19 +205,38 @@
   height: 28px;
   flex: 0 0 28px;
   place-items: center;
-  border-radius: 9px;
-  color: var(--ork-oat);
-  background: rgba(246, 240, 230, 0.08);
-  font-family: var(--ork-font-mono);
-  font-size: 0.7rem;
+  color: currentColor;
 }
 
-.ork-sidebar__footer {
+.ork-nav__icon svg { width: 21px; height: 21px; }
+
+.ork-sidebar__account {
   margin-top: auto;
-  padding: 20px 10px 0;
-  color: var(--ork-sage);
-  font-size: 0.76rem;
+  padding: 24px 12px 0;
+  border-top: 1px solid rgba(118, 80, 56, 0.16);
 }
+
+.ork-sidebar__user {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--ork-forest);
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.ork-sidebar__logout {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  width: fit-content;
+  color: var(--ork-soil);
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+.ork-sidebar__logout:hover { color: var(--ork-danger); }
 
 .ork-page-header,
 .ork-context-header {
