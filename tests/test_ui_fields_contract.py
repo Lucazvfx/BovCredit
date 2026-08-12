@@ -41,6 +41,24 @@ def test_shell_has_mobile_and_desktop_navigation():
     assert "data-ork-nav" in mobile
 
 
+def test_light_sidebar_preserves_destinations_and_moves_account_to_footer():
+    sidebar = (
+        ROOT / "templates" / "partials" / "fields_sidebar.html"
+    ).read_text(encoding="utf-8")
+    html = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+
+    assert "Análise econômico-produtiva" in sidebar
+    for destination in ("entrada", "resultado", "cenarios", "historico", "ajuda"):
+        assert f'data-ork-nav="{destination}"' in sidebar
+        assert f"showTab('{destination}', this)" in sidebar
+    assert sidebar.count("<svg") == 5
+    assert 'class="ork-sidebar__account"' in sidebar
+    assert "usuario.nome" in sidebar
+    assert "usuario.email" in sidebar
+    assert 'href="/logout"' in sidebar
+    assert 'onclick="logout()"' not in html
+
+
 def test_shell_controller_exposes_safe_initializer():
     javascript = (ROOT / "static" / "orkavyn-shell.js").read_text(encoding="utf-8")
 
