@@ -42,6 +42,15 @@ O sistema visual combina uma âncora orgânica com composição executiva. Verde
 
 ## Padrões centrais
 
+### Dashboard Executivo Natural
+
+- Texto principal: `--ork-forest`; evitar preto puro no workspace analítico.
+- Fundo: `rebanho-bg.jpg` estático, opacidade `0.12` no desktop e `0.10` até `480px`.
+- Painéis analíticos: `rgba(251, 247, 239, 0.96)` e `--ork-shadow-dashboard`.
+- Hover: somente cor e borda; nunca deslocamento, escala, revelação ou mudança de profundidade.
+- Exceções de movimento: skip link, toast, drawer/sidebar e feedback de estado, sempre respeitando movimento reduzido.
+- Informação crítica nunca depende de hover.
+
 ### Ação dominante
 
 Cada tela possui uma ação primária. Alternativas são secundárias e visualmente mais silenciosas. Ações destrutivas usam texto explícito e o token de perigo.
