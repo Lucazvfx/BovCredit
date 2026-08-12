@@ -49,6 +49,29 @@
   -webkit-font-smoothing: antialiased;
 }
 
+.ork-dashboard-surface {
+  position: relative;
+  min-height: 100vh;
+  background: var(--ork-sand);
+}
+
+.ork-dashboard-surface #bg-rebanho {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: url('/static/img/rebanho-bg.jpg') center / cover no-repeat;
+  opacity: 0.12;
+}
+
+.ork-dashboard-surface .ork-shell,
+.ork-dashboard-surface .ork-workspace {
+  position: relative;
+  background: transparent;
+}
+
+.ork-dashboard-surface .ork-shell { z-index: 1; }
+
 .ork-skip-link {
   position: fixed;
   top: calc(var(--ork-space) * 2);
@@ -870,6 +893,7 @@
 }
 
 @media (max-width: 480px) {
+  .ork-dashboard-surface #bg-rebanho { opacity: 0.1; }
   .ork-page-header, .ork-context-header { align-items: flex-start; padding: 16px; }
   .ork-main { padding: 20px 16px; }
   .ork-panel { padding: 20px 16px; }
