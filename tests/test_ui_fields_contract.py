@@ -1,7 +1,14 @@
+import re
 from pathlib import Path
 
 
 ROOT = Path(__file__).parents[1]
+
+
+def _css_rule(source: str, selector: str) -> str:
+    match = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", source, re.S)
+    assert match, f"regra ausente: {selector}"
+    return match.group(1)
 
 
 def test_fields_stylesheet_defines_domain_tokens():
@@ -151,3 +158,28 @@ def test_loading_overlay_is_announced_only_while_active():
     assert "overlay.setAttribute('aria-busy','true')" in html
     assert "overlay.setAttribute('aria-hidden','true')" in html
     assert "overlay.setAttribute('aria-busy','false')" in html
+
+
+def test_dashboard_uses_static_ambient_herd_background():
+    html = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+    css = (ROOT / "static" / "orkavyn-fields.css").read_text(encoding="utf-8")
+
+    assert 'class="ork-surface ork-dashboard-surface"' in html
+    assert 'id="bg-rebanho"' in html
+    assert "document.addEventListener('mousemove'" not in html
+    assert "maskImage = mask" not in html
+
+    background = _css_rule(css, ".ork-dashboard-surface #bg-rebanho")
+    assert "rebanho-bg.jpg" in background
+    assert re.search(r"opacity:\s*0\.1[0-5]", background)
+
+
+def test_dashboard_hover_does_not_move_controls_or_cards():
+    html = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+    css = (ROOT / "static" / "orkavyn-fields.css").read_text(encoding="utf-8")
+    dashboard_sources = html + "\n" + css
+
+    for selector in (".ork-action:hover", ".btn-p:hover", ".sc-card:hover"):
+        rule = _css_rule(dashboard_sources, selector)
+        assert "translate" not in rule
+        assert "scale(" not in rule
