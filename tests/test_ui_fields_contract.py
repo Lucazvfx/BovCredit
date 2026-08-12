@@ -183,3 +183,15 @@ def test_dashboard_hover_does_not_move_controls_or_cards():
         rule = _css_rule(dashboard_sources, selector)
         assert "translate" not in rule
         assert "scale(" not in rule
+
+
+def test_dashboard_uses_forest_text_and_readable_translucent_surfaces():
+    css = (ROOT / "static" / "orkavyn-fields.css").read_text(encoding="utf-8")
+
+    surface = _css_rule(css, ".ork-dashboard-surface")
+    panels = _css_rule(css, ".ork-dashboard-surface .ork-result-view .card")
+    headings = _css_rule(css, ".ork-dashboard-surface .ork-result-view .ct")
+
+    assert "var(--ork-sand)" in surface
+    assert "rgba(251, 247, 239" in panels
+    assert "var(--ork-forest)" in headings

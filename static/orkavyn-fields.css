@@ -21,6 +21,7 @@
   --ork-success: #3f6849;
   --ork-shadow: 0 14px 36px rgba(32, 49, 39, 0.09);
   --ork-shadow-soft: 0 6px 18px rgba(32, 49, 39, 0.07);
+  --ork-shadow-dashboard: 0 2px 10px rgba(23, 58, 42, 0.055);
   --ork-font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
   --ork-font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
   --ork-font-mono: "DM Mono", ui-monospace, monospace;
@@ -534,6 +535,83 @@
 .ork-result-view .cb,
 .ork-scenario-view .cb,
 .ork-history-view .cb { overflow-x: auto; }
+
+/* Dashboard Executivo Natural: o campo permanece como contexto ambiental,
+   enquanto a decisão e seus números usam superfícies calmas e alto contraste. */
+.ork-dashboard-surface .ork-workspace,
+.ork-dashboard-surface .ork-main {
+  color: var(--ork-forest);
+}
+
+.ork-dashboard-surface .ork-page-header,
+.ork-dashboard-surface .ork-context-header {
+  color: var(--ork-forest);
+  background: rgba(246, 240, 230, 0.94);
+  box-shadow: none;
+}
+
+.ork-dashboard-surface .ork-panel:not(.ork-import-panel) {
+  color: var(--ork-forest);
+  background: rgba(251, 247, 239, 0.96);
+  border-color: rgba(190, 169, 142, 0.72);
+  box-shadow: var(--ork-shadow-dashboard);
+}
+
+.ork-dashboard-surface .ork-result-view .card {
+  color: var(--ork-forest);
+  background: rgba(251, 247, 239, 0.96) !important;
+  border-color: rgba(190, 169, 142, 0.72) !important;
+  box-shadow: var(--ork-shadow-dashboard);
+}
+
+.ork-dashboard-surface .ork-scenario-view .card,
+.ork-dashboard-surface .ork-history-view .card,
+.ork-dashboard-surface .ork-result-view .rhero {
+  color: var(--ork-forest);
+  background: rgba(251, 247, 239, 0.96) !important;
+  border-color: rgba(190, 169, 142, 0.72) !important;
+  box-shadow: var(--ork-shadow-dashboard);
+}
+
+.ork-dashboard-surface .ch {
+  background: rgba(232, 220, 199, 0.72);
+  border-color: rgba(190, 169, 142, 0.58);
+}
+
+.ork-dashboard-surface .ork-result-view .ct {
+  color: var(--ork-forest);
+}
+
+.ork-dashboard-surface .ptitle,
+.ork-dashboard-surface .ct,
+.ork-dashboard-surface .sc2-v,
+.ork-dashboard-surface .pjc-v,
+.ork-dashboard-surface .mv,
+.ork-dashboard-surface .tsc-v,
+.ork-dashboard-surface .ork-panel__title,
+.ork-dashboard-surface .ork-decision-summary__metrics strong,
+.ork-dashboard-surface th {
+  color: var(--ork-forest);
+}
+
+.ork-dashboard-surface .is-critical,
+.ork-dashboard-surface .cr,
+.ork-dashboard-surface .mv.r {
+  color: var(--ork-danger);
+}
+
+.ork-dashboard-surface .ca,
+.ork-dashboard-surface .mv.a {
+  color: var(--ork-warning);
+}
+
+.ork-dashboard-surface .ork-decision-summary {
+  box-shadow: var(--ork-shadow-dashboard);
+}
+
+.ork-dashboard-surface .ork-mobile-nav {
+  box-shadow: var(--ork-shadow-dashboard);
+}
 
 @media (max-width: 760px) {
   .ork-decision-summary { grid-template-columns: 1fr; }
