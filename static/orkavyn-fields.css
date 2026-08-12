@@ -306,10 +306,10 @@
   font: 800 0.85rem/1 var(--ork-font-body);
   text-decoration: none;
   cursor: pointer;
-  transition: transform 160ms ease, color 160ms ease, background-color 160ms ease;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
 }
 
-.ork-action:hover { transform: translateY(-1px); background: #214d38; }
+.ork-action:hover { transform: none; background: #214d38; }
 .ork-action--secondary { color: var(--ork-forest); background: transparent; }
 .ork-action--quiet { color: var(--ork-ink); background: var(--ork-sand); border-color: var(--ork-line); }
 .ork-action--danger { color: var(--ork-surface-raised); background: var(--ork-danger); border-color: var(--ork-danger); }
