@@ -74,6 +74,8 @@ from services.qualidade_dados import analisar_qualidade_dados
 from services.explicacao_classificacao import montar_explicacao_classificacao
 from services.validacao_zootecnica import analisar_validacoes_zootecnicas
 from services.checklist_credito import checklist_credito
+from services.dados_impeditivos import detectar as detectar_impeditivos
+from services.retencao import calcular_retencao
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services.rating_credito import calcular_rating
 from services.precos_regionais import aplicar as aplicar_preco_regional
@@ -1133,6 +1135,42 @@ def api_classificar():
     qualidade_dados = analisar_qualidade_dados(v, data)
     documentos_credito = checklist_credito(data, qualidade_dados)
 
+    # Dados impeditivos: detecta campos críticos ausentes/inválidos
+    _dados_para_impeditivos = dict(data)
+    _dados_para_impeditivos['vetor_rebanho'] = v
+    dados_impeditivos = detectar_impeditivos(_dados_para_impeditivos)
+
+    # Motor de retenção: os 3 limites (zootécnico, pastagem, financeiro)
+    _mat = float(v[6] + v[8]) if len(v) >= 10 else 0.0
+    _natalidade = float(data.get('natalidade_pct') or data.get('taxa_natalidade', 0.0) or 70.0) / 100
+    _desm_pct   = float(data.get('desmama_pct', 82.0) or 82.0) / 100
+    _bezerras_desm = _mat * _natalidade * _desm_pct * 0.5
+    _machos_desm   = _mat * _natalidade * _desm_pct * 0.5
+    _ua_atual = float(data.get('ua_atual') or 0.0)
+    if _ua_atual == 0 and sum(v) > 0:
+        # Estimativa simples de UA pelo rebanho declarado (~350 kg médio)
+        _ua_atual = round(sum(v) * 350 / 450, 1)
+    analise_retencao = calcular_retencao(
+        matrizes=_mat,
+        bezerras_desmamadas=_bezerras_desm,
+        machos_desmamados=_machos_desm,
+        taxa_descarte_pct=float(data.get('taxa_descarte_pct') or 15.0),
+        aproveitamento_pct=float(data.get('aproveitamento_pct') or 90.0),
+        expansao_cabecas=float(data.get('expansao_cabecas') or 0.0),
+        area_ha=float(data.get('area_ha') or 0.0),
+        ua_atual=_ua_atual,
+        peso_medio_bezerra_kg=float(data.get('peso_medio_bezerra_kg') or 170.0),
+        lotacao_segura_ua_ha=float(data.get('lotacao_segura_ua_ha') or 1.0),
+        fluxo_antes_retencao=float(data.get('geracao_caixa_anual') or 0.0),
+        servico_divida_anual=float(data.get('servico_divida_anual') or 0.0),
+        preco_venda_bezerra=float(data.get('preco_venda_bezerra') or 0.0),
+        custo_mensal_por_animal=float(data.get('custo_mensal_por_animal') or 0.0),
+        meses_adicionais=float(data.get('meses_adicionais_retencao') or 12.0),
+        icsd_alvo=float(data.get('icsd_alvo') or 1.50),
+        bezerras_retidas=float(data.get('bezerras_retidas') or 0.0),
+        machos_retidos=float(data.get('machos_retidos') or 0.0),
+    )
+
     # Indicadores comparáveis a benchmarks regionais (GEP Araguaia / Rondônia):
     # usa o que o usuário informou (mortalidade_pct, desmama_pct,
     # rend_carcaca_pct, ganho_peso_kg_dia, desfrute_pct) e completa o
@@ -1998,14 +2036,16 @@ def api_classificar():
         ltv=garantia.get('ltv'),
         consistencia=consistencia.get('score_consistencia', 0),
         confianca=qualidade_dados.get('nivel_confianca', 'media-baixa'),
-        documentos_pendentes=len(documentos_credito.get('pendentes', [])),
+        documentos_pendentes=len(documentos_credito.get('impeditivos', documentos_credito.get('pendentes', []))),
         comprometimento_pct=endividamento.get('comprometimento_pct'))
     parecer['rating'] = rating
     # Nível operacional: uma aprovação matemática com documentos faltantes
     # vira aprovação condicionada, nunca aprovação final.
     _rec_base = _conclusao.get('recomendacao')
-    _docs_pendentes_obrig = any(
-        x.get('obrigatorio') for x in documentos_credito.get('pendentes', []))
+    _docs_pendentes_obrig = (
+        documentos_credito.get('bloqueio_aprovacao')
+        or any(x.get('obrigatorio') for x in documentos_credito.get('impeditivos', documentos_credito.get('pendentes', [])))
+    )
     if not _rec_base:
         _nivel_rec, _rotulo_rec = 'sem_credito_informado', 'SEM CRÉDITO INFORMADO'
     elif _rec_base == 'aprovar' and _docs_pendentes_obrig:
@@ -2082,6 +2122,8 @@ def api_classificar():
         'validacoes_zootecnicas': validacoes_zootecnicas,
         'comparacao_cenarios': comparacao_cenarios,
         'documentos_credito': documentos_credito,
+        'dados_impeditivos': dados_impeditivos,
+        'analise_retencao': analise_retencao,
         'fluxo_mensal': fluxo_mensal,
         'rating': rating,
         'indicadores_benchmark': ind_bench,
