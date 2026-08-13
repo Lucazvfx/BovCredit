@@ -2,6 +2,7 @@
 # pickle do scikit-learn, e pickle não atravessa versão de biblioteca; como o
 # resolvedor do pip escolhe versões conforme o Python, alinhar as três
 # declarações é o que garante que produção rode o ambiente testado.
+# syntax=docker/dockerfile:1
 FROM python:3.11.15 AS builder
 
 ENV PYTHONUNBUFFERED=1 \
@@ -10,7 +11,10 @@ WORKDIR /app
 
 RUN python -m venv .venv
 COPY requirements.txt ./
-RUN .venv/bin/pip install -r requirements.txt
+# Cache mount: se requirements.txt não mudar, o pip reutiliza os wheels
+# do build anterior sem baixar nada da rede — rebuild em segundos.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    .venv/bin/pip install -r requirements.txt
 
 FROM python:3.11.15-slim
 WORKDIR /app

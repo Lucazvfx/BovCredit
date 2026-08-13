@@ -70,7 +70,21 @@ bind = f"0.0.0.0:{os.environ.get('PORT', '8080')}"
 # com a narrativa da IA: calcular sob demanda numa segunda requisição. Até lá,
 # um worker é o que cabe. Suba `WEB_CONCURRENCY` junto com a memória do plano.
 workers = int(os.environ.get('WEB_CONCURRENCY', '1'))
-threads = int(os.environ.get('WEB_THREADS', '1'))
+
+# gthread: threads compartilham a memória do processo (modelo incluído), então
+# 2 threads não duplicam os 300 MB. O GIL bloqueia CPU-bound (SHAP), mas
+# libera durante I/O — DB, cotações, geração de PDF, envio de e-mail.
+# Resultado: endpoints rápidos (login, dashboard, histórico) não ficam
+# enfileirados atrás de uma classificação em andamento.
+# Suba WEB_THREADS=4 junto com um plano de memória maior se o uso crescer.
+worker_class = 'gthread'
+threads = int(os.environ.get('WEB_THREADS', '2'))
+
+# Recicla o worker a cada N requisições, liberando memória que pode ter
+# acumulado (fragmentação do alocador Python). O jitter evita que todos
+# os workers reiniciem no mesmo instante.
+max_requests = 500
+max_requests_jitter = 50
 
 # Folgado de propósito: se o modelo em disco não carregar, o boot cai no
 # retreino, que leva minutos.

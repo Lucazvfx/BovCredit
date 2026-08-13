@@ -1,5 +1,38 @@
 fly.toml
 .git/
 __pycache__/
+**/__pycache__/
 .envrc
 .venv/
+
+# Banco local — não entra na imagem; produção cria o próprio
+gestao.db
+
+# Dataset de treino — só usado por treinar_ciclos.py, não em runtime
+dataset_sintetico_bovino.csv
+
+# Scripts de treino e ingestão — não são necessários no container
+treinar_ciclos.py
+ingerir_ibge.py
+dataset.py
+
+# Documentação e capturas de tela
+docs/
+*.docx
+CALCULOS.txt
+SISTEMA.txt
+REVERTER.md
+README.md
+
+# Testes — não rodam em produção
+tests/
+
+# Scratch e arquivos de desenvolvimento
+scratch/
+
+# Config local do Claude Code
+.claude/
+
+# Arquivos de deploy de outros provedores
+fly.toml
+render.yaml
