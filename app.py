@@ -1133,12 +1133,13 @@ def api_classificar():
     ind    = calcular_indicadores(v)
     explicacao_classificacao = montar_explicacao_classificacao(result, ind)
     qualidade_dados = analisar_qualidade_dados(v, data)
-    documentos_credito = checklist_credito(data, qualidade_dados)
 
     # Dados impeditivos: detecta campos críticos ausentes/inválidos
     _dados_para_impeditivos = dict(data)
     _dados_para_impeditivos['vetor_rebanho'] = v
     dados_impeditivos = detectar_impeditivos(_dados_para_impeditivos)
+
+    documentos_credito = checklist_credito(_dados_para_impeditivos, qualidade_dados)
 
     # Motor de retenção: os 3 limites (zootécnico, pastagem, financeiro)
     _mat = float(v[6] + v[8]) if len(v) >= 10 else 0.0

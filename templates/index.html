@@ -2396,7 +2396,7 @@ function renderRetencao(data){
         <span style="font-family:var(--ork-font-mono);font-size:.82rem;font-weight:700;color:${val!=null?cor:'var(--ork-copy)'}">${val!=null?val+'&thinsp;cab':'—'}</span>
       </div>
       <div style="height:10px;border-radius:5px;background:var(--ork-line);overflow:hidden;position:relative">
-        ${val!=null?`<div style="height:100%;width:${pct}%;background:${cor};border-radius:5px;transition:width .5s ease"></div>`:'<div style="height:100%;width:100%;background:repeating-linear-gradient(90deg,var(--ork-line) 0,var(--ork-line) 4px,transparent 4px,transparent 8px)"></div>'}
+        ${val!=null?`<div style="height:100%;width:${pct}%;background:${cor};border-radius:5px;transition:width .5s ease"></div>`:'<div style="height:100%;width:100%;background:repeating-linear-gradient(90deg,var(--ork-line-strong) 0,var(--ork-line-strong) 4px,var(--ork-line) 4px,var(--ork-line) 8px)"></div>'}
         ${retencao_prudente!=null?`<div style="position:absolute;top:-2px;bottom:-2px;left:${Math.min(retencao_prudente/maxVal*100,100)}%;width:2px;background:var(--ork-forest);border-radius:1px" title="Prudente: ${retencao_prudente} cab."></div>`:''}
       </div>
       <div style="font-size:.62rem;color:var(--ork-copy);margin-top:4px;line-height:1.4">${detail}</div>

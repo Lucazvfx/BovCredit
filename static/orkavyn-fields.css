@@ -693,6 +693,13 @@
 .ork-loading-overlay[hidden] { display: none; }
 
 /* Acesso */
+.ork-auth-page,
+.ork-auth-page *,
+.ork-auth-page *::before,
+.ork-auth-page *::after {
+  box-sizing: border-box;
+}
+
 .ork-auth-page {
   display: grid !important;
   min-height: 100dvh;
