@@ -41,34 +41,28 @@ os.environ.setdefault('SCHEDULER_VIA_HOOK', '1')
 
 bind = f"0.0.0.0:{os.environ.get('PORT', '8080')}"
 
-# 1 worker por padrão — e a razão não é o modelo, é o SHAP.
-#
-# Com `preload_app` os ~300 MB do modelo são compartilhados por copy-on-write,
-# então o segundo worker custa quase nada em repouso. O problema é o pico POR
-# REQUISIÇÃO: cada classificação constrói os TreeExplainer dos quatro
-# estimadores do ensemble e aloca ~160 MB que só voltam ao fim da chamada.
+# 1 worker por padrão — motivo: memória do contêiner, não o modelo em si.
 #
 # Medido num processo real (RSS, não marca d'água):
 #
 #     após carregar o modelo ........ 300 MB
-#     durante uma classificação ..... 459 MB
+#     durante /api/shap ............. 459 MB   (TreeExplainer × 4 estimadores)
 #
-# A conta com o teto de 512 MB do contêiner:
+# SHAP JÁ ESTÁ FORA DO CAMINHO CRÍTICO
 #
-#     1 worker classificando ..... 300 + 160 = 460 MB   cabe
-#     2 workers classificando .... 300 + 320 = 620 MB   estoura
+# /api/classificar não chama SHAP: devolve shap_pendente=true e o frontend
+# busca /api/shap em seguida. O pico de 160 MB do SHAP não coincide mais com
+# a classificação — a memória volta antes da próxima requisição pesada.
 #
-# Duas classificações simultâneas matavam o processo por falta de memória e o
-# gateway devolvia 502 — exatamente na tela de classificar, que foi como o
-# problema apareceu em produção.
+# Com gthread e 2 threads (1 processo, 2 threads):
 #
-# TENTATIVA QUE NÃO FUNCIONOU, registrada para ninguém repetir: cachear os
-# TreeExplainer entre requisições PIORA. Eles não vazam — são liberados ao fim
-# da chamada. Mantê-los vivos elevou o patamar de 459 para 550 MB.
+#     Thread A: /api/classificar .... 300 MB   (sem SHAP)
+#     Thread B: /api/shap ........... 460 MB   (os 300 MB são compartilhados)
+#     Pior caso simultâneo .......... 460 MB   cabe em 512 MB
 #
-# A correção de verdade é tirar o SHAP do caminho crítico, como já foi feito
-# com a narrativa da IA: calcular sob demanda numa segunda requisição. Até lá,
-# um worker é o que cabe. Suba `WEB_CONCURRENCY` junto com a memória do plano.
+# Se o plano tiver 1 GB+, defina WEB_CONCURRENCY=2 no Railway para dobrar a
+# capacidade: com preload_app os dois workers compartilham os 300 MB via CoW,
+# e o segundo pico de SHAP acontece no outro processo — ~460 + ~160 = ~620 MB.
 workers = int(os.environ.get('WEB_CONCURRENCY', '1'))
 
 # gthread: threads compartilham a memória do processo (modelo incluído), então
