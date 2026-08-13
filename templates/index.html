@@ -48,8 +48,8 @@ header{position:sticky;top:0;z-index:200;background:rgba(6,8,16,.93);backdrop-fi
 .logo-mk{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#4ADE80,#4ADE80);display:flex;align-items:center;justify-content:center;font-size:.9rem}
 .logo em{font-style:normal;background:linear-gradient(90deg,#4ADE80,#4ADE80);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .hdr-r{display:flex;align-items:center;gap:12px}
-.ml-badge{font-family:var(--fm);font-size:.54rem;letter-spacing:2px;background:rgba(74,222,128,.1);color:var(--g);border:1px solid rgba(74,222,128,.25);padding:4px 12px;border-radius:20px}
-.ml-acc{font-family:var(--fm);font-size:.58rem;color:var(--g);background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);padding:4px 10px;border-radius:8px}
+.ml-badge{font-family:var(--fm);font-size:.54rem;letter-spacing:2px;background:rgba(74,222,128,.1);color:var(--tx);border:1px solid rgba(74,222,128,.25);padding:4px 12px;border-radius:20px}
+.ml-acc{font-family:var(--fm);font-size:.58rem;color:var(--tx);background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);padding:4px 10px;border-radius:8px}
 
 main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-index:1}
 
@@ -68,7 +68,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 .analysis-flow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:14px;align-items:stretch;margin:0 0 18px;padding:18px;background:linear-gradient(135deg,rgba(74,222,128,.08),rgba(22,27,42,.72));border:1px solid var(--border-accent);border-radius:var(--r)}
 .analysis-flow-copy{display:flex;flex-direction:column;justify-content:center;gap:6px}
-.analysis-flow-kicker{font-family:var(--fm);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--g)}
+.analysis-flow-kicker{font-family:var(--fm);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--tx)}
 .analysis-flow-title{font-family:var(--fn);font-size:1.35rem;font-weight:800;letter-spacing:-.2px}
 .analysis-flow-sub{font-size:.78rem;line-height:1.5;color:var(--sb);max-width:48ch}
 .analysis-flow-steps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
@@ -103,8 +103,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .fc{display:inline-flex;align-items:center;font-family:var(--fm);font-size:.67rem;padding:4px 10px;border-radius:6px;border:1px solid}
 .ni{width:110px;background:transparent;border:1px solid var(--b2);border-radius:var(--rs);padding:8px 12px;font-family:var(--fb);font-size:.88rem;outline:none;transition:border-color .2s;text-align:center;-moz-appearance:textfield}
 .ni::-webkit-inner-spin-button{-webkit-appearance:none}
-.ni.nf{color:var(--g)}.ni.nm{color:var(--am)}
-.ni:focus{border-color:var(--g);box-shadow:0 0 0 3px rgba(74,222,128,.1)}
+.ni.nf{color:var(--tx)}.ni.nm{color:var(--tx)}
+.ni:focus{border-color:var(--tx);box-shadow:0 0 0 3px rgba(74,222,128,.1)}
 .tdc{text-align:center}
 .tdtot{font-family:var(--fm);font-size:.8rem;color:var(--tx);text-align:center;font-weight:600}
 
@@ -112,21 +112,21 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .tsc{background:var(--c2);padding:14px 16px}
 .tsc-l{font-family:var(--fm);font-size:.52rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:5px}
 .tsc-v{font-family:var(--fn);font-weight:800;font-size:1.5rem;letter-spacing:-.5px;line-height:1}
-.cg{color:var(--g)}.ca{color:var(--am)}.cc{color:var(--cy)}.cr{color:var(--rd)}.cp{color:var(--pu)}
+.cg{color:var(--tx)}.ca{color:var(--tx)}.cc{color:var(--tx)}.cr{color:var(--tx)}.cp{color:var(--tx)}
 
 .fgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu)}
 .field input,.field select{background:var(--c2);border:1px solid var(--b2);border-radius:var(--rs);padding:10px 14px;color:var(--tx);font-family:var(--fb);font-size:.88rem;outline:none;transition:border-color .2s}
-.field input:focus,.field select:focus{border-color:var(--g)}
+.field input:focus,.field select:focus{border-color:var(--tx)}
 .field select option{background:var(--c)}
 
 /* UPLOAD */
 .upzone{border:2px dashed var(--b2);border-radius:var(--r);padding:52px 32px;text-align:center;cursor:pointer;transition:border-color .3s,background-color .3s;background:var(--c)}
-.upzone:hover,.upzone.drag{border-color:var(--g);background:rgba(74,222,128,.04)}
+.upzone:hover,.upzone.drag{border-color:var(--tx);background:rgba(74,222,128,.04)}
 .upzone-icon{font-size:3rem;margin-bottom:14px;display:block}
 .upzone-title{font-family:var(--fn);font-weight:800;font-size:1.6rem;letter-spacing:-.5px;margin-bottom:6px}
-.upzone-title span{color:var(--g)}
+.upzone-title span{color:var(--tx)}
 .upzone-sub{font-size:.85rem;color:var(--mu);margin-bottom:18px}
 
 /* BUTTONS */
@@ -135,7 +135,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .btn-p:disabled{opacity:.4;cursor:not-allowed;transform:none}
 .btn-p span{position:relative;z-index:1}
 .btn-sm{display:inline-flex;align-items:center;gap:6px;background:none;border:1px solid var(--b2);border-radius:var(--rs);padding:7px 14px;font-family:var(--fn);font-weight:700;font-size:.7rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu);cursor:pointer;transition:border-color .2s,color .2s,background-color .2s}
-.btn-sm:hover{border-color:var(--g);color:var(--g)}
+.btn-sm:hover{border-color:var(--tx);color:var(--tx)}
 
 /* RESULT */
 .rhero{border-radius:var(--r);padding:44px;margin-bottom:18px;position:relative;overflow:hidden;border:1px solid}
@@ -167,7 +167,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .mrow:last-child{border-bottom:none}
 .mk{font-size:.82rem;color:var(--sb)}
 .mv{font-family:var(--fm);font-size:.78rem;color:var(--tx)}
-.mv.g{color:var(--g)}.mv.a{color:var(--am)}.mv.r{color:var(--rd)}.mv.c{color:var(--cy)}
+.mv.g{color:var(--tx)}.mv.a{color:var(--tx)}.mv.r{color:var(--tx)}.mv.c{color:var(--tx)}
 
 .rec-item{background:var(--c2);border:1px solid var(--b);border-radius:var(--rs);padding:14px 18px;display:flex;gap:12px;align-items:flex-start;margin-bottom:8px}
 .rec-ico{font-size:1.3rem;flex-shrink:0;margin-top:1px}
@@ -178,7 +178,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 /* CENÁRIOS */
 .sc-card{background:var(--c2);border:1px solid var(--b);border-radius:var(--r);padding:20px;margin-bottom:10px;cursor:pointer;transition:border-color .25s,background-color .25s;position:relative;overflow:hidden}
 .sc-card:hover{border-color:var(--b2);transform:none}
-.sc-card.sel{border-color:var(--g);background:rgba(74,222,128,.05)}
+.sc-card.sel{border-color:var(--tx);background:rgba(74,222,128,.05)}
 .sc-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
 .sc-opt::before{background:var(--g)}.sc-cres::before{background:var(--cy)}
 .sc-spec::before{background:var(--am)}.sc-cons::before{background:var(--rd)}
@@ -196,9 +196,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .ytbl th.r{text-align:right}
 .ytbl td{padding:11px 14px;font-size:.84rem;border-bottom:1px solid rgba(255,255,255,.03)}
 .ytbl td.r{text-align:right;font-family:var(--fm);font-size:.78rem}
-.ytbl td.g{color:var(--g);font-family:var(--fm);font-size:.78rem;text-align:right}
-.ytbl td.a{color:var(--am);font-family:var(--fm);font-size:.78rem;text-align:right}
-.ytbl td.r2{color:var(--rd);font-family:var(--fm);font-size:.78rem;text-align:right}
+.ytbl td.g{color:var(--tx);font-family:var(--fm);font-size:.78rem;text-align:right}
+.ytbl td.a{color:var(--tx);font-family:var(--fm);font-size:.78rem;text-align:right}
+.ytbl td.r2{color:var(--tx);font-family:var(--fm);font-size:.78rem;text-align:right}
 .ytbl tbody tr:hover td{background:rgba(255,255,255,.02)}
 
 .tc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
@@ -234,12 +234,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 /* TOAST */
 .toast{position:fixed;bottom:28px;right:28px;background:var(--c2);border:1px solid var(--b2);border-radius:var(--rs);padding:14px 20px;font-family:var(--fm);font-size:.75rem;z-index:999;opacity:0;transform:translateY(20px);transition:opacity .3s,transform .3s;max-width:320px}
 .toast.show{opacity:1;transform:translateY(0)}
-.toast.err{border-color:rgba(248,113,113,.4);color:var(--rd)}
+.toast.err{border-color:rgba(248,113,113,.4);color:var(--tx)}
 
 /* LOADING */
 .loading-overlay{position:fixed;inset:0;background:rgba(6,8,16,.85);z-index:300;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;backdrop-filter:blur(8px)}
 .loading-overlay.show{display:flex}
-.lspin{width:50px;height:50px;border:3px solid var(--b2);border-top-color:var(--g);border-radius:50%;animation:spin 1s linear infinite}
+.lspin{width:50px;height:50px;border:3px solid var(--b2);border-top-color:var(--tx);border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .ltxt{font-family:var(--fn);font-size:1rem;letter-spacing:.5px}
@@ -346,8 +346,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 /* ── CICLO COMPLETO ── */
 .sc-sn{font-family:var(--fn);font-weight:700;font-size:.68rem;letter-spacing:1.5px;text-transform:uppercase;background:none;border:1px solid var(--b2);border-radius:var(--rs);padding:7px 14px;color:var(--mu);cursor:pointer;transition:border-color .2s,color .2s,background-color .2s;white-space:nowrap}
-.sc-sn:hover{border-color:var(--am);color:var(--am)}
-.sc-sn.act{background:var(--am);border-color:var(--am);color:#000}
+.sc-sn:hover{border-color:var(--tx);color:var(--tx)}
+.sc-sn.act{background:var(--am);border-color:var(--tx);color:#000}
 .sc-spanel{display:none}.sc-spanel.act{display:block}
 .brow{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .brow-l{font-family:var(--fm);font-size:.58rem;color:var(--mu);width:120px;flex-shrink:0;text-align:right}
@@ -360,15 +360,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .flow-n{font-family:var(--fn);font-weight:800;font-size:1.4rem;line-height:1}
 .flow-l{font-family:var(--fm);font-size:.52rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu);margin-top:3px}
 .lvl-badge{font-family:var(--fm);font-size:.54rem;letter-spacing:1.5px;text-transform:uppercase;padding:3px 10px;border-radius:4px}
-.lvl-badge.baixo{background:rgba(248,113,113,.15);color:var(--rd);border:1px solid rgba(248,113,113,.25)}
-.lvl-badge.medio{background:rgba(251,191,36,.15);color:var(--am);border:1px solid rgba(251,191,36,.25)}
-.lvl-badge.alto{background:rgba(74,222,128,.15);color:var(--g);border:1px solid rgba(74,222,128,.25)}
+.lvl-badge.baixo{background:rgba(248,113,113,.15);color:var(--tx);border:1px solid rgba(248,113,113,.25)}
+.lvl-badge.medio{background:rgba(251,191,36,.15);color:var(--tx);border:1px solid rgba(251,191,36,.25)}
+.lvl-badge.alto{background:rgba(74,222,128,.15);color:var(--tx);border:1px solid rgba(74,222,128,.25)}
 .cetbl{width:100%;border-collapse:collapse}
 .cetbl th{font-family:var(--fm);font-size:.54rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);padding:8px 12px;text-align:left;border-bottom:1px solid var(--b)}
 .cetbl td{padding:7px 12px;font-size:.84rem;border-bottom:1px solid rgba(255,255,255,.03)}
 .cetbl input[type=number]{background:var(--c2);border:1px solid var(--b2);border-radius:6px;padding:5px 8px;color:var(--tx);font-family:var(--fm);font-size:.78rem;width:85px;text-align:center;outline:none;transition:border-color .2s;-moz-appearance:textfield}
 .cetbl input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
-.cetbl input[type=number]:focus{border-color:var(--g)}
+.cetbl input[type=number]:focus{border-color:var(--tx)}
 .res-box{border-radius:var(--r);padding:20px 24px;margin-top:16px;border:1px solid;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 .res-box.pos{border-color:rgba(74,222,128,.3);background:rgba(74,222,128,.06)}
 .res-box.neg{border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.06)}
@@ -439,8 +439,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <div class="hdr-r">
     <span id="hdr-boi" class="ml-acc" style="cursor:default" title="Cotação Boi (R$/arroba)">Boi: --</span>
     <span id="hdr-vaca" class="ml-acc" style="cursor:default" title="Cotação Vaca (R$/arroba)">Vaca: --</span>
-    {% if eh_admin %}<a class="ml-acc" href="{{ url_for('admin') }}" style="cursor:pointer;text-decoration:none;background:rgba(96,165,250,.1);color:var(--cy);font-family:var(--fm);font-size:.58rem;padding:4px 10px;border-radius:8px;border:1px solid rgba(96,165,250,.3)" title="Gerenciar acessos">⚙ Acessos</a>{% endif %}
-    <select id="empresa-ativa-select" class="ml-acc" style="cursor:pointer;background:rgba(96,165,250,.07);color:var(--cy);border:1px solid rgba(96,165,250,.2);border-radius:8px;padding:4px 8px;font-family:var(--fm);font-size:.58rem" onchange="trocarEmpresaAtiva()" title="Empresa ativa"></select>
+    {% if eh_admin %}<a class="ml-acc" href="{{ url_for('admin') }}" style="cursor:pointer;text-decoration:none;background:rgba(96,165,250,.1);color:var(--tx);font-family:var(--fm);font-size:.58rem;padding:4px 10px;border-radius:8px;border:1px solid rgba(96,165,250,.3)" title="Gerenciar acessos">⚙ Acessos</a>{% endif %}
+    <select id="empresa-ativa-select" class="ml-acc" style="cursor:pointer;background:rgba(96,165,250,.07);color:var(--tx);border:1px solid rgba(96,165,250,.2);border-radius:8px;padding:4px 8px;font-family:var(--fm);font-size:.58rem" onchange="trocarEmpresaAtiva()" title="Empresa ativa"></select>
     <button class="ml-acc" style="cursor:pointer;border:none;background:rgba(167,139,250,.1);color:#A78BFA;font-family:var(--fm);font-size:.58rem;padding:4px 10px;border-radius:8px;border:1px solid rgba(167,139,250,.3)" onclick="abrirMarcaModal()" title="Marca da consultoria no PDF">⚙ Marca</button>
   </div>
 </header>
@@ -620,22 +620,22 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div>
           <div style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Por fazenda (repetir cada bloco)</div>
           <table style="width:100%;border-collapse:collapse">
-            <tr><td style="padding:3px 0;font-family:monospace;color:var(--cy);font-size:11px">C14</td><td style="padding:3px 4px">Nome real da fazenda</td></tr>
-            <tr style="border-top:.5px solid var(--border)"><td style="padding:3px 0;font-family:monospace;color:var(--cy);font-size:11px">C16</td><td style="padding:3px 4px">Qtd Bezerra (fêmea 0–12m)</td></tr>
-            <tr><td style="padding:3px 0;font-family:monospace;color:var(--cy);font-size:11px">C17</td><td style="padding:3px 4px">Qtd Bezerra Desmama (13–24m)</td></tr>
-            <tr><td style="padding:3px 0;font-family:monospace;color:var(--cy);font-size:11px">C18</td><td style="padding:3px 4px">Qtd Novilha (25–36m)</td></tr>
-            <tr><td style="padding:3px 0;font-family:monospace;color:var(--cy);font-size:11px">C19</td><td style="padding:3px 4px">Qtd Vaca (&gt; 36m)</td></tr>
-            <tr style="border-top:.5px solid var(--border)"><td style="padding:3px 0;font-family:monospace;color:var(--am);font-size:11px">F16</td><td style="padding:3px 4px">Qtd Bezerro (macho 0–12m)</td></tr>
-            <tr><td style="padding:3px 0;font-family:monospace;color:var(--am);font-size:11px">F17</td><td style="padding:3px 4px">Qtd Bezerro Desmama (13–24m)</td></tr>
-            <tr><td style="padding:3px 0;font-family:monospace;color:var(--am);font-size:11px">F18</td><td style="padding:3px 4px">Qtd Garrote (25–36m)</td></tr>
-            <tr><td style="padding:3px 0;font-family:monospace;color:var(--am);font-size:11px">F19</td><td style="padding:3px 4px">Qtd Boi Gordo (&gt; 36m)</td></tr>
+            <tr><td style="padding:3px 0;font-family:monospace;color:var(--tx);font-size:11px">C14</td><td style="padding:3px 4px">Nome real da fazenda</td></tr>
+            <tr style="border-top:.5px solid var(--border)"><td style="padding:3px 0;font-family:monospace;color:var(--tx);font-size:11px">C16</td><td style="padding:3px 4px">Qtd Bezerra (fêmea 0–12m)</td></tr>
+            <tr><td style="padding:3px 0;font-family:monospace;color:var(--tx);font-size:11px">C17</td><td style="padding:3px 4px">Qtd Bezerra Desmama (13–24m)</td></tr>
+            <tr><td style="padding:3px 0;font-family:monospace;color:var(--tx);font-size:11px">C18</td><td style="padding:3px 4px">Qtd Novilha (25–36m)</td></tr>
+            <tr><td style="padding:3px 0;font-family:monospace;color:var(--tx);font-size:11px">C19</td><td style="padding:3px 4px">Qtd Vaca (&gt; 36m)</td></tr>
+            <tr style="border-top:.5px solid var(--border)"><td style="padding:3px 0;font-family:monospace;color:var(--tx);font-size:11px">F16</td><td style="padding:3px 4px">Qtd Bezerro (macho 0–12m)</td></tr>
+            <tr><td style="padding:3px 0;font-family:monospace;color:var(--tx);font-size:11px">F17</td><td style="padding:3px 4px">Qtd Bezerro Desmama (13–24m)</td></tr>
+            <tr><td style="padding:3px 0;font-family:monospace;color:var(--tx);font-size:11px">F18</td><td style="padding:3px 4px">Qtd Garrote (25–36m)</td></tr>
+            <tr><td style="padding:3px 0;font-family:monospace;color:var(--tx);font-size:11px">F19</td><td style="padding:3px 4px">Qtd Boi Gordo (&gt; 36m)</td></tr>
           </table>
           <div style="margin-top:6px;font-size:11px;color:var(--text-muted)">Blocos: linhas 13–20, 22–29, 31–38... (9 linhas por fazenda)</div>
         </div>
         <div>
           <div style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Ciclo inferido após importar (EMBRAPA)</div>
           <div style="line-height:1.9">
-            <span style="color:var(--cy)">●</span> <strong>CRIA</strong> — tem vacas + bezerros, sem garrote/boi gordo<br>
+            <span style="color:var(--tx)">●</span> <strong>CRIA</strong> — tem vacas + bezerros, sem garrote/boi gordo<br>
             <span style="color:#93C5FD">●</span> <strong>RECRIA</strong> — garrote + novilha predominam, sem boi gordo<br>
             <span style="color:#FCA5A5">●</span> <strong>ENGORDA</strong> — boi gordo + garrote predominam<br>
             <span style="color:var(--text-accent)">●</span> <strong>CICLO COMPLETO</strong> — todas as categorias presentes
@@ -664,7 +664,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div class="tsc"><div class="tsc-l">Machos</div><div class="tsc-v ca" id="t-m">0</div></div>
           <div class="tsc"><div class="tsc-l">Cria 0–12m</div><div class="tsc-v cc" id="t-c">0</div></div>
           <div class="tsc"><div class="tsc-l">Recria 13–24m</div><div class="tsc-v ca" id="t-r">0</div></div>
-          <div class="tsc" style="border-left:1px solid var(--g)22"><div class="tsc-l" style="color:var(--g)">Valor do Rebanho</div><div class="tsc-v" style="color:var(--g);font-size:1.1rem" id="t-val">—</div></div>
+          <div class="tsc" style="border-left:1px solid var(--g)22"><div class="tsc-l" style="color:var(--tx)">Valor do Rebanho</div><div class="tsc-v" style="color:var(--tx);font-size:1.1rem" id="t-val">—</div></div>
         </div>
         <div id="consist-panel" style="display:none;margin-top:16px"></div>
         <div id="comparativo-panel" style="display:none;margin-top:16px"></div>
@@ -709,9 +709,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   </div>
 
   <div id="cot-strip" style="display:flex;justify-content:center;align-items:center;gap:20px;margin-top:20px;margin-bottom:10px;padding:10px 16px;border-radius:var(--rs);background:var(--c);border:1px solid var(--b);font-family:var(--fm);font-size:.65rem;color:var(--mu)">
-    <span>Boi: <strong id="cs-boi" style="color:var(--g)">—</strong></span>
-    <span>Vaca: <strong id="cs-vaca" style="color:var(--am)">—</strong></span>
-    <span>Bezerro: <strong id="cs-bez" style="color:var(--cy)">—</strong></span>
+    <span>Boi: <strong id="cs-boi" style="color:var(--tx)">—</strong></span>
+    <span>Vaca: <strong id="cs-vaca" style="color:var(--tx)">—</strong></span>
+    <span>Bezerro: <strong id="cs-bez" style="color:var(--tx)">—</strong></span>
     <span style="opacity:.5">· cotações usadas no cálculo de valor do rebanho</span>
   </div>
   <button class="btn-p ork-action ork-submit-analysis" id="btn-class" onclick="classificar()"><span>Executar análise econômico-produtiva</span></button>
@@ -798,7 +798,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div class="cb"><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div class="field"><label>Peso Boi (@)</label><input type="number" id="s-boi-arr" value="18" step="0.5" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Peso Matriz (@)</label><input type="number" id="s-mat-arr" value="14" step="0.5" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Peso Bezerra (@)</label><input type="number" id="s-bez-arr" value="7" step="0.5" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Preço Arroba (R$)</label><input type="number" id="s-preco-arr" value="350" min="0" oninput="recalcCiclo()"></div></div><div id="s-preco-bez-info" style="margin-top:12px;background:var(--c2);border:1px solid var(--b);border-radius:var(--rs);padding:10px 14px;font-family:var(--fm);font-size:.7rem;color:var(--sb)"></div></div>
         </div>
         <div class="card"><div class="ch"><div class="ct"><div class="cd" style="background:var(--pu)"></div>Estrutura de Custo (Desembolso · R$/cab/mês)</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn-sm" onclick="aplicarPresetDesembolso('media')">Média</button><button class="btn-sm" onclick="aplicarPresetDesembolso('top')">Top Rentáveis</button><button class="btn-sm" onclick="aplicarPresetFamiliar()" title="Produtor familiar: sem mão de obra formal e administração, maquinas reduzido" style="border-color:var(--am);color:var(--am)">Familiar</button></div></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn-sm" onclick="aplicarPresetDesembolso('media')">Média</button><button class="btn-sm" onclick="aplicarPresetDesembolso('top')">Top Rentáveis</button><button class="btn-sm" onclick="aplicarPresetFamiliar()" title="Produtor familiar: sem mão de obra formal e administração, maquinas reduzido" style="border-color:var(--tx);color:var(--tx)">Familiar</button></div></div>
           <div class="cb">
             <!-- Abas por fase -->
             <div style="display:flex;gap:6px;margin-bottom:12px;border-bottom:1px solid var(--b);padding-bottom:8px">
@@ -864,7 +864,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <div style="margin-top:8px"><button class="btn-sm" onclick="aplicarPresetFase('engorda','media')">Média GEP</button> <button class="btn-sm" onclick="aplicarPresetFase('engorda','top')">Top GEP</button> <button class="btn-sm" onclick="aplicarPresetConfinamento()">Confinamento</button> <button class="btn-sm" onclick="limparFaseCusto('engorda')">Limpar (usar Geral)</button></div>
             </div>
             <div id="s-desemb-info" style="margin-top:12px;background:var(--c2);border:1px solid var(--b);border-radius:var(--rs);padding:10px 14px;font-family:var(--fm);font-size:.7rem;color:var(--sb)"></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--b)"><span style="font-family:var(--fm);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu)">Custo Total do Rebanho</span><span id="s-custo-total" style="font-family:var(--fn);font-weight:800;font-size:1.6rem;color:var(--rd)">—</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--b)"><span style="font-family:var(--fm);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu)">Custo Total do Rebanho</span><span id="s-custo-total" style="font-family:var(--fn);font-weight:800;font-size:1.6rem;color:var(--tx)">—</span></div>
           </div>
         </div>
       </div>
@@ -882,7 +882,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div class="field"><label>Taxa de Natalidade (%)</label><input type="number" id="param-nat" step="1" value="65" onchange="marcarParametroAlterado()"></div>
         </div>
         <div style="display:flex;gap:12px;margin-top:16px"><button class="btn-sm" onclick="salvarParametrosDoCiclo()">💾 Salvar para este ciclo</button><button class="btn-sm" onclick="resetarParametrosDoCiclo()">↺ Restaurar padrões</button></div>
-        <div id="param-status" style="font-family:var(--fm);font-size:.6rem;color:var(--g);margin-top:8px"></div>
+        <div id="param-status" style="font-family:var(--fm);font-size:.6rem;color:var(--tx);margin-top:8px"></div>
       </div>
     </div>
     <button class="btn-p" style="margin-top:16px" onclick="recalcCiclo()"><span>↻ Recalcular Tudo</span></button>
@@ -986,32 +986,32 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       <p style="font-size:.8rem;color:var(--sb);margin-bottom:14px;line-height:1.6">A GTA (Guia de Trânsito Animal) é o documento oficial que registra o rebanho bovino declarado ao órgão estadual de defesa agropecuária. Cada estado tem seu formato próprio de PDF.</p>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px" class="g2-help">
         <div style="background:var(--c2);border-radius:var(--rs);padding:14px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--g);margin-bottom:4px">MT — INDEA</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--tx);margin-bottom:4px">MT — INDEA</div>
           <div style="font-size:.75rem;color:var(--sb);line-height:1.5">Instituto de Defesa Agropecuária do Estado de Mato Grosso. Tabela com 5 faixas (0–4m, 5–12m, 13–24m, 25–36m, acima 36m) separadas por sexo.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:14px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--g);margin-bottom:4px">RO — IDARON</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--tx);margin-bottom:4px">RO — IDARON</div>
           <div style="font-size:.75rem;color:var(--sb);line-height:1.5">Agência de Defesa Sanitária Agrosilvopastoril do Estado de Rondônia. Formato próprio com categorias Bezerro, Novilho, Garrote, Boi, Vaca.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:14px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--g);margin-bottom:4px">MS — IAGRO</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--tx);margin-bottom:4px">MS — IAGRO</div>
           <div style="font-size:.75rem;color:var(--sb);line-height:1.5">Agência Estadual de Defesa Sanitária Animal e Vegetal de MS. Declaração Anual de Existência de Animais (DAEA).</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:14px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--g);margin-bottom:4px">GO — AGRODEFESA</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--tx);margin-bottom:4px">GO — AGRODEFESA</div>
           <div style="font-size:.75rem;color:var(--sb);line-height:1.5">Agência Goiana de Assistência Técnica, Extensão Rural e Pesquisa Agropecuária. Inventário bovino anual.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:14px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--g);margin-bottom:4px">TO — ADAPEC</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--tx);margin-bottom:4px">TO — ADAPEC</div>
           <div style="font-size:.75rem;color:var(--sb);line-height:1.5">Agência de Defesa Agropecuária do Tocantins. Registro pecuário com faixas equivalentes ao padrão MAPA.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:14px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--g);margin-bottom:4px">PA — ADEPARA</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--tx);margin-bottom:4px">PA — ADEPARA</div>
           <div style="font-size:.75rem;color:var(--sb);line-height:1.5">Agência de Defesa Agropecuária do Pará. Declaração de rebanho bovino com faixas etárias e sexo.</div>
         </div>
       </div>
       <div style="margin-top:10px;background:var(--c2);border-radius:var(--rs);padding:14px;border:1px solid var(--b)">
-        <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--am);margin-bottom:4px">MA — AGED</div>
+        <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--tx);margin-bottom:4px">MA — AGED</div>
         <div style="font-size:.75rem;color:var(--sb);line-height:1.5">Agência Estadual de Defesa Agropecuária do Maranhão. Suporte parcial — verifique o resultado após a leitura.</div>
       </div>
     </div>
@@ -1034,16 +1034,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             </tr>
           </thead>
           <tbody>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:9px 12px;color:var(--am)">Bezerro/a</td><td style="padding:9px 12px;color:var(--sb)">0–4 meses</td><td style="padding:9px 12px;color:var(--sb)">80–120 kg</td><td style="padding:9px 12px;color:var(--sb)">0,2 UA</td><td style="padding:9px 12px;color:var(--sb)">Produto da cria; base do ciclo</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:9px 12px;color:var(--cy)">Bez. Desmamado/a</td><td style="padding:9px 12px;color:var(--sb)">5–12 meses</td><td style="padding:9px 12px;color:var(--sb)">150–220 kg</td><td style="padding:9px 12px;color:var(--sb)">0,4 UA</td><td style="padding:9px 12px;color:var(--sb)">Fase pós-desmame; recria inicial</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:9px 12px;color:var(--g)">Garrote/Novilha</td><td style="padding:9px 12px;color:var(--sb)">13–24 meses</td><td style="padding:9px 12px;color:var(--sb)">250–340 kg</td><td style="padding:9px 12px;color:var(--sb)">0,6 UA</td><td style="padding:9px 12px;color:var(--sb)">Recria plena; novilha entra em reprodução</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:9px 12px;color:var(--g)">Novilho/Novilha 2a</td><td style="padding:9px 12px;color:var(--sb)">25–36 meses</td><td style="padding:9px 12px;color:var(--sb)">340–420 kg</td><td style="padding:9px 12px;color:var(--sb)">0,8 UA</td><td style="padding:9px 12px;color:var(--sb)">Engorda ou cobertura; pré-abate</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:9px 12px;color:var(--g)">Boi Gordo/Vaca</td><td style="padding:9px 12px;color:var(--sb)">> 36 meses</td><td style="padding:9px 12px;color:var(--sb)">450–560 kg</td><td style="padding:9px 12px;color:var(--sb)">1,0 UA</td><td style="padding:9px 12px;color:var(--sb)">Abate; matrizes em reprodução</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:9px 12px;color:var(--tx)">Bezerro/a</td><td style="padding:9px 12px;color:var(--sb)">0–4 meses</td><td style="padding:9px 12px;color:var(--sb)">80–120 kg</td><td style="padding:9px 12px;color:var(--sb)">0,2 UA</td><td style="padding:9px 12px;color:var(--sb)">Produto da cria; base do ciclo</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:9px 12px;color:var(--tx)">Bez. Desmamado/a</td><td style="padding:9px 12px;color:var(--sb)">5–12 meses</td><td style="padding:9px 12px;color:var(--sb)">150–220 kg</td><td style="padding:9px 12px;color:var(--sb)">0,4 UA</td><td style="padding:9px 12px;color:var(--sb)">Fase pós-desmame; recria inicial</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:9px 12px;color:var(--tx)">Garrote/Novilha</td><td style="padding:9px 12px;color:var(--sb)">13–24 meses</td><td style="padding:9px 12px;color:var(--sb)">250–340 kg</td><td style="padding:9px 12px;color:var(--sb)">0,6 UA</td><td style="padding:9px 12px;color:var(--sb)">Recria plena; novilha entra em reprodução</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:9px 12px;color:var(--tx)">Novilho/Novilha 2a</td><td style="padding:9px 12px;color:var(--sb)">25–36 meses</td><td style="padding:9px 12px;color:var(--sb)">340–420 kg</td><td style="padding:9px 12px;color:var(--sb)">0,8 UA</td><td style="padding:9px 12px;color:var(--sb)">Engorda ou cobertura; pré-abate</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:9px 12px;color:var(--tx)">Boi Gordo/Vaca</td><td style="padding:9px 12px;color:var(--sb)">> 36 meses</td><td style="padding:9px 12px;color:var(--sb)">450–560 kg</td><td style="padding:9px 12px;color:var(--sb)">1,0 UA</td><td style="padding:9px 12px;color:var(--sb)">Abate; matrizes em reprodução</td></tr>
           </tbody>
         </table>
       </div>
       <div style="margin-top:12px;padding:12px;background:var(--c2);border-radius:var(--rs);border:1px solid var(--b);font-size:.75rem;color:var(--sb);line-height:1.6">
-        <strong style="color:var(--tx)">UA (Unidade Animal)</strong> — equivalência padrão baseada em bovino adulto de 450 kg. Permite comparar diferentes categorias e calcular a carga animal por hectare. Referência: <span style="color:var(--cy)">Embrapa Gado de Corte</span>.
+        <strong style="color:var(--tx)">UA (Unidade Animal)</strong> — equivalência padrão baseada em bovino adulto de 450 kg. Permite comparar diferentes categorias e calcular a carga animal por hectare. Referência: <span style="color:var(--tx)">Embrapa Gado de Corte</span>.
       </div>
     </div>
   </div>
@@ -1054,24 +1054,24 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="cb">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--am);margin-bottom:8px">🐮 Cria</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">🐮 Cria</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Produção de bezerros do nascimento ao desmame (~7 meses). Foco em matrizes, taxa de natalidade e sobrevivência. <br><strong style="color:var(--tx)">Benchmark GEP 24/25:</strong> R$90,88/cab·mês (média) · R$69,63 (top). <br><strong style="color:var(--tx)">Indicador chave:</strong> Taxa de natalidade (&gt;75% = bom; &gt;85% = excelente).</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--cy);margin-bottom:8px">🐂 Recria</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">🐂 Recria</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Do desmame até o ponto de transferência para engorda ou abate (7–24 meses). Foco em GMD e eficiência de pastagem. <br><strong style="color:var(--tx)">Benchmark GEP 24/25:</strong> R$100,50/cab·mês (média) · R$77,40 (top). <br><strong style="color:var(--tx)">GMD referência:</strong> 0,4–0,6 kg/dia (pasto) · 0,8–1,2 kg/dia (suplementado).</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--g);margin-bottom:8px">🥩 Engorda (Pasto)</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">🥩 Engorda (Pasto)</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Terminação a pasto com suplementação proteico-energética. Ciclo de 90–180 dias até o peso de abate (>450 kg). <br><strong style="color:var(--tx)">Benchmark GEP 24/25:</strong> R$182,60/cab·mês (média) · R$177,30 (top). <br><strong style="color:var(--tx)">Rendimento de carcaça:</strong> 52–56% do peso vivo.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--pu);margin-bottom:8px">🏗️ Confinamento</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">🏗️ Confinamento</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Feedlot com dieta completa (milho + farelo de soja + núcleo mineral). Ração representa ~80% do custo. <br><strong style="color:var(--tx)">Benchmark estimado 24/25:</strong> R$484/cab·mês (média) · R$421 (top). <br><strong style="color:var(--tx)">GMD:</strong> 1,2–1,8 kg/dia · Conversão: 6–8 kg ração/kg ganho.</div>
         </div>
       </div>
       <div style="margin-top:12px;background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.2);border-radius:var(--rs);padding:14px">
-        <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--g);margin-bottom:6px">Ciclo Completo — GEP Araguaia / Inttegra 24/25</div>
+        <div style="font-family:var(--fn);font-weight:700;font-size:.82rem;color:var(--tx);margin-bottom:6px">Ciclo Completo — GEP Araguaia / Inttegra 24/25</div>
         <div style="font-size:.78rem;color:var(--sb);line-height:1.7">Todas as fases integradas na mesma propriedade. É o sistema mais eficiente do ponto de vista de uso da terra e previsibilidade de receita. <strong style="color:var(--tx)">Desembolso médio: R$119,14/cab·mês · Top rentáveis: R$96,08/cab·mês.</strong> A diferença entre média e top (~20%) vem principalmente de eficiência em insumos e escala de administração. Fonte: Terra Desenvolvimento Agropecuário — GEP Araguaia safra 2024/25.</div>
       </div>
     </div>
@@ -1088,25 +1088,25 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <tr style="border-bottom:1px solid var(--b)">
               <th style="text-align:left;padding:8px 12px;font-family:var(--fm);font-size:.54rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu)">Componente</th>
               <th style="text-align:left;padding:8px 12px;font-family:var(--fm);font-size:.54rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu)">O que inclui</th>
-              <th style="text-align:right;padding:8px 12px;font-family:var(--fm);font-size:.54rem;letter-spacing:2px;text-transform:uppercase;color:var(--am)">CC Média</th>
-              <th style="text-align:right;padding:8px 12px;font-family:var(--fm);font-size:.54rem;letter-spacing:2px;text-transform:uppercase;color:var(--g)">CC Top</th>
+              <th style="text-align:right;padding:8px 12px;font-family:var(--fm);font-size:.54rem;letter-spacing:2px;text-transform:uppercase;color:var(--tx)">CC Média</th>
+              <th style="text-align:right;padding:8px 12px;font-family:var(--fm);font-size:.54rem;letter-spacing:2px;text-transform:uppercase;color:var(--tx)">CC Top</th>
             </tr>
           </thead>
           <tbody>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Insumos</td><td style="padding:8px 12px;color:var(--sb)">Sal mineral, vacinas, medicamentos, vermífugos, hormônios, sêmen</td><td style="padding:8px 12px;text-align:right;color:var(--am)">R$44,92</td><td style="padding:8px 12px;text-align:right;color:var(--g)">R$42,18</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Mão de obra</td><td style="padding:8px 12px;color:var(--sb)">Salários, encargos, benefícios de funcionários permanentes</td><td style="padding:8px 12px;text-align:right;color:var(--am)">R$18,10</td><td style="padding:8px 12px;text-align:right;color:var(--g)">R$14,39</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Administração</td><td style="padding:8px 12px;color:var(--sb)">Contador, escritório, telefone, combustível administrativo, pró-labore</td><td style="padding:8px 12px;text-align:right;color:var(--am)">R$8,49</td><td style="padding:8px 12px;text-align:right;color:var(--g)">R$5,89</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Máquinas</td><td style="padding:8px 12px;color:var(--sb)">Custeio e investimento em tratores, implementos, pulverizadores, manutenção</td><td style="padding:8px 12px;text-align:right;color:var(--am)">R$15,23</td><td style="padding:8px 12px;text-align:right;color:var(--g)">R$10,71</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Pastagem</td><td style="padding:8px 12px;color:var(--sb)">Reforma, manutenção, adubação, arrendamento de terra, cercas</td><td style="padding:8px 12px;text-align:right;color:var(--am)">R$14,29</td><td style="padding:8px 12px;text-align:right;color:var(--g)">R$10,79</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Infraestrutura</td><td style="padding:8px 12px;color:var(--sb)">Curral, brete, aguadas, estradas internas, eletrificação, construções</td><td style="padding:8px 12px;text-align:right;color:var(--am)">R$13,69</td><td style="padding:8px 12px;text-align:right;color:var(--g)">R$8,40</td></tr>
-            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Taxas e impostos</td><td style="padding:8px 12px;color:var(--sb)">ITR, FUNRURAL, taxas sanitárias, GTA, SISBOV</td><td style="padding:8px 12px;text-align:right;color:var(--am)">R$3,66</td><td style="padding:8px 12px;text-align:right;color:var(--g)">R$3,10</td></tr>
-            <tr><td style="padding:8px 12px;font-weight:600">Outros</td><td style="padding:8px 12px;color:var(--sb)">Despesas eventuais, viagens, hospedagem, treinamentos</td><td style="padding:8px 12px;text-align:right;color:var(--am)">R$0,76</td><td style="padding:8px 12px;text-align:right;color:var(--g)">R$0,62</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Insumos</td><td style="padding:8px 12px;color:var(--sb)">Sal mineral, vacinas, medicamentos, vermífugos, hormônios, sêmen</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$44,92</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$42,18</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Mão de obra</td><td style="padding:8px 12px;color:var(--sb)">Salários, encargos, benefícios de funcionários permanentes</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$18,10</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$14,39</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Administração</td><td style="padding:8px 12px;color:var(--sb)">Contador, escritório, telefone, combustível administrativo, pró-labore</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$8,49</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$5,89</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Máquinas</td><td style="padding:8px 12px;color:var(--sb)">Custeio e investimento em tratores, implementos, pulverizadores, manutenção</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$15,23</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$10,71</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Pastagem</td><td style="padding:8px 12px;color:var(--sb)">Reforma, manutenção, adubação, arrendamento de terra, cercas</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$14,29</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$10,79</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Infraestrutura</td><td style="padding:8px 12px;color:var(--sb)">Curral, brete, aguadas, estradas internas, eletrificação, construções</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$13,69</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$8,40</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04)"><td style="padding:8px 12px;font-weight:600">Taxas e impostos</td><td style="padding:8px 12px;color:var(--sb)">ITR, FUNRURAL, taxas sanitárias, GTA, SISBOV</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$3,66</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$3,10</td></tr>
+            <tr><td style="padding:8px 12px;font-weight:600">Outros</td><td style="padding:8px 12px;color:var(--sb)">Despesas eventuais, viagens, hospedagem, treinamentos</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$0,76</td><td style="padding:8px 12px;text-align:right;color:var(--tx)">R$0,62</td></tr>
           </tbody>
           <tfoot>
             <tr style="border-top:1px solid var(--b)">
               <td colspan="2" style="padding:10px 12px;font-weight:700;font-family:var(--fm)">TOTAL (Ciclo Completo)</td>
-              <td style="padding:10px 12px;text-align:right;font-weight:700;color:var(--am)">R$119,14</td>
-              <td style="padding:10px 12px;text-align:right;font-weight:700;color:var(--g)">R$96,08</td>
+              <td style="padding:10px 12px;text-align:right;font-weight:700;color:var(--tx)">R$119,14</td>
+              <td style="padding:10px 12px;text-align:right;font-weight:700;color:var(--tx)">R$96,08</td>
             </tr>
           </tfoot>
         </table>
@@ -1125,10 +1125,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div style="font-family:var(--fn);font-weight:700;font-size:.8rem;margin-bottom:6px">Taxa de Desfrute</div>
           <div style="font-size:.75rem;color:var(--sb);line-height:1.6;margin-bottom:8px">Percentual do rebanho comercializado por ano (vendas + mortes / estoque médio). Indica a eficiência produtiva da fazenda.</div>
           <div style="display:flex;flex-direction:column;gap:4px">
-            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--rd)">Crítico</span><span style="color:var(--sb)">&lt; 15%</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--am)">Médio Brasil</span><span style="color:var(--sb)">15–22%</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--cy)">Bom</span><span style="color:var(--sb)">23–30%</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--g)">Excelente</span><span style="color:var(--sb)">&gt; 30%</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--tx)">Crítico</span><span style="color:var(--sb)">&lt; 15%</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--tx)">Médio Brasil</span><span style="color:var(--sb)">15–22%</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--tx)">Bom</span><span style="color:var(--sb)">23–30%</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--tx)">Excelente</span><span style="color:var(--sb)">&gt; 30%</span></div>
           </div>
         </div>
 
@@ -1136,10 +1136,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div style="font-family:var(--fn);font-weight:700;font-size:.8rem;margin-bottom:6px">Taxa de Natalidade</div>
           <div style="font-size:.75rem;color:var(--sb);line-height:1.6;margin-bottom:8px">Bezerros nascidos vivos / vacas expostas à reprodução × 100. Principal indicador do sistema de cria.</div>
           <div style="display:flex;flex-direction:column;gap:4px">
-            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--rd)">Crítico</span><span style="color:var(--sb)">&lt; 50%</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--am)">Médio Brasil</span><span style="color:var(--sb)">55–65%</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--cy)">Bom</span><span style="color:var(--sb)">70–80%</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--g)">Excelente</span><span style="color:var(--sb)">&gt; 85%</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--tx)">Crítico</span><span style="color:var(--sb)">&lt; 50%</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--tx)">Médio Brasil</span><span style="color:var(--sb)">55–65%</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--tx)">Bom</span><span style="color:var(--sb)">70–80%</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--tx)">Excelente</span><span style="color:var(--sb)">&gt; 85%</span></div>
           </div>
         </div>
 
@@ -1157,9 +1157,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div style="font-family:var(--fn);font-weight:700;font-size:.8rem;margin-bottom:6px">Custo da @  (R$/arroba·ano)</div>
           <div style="font-size:.75rem;color:var(--sb);line-height:1.6;margin-bottom:8px">Custo total de desembolso anual dividido pelas arrobas produzidas. Fórmula: <em>desembolso × 12 / peso médio (@)</em>. Compara diretamente com o preço de venda da arroba.</div>
           <div style="display:flex;flex-direction:column;gap:4px">
-            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--g)">Bom</span><span style="color:var(--sb)">Custo &lt; 70% do preço da @</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--am)">Atenção</span><span style="color:var(--sb)">70–90% do preço</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--rd)">Crítico</span><span style="color:var(--sb)">&gt; 90% do preço da @</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--tx)">Bom</span><span style="color:var(--sb)">Custo &lt; 70% do preço da @</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--tx)">Atenção</span><span style="color:var(--sb)">70–90% do preço</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--tx)">Crítico</span><span style="color:var(--sb)">&gt; 90% do preço da @</span></div>
           </div>
         </div>
 
@@ -1177,8 +1177,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div style="font-family:var(--fn);font-weight:700;font-size:.8rem;margin-bottom:6px">Arroba do Boi Gordo</div>
           <div style="font-size:.75rem;color:var(--sb);line-height:1.6;margin-bottom:8px">1 @ = 15 kg de carcaça quente. Um boi gordo de 520 kg produz ~16–17@. Referências de preço: CEPEA/Esalq e Scot Consultoria.</div>
           <div style="display:flex;flex-direction:column;gap:4px">
-            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--sb)">Referência Jul/26</span><span style="color:var(--g)">~R$326/@ (boi gordo)</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--sb)">Vaca gorda</span><span style="color:var(--g)">~R$290–310/@</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--sb)">Referência Jul/26</span><span style="color:var(--tx)">~R$326/@ (boi gordo)</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--sb)">Vaca gorda</span><span style="color:var(--tx)">~R$290–310/@</span></div>
           </div>
         </div>
 
@@ -1193,29 +1193,29 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       <p style="font-size:.8rem;color:var(--sb);margin-bottom:14px;line-height:1.6">A classificação de crédito avalia a capacidade de pagamento do produtor com base no fluxo de caixa da atividade, valor do patrimônio e relação prestação/receita.</p>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px" class="g2-help">
         <div style="background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.25);border-radius:var(--rs);padding:14px;text-align:center">
-          <div style="font-family:var(--fn);font-weight:800;font-size:1.4rem;color:var(--g)">A</div>
+          <div style="font-family:var(--fn);font-weight:800;font-size:1.4rem;color:var(--tx)">A</div>
           <div style="font-size:.7rem;color:var(--sb);margin-top:4px;line-height:1.4">Fluxo positivo · Prestação &lt; 30% da receita · Patrimônio &gt; 200% da dívida</div>
         </div>
         <div style="background:rgba(34,211,238,.07);border:1px solid rgba(34,211,238,.25);border-radius:var(--rs);padding:14px;text-align:center">
-          <div style="font-family:var(--fn);font-weight:800;font-size:1.4rem;color:var(--cy)">B</div>
+          <div style="font-family:var(--fn);font-weight:800;font-size:1.4rem;color:var(--tx)">B</div>
           <div style="font-size:.7rem;color:var(--sb);margin-top:4px;line-height:1.4">Fluxo positivo · Prestação 30–50% · Patrimônio 150–200% da dívida</div>
         </div>
         <div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);border-radius:var(--rs);padding:14px;text-align:center">
-          <div style="font-family:var(--fn);font-weight:800;font-size:1.4rem;color:var(--am)">C</div>
+          <div style="font-family:var(--fn);font-weight:800;font-size:1.4rem;color:var(--tx)">C</div>
           <div style="font-size:.7rem;color:var(--sb);margin-top:4px;line-height:1.4">Fluxo marginal · Prestação 50–70% · Patrimônio 100–150% da dívida</div>
         </div>
         <div style="background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.25);border-radius:var(--rs);padding:14px;text-align:center">
-          <div style="font-family:var(--fn);font-weight:800;font-size:1.4rem;color:var(--rd)">D</div>
+          <div style="font-family:var(--fn);font-weight:800;font-size:1.4rem;color:var(--tx)">D</div>
           <div style="font-size:.7rem;color:var(--sb);margin-top:4px;line-height:1.4">Fluxo negativo ou Prestação &gt;70% · Patrimônio insuficiente para cobertura</div>
         </div>
       </div>
       <div style="background:var(--c2);border-radius:var(--rs);padding:14px;border:1px solid var(--b);margin-bottom:10px">
         <div style="font-family:var(--fn);font-weight:700;font-size:.8rem;margin-bottom:8px">Principais linhas de crédito rural (2025/26)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.75rem">
-          <div><span style="color:var(--g);font-weight:600">PRONAMP</span> <span style="color:var(--sb)">— Médio produtor, taxa ~8% a.a., limite R$1,5M</span></div>
-          <div><span style="color:var(--g);font-weight:600">FCO Rural</span> <span style="color:var(--sb)">— Centro-Oeste, taxa ~6–8% a.a., prazo 8–12 anos</span></div>
-          <div><span style="color:var(--g);font-weight:600">FNO</span> <span style="color:var(--sb)">— Norte/AM/PA/RO/TO, taxa 6–8% a.a.</span></div>
-          <div><span style="color:var(--g);font-weight:600">BCB MCR</span> <span style="color:var(--sb)">— Manual de Crédito Rural; base regulatória de todas as operações</span></div>
+          <div><span style="color:var(--tx);font-weight:600">PRONAMP</span> <span style="color:var(--sb)">— Médio produtor, taxa ~8% a.a., limite R$1,5M</span></div>
+          <div><span style="color:var(--tx);font-weight:600">FCO Rural</span> <span style="color:var(--sb)">— Centro-Oeste, taxa ~6–8% a.a., prazo 8–12 anos</span></div>
+          <div><span style="color:var(--tx);font-weight:600">FNO</span> <span style="color:var(--sb)">— Norte/AM/PA/RO/TO, taxa 6–8% a.a.</span></div>
+          <div><span style="color:var(--tx);font-weight:600">BCB MCR</span> <span style="color:var(--sb)">— Manual de Crédito Rural; base regulatória de todas as operações</span></div>
         </div>
       </div>
       <div style="background:var(--c2);border-radius:var(--rs);padding:14px;border:1px solid var(--b);font-size:.75rem;color:var(--sb);line-height:1.6">
@@ -1229,12 +1229,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="ch"><div class="ct"><div class="cd"></div>Fontes e referências</div></div>
     <div class="cb">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.78rem">
-        <div><span style="color:var(--g);font-weight:600">GEP Araguaia / Inttegra</span><br><span style="color:var(--sb)">Perfil de Desembolso safra 24/25 — benchmarks de custo por modalidade</span></div>
-        <div><span style="color:var(--g);font-weight:600">CEPEA/Esalq–USP</span><br><span style="color:var(--sb)">Indicadores de preço do boi gordo, bezerro e insumos agropecuários</span></div>
-        <div><span style="color:var(--g);font-weight:600">Embrapa Gado de Corte</span><br><span style="color:var(--sb)">Sistema de produção, categorias animal (UA), índices zootécnicos</span></div>
-        <div><span style="color:var(--g);font-weight:600">Scot Consultoria</span><br><span style="color:var(--sb)">Custo do boi gordo, análise de mercado semanal</span></div>
-        <div><span style="color:var(--g);font-weight:600">Banco Central — MCR</span><br><span style="color:var(--sb)">Manual de Crédito Rural — regras operacionais e taxas</span></div>
-        <div><span style="color:var(--g);font-weight:600">ABCZ / ASBIA</span><br><span style="color:var(--sb)">Índices reprodutivos, genética e inseminação artificial</span></div>
+        <div><span style="color:var(--tx);font-weight:600">GEP Araguaia / Inttegra</span><br><span style="color:var(--sb)">Perfil de Desembolso safra 24/25 — benchmarks de custo por modalidade</span></div>
+        <div><span style="color:var(--tx);font-weight:600">CEPEA/Esalq–USP</span><br><span style="color:var(--sb)">Indicadores de preço do boi gordo, bezerro e insumos agropecuários</span></div>
+        <div><span style="color:var(--tx);font-weight:600">Embrapa Gado de Corte</span><br><span style="color:var(--sb)">Sistema de produção, categorias animal (UA), índices zootécnicos</span></div>
+        <div><span style="color:var(--tx);font-weight:600">Scot Consultoria</span><br><span style="color:var(--sb)">Custo do boi gordo, análise de mercado semanal</span></div>
+        <div><span style="color:var(--tx);font-weight:600">Banco Central — MCR</span><br><span style="color:var(--sb)">Manual de Crédito Rural — regras operacionais e taxas</span></div>
+        <div><span style="color:var(--tx);font-weight:600">ABCZ / ASBIA</span><br><span style="color:var(--sb)">Índices reprodutivos, genética e inseminação artificial</span></div>
       </div>
     </div>
   </div>
@@ -1407,7 +1407,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       const inner = document.getElementById('ticker-inner');
       const track = document.getElementById('ticker-track');
       // Constrói itens separados por ponto verde
-      const sep = '<span style="color:var(--g);padding:0 12px;opacity:.6">●</span>';
+      const sep = '<span style="color:var(--tx);padding:0 12px;opacity:.6">●</span>';
       const html = d.noticias.map(n => {
         const safeLink = /^https?:\/\//.test(n.link||'') ? n.link : '#';
         return `<a href="${safeLink}" target="_blank" rel="noopener" style="color:var(--mu);text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--g)'" onmouseout="this.style.color='var(--mu)'">${escapeHtml(n.titulo)}</a>`;
@@ -1751,9 +1751,9 @@ function _renderCategorias(cat, totalBovideos){
     const fk=f.toLowerCase().replace(/ /g,'_'), mk=m.toLowerCase().replace(/ /g,'_');
     return `<tr>
       <td style="padding:5px 10px;color:var(--tx)">${f}</td>
-      <td style="padding:5px 10px;text-align:right;color:var(--cy);font-family:var(--fn)">${fN(cat[fk]||0)}</td>
+      <td style="padding:5px 10px;text-align:right;color:var(--tx);font-family:var(--fn)">${fN(cat[fk]||0)}</td>
       <td style="padding:5px 10px;color:var(--tx)">${m}</td>
-      <td style="padding:5px 10px;text-align:right;color:var(--am);font-family:var(--fn)">${fN(cat[mk]||0)}</td>
+      <td style="padding:5px 10px;text-align:right;color:var(--tx);font-family:var(--fn)">${fN(cat[mk]||0)}</td>
     </tr>`;
   }).join('');
   el.style.display='block';
@@ -2005,7 +2005,7 @@ function mostrarPDFPreview(data){
       <div style="display:flex;flex-direction:column;gap:6px">
         ${combinadas.map(f=>`<div style="display:flex;justify-content:space-between;gap:10px;font-family:var(--fm);font-size:.68rem;padding:6px 10px;background:var(--c2);border-radius:6px;border:1px solid var(--b)">
           <span>${escapeHtml(f.nome||'')}${f.municipio?' · '+escapeHtml(f.municipio):''}</span>
-          <span style="color:var(--g);font-weight:600">${fN(f.total)} animais</span>
+          <span style="color:var(--tx);font-weight:600">${fN(f.total)} animais</span>
         </div>`).join('')}
       </div>
     </div>` : '';
@@ -2036,9 +2036,9 @@ function mostrarPDFPreview(data){
           <div><div style="font-family:var(--fm);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Proprietário</div><div>${escapeHtml(data.proprietario||'—')}</div></div>
         </div>
         <table class="ytbl">
-          <thead><tr><th>Faixa</th><th class="r" style="color:var(--g)">♀ Fêmeas</th><th class="r" style="color:var(--am)">♂ Machos</th><th class="r">Total</th></tr></thead>
+          <thead><tr><th>Faixa</th><th class="r" style="color:var(--tx)">♀ Fêmeas</th><th class="r" style="color:var(--tx)">♂ Machos</th><th class="r">Total</th></tr></thead>
           <tbody>${rows}</tbody>
-          <tfoot><tr><td style="font-family:var(--fn);font-weight:700;letter-spacing:1px;text-transform:uppercase;border-top:1px solid var(--b2);padding:12px 14px">Total</td><td class="g" style="border-top:1px solid var(--b2)">${fN(v.filter((_,i)=>i%2===0).reduce((a,b)=>a+b,0))}</td><td class="a" style="border-top:1px solid var(--b2)">${fN(v.filter((_,i)=>i%2!==0).reduce((a,b)=>a+b,0))}</td><td class="r" style="font-family:var(--fn);font-weight:800;font-size:1rem;color:var(--am);border-top:1px solid var(--b2)">${fN(data.total)}</td></tr>
+          <tfoot><tr><td style="font-family:var(--fn);font-weight:700;letter-spacing:1px;text-transform:uppercase;border-top:1px solid var(--b2);padding:12px 14px">Total</td><td class="g" style="border-top:1px solid var(--b2)">${fN(v.filter((_,i)=>i%2===0).reduce((a,b)=>a+b,0))}</td><td class="a" style="border-top:1px solid var(--b2)">${fN(v.filter((_,i)=>i%2!==0).reduce((a,b)=>a+b,0))}</td><td class="r" style="font-family:var(--fn);font-weight:800;font-size:1rem;color:var(--tx);border-top:1px solid var(--b2)">${fN(data.total)}</td></tr>
           </tfoot>
         </table>
       </div>
@@ -2188,7 +2188,7 @@ function renderGarantia(g){
         </table>
       </div>
       ${g.credito_maximo_garantia > 0 ? `<div style="margin-top:12px;padding:10px 14px;background:var(--c2);border:1px solid var(--b);border-radius:var(--rs);font-size:.78rem;color:var(--sb)">
-        Crédito máximo pela garantia: <strong style="color:var(--g)">${fR(g.credito_maximo_garantia)}</strong>.
+        Crédito máximo pela garantia: <strong style="color:var(--tx)">${fR(g.credito_maximo_garantia)}</strong>.
         O limite pela capacidade de pagamento é outro — vale o menor dos dois.
       </div>` : ''}
       ${renderMemoria(g,'gar')}
@@ -2502,7 +2502,7 @@ function renderParecer(data){
         </div>
         ${capMax > 0 ? `<div style="background:var(--c);padding:13px 14px;text-align:center">
           <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Crédito Máximo</div>
-          <div style="font-family:var(--fn);font-weight:800;font-size:1.15rem;letter-spacing:-.5px;color:var(--g)">${fR(capMax)}</div>
+          <div style="font-family:var(--fn);font-weight:800;font-size:1.15rem;letter-spacing:-.5px;color:var(--tx)">${fR(capMax)}</div>
         </div>` : ''}
       </div>
       <div style="padding:12px 18px;background:var(--c);border-top:1px solid var(--b)">
@@ -2534,7 +2534,7 @@ function renderParecer(data){
         ${gep.fluxo_livre != null ? mr2('(=) Fluxo livre após dívida', fR(gep.fluxo_livre), gep.fluxo_livre>=0?'g':'r', true) : ''}
       </div>
       ${gep.compra_desmama_estimada ? `<div style="margin-top:10px;padding:10px 14px;background:var(--c2);border:1px solid var(--b);border-left:3px solid var(--am);border-radius:var(--rs);font-size:.76rem;color:var(--sb);line-height:1.6">
-        <strong style="color:var(--am)">Suposição — compra de desmama.</strong>
+        <strong style="color:var(--tx)">Suposição — compra de desmama.</strong>
         A coorte de 0–12 meses excede a produção própria em <strong>${gep.compra_desmama_estimada} animais</strong>, que só podem ter sido comprados.
         ${gep.repoe_compra_desmama
           ? `A projeção <strong>mantém</strong> essa compra todo ano (${fR(gep.custo_compra_desmama)} no ano 1), preservando a estrutura do rebanho.`
@@ -2567,7 +2567,7 @@ function renderParecer(data){
           </div>
         </div>
         ${nt.divergencia?`<div class="cb" style="margin-top:6px;border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.06);font-size:.72rem;line-height:1.6">
-          <strong style="color:var(--am)">Lotação alta, produção baixa.</strong> ${nt.divergencia.texto}
+          <strong style="color:var(--tx)">Lotação alta, produção baixa.</strong> ${nt.divergencia.texto}
         </div>`:''}`;
       })()}
       ${(() => {
@@ -2699,8 +2699,8 @@ function renderParecer(data){
             <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:left;color:var(--mu)">Período</th>
             <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">Rebanho</th>
             <th class="col-prod" style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)" title="Arroba produzida ÷ arroba vendida no ano. Abaixo de 100% a fazenda está vendendo estoque.">Produz/vende</th>
-            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--g)">Receita</th>
-            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--rd)">Custo</th>
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--tx)">Receita</th>
+            <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--tx)">Custo</th>
             <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">Resultado</th>
             <th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">Margem</th>
             ${temDscr ? '<th style="font-family:var(--fm);font-size:.6rem;padding:7px 10px;text-align:right;color:var(--mu)">DSCR</th>' : ''}
@@ -2893,11 +2893,11 @@ function renderResult(data){
           ${(()=>{
             const chips=[];
             if(data.origem_decisao==='regra'){
-              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--am);background:rgba(251,191,36,.1)">⚖ regra determinística: ${escapeHtml(data.regra_aplicada||'')}</span>`);
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--tx);background:rgba(251,191,36,.1)">⚖ regra determinística: ${escapeHtml(data.regra_aplicada||'')}</span>`);
             } else if(data.origem_decisao==='composicao_modelo'){
-              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--am);background:rgba(251,191,36,.1)">📋 inferido pela composição da ficha</span>`);
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--tx);background:rgba(251,191,36,.1)">📋 inferido pela composição da ficha</span>`);
             } else {
-              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(74,222,128,.35);color:var(--g);background:rgba(74,222,128,.1)">🧠 decidido pelo modelo ML</span>`);
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(74,222,128,.35);color:var(--tx);background:rgba(74,222,128,.1)">🧠 decidido pelo modelo ML</span>`);
             }
             const at=data.atipicidade;
             if(at && at.nivel!=='tipico'){
@@ -2909,7 +2909,7 @@ function renderResult(data){
           })()}
           ${data.classificacao_limitada ? `
             <div style="margin-top:12px;padding:11px 13px;border:1px solid rgba(251,191,36,.38);border-radius:9px;background:rgba(251,191,36,.08);color:var(--sb);font-size:.76rem;line-height:1.5">
-              <b style="color:var(--am)">Classificação limitada:</b>
+              <b style="color:var(--tx)">Classificação limitada:</b>
               o ciclo inferido é <b>${escapeHtml(TL[data.tipo]||data.tipo||'')}</b>,
               mas faltam ${escapeHtml((data.dados_faltantes||[]).join(', ')||'dados de produção')}.
               Confirme esta informação antes de usar o resultado.
@@ -2933,7 +2933,7 @@ function renderResult(data){
       <div class="sc2"><div class="sc2-l">Cria 0–12m</div><div class="sc2-v cc">${fN(ind.cria)}</div></div>
       <div class="sc2"><div class="sc2-l">Recria 13–24m</div><div class="sc2-v ca">${fN(ind.recria)}</div></div>
       <div class="sc2"><div class="sc2-l">Adultos 25m+</div><div class="sc2-v cp">${fN(ind.adultos)}</div></div>
-      ${_vr>0?`<div class="sc2" style="border-left:1px solid var(--g)22"><div class="sc2-l" style="color:var(--g)">Valor do Rebanho</div><div class="sc2-v" style="color:var(--g)">${fR(_vr)}</div></div>`:''}
+      ${_vr>0?`<div class="sc2" style="border-left:1px solid var(--g)22"><div class="sc2-l" style="color:var(--tx)">Valor do Rebanho</div><div class="sc2-v" style="color:var(--tx)">${fR(_vr)}</div></div>`:''}
     </div>
 
     ${renderConfirmacao(data)}
@@ -3096,7 +3096,7 @@ function renderTransparencia(data){
     </div></div>
   </div>
   <div class="card" style="margin-bottom:24px"><div class="ch"><div class="ct"><div class="cd" style="background:var(--rd)"></div>Riscos e cenários</div></div><div class="cb">
-    ${avisos||'<div style="font-size:.75rem;color:var(--g)">Nenhum alerta zootécnico encontrado com os dados disponíveis.</div>'}
+    ${avisos||'<div style="font-size:.75rem;color:var(--tx)">Nenhum alerta zootécnico encontrado com os dados disponíveis.</div>'}
     ${cen?`<div style="overflow:auto;margin-top:14px"><table class="dt"><thead><tr><th>Cenário</th><th>Receita</th><th>Custo</th><th>Resultado</th><th>DSCR mín.</th><th>Ano crítico</th></tr></thead><tbody>${cen}</tbody></table></div>`:''}
   </div></div>`;
 }
@@ -3128,7 +3128,7 @@ function mfBloco(m,reg){
   const badge=reg?` ${faixaBadge(reg)}`:'';
   return `<div style="padding:12px 0;border-bottom:1px solid var(--b)">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;flex-wrap:wrap;gap:6px">
-      <span style="font-weight:700;font-size:.82rem">${IND_NOME[m.indicador]||m.indicador}: <span style="color:var(--g)">${m.valor}%</span>${badge}</span>
+      <span style="font-weight:700;font-size:.82rem">${IND_NOME[m.indicador]||m.indicador}: <span style="color:var(--tx)">${m.valor}%</span>${badge}</span>
       <span style="font-family:var(--fm);font-size:.62rem;color:var(--mu)">dentro de ${dentro}/${m.fontes.length} fontes</span>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${fonteChips(m.fontes)}</div></div>`;
@@ -3342,7 +3342,7 @@ function renderDesfrute(data){
         </div>
       </div>
 
-      ${acima&&item.alerta?`<div style="margin-top:12px;font-size:.76rem;line-height:1.6;color:var(--am);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:11px 14px">⚠ ${escapeHtml(item.alerta)}</div>`:''}
+      ${acima&&item.alerta?`<div style="margin-top:12px;font-size:.76rem;line-height:1.6;color:var(--tx);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:11px 14px">⚠ ${escapeHtml(item.alerta)}</div>`:''}
     </div>
   </div>`;
 }
@@ -3364,7 +3364,7 @@ function regRow(b){
   if(b.faixa==='acima'){
     const det=`<span style="opacity:.6;font-size:.62rem">(+${b.falta}${b.unidade} sobre o teto)</span>`;
     const linha=mr(b.label, `${b.valor}${b.unidade} · ACIMA DA FAIXA ${det}`, c);
-    return linha + (b.alerta ? `<div style="font-size:.72rem;line-height:1.5;color:var(--am);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:9px 12px;margin:2px 0 10px">⚠ ${escapeHtml(b.alerta)}</div>` : '');
+    return linha + (b.alerta ? `<div style="font-size:.72rem;line-height:1.5;color:var(--tx);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:9px 12px;margin:2px 0 10px">⚠ ${escapeHtml(b.alerta)}</div>` : '');
   }
   const prox=b.proximo_nivel?` <span style="opacity:.5;font-size:.62rem">(faltam ${b.falta}${b.unidade} p/ ${b.proximo_nivel.toUpperCase()})</span>`:'';
   return mr(b.label, `${b.valor}${b.unidade} · ${b.faixa.toUpperCase()}${prox}`, c);
@@ -4070,7 +4070,7 @@ async function carregarHistoricoPareceres(){
       </div>`;
     }).join('');
     window._histPareceres = itens;
-  }catch(e){ el.innerHTML = '<div style="color:var(--rd)">Erro ao carregar histórico.</div>'; }
+  }catch(e){ el.innerHTML = '<div style="color:var(--tx)">Erro ao carregar histórico.</div>'; }
 }
 async function baixarPdfParecer(parecerObj){
   try{
@@ -4151,7 +4151,7 @@ function shapCardHtml(shapData, tipo, col){
         </div></div>
         <div class="cb">
           ${porRegra ? `<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.28);border-radius:8px;padding:12px 14px;margin-bottom:16px">
-            <div style="font-family:var(--fn);font-weight:700;font-size:.7rem;letter-spacing:.5px;color:var(--am);margin-bottom:5px">⚠ DECISÃO POR REGRA DETERMINÍSTICA</div>
+            <div style="font-family:var(--fn);font-weight:700;font-size:.7rem;letter-spacing:.5px;color:var(--tx);margin-bottom:5px">⚠ DECISÃO POR REGRA DETERMINÍSTICA</div>
             <div style="font-size:.76rem;line-height:1.6;color:var(--sb)">${escapeHtml(shapData.aviso||'')}</div>
           </div>` : ''}
           <div style="font-family:var(--fm);font-size:.6rem;letter-spacing:.5px;opacity:.5;margin-bottom:16px;text-transform:uppercase">
@@ -4296,17 +4296,17 @@ async function gerarCodigoWhatsapp(){
     const r = await fetch('/api/whatsapp/codigo', {method:'POST'});
     const d = await lerRespostaJson(r);
     if(!r.ok){
-      caixa.innerHTML = `<span style="font-size:.74rem;color:var(--am)">${escapeHtml(d.erro||'Canal WhatsApp não configurado.')}</span>`;
+      caixa.innerHTML = `<span style="font-size:.74rem;color:var(--tx)">${escapeHtml(d.erro||'Canal WhatsApp não configurado.')}</span>`;
       return;
     }
     caixa.innerHTML = `
       <div style="font-size:.74rem;color:var(--sb);line-height:1.6">
         Envie este código pelo seu WhatsApp para o número da Orkavyn Agro Intelligence:
-        <div style="font-family:var(--fm);font-size:1.6rem;font-weight:800;letter-spacing:6px;color:var(--g);margin:6px 0 2px">${escapeHtml(d.codigo)}</div>
+        <div style="font-family:var(--fm);font-size:1.6rem;font-weight:800;letter-spacing:6px;color:var(--tx);margin:6px 0 2px">${escapeHtml(d.codigo)}</div>
         <span style="color:var(--mu)">Vale por ${d.validade_min} minutos e serve uma vez só.</span>
       </div>`;
   }catch(e){
-    caixa.innerHTML = `<span style="font-size:.74rem;color:var(--am)">Não foi possível gerar o código agora.</span>`;
+    caixa.innerHTML = `<span style="font-size:.74rem;color:var(--tx)">Não foi possível gerar o código agora.</span>`;
   }
 }
 
