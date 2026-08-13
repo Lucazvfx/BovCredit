@@ -500,6 +500,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 <!-- ═══ ENTRADA MANUAL ═══ -->
 <div class="panel active ork-entry-view" id="panel-entrada">
+
+  <div class="analysis-flow ork-panel ork-import-panel">
+    <div class="analysis-flow-copy">
+      <span class="analysis-flow-kicker">Importação de Dados</span>
+      <div class="analysis-flow-title">Análise de Rebanho</div>
+      <p class="analysis-flow-sub">Importe um PDF de GTA/ficha sanitária ou preencha os dados manualmente para classificar o rebanho e emitir o parecer de crédito.</p>
+      <div class="analysis-flow-steps">
+        <span class="analysis-step">1 — Importar</span>
+        <span class="analysis-step">2 — Classificar</span>
+        <span class="analysis-step">3 — Parecer</span>
+      </div>
+    </div>
+    <div class="analysis-flow-cta">
+      <button class="ork-action" onclick="document.getElementById('pdf-inp-main').click()">📄 Ler PDF</button>
+    </div>
+  </div>
+
   <div id="pdf-status-main" class="ork-state ork-import-status" role="status" aria-live="polite" aria-atomic="true" style="display:none"></div>
 
   <div class="ptitle">Inserir dados do <em>rebanho</em></div>

@@ -50,6 +50,10 @@ bind = f"0.0.0.0:{os.environ.get('PORT', '8080')}"
 #
 # SHAP JÁ ESTÁ FORA DO CAMINHO CRÍTICO
 #
+# Tentativa descartada: cachear os TreeExplainer entre requisições PIORA o
+# perfil de memória (459 → 550 MB). Eles não vazam — são liberados ao fim de
+# cada chamada. Manter o cache aumenta a linha de base sem reduzir o pico.
+#
 # /api/classificar não chama SHAP: devolve shap_pendente=true e o frontend
 # busca /api/shap em seguida. O pico de 160 MB do SHAP não coincide mais com
 # a classificação — a memória volta antes da próxima requisição pesada.
