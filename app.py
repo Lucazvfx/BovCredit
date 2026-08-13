@@ -151,19 +151,23 @@ app.config['REMEMBER_COOKIE_SECURE'] = _https_producao
 # ── Security headers via after_request ───────────────────────────────────────
 @app.after_request
 def _set_security_headers(response):
-    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    response.headers['X-Frame-Options'] = 'DENY'
     response.headers.setdefault('X-Content-Type-Options', 'nosniff')
     response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.setdefault(
+        'Permissions-Policy',
+        'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
+    )
     response.headers.setdefault(
         'Content-Security-Policy',
         "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' "
         "https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
         "script-src 'self' 'unsafe-inline'; connect-src 'self'; "
-        "frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+        "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     )
     if _https_producao:
         response.headers.setdefault('Strict-Transport-Security',
-                                    'max-age=31536000; includeSubDomains')
+                                    'max-age=63072000; includeSubDomains; preload')
     return response
 
 _secret_key = os.environ.get('SECRET_KEY')
@@ -195,6 +199,21 @@ def _verificar_csrf():
                  or request.headers.get('X-CSRF-Token', ''))
         if not token or not _secrets.compare_digest(token, esperado or ''):
             abort(403)
+
+# ── Validação de tipo de arquivo por magic bytes ─────────────────────────────
+_PDF_MAGIC  = b'%PDF'
+_XLSX_MAGIC = b'PK\x03\x04'   # XLSX/XLSM são ZIPs
+
+def _validar_pdf(f) -> bool:
+    """Lê os 4 primeiros bytes do FileStorage e rebobina o stream."""
+    header = f.stream.read(4)
+    f.stream.seek(0)
+    return header == _PDF_MAGIC
+
+def _validar_xlsx(f) -> bool:
+    header = f.stream.read(4)
+    f.stream.seek(0)
+    return header == _XLSX_MAGIC
 
 # ── Erros: resposta útil em vez de página HTML muda ──────────────────────────
 # O frontend consome JSON. Quando uma rota /api quebrava, o Flask devolvia a
@@ -479,6 +498,7 @@ def redefinir_senha():
 
 
 @app.route('/api/redefinir-senha', methods=['POST'])
+@limiter.limit("5 per hour")
 def api_redefinir_senha():
     dados = request.get_json(force=True, silent=True) or {}
     token = (dados.get('token') or '').strip()
@@ -1089,6 +1109,7 @@ def _erro_validacao_classificar():
 
 @app.route('/api/classificar', methods=['POST'])
 @login_required
+@limiter.limit("60 per hour; 10 per minute")
 def api_classificar():
     data = request.json
     v = data.get('valores', [])
@@ -2829,7 +2850,7 @@ def api_ler_pdf():
     if 'pdf' not in request.files:
         return jsonify({'erro': 'Nenhum arquivo enviado'}), 400
     f = request.files['pdf']
-    if not f.filename.lower().endswith('.pdf'):
+    if not f.filename.lower().endswith('.pdf') or not _validar_pdf(f):
         return jsonify({'erro': 'Apenas arquivos PDF são aceitos'}), 400
 
     # delete=False: necessário no Windows (NamedTemporaryFile bloqueia o arquivo
@@ -2954,7 +2975,7 @@ def api_importar_fichas():
     fichas = 0
 
     for arquivo in arquivos:
-        if not arquivo.filename.lower().endswith('.pdf'):
+        if not arquivo.filename.lower().endswith('.pdf') or not _validar_pdf(arquivo):
             erros.append(f'{arquivo.filename}: apenas arquivos PDF são aceitos.')
             continue
         tmp_path = None
@@ -3083,7 +3104,7 @@ def api_importar_ficha_excel():
     if 'arquivo' not in request.files:
         return jsonify({'erro': 'Envie o arquivo no campo "arquivo"'}), 400
     f = request.files['arquivo']
-    if not f.filename.lower().endswith(('.xlsx', '.xlsm')):
+    if not f.filename.lower().endswith(('.xlsx', '.xlsm')) or not _validar_xlsx(f):
         return jsonify({'erro': 'Apenas .xlsx ou .xlsm são aceitos'}), 400
 
     try:
@@ -3115,7 +3136,7 @@ def api_ler_planilha():
     if 'planilha' not in request.files:
         return jsonify({'erro': 'Nenhum arquivo enviado'}), 400
     f = request.files['planilha']
-    if not f.filename.lower().endswith(('.xlsx', '.xlsm')):
+    if not f.filename.lower().endswith(('.xlsx', '.xlsm')) or not _validar_xlsx(f):
         return jsonify({'erro': 'Apenas planilhas .xlsx são aceitas'}), 400
 
     tmp = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
