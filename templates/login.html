@@ -1,66 +1,67 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Orkavyn Agro Intelligence - Login</title>
-    <style>
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-        body { font-family: sans-serif; background: #f4f7f6; display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 20px 16px; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
-        .login-card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        h2 { color: #2c3e50; margin-bottom: 1.5rem; text-align: center; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: 0.5rem; color: #666; font-size: .9rem; }
-        input { width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; }
-        button { width: 100%; padding: 0.875rem; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; min-height: 48px; }
-        button:hover { background: #219150; }
-        .links { margin-top: 1rem; text-align: center; font-size: 0.9rem; }
-        .links a { color: #2980b9; text-decoration: none; }
-        .flash { padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-    </style>
-    <link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-fields.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Orkavyn Agro Intelligence — Entrar</title>
+  <link rel="icon" type="image/png" href="/static/favicon-cow.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Barlow:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-fields.css') }}">
 </head>
 <body class="ork-surface ork-auth-page">
+
   <main class="ork-auth-layout">
+
     <aside class="ork-auth-intro">
-      <a class="ork-brand" href="/"><span class="ork-brand__name">Orkavyn</span><span class="ork-brand__descriptor">Agro Intelligence</span></a>
-      <p class="ork-kicker">Livestock Intelligence</p>
-      <h1>Dados do campo. Decisões melhores.</h1>
+      <a class="ork-brand" href="/" aria-label="Orkavyn Agro Intelligence — início">
+        <img src="/static/img/logo-dark.svg" alt="Orkavyn">
+      </a>
+      <p class="ork-kicker">Livestock Intelligence Engine</p>
+      <h1>Dados do campo.<br>Decisões melhores.</h1>
       <p>Leitura de rebanho, projeção produtiva e capacidade de pagamento em uma análise explicável.</p>
     </aside>
-    <section class="login-card ork-auth-card">
-        <h2>Orkavyn Agro Intelligence — Entrar</h2>
-        {% with messages = get_flashed_messages() %}
-          {% if messages %}
-            {% for message in messages %}
-              <div class="flash">{{ message }}</div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
-        {% if erro %}
-          <div class="flash">{{ erro }}</div>
+
+    <section class="ork-auth-card" aria-labelledby="login-heading">
+      <h2 id="login-heading">Entrar</h2>
+      <p class="sub" style="margin-bottom:28px;font-size:.9rem">Acesso à plataforma Orkavyn</p>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          {% for message in messages %}
+            <div class="flash" role="alert">{{ message }}</div>
+          {% endfor %}
         {% endif %}
-                <form method="POST">
-                    <!-- CSRF token not injected: app does not require Flask-WTF by default -->
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" name="email" required autofocus>
-            </div>
-            <div class="form-group">
-                <label>Senha</label>
-                <input type="password" name="senha" required>
-            </div>
-            <button type="submit">Entrar</button>
-        </form>
-        <div class="links">
-            <a href="{{ url_for('esqueci_senha') }}" style="color:#e67e22">Esqueceu a senha?</a>
+      {% endwith %}
+      {% if erro %}
+        <div class="flash" role="alert">{{ erro }}</div>
+      {% endif %}
+
+      <form method="POST" novalidate>
+        <div class="field">
+          <label for="f-email">E-mail</label>
+          <input type="email" id="f-email" name="email" required autofocus autocomplete="email" placeholder="seu@email.com.br">
         </div>
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #eee;text-align:center;font-size:.75rem;color:#aaa">
-            Ao entrar, você concorda com os
-            <a href="/termos" target="_blank" style="color:#aaa">Termos de Uso</a> e a
-            <a href="/privacidade" target="_blank" style="color:#aaa">Política de Privacidade</a>.
+        <div class="field">
+          <label for="f-senha">Senha</label>
+          <input type="password" id="f-senha" name="senha" required autocomplete="current-password" placeholder="••••••••">
         </div>
+        <button type="submit" style="margin-top:8px;cursor:pointer;letter-spacing:.04em">Entrar</button>
+      </form>
+
+      <div class="links" style="margin-top:18px;font-size:.82rem">
+        <a href="{{ url_for('esqueci_senha') }}">Esqueceu a senha?</a>
+      </div>
+
+      <p style="margin-top:28px;padding-top:20px;border-top:1px solid var(--ork-line);font-size:.72rem;color:var(--ork-copy);line-height:1.6">
+        Ao entrar, você concorda com os
+        <a href="/termos" target="_blank" rel="noopener">Termos de Uso</a> e a
+        <a href="/privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.
+      </p>
     </section>
+
   </main>
+
 </body>
 </html>

@@ -3,108 +3,101 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Nova Senha</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,sans-serif;background:#f4f7f6;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
-    .card{background:white;padding:2rem;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.08);width:100%;max-width:400px}
-    h2{color:#2c3e50;margin-bottom:.5rem;font-size:1.4rem}
-    .sub{color:#777;font-size:.9rem;margin-bottom:1.5rem;line-height:1.5}
-    label{display:block;font-size:.85rem;color:#555;margin-bottom:.3rem;font-weight:600}
-    input{width:100%;padding:.65rem .8rem;border:1px solid #ddd;border-radius:6px;font-size:.95rem;outline:none;transition:border-color .2s}
-    input:focus{border-color:#2980b9}
-    .field{margin-bottom:1rem}
-    .btn{width:100%;padding:.75rem;background:#27ae60;color:white;border:none;border-radius:6px;font-size:1rem;font-weight:600;cursor:pointer;margin-top:.5rem;transition:background .2s}
-    .btn:hover{background:#219a52}
-    .btn:disabled{background:#aaa;cursor:not-allowed}
-    .msg{margin-top:1rem;padding:.7rem .9rem;border-radius:6px;font-size:.88rem;line-height:1.5}
-    .msg.ok{background:#e8f5e9;color:#2e7d32;border-left:3px solid #4caf50}
-    .msg.err{background:#fdecea;color:#c0392b;border-left:3px solid #e74c3c}
-    .back{display:block;text-align:center;margin-top:1.25rem;color:#2980b9;text-decoration:none;font-size:.9rem}
-    .back:hover{text-decoration:underline}
-    .hint{font-size:.8rem;color:#999;margin-top:.3rem}
-  </style>
+  <title>Orkavyn — Nova senha</title>
+  <link rel="icon" type="image/png" href="/static/favicon-cow.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Barlow:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-fields.css') }}">
 </head>
 <body class="ork-surface ork-auth-page">
-<main class="ork-auth-layout">
-  <aside class="ork-auth-intro">
-    <a class="ork-brand" href="/"><span class="ork-brand__name">Orkavyn</span><span class="ork-brand__descriptor">Agro Intelligence</span></a>
-    <p class="ork-kicker">Nova credencial</p>
-    <h1>Proteja a continuidade da análise.</h1>
-    <p>Defina uma nova senha para recuperar o acesso ao ambiente de inteligência pecuária.</p>
-  </aside>
-<section class="card ork-auth-card">
-  <h2>Criar nova senha</h2>
-  <p class="sub">Escolha uma senha forte para sua conta.</p>
 
-  <form id="form" onsubmit="redefinir(event)">
-    <input type="hidden" id="token" value="{{ token }}">
-    <div class="field">
-      <label for="nova">Nova senha</label>
-      <input type="password" id="nova" name="nova_senha" placeholder="Mínimo 8 caracteres" required minlength="8" autofocus>
-      <p class="hint">Mínimo 8 caracteres</p>
-    </div>
-    <div class="field">
-      <label for="confirma">Confirmar senha</label>
-      <input type="password" id="confirma" name="confirmar_senha" placeholder="Repita a senha" required minlength="8">
-    </div>
-    <button class="btn" id="btn" type="submit">Salvar nova senha</button>
-  </form>
+  <main class="ork-auth-layout">
 
-  <div id="msg" class="msg" style="display:none"></div>
-  <a class="back" href="{{ url_for('login') }}">← Voltar ao login</a>
-</section>
-</main>
+    <aside class="ork-auth-intro">
+      <a class="ork-brand" href="/" aria-label="Orkavyn Agro Intelligence — início">
+        <img src="/static/img/logo-dark.svg" alt="Orkavyn">
+      </a>
+      <p class="ork-kicker">Nova credencial</p>
+      <h1>Proteja a continuidade da análise.</h1>
+      <p>Defina uma nova senha para recuperar o acesso ao ambiente de inteligência pecuária.</p>
+    </aside>
 
-<script>
-async function redefinir(e){
-  e.preventDefault();
-  const btn = document.getElementById('btn');
-  const msgEl = document.getElementById('msg');
-  const nova = document.getElementById('nova').value;
-  const confirma = document.getElementById('confirma').value;
-  const token = document.getElementById('token').value;
+    <section class="ork-auth-card" aria-labelledby="nova-heading">
+      <h2 id="nova-heading">Criar nova senha</h2>
+      <p class="sub" style="margin-bottom:28px;font-size:.9rem">Escolha uma senha forte para sua conta.</p>
 
-  if(nova !== confirma){
-    msgEl.className = 'msg err';
-    msgEl.textContent = 'As senhas não coincidem.';
-    msgEl.style.display = 'block';
-    return;
-  }
+      <form id="form" novalidate>
+        <input type="hidden" id="token" value="{{ token }}">
+        <div class="field">
+          <label for="f-nova">Nova senha</label>
+          <input type="password" id="f-nova" name="nova_senha" required minlength="8" autofocus autocomplete="new-password" placeholder="Mínimo 8 caracteres">
+        </div>
+        <div class="field">
+          <label for="f-confirma">Confirmar senha</label>
+          <input type="password" id="f-confirma" name="confirmar_senha" required minlength="8" autocomplete="new-password" placeholder="Repita a senha">
+        </div>
+        <button id="btn" type="submit" style="margin-top:8px;cursor:pointer;letter-spacing:.04em">Salvar nova senha</button>
+      </form>
 
-  btn.disabled = true;
-  btn.textContent = 'Salvando...';
-  msgEl.style.display = 'none';
+      <div id="msg" class="msg" style="display:none" role="status"></div>
 
-  try{
-    const res = await fetch('/api/redefinir-senha', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({token, nova_senha: nova, confirmar_senha: confirma})
+      <div class="links" style="margin-top:18px;font-size:.82rem">
+        <a href="{{ url_for('login') }}">← Voltar ao login</a>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    document.getElementById('form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn');
+      const msgEl = document.getElementById('msg');
+      const nova = document.getElementById('f-nova').value;
+      const confirma = document.getElementById('f-confirma').value;
+      const token = document.getElementById('token').value;
+
+      if (nova !== confirma) {
+        msgEl.className = 'msg err';
+        msgEl.textContent = 'As senhas não coincidem.';
+        msgEl.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Salvando…';
+      msgEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/redefinir-senha', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, nova_senha: nova, confirmar_senha: confirma })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          document.getElementById('form').style.display = 'none';
+          msgEl.className = 'msg ok';
+          msgEl.textContent = data.mensagem + ' Redirecionando…';
+          msgEl.style.display = 'block';
+          setTimeout(() => { window.location.href = '/login'; }, 2000);
+        } else {
+          msgEl.className = 'msg err';
+          msgEl.textContent = data.erro || 'Erro ao salvar. Tente novamente.';
+          msgEl.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Salvar nova senha';
+        }
+      } catch (err) {
+        msgEl.className = 'msg err';
+        msgEl.textContent = 'Erro de conexão. Tente novamente.';
+        msgEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Salvar nova senha';
+      }
     });
-    const data = await res.json();
-    if(data.ok){
-      document.getElementById('form').style.display = 'none';
-      msgEl.className = 'msg ok';
-      msgEl.textContent = data.mensagem + ' Redirecionando...';
-      msgEl.style.display = 'block';
-      setTimeout(()=>{ window.location.href = '/login'; }, 2000);
-    } else {
-      msgEl.className = 'msg err';
-      msgEl.textContent = data.erro || 'Erro ao salvar. Tente novamente.';
-      msgEl.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = 'Salvar nova senha';
-    }
-  }catch(err){
-    msgEl.className = 'msg err';
-    msgEl.textContent = 'Erro de conexão. Tente novamente.';
-    msgEl.style.display = 'block';
-    btn.disabled = false;
-    btn.textContent = 'Salvar nova senha';
-  }
-}
-</script>
+  </script>
+
 </body>
 </html>
