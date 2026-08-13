@@ -2317,6 +2317,120 @@ function renderProveniencia(pv){
   </div>`;
 }
 
+// ================== IMPEDITIVOS ==================
+function renderDadosImpeditivos(data){
+  const imp = data.dados_impeditivos;
+  if(!imp) return '';
+  const {status, score_completude, impeditivos=[], alertas=[], ok=[], bloqueio_aprovacao, mensagem} = imp;
+  const corStatus = bloqueio_aprovacao ? 'var(--ork-danger)' : alertas.length ? 'var(--ork-warning)' : 'var(--ork-success)';
+  const bgStatus  = bloqueio_aprovacao ? 'rgba(155,79,66,.09)' : alertas.length ? 'rgba(168,118,49,.09)' : 'rgba(63,104,73,.09)';
+  const iconStatus = bloqueio_aprovacao ? '🔴' : alertas.length ? '🟡' : '✅';
+  const pct = score_completude || 0;
+  const circ = 2*Math.PI*18; // raio 18
+  const dash = (pct/100)*circ;
+  const scoreColor = pct<40 ? 'var(--ork-danger)' : pct<70 ? 'var(--ork-warning)' : 'var(--ork-success)';
+
+  const item = (x, cor, bg) => `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 9px;border-radius:7px;background:${bg};margin-bottom:4px">
+    <span style="color:${cor};flex-shrink:0;font-size:.75rem;line-height:1.6">${x.nivel==='impeditivo'?'⛔':x.nivel==='alerta'?'⚠':'✓'}</span>
+    <div>
+      <div style="font-size:.72rem;font-weight:700;color:${cor}">${x.descricao}</div>
+      ${x.nivel!=='ok'?`<div style="font-size:.63rem;color:var(--ork-copy);margin-top:1px">${x.nivel==='impeditivo'?'Impeditivo — bloqueia aprovação':'Pendente — necessário para parecer conclusivo'}</div>`:''}
+    </div></div>`;
+
+  const col3 = (titulo, cor, bg, lista) => lista.length ? `
+    <div>
+      <div style="font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:${cor};margin-bottom:8px">${titulo} (${lista.length})</div>
+      ${lista.map(x=>item(x,cor,bg)).join('')}
+    </div>` : '';
+
+  return `<div class="card" style="margin-bottom:16px;border-left:3px solid ${corStatus}">
+    <div class="ch">
+      <div class="ct"><div class="cd" style="background:${corStatus}"></div>Completude da Análise</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <svg width="44" height="44" viewBox="0 0 44 44" style="flex-shrink:0">
+          <circle cx="22" cy="22" r="18" fill="none" stroke="var(--ork-line)" stroke-width="4"/>
+          <circle cx="22" cy="22" r="18" fill="none" stroke="${scoreColor}" stroke-width="4"
+            stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}"
+            stroke-dashoffset="${(circ/4).toFixed(1)}" stroke-linecap="round"
+            style="transition:stroke-dasharray .6s ease"/>
+          <text x="22" y="26" text-anchor="middle" fill="${scoreColor}"
+            font-family="var(--ork-font-mono)" font-size="9" font-weight="700">${pct}%</text>
+        </svg>
+        <div style="font-size:.75rem;line-height:1.4">
+          <div style="font-weight:700;color:${corStatus}">${iconStatus} ${status==='completo'?'Completo':status==='parcial'?'Parcial':'Incompleto'}</div>
+          <div style="color:var(--ork-copy);font-size:.68rem">${mensagem}</div>
+        </div>
+      </div>
+    </div>
+    <div class="cb" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+      ${col3('Impeditivos','var(--ork-danger)','rgba(155,79,66,.06)',impeditivos)}
+      ${col3('Pendentes','var(--ork-warning)','rgba(168,118,49,.06)',alertas)}
+      ${col3('OK','var(--ork-success)','rgba(63,104,73,.05)',ok)}
+    </div>
+  </div>`;
+}
+
+// ================== RETENÇÃO ==================
+function renderRetencao(data){
+  const ret = data.analise_retencao;
+  if(!ret) return '';
+  const {limite_zootecnico:lz, limite_pastagem:lp, limite_financeiro:lf, retencao_prudente, fator_limitante, fases, alertas=[]} = ret;
+
+  const NOMES = {zootecnico:'Limite Zootécnico',pastagem:'Limite de Pastagem',financeiro:'Limite Financeiro'};
+  const CORES = {zootecnico:'var(--ork-moss)',pastagem:'#4B91A8',financeiro:'var(--ork-warning)'};
+
+  const limites = [
+    {id:'zootecnico', val:lz?.bezerras_a_reter, detail:`${lz?.reposicao_necessaria??'—'} matrizes a repor · aproveitamento ${lz?.aproveitamento_pct??90}%`},
+    {id:'pastagem',   val:lp?.animais_maximos,  detail: lp?.imperativo || `UA disponível: ${lp?.ua_disponivel??'—'} · área: ${lp?.area_ha??'—'} ha`},
+    {id:'financeiro', val:lf?.animais_maximos,  detail: lf?.imperativo || `Orçamento: ${lf?.orcamento_retencao!=null?fR(lf.orcamento_retencao):'—'} · ${fR(lf?.impacto_por_animal??0)}/animal`},
+  ];
+  const maxVal = Math.max(...limites.map(l=>l.val||0), retencao_prudente||0, 1);
+
+  const gauge = ({id, val, detail}) => {
+    const cor = CORES[id];
+    const pct = val!=null ? Math.min(val/maxVal*100,100) : 0;
+    const isLim = id===fator_limitante;
+    return `<div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+        <span style="font-size:.68rem;font-weight:${isLim?'800':'600'};color:${isLim?cor:'var(--ork-ink)'}">${NOMES[id]}${isLim?' ← fator limitante':''}</span>
+        <span style="font-family:var(--ork-font-mono);font-size:.82rem;font-weight:700;color:${val!=null?cor:'var(--ork-copy)'}">${val!=null?val+'&thinsp;cab':'—'}</span>
+      </div>
+      <div style="height:10px;border-radius:5px;background:var(--ork-line);overflow:hidden;position:relative">
+        ${val!=null?`<div style="height:100%;width:${pct}%;background:${cor};border-radius:5px;transition:width .5s ease"></div>`:'<div style="height:100%;width:100%;background:repeating-linear-gradient(90deg,var(--ork-line) 0,var(--ork-line) 4px,transparent 4px,transparent 8px)"></div>'}
+        ${retencao_prudente!=null?`<div style="position:absolute;top:-2px;bottom:-2px;left:${Math.min(retencao_prudente/maxVal*100,100)}%;width:2px;background:var(--ork-forest);border-radius:1px" title="Prudente: ${retencao_prudente} cab."></div>`:''}
+      </div>
+      <div style="font-size:.62rem;color:var(--ork-copy);margin-top:4px;line-height:1.4">${detail}</div>
+    </div>`;
+  };
+
+  const fasesHtml = fases && Object.keys(fases).length ? `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;padding:11px 13px;border-radius:9px;background:rgba(96,108,56,.07);margin-top:12px">
+      ${fases.retencao_bezerras_pct!=null?`<div style="text-align:center"><div style="font-family:var(--ork-font-mono);font-size:1.1rem;font-weight:700;color:var(--ork-moss)">${fases.retencao_bezerras_pct}%</div><div style="font-size:.62rem;color:var(--ork-copy)">das bezerras</div></div>`:''}
+      ${fases.retencao_total_desmama_pct!=null?`<div style="text-align:center"><div style="font-family:var(--ork-font-mono);font-size:1.1rem;font-weight:700;color:var(--ork-moss)">${fases.retencao_total_desmama_pct}%</div><div style="font-size:.62rem;color:var(--ork-copy)">do total desmamado</div></div>`:''}
+      ${fases.reposicao_equivalente_matrizes_pct!=null?`<div style="text-align:center"><div style="font-family:var(--ork-font-mono);font-size:1.1rem;font-weight:700;color:var(--ork-moss)">${fases.reposicao_equivalente_matrizes_pct}%</div><div style="font-size:.62rem;color:var(--ork-copy)">de reposição das matrizes</div></div>`:''}
+    </div>` : '';
+
+  const alertsHtml = alertas.map(a=>`<div style="padding:8px 11px;border-radius:7px;background:${a.nivel==='impeditivo'?'rgba(155,79,66,.08)':'rgba(168,118,49,.08)'};border:1px solid ${a.nivel==='impeditivo'?'rgba(155,79,66,.2)':'rgba(168,118,49,.2)'};font-size:.72rem;color:${a.nivel==='impeditivo'?'var(--ork-danger)':'var(--ork-warning)'};margin-top:8px">
+    ${a.nivel==='impeditivo'?'⛔':'⚠'} ${a.mensagem}</div>`).join('');
+
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="ch">
+      <div class="ct"><div class="cd" style="background:var(--ork-moss)"></div>Análise de Retenção</div>
+      ${retencao_prudente!=null?`<div style="font-family:var(--ork-font-mono);font-size:.75rem;font-weight:700;color:var(--ork-forest)">prudente: ${retencao_prudente}&thinsp;cab · ${fator_limitante?NOMES[fator_limitante].toLowerCase():''}</div>`:''}
+    </div>
+    <div class="cb">
+      <div style="display:grid;gap:18px">
+        ${limites.map(gauge).join('')}
+      </div>
+      ${fasesHtml}
+      ${alertsHtml}
+      <div style="margin-top:10px;font-size:.63rem;color:var(--ork-copy);line-height:1.5">
+        A retenção prudente é o menor entre os três limites. Informe área de pastagem, fluxo de caixa e preço de venda para ativar todos os limites.
+      </div>
+    </div>
+  </div>`;
+}
+
 // ================== RENDER RESULTADO ==================
 function renderAnalisesCredito(data, parecer){
   const a=(parecer&&parecer.analises_credito)||data.analises_credito;
@@ -2330,7 +2444,16 @@ function renderAnalisesCredito(data, parecer){
   return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:#60A5FA"></div>Três dimensões da análise</div><div style="font-size:.72rem;color:${ratingColor};font-weight:800">RATING ${rating.faixa||'—'} · ${rating.score??'—'}/100</div></div><div class="cb analises-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
     ${Object.entries(labels).map(([k,l])=>{const x=a[k]||{},s=x.status||'nao_avaliada',co=color(s);return `<div style="border:1px solid ${co}55;border-radius:10px;padding:14px;background:${co}0D"><div style="font-size:.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">${l}</div><div style="font-size:1.05rem;font-weight:800;color:${co};margin:7px 0">${statusLabel[s]||s}</div><div style="font-size:.75rem;color:var(--sb);line-height:1.45">${k==='capacidade_pagamento'?(x.dscr!=null?'DSCR: '+x.dscr:'Sem crédito informado'):k==='risco_credito'?`Confiança: ${x.confianca_classificacao!=null?(x.confianca_classificacao*100).toFixed(0)+'%':'—'} · Consistência: ${x.score_consistencia??'—'}`:`LTV: ${x.ltv!=null?x.ltv+'%':'—'} · Execução: ${x.valor_execucao!=null?fR(x.valor_execucao):'—'}`}</div></div>`}).join('')}
   </div><div style="padding:0 14px 14px;color:var(--mu);font-size:.7rem">A análise é uma pré-avaliação de apoio à consultoria. Confirme documentos, pesos, custos, dívidas e movimentações antes da decisão final.</div>
-  ${docs.pendentes?.length?`<div style="margin:0 14px 14px;padding:11px 13px;border:1px solid rgba(251,191,36,.35);border-radius:9px;background:rgba(251,191,36,.06);font-size:.72rem;color:var(--sb)"><strong style="color:#FBBF24">Documentos pendentes</strong><br>${docs.pendentes.map(d=>'• '+d.descricao).join('<br>')}</div>`:''}</div>`;
+  ${(()=>{
+    const imp=docs.impeditivos||[],alt=docs.alertas||[],pen=docs.pendentes||[];
+    const todos=[...imp,...alt,...pen];
+    if(!todos.length) return '';
+    const bloqueio=docs.bloqueio_aprovacao||imp.length>0;
+    const cor=bloqueio?'rgba(155,79,66,':'rgba(168,118,49,';
+    const corText=bloqueio?'#E57373':'#FBBF24';
+    const titulo=bloqueio?'⛔ Dados impeditivos ausentes':'⚠ Documentos pendentes';
+    return `<div style="margin:0 14px 14px;padding:11px 13px;border:1px solid ${cor}.3);border-radius:9px;background:${cor}.06);font-size:.72rem;color:var(--sb)"><strong style="color:${corText}">${titulo}</strong><br>${todos.map(d=>'• '+d.descricao).join('<br>')}</div>`;
+  })()}</div>`;
 }
 function renderFluxoMensal(data, parecer){
   const f=(parecer&&parecer.fluxo_mensal)||data.fluxo_mensal;
@@ -2673,7 +2796,7 @@ function renderParecer(data){
   return `<div class="card" style="margin-bottom:24px">
     <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Parecer de Crédito</div>
       <button class="btn-sm" onclick="baixarPdfParecer(window._lastParecer)">⬇ Baixar PDF</button></div>
-    <div class="cb" style="display:grid;gap:0">${renderAnalisesCredito(data,p)}${renderFluxoMensal(data,p)}${renderPraca(p.precos_regional)}${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
+    <div class="cb" style="display:grid;gap:0">${renderAnalisesCredito(data,p)}${renderRetencao(data)}${renderFluxoMensal(data,p)}${renderPraca(p.precos_regional)}${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
   </div>
   ${renderGarantia(p.garantia)}
   ${renderEndividamento(p.endividamento)}
@@ -2765,6 +2888,7 @@ function renderResult(data){
 
   document.getElementById('result-wrap').innerHTML=`
     ${renderDecisionSummary(data)}
+    ${renderDadosImpeditivos(data)}
     <div class="rhero" style="border-color:${col}40;background:${col}08">
       <div class="rhero-grid">
         <div>
