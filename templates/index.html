@@ -1259,10 +1259,10 @@ window.fetch = (input, init={}) => {
 };
 // ================== VARIAVEIS GLOBAIS ==================
 const FAIXAS=[
-  {key:'bez',lF:'Bezerra',         lM:'Bezerro',          l:'0–12 meses',  cF:'#FBBF24',cM:'#F59E0B'},
-  {key:'dzm',lF:'Bezerra Desmama', lM:'Bezerro Desmama',  l:'13–24 meses', cF:'#22D3EE',cM:'#0891B2'},
-  {key:'nov',lF:'Novilha',         lM:'Garrote',          l:'25–36 meses', cF:'#A78BFA',cM:'#7C3AED'},
-  {key:'vac',lF:'Vaca',            lM:'Boi Gordo',        l:'Acima 36m',   cF:'#4ADE80',cM:'#16A34A'},
+  {key:'bez',lF:'Bezerra',         lM:'Bezerro',          l:'0–12 meses',  cF:'#8B95A8',cM:'#8B95A8'},
+  {key:'dzm',lF:'Bezerra Desmama', lM:'Bezerro Desmama',  l:'13–24 meses', cF:'#8B95A8',cM:'#8B95A8'},
+  {key:'nov',lF:'Novilha',         lM:'Garrote',          l:'25–36 meses', cF:'#8B95A8',cM:'#8B95A8'},
+  {key:'vac',lF:'Vaca',            lM:'Boi Gordo',        l:'Acima 36m',   cF:'#8B95A8',cM:'#8B95A8'},
 ];
 // Converte array v[10] da API → 4 pares [[F,M]] para exibição
 function vApiToDisplay(v10){
@@ -1279,7 +1279,7 @@ function setValsFromApi(v10){
   FAIXAS.forEach((f,i)=>{document.getElementById(f.key+'_F').value=d[i][0];document.getElementById(f.key+'_M').value=d[i][1];});
   upd();
 }
-const TC={CRIA:'#4ADE80',RECRIA:'#22D3EE',ENGORDA:'#F87171',CICLO_COMPLETO:'#FBBF24',RECRIA_ENGORDA:'#FB923C',CRIA_RECRIA:'#A78BFA'};
+const TC={CRIA:'#8B95A8',RECRIA:'#8B95A8',ENGORDA:'#8B95A8',CICLO_COMPLETO:'#8B95A8',RECRIA_ENGORDA:'#8B95A8',CRIA_RECRIA:'#8B95A8'};
 const TE={CRIA:'🐄',RECRIA:'🐂',ENGORDA:'🥩',CICLO_COMPLETO:'🔄',RECRIA_ENGORDA:'🐂',CRIA_RECRIA:'🐄'};
 const TL={CRIA:'CRIA',RECRIA:'RECRIA',ENGORDA:'ENGORDA',CICLO_COMPLETO:'CICLO COMPLETO',RECRIA_ENGORDA:'RECRIA / ENGORDA',CRIA_RECRIA:'CRIA + RECRIA'};
 const TD={CRIA:'Foco em produção de bezerros. Predomínio de vacas/matrizes adultas, alta taxa de cria.',RECRIA:'Fase de desenvolvimento pós-desmame. Alta concentração 13–24m.',ENGORDA:'Terminação para abate. Machos adultos em peso de corte predominam.',CICLO_COMPLETO:'Todas as fases integradas: cria, recria e terminação na mesma propriedade.',RECRIA_ENGORDA:'Compra magro e termina. Giro alto, retenção muito baixa, receita em boi gordo.',CRIA_RECRIA:'Base de cria com compra de desmama. Produção própria somada a animais adquiridos para recria.'};
@@ -1410,7 +1410,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       const sep = '<span style="color:var(--tx);padding:0 12px;opacity:.6">●</span>';
       const html = d.noticias.map(n => {
         const safeLink = /^https?:\/\//.test(n.link||'') ? n.link : '#';
-        return `<a href="${safeLink}" target="_blank" rel="noopener" style="color:var(--mu);text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--g)'" onmouseout="this.style.color='var(--mu)'">${escapeHtml(n.titulo)}</a>`;
+        return `<a href="${safeLink}" target="_blank" rel="noopener" style="color:var(--mu);text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--mu)'">${escapeHtml(n.titulo)}</a>`;
       }).join(sep);
       // Duplica para loop contínuo
       inner.innerHTML = html + sep + html;
@@ -1550,9 +1550,9 @@ function _previaNivel(){
   }
   const uaHa=ua/area;
   let nivel,cor;
-  if(uaHa<NIVEL_LOTACAO.media_br){nivel='Extensivo';cor='var(--am)';}
-  else if(uaHa>=NIVEL_LOTACAO.intensivo){nivel='Intensivo';cor='var(--g)';}
-  else {nivel='Médio';cor='var(--cy)';}
+  if(uaHa<NIVEL_LOTACAO.media_br){nivel='Extensivo';cor='var(--tx)';}
+  else if(uaHa>=NIVEL_LOTACAO.intensivo){nivel='Intensivo';cor='var(--tx)';}
+  else {nivel='Médio';cor='var(--tx)';}
   el.innerHTML=`${ua.toFixed(0)} UA · <strong style="color:${cor}">${uaHa.toFixed(2)} UA/ha — ${nivel}</strong> `
     +`<span style="color:var(--mu)">(média Brasil 0,7 · intensivo 1,6)</span>`;
   el.style.color='var(--sb)';
@@ -1835,14 +1835,14 @@ function _renderComparativo(fazendas){
   const nProp=fazendas.filter(f=>!f.is_total_rebanho).length;
   const hasUF = fazendas.some(f=>f.uf);
   const cols=[
-    {k:'bezerra',         l:'Bezerra',    c:'var(--cy)'},
-    {k:'bezerra_desmama', l:'Bez.Desm',   c:'var(--cy)'},
-    {k:'novilha',         l:'Novilha',    c:'var(--cy)'},
-    {k:'vaca',            l:'Vaca',       c:'var(--cy)'},
-    {k:'bezerro',         l:'Bezerro',    c:'var(--am)'},
-    {k:'bezerro_desmama', l:'Bez.Desm M', c:'var(--am)'},
-    {k:'garrote',         l:'Garrote',    c:'var(--am)'},
-    {k:'boi_gordo',       l:'Boi G',      c:'var(--am)'},
+    {k:'bezerra',         l:'Bezerra',    c:'var(--tx)'},
+    {k:'bezerra_desmama', l:'Bez.Desm',   c:'var(--tx)'},
+    {k:'novilha',         l:'Novilha',    c:'var(--tx)'},
+    {k:'vaca',            l:'Vaca',       c:'var(--tx)'},
+    {k:'bezerro',         l:'Bezerro',    c:'var(--tx)'},
+    {k:'bezerro_desmama', l:'Bez.Desm M', c:'var(--tx)'},
+    {k:'garrote',         l:'Garrote',    c:'var(--tx)'},
+    {k:'boi_gordo',       l:'Boi G',      c:'var(--tx)'},
   ];
   const thStyle='padding:5px 8px;font-size:.62rem;letter-spacing:.8px;text-transform:uppercase;color:var(--mu);font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--b)';
   const tdN='padding:5px 8px;text-align:right;font-family:var(--fn);font-size:.75rem;white-space:nowrap';
@@ -2451,7 +2451,7 @@ function renderFluxoMensal(data, parecer){
   const f=(parecer&&parecer.fluxo_mensal)||data.fluxo_mensal;
   if(!f||!f.meses?.length) return '';
   const c=f.mes_critico;
-  return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:#A78BFA"></div>Fluxo mensal para crédito</div></div><div class="cb" style="display:flex;gap:18px;flex-wrap:wrap;font-size:.78rem;color:var(--sb)"><span>Saldo mínimo: <strong style="color:${f.saldo_minimo>=0?'var(--g)':'var(--rd)'}">${fR(f.saldo_minimo)}</strong></span><span>Mês crítico: <strong>${c?`Ano ${c.ano}, mês ${c.mes}`:'—'}</strong></span><span style="color:var(--mu)">Distribuição estimada; informe calendário real para decisão final.</span></div></div>`;
+  return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:#A78BFA"></div>Fluxo mensal para crédito</div></div><div class="cb" style="display:flex;gap:18px;flex-wrap:wrap;font-size:.78rem;color:var(--sb)"><span>Saldo mínimo: <strong style="color:var(--tx)">${fR(f.saldo_minimo)}</strong></span><span>Mês crítico: <strong>${c?`Ano ${c.ano}, mês ${c.mes}`:'—'}</strong></span><span style="color:var(--mu)">Distribuição estimada; informe calendário real para decisão final.</span></div></div>`;
 }
 function renderParecer(data){
   const p=data.parecer; if(!p) return '';
@@ -2647,9 +2647,9 @@ function renderParecer(data){
     const barras = proj.map(a => {
       const pos = a.resultado >= 0;
       const h = Math.round(Math.abs(a.resultado) / maxRes * 80);
-      const cor = pos ? 'var(--g)' : 'var(--rd)';
+      const cor = 'var(--sb)';
       const dscrBadge = a.dscr != null
-        ? `<div style="font-size:.48rem;padding:1px 4px;border-radius:3px;margin-top:2px;background:${a.dscr>=1.3?'rgba(74,222,128,.15)':a.dscr>=1.0?'rgba(251,191,36,.15)':'rgba(248,113,113,.15)'};color:${a.dscr>=1.3?'var(--g)':a.dscr>=1.0?'var(--am)':'var(--rd)'}">DSCR ${a.dscr}</div>`
+        ? `<div style="font-size:.48rem;padding:1px 4px;border-radius:3px;margin-top:2px;background:${a.dscr>=1.3?'rgba(74,222,128,.15)':a.dscr>=1.0?'rgba(251,191,36,.15)':'rgba(248,113,113,.15)'};color:var(--tx)">DSCR ${a.dscr}</div>`
         : '';
       return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0">
         <div style="font-size:.48rem;color:${cor};font-weight:700">${fR(a.resultado)}</div>
@@ -2681,7 +2681,7 @@ function renderParecer(data){
         <td class="r col-prod" style="padding:7px 10px;color:${prodCor(a)}" title="${prodTitulo(a)}">${a.producao_sobre_venda_pct != null ? a.producao_sobre_venda_pct + '%' : '—'}</td>
         <td class="g r" style="padding:7px 10px">${fR(a.receita)}</td>
         <td class="r2 r" style="padding:7px 10px">${fR(a.custo)}</td>
-        <td class="r" style="padding:7px 10px;font-weight:700;color:${a.resultado>=0?'var(--g)':'var(--rd)'}">${fR(a.resultado)}</td>
+        <td class="r" style="padding:7px 10px;font-weight:700;color:var(--tx)">${fR(a.resultado)}</td>
         <td class="r" style="padding:7px 10px;color:${mCor}">${a.margem_pct}%</td>
         ${a.dscr != null ? `<td class="r" style="padding:7px 10px;font-weight:700;color:${dscrCor}">${a.dscr}</td>` : '<td class="r" style="padding:7px 10px;color:var(--mu)">—</td>'}
       </tr>`;
@@ -3032,7 +3032,7 @@ function renderResult(data){
   // latência — construir os TreeExplainer aloca ~160 MB, e esse pico somado
   // ao da classificação estourava o contêiner (502).
   if(data.shap_pendente && data.shap_contexto){
-    window._shapRenderCtx = {tipo: data.tipo, col: TC[data.tipo] || 'var(--g)'};
+    window._shapRenderCtx = {tipo: data.tipo, col: TC[data.tipo] || 'var(--tx)'};
     carregarShap(data.shap_contexto);
   }
 
@@ -3088,7 +3088,7 @@ function renderTransparencia(data){
   return `<div class="g2" style="margin-bottom:24px">
     <div class="card"><div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Qualidade dos dados</div></div><div class="cb">
       <div style="font-size:.78rem;line-height:1.7">Documento: <b>${contagem('documento')}</b> · Usuário: <b>${contagem('usuario')}</b> · Estimativa: <b>${contagem('estimativa')}</b> · Ausente: <b>${contagem('ausente')}</b></div>
-      <div style="margin-top:10px;color:${q.resultado_financeiro_estimado?'var(--am)':'var(--g)'};font-size:.75rem">${q.resultado_financeiro_estimado?'Fluxo financeiro estimado: confirme as premissas faltantes.':'Premissas financeiras informadas.'}</div>
+      <div style="margin-top:10px;color:var(--tx);font-size:.75rem">${q.resultado_financeiro_estimado?'Fluxo financeiro estimado: confirme as premissas faltantes.':'Premissas financeiras informadas.'}</div>
     </div></div>
     <div class="card"><div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Por que este ciclo?</div></div><div class="cb">
       <div style="font-size:.78rem">Final: <b>${escapeHtml(e.ciclo_final||data.tipo||'—')}</b> · Modelo: <b>${escapeHtml(e.ciclo_modelo||'—')}</b> · Decisão: <b>${escapeHtml(e.decisao||'—')}</b></div>
@@ -3237,13 +3237,13 @@ function renderMemoria(c, chave='concl'){
   const rebaixado = c.rebaixado_no_prazo;
   const passos = mem.map((m,i)=>{
     const destaque = /Rebaixamento|Ano crítico/.test(m.passo);
-    const cor = destaque ? 'var(--am)' : 'var(--sb)';
+    const cor = 'var(--sb)';
     return `<div style="display:flex;gap:12px;padding:10px 0${i?';border-top:1px solid var(--b)':''}">
       <div style="font-family:var(--fm);font-size:.5rem;color:var(--mu);width:18px;flex-shrink:0;padding-top:3px">${String(i+1).padStart(2,'0')}</div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline">
           <span style="font-family:var(--fn);font-weight:700;font-size:.72rem;letter-spacing:.4px;color:${cor}">${escapeHtml(m.passo)}</span>
-          <span style="font-family:var(--fm);font-size:.74rem;color:${destaque?'var(--am)':'var(--tx)'};font-weight:${destaque?'700':'400'}">${escapeHtml(m.valor)}</span>
+          <span style="font-family:var(--fm);font-size:.74rem;color:var(--tx);font-weight:${destaque?'700':'400'}">${escapeHtml(m.valor)}</span>
         </div>
         <div style="font-size:.74rem;line-height:1.55;color:var(--mu);margin-top:3px">${escapeHtml(m.detalhe)}</div>
       </div>
@@ -3251,7 +3251,7 @@ function renderMemoria(c, chave='concl'){
   }).join('');
   return `<div style="margin-top:12px">
     <div onclick="toggleMemoria('${chave}')" style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border:1px solid var(--b);border-radius:8px;background:var(--c2)">
-      <span style="font-family:var(--fn);font-weight:700;font-size:.68rem;letter-spacing:1.2px;text-transform:uppercase;color:${rebaixado?'var(--am)':'var(--sb)'}">
+      <span style="font-family:var(--fn);font-weight:700;font-size:.68rem;letter-spacing:1.2px;text-transform:uppercase;color:var(--sb)">
         ${rebaixado?'⚠ ':''}Por que este resultado — memória de cálculo
       </span>
       <span id="mem-ico-${chave}" style="font-family:var(--fm);font-size:.62rem;color:var(--mu)">▼ ver</span>
@@ -3418,28 +3418,28 @@ function benchUnificado(data){
 function getRecs(tipo,ind){
   const R={
     CRIA:[
-      {ico:'🐄',tag:'Reprodução',tc:'rgba(74,222,128,.15)',tcc:'var(--g)',t:'Taxa de Prenhez',d:'Implemente <strong>IATF</strong> para elevar a taxa acima de 80%. Monitore escore corporal das matrizes (mínimo 3,0).'},
-      {ico:'🧬',tag:'Genética',tc:'rgba(34,211,238,.15)',tcc:'var(--cy)',t:'Seleção de Matrizes',d:'Descarte matrizes falhadas (2+ ciclos). Use <strong>touros EPD</strong> para habilidade materna e produção de leite.'},
-      {ico:'🌿',tag:'Nutrição',tc:'rgba(251,191,36,.15)',tcc:'var(--am)',t:'Suplementação Estratégica',d:'Suplemento proteico-energético no período seco. Escore ≥3,0 = <strong>+30% taxa de prenhes</strong>.'},
-      {ico:'📅',tag:'Gestão',tc:'rgba(167,139,250,.15)',tcc:'var(--pu)',t:'Estação de Monta',d:'Adote estação de monta de <strong>60–75 dias</strong> para concentrar partos e facilitar manejo de bezerros.'},
+      {ico:'🐄',tag:'Reprodução',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Taxa de Prenhez',d:'Implemente <strong>IATF</strong> para elevar a taxa acima de 80%. Monitore escore corporal das matrizes (mínimo 3,0).'},
+      {ico:'🧬',tag:'Genética',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Seleção de Matrizes',d:'Descarte matrizes falhadas (2+ ciclos). Use <strong>touros EPD</strong> para habilidade materna e produção de leite.'},
+      {ico:'🌿',tag:'Nutrição',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Suplementação Estratégica',d:'Suplemento proteico-energético no período seco. Escore ≥3,0 = <strong>+30% taxa de prenhes</strong>.'},
+      {ico:'📅',tag:'Gestão',tc:'rgba(167,139,250,.15)',tcc:'var(--tx)',t:'Estação de Monta',d:'Adote estação de monta de <strong>60–75 dias</strong> para concentrar partos e facilitar manejo de bezerros.'},
     ],
     RECRIA:[
-      {ico:'🌿',tag:'Nutrição',tc:'rgba(34,211,238,.15)',tcc:'var(--cy)',t:'Ganho Médio Diário',d:'Meta <strong>≥0,7 kg/dia</strong> em pastagem, ≥1,2 kg/dia em confinamento. Monitore mensalmente.'},
-      {ico:'🐂',tag:'Manejo',tc:'rgba(74,222,128,.15)',tcc:'var(--g)',t:'Lotes Homogêneos',d:'Separe machos e fêmeas e estratifique por peso. Lotes uniformes têm <strong>+20% eficiência alimentar</strong>.'},
-      {ico:'💉',tag:'Sanidade',tc:'rgba(251,191,36,.15)',tcc:'var(--am)',t:'Protocolo Sanitário',d:'Vacine contra clostridioses, IBR e BVD. Parasite estratégico no início e fim das águas.'},
-      {ico:'📋',tag:'Planejamento',tc:'rgba(248,113,113,.15)',tcc:'var(--rd)',t:'Destino dos Animais',d:'Defina antecipadamente: reposição x venda de novilhas; machos para confinamento ou pastagem.'},
+      {ico:'🌿',tag:'Nutrição',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Ganho Médio Diário',d:'Meta <strong>≥0,7 kg/dia</strong> em pastagem, ≥1,2 kg/dia em confinamento. Monitore mensalmente.'},
+      {ico:'🐂',tag:'Manejo',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Lotes Homogêneos',d:'Separe machos e fêmeas e estratifique por peso. Lotes uniformes têm <strong>+20% eficiência alimentar</strong>.'},
+      {ico:'💉',tag:'Sanidade',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Protocolo Sanitário',d:'Vacine contra clostridioses, IBR e BVD. Parasite estratégico no início e fim das águas.'},
+      {ico:'📋',tag:'Planejamento',tc:'rgba(248,113,113,.15)',tcc:'var(--tx)',t:'Destino dos Animais',d:'Defina antecipadamente: reposição x venda de novilhas; machos para confinamento ou pastagem.'},
     ],
     ENGORDA:[
-      {ico:'🥩',tag:'Terminação',tc:'rgba(248,113,113,.15)',tcc:'var(--rd)',t:'Peso de Abate',d:'Meta <strong>560–600 kg PV (16–18@)</strong>. Acompanhe conversão alimentar (CA ≤7,5).'},
-      {ico:'🌽',tag:'Nutrição',tc:'rgba(251,191,36,.15)',tcc:'var(--am)',t:'Dieta de Terminação',d:'70–80% concentrado na fase final. Use <strong>monensina/lasalocida</strong> para eficiência e saúde ruminal.'},
-      {ico:'📈',tag:'Mercado',tc:'rgba(74,222,128,.15)',tcc:'var(--g)',t:'Timing de Venda',d:'Monitore mercado futuro. <strong>Venda antecipada</strong> garante preço mínimo. Compare frigoríficos.'},
-      {ico:'🔄',tag:'Giro',tc:'rgba(34,211,238,.15)',tcc:'var(--cy)',t:'Giro de Confinamento',d:'<strong>3 lotes/ano (120 dias)</strong> é o ideal para amortizar infraestrutura e maximizar retorno.'},
+      {ico:'🥩',tag:'Terminação',tc:'rgba(248,113,113,.15)',tcc:'var(--tx)',t:'Peso de Abate',d:'Meta <strong>560–600 kg PV (16–18@)</strong>. Acompanhe conversão alimentar (CA ≤7,5).'},
+      {ico:'🌽',tag:'Nutrição',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Dieta de Terminação',d:'70–80% concentrado na fase final. Use <strong>monensina/lasalocida</strong> para eficiência e saúde ruminal.'},
+      {ico:'📈',tag:'Mercado',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Timing de Venda',d:'Monitore mercado futuro. <strong>Venda antecipada</strong> garante preço mínimo. Compare frigoríficos.'},
+      {ico:'🔄',tag:'Giro',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Giro de Confinamento',d:'<strong>3 lotes/ano (120 dias)</strong> é o ideal para amortizar infraestrutura e maximizar retorno.'},
     ],
     CICLO_COMPLETO:[
-      {ico:'🔄',tag:'Integração',tc:'rgba(251,191,36,.15)',tcc:'var(--am)',t:'Fluxo entre Fases',d:'Planeje a transferência entre cria → recria → terminação. <strong>Evite gargalos</strong> de capacidade.'},
-      {ico:'📊',tag:'Gestão',tc:'rgba(74,222,128,.15)',tcc:'var(--g)',t:'Centro de Custo',d:'Separe custos por fase para identificar onde está o lucro. Use <strong>software de gestão pecuária</strong>.'},
-      {ico:'🧬',tag:'Genética',tc:'rgba(34,211,238,.15)',tcc:'var(--cy)',t:'Programa Genético',d:'DEPs balanceados: facilidade de parto + crescimento + acabamento. Considere <strong>cruzamentos F1</strong>.'},
-      {ico:'💰',tag:'Financeiro',tc:'rgba(167,139,250,.15)',tcc:'var(--pu)',t:'Diversificação',d:'Regra <strong>80/20</strong>: 80% terminação própria, 20% venda precoce para liquidez e gestão de risco.'},
+      {ico:'🔄',tag:'Integração',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Fluxo entre Fases',d:'Planeje a transferência entre cria → recria → terminação. <strong>Evite gargalos</strong> de capacidade.'},
+      {ico:'📊',tag:'Gestão',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Centro de Custo',d:'Separe custos por fase para identificar onde está o lucro. Use <strong>software de gestão pecuária</strong>.'},
+      {ico:'🧬',tag:'Genética',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Programa Genético',d:'DEPs balanceados: facilidade de parto + crescimento + acabamento. Considere <strong>cruzamentos F1</strong>.'},
+      {ico:'💰',tag:'Financeiro',tc:'rgba(167,139,250,.15)',tcc:'var(--tx)',t:'Diversificação',d:'Regra <strong>80/20</strong>: 80% terminação própria, 20% venda precoce para liquidez e gestão de risco.'},
     ],
   };
   return(R[tipo]||[]).map(r=>`
@@ -3672,7 +3672,7 @@ function renderFluxoProjetado(){
   if(nEl){
     const cicStr=ciclosAno%1===0?ciclosAno+'x/ano':ciclosAno.toFixed(1)+'x/ano';
     const resAnual=res*ciclosAno;
-    nEl.innerHTML=`<span>${dur} meses/ciclo · ${cicStr}</span> · <span style="color:${resAnual>=0?'var(--g)':'var(--rd)'}">Resultado anual est.: ${resAnual>=0?'+':''}${fR(resAnual)}</span>`;
+    nEl.innerHTML=`<span>${dur} meses/ciclo · ${cicStr}</span> · <span style="color:var(--tx)">Resultado anual est.: ${resAnual>=0?'+':''}${fR(resAnual)}</span>`;
   }
 }
 
@@ -3865,10 +3865,10 @@ function renderSc(d){
 
   document.getElementById('sc-result').innerHTML=`
     <div class="proj-strip">
-      <div class="pjc"><div class="pjc-l">Rebanho Ano 5</div><div class="pjc-v cg">${fN(anos[4].total)}</div><div class="pjc-d" style="color:${delta>=0?'var(--g)':'var(--rd)'}">${delta>=0?'▲':'▼'} ${fN(Math.abs(delta))} cab.</div></div>
+      <div class="pjc"><div class="pjc-l">Rebanho Ano 5</div><div class="pjc-v cg">${fN(anos[4].total)}</div><div class="pjc-d" style="color:var(--tx)">${delta>=0?'▲':'▼'} ${fN(Math.abs(delta))} cab.</div></div>
       <div class="pjc"><div class="pjc-l">Receita 5 Anos</div><div class="pjc-v cc">${fR(acc.receita)}</div><div class="pjc-d" style="color:var(--mu)">acumulado</div></div>
       <div class="pjc"><div class="pjc-l">Custo 5 Anos</div><div class="pjc-v cr">${fR(acc.custo)}</div><div class="pjc-d" style="color:var(--mu)">acumulado</div></div>
-      <div class="pjc"><div class="pjc-l">Resultado Líquido</div><div class="pjc-v ${acc.resultado>=0?'cg':'cr'}">${fR(acc.resultado)}</div><div class="pjc-d" style="color:${acc.resultado>=0?'var(--g)':'var(--rd)'}">${d.emoji} ${d.nome.split('—')[0].trim()}</div></div>
+      <div class="pjc"><div class="pjc-l">Resultado Líquido</div><div class="pjc-v ${acc.resultado>=0?'cg':'cr'}">${fR(acc.resultado)}</div><div class="pjc-d" style="color:var(--tx)">${d.emoji} ${d.nome.split('—')[0].trim()}</div></div>
     </div>
     <div class="card" style="margin-bottom:16px">
       <div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Receita Anual Projetada — ${d.emoji} ${d.nome}</div></div>
