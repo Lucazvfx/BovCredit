@@ -136,6 +136,14 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20 MB
 
+# ── ProxyFix — corrige IP real atrás do load balancer do Railway ─────────────
+# Sem isso get_remote_address() devolve o IP interno do proxy, fazendo o rate
+# limiter tratar todos os usuários como um único host. x_for=1 diz ao Werkzeug
+# que confia em exatamente um hop de proxy (o Railway edge). Nunca use um valor
+# maior que o número de proxies confiáveis que você controla.
+from werkzeug.middleware.proxy_fix import ProxyFix as _ProxyFix
+app.wsgi_app = _ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
 # ── Session cookie hardening ──────────────────────────────────────────────────
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -249,10 +257,17 @@ def _erro_json(e):
 
 
 # ── Rate limiting (proteção contra força bruta) ───────────────────────────────
-# memory:// é o fallback explícito para desenvolvimento/testes; em produção,
-# defina RATELIMIT_STORAGE_URI para um backend compartilhado.
-app.config.setdefault('RATELIMIT_STORAGE_URI', os.environ.get('RATELIMIT_STORAGE_URI', 'memory://'))
+# Backend configurado por RATELIMIT_STORAGE_URI. Em produção (Railway) aponte
+# para o Redis interno: redis://:senha@host:6379/0
+# Se o Redis estiver indisponível, SWALLOW_ERRORS garante que o app não caia;
+# o limite simplesmente não é aplicado naquele request.
+_redis_uri = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
+app.config['RATELIMIT_STORAGE_URI']    = _redis_uri
+app.config['RATELIMIT_SWALLOW_ERRORS'] = True   # Redis down ≠ app down
+app.config['RATELIMIT_HEADERS_ENABLED'] = True  # X-RateLimit-* nos responses
 limiter.init_app(app)
+if _redis_uri != 'memory://':
+    logger.info(f'[limiter] backend Redis: {_redis_uri.split("@")[-1]}')
 
 # ── Controle de acesso: administradores ───────────────────────────────────────
 # Defina ADMIN_EMAILS no Railway (ex.: "voce@email.com"). Só admins acessam
