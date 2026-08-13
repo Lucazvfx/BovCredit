@@ -122,7 +122,7 @@
 
 .ork-brand__mark {
   display: block;
-  width: min(200px, 100%);
+  width: 100%;
   height: auto;
 }
 
