@@ -500,34 +500,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 <!-- ═══ ENTRADA MANUAL ═══ -->
 <div class="panel active ork-entry-view" id="panel-entrada">
-  <section class="analysis-flow ork-panel ork-import-panel" aria-label="Fluxo de análise do rebanho">
-    <div class="analysis-flow-copy">
-      <div class="analysis-flow-kicker">Mesa de análise rural</div>
-      <div class="analysis-flow-title">Comece pelo documento do rebanho</div>
-      <p class="analysis-flow-sub">A Orkavyn transforma a ficha em evidência classificada, fluxo de caixa e decisão de crédito auditável.</p>
-    </div>
-    <div class="analysis-flow-steps" aria-label="Etapas da análise">
-      <div class="analysis-step"><strong>1</strong> Ler</div>
-      <div class="analysis-step"><strong>2</strong> Conferir</div>
-      <div class="analysis-step"><strong>3</strong> Decidir</div>
-    </div>
-    <div class="analysis-flow-cta">
-      <button class="btn-p ork-action" type="button" onclick="document.getElementById('pdf-inp-main').click()">Selecionar PDF do rebanho</button>
-      <div class="ork-import-alternatives" aria-label="Formas alternativas de entrada">
-        <button class="ork-action" type="button" onclick="document.getElementById('insr-xlsx-inp').click()">Ler planilha</button>
-        <button class="ork-action" type="button" onclick="document.querySelector('.ork-section-herd').scrollIntoView({behavior:'smooth'})">Digitar manualmente</button>
-      </div>
-      <div class="ork-import-correction">
-        <label for="insr-uf-ficha">Estado, somente se a detecção automática falhar</label>
-        <select id="insr-uf-ficha">
-          <option value="">Detecção automática</option>
-          <option value="MT">MT</option><option value="RO">RO</option><option value="MS">MS</option>
-          <option value="GO">GO</option><option value="MA">MA</option><option value="TO">TO</option>
-          <option value="PA">PA</option><option value="MG">MG</option><option value="BA">BA</option><option value="SP">SP</option>
-        </select>
-      </div>
-    </div>
-  </section>
   <div id="pdf-status-main" class="ork-state ork-import-status" role="status" aria-live="polite" aria-atomic="true" style="display:none"></div>
 
   <div class="ptitle">Inserir dados do <em>rebanho</em></div>
@@ -614,6 +586,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <input type="file" id="insr-ficha-inp" accept=".xlsx,.xlsm" style="display:none" onchange="lerFichaExcel(this.files[0]);this.value=''">
         <button class="btn-sm" onclick="toggleGuiaFicha(this)" title="Como preencher o Excel">?</button>
         <button class="btn-sm" onclick="clearAll()">✕ Limpar</button>
+        <select id="insr-uf-ficha" class="btn-sm" title="Estado do PDF (somente se detecção automática falhar)" style="border:1px solid var(--b);background:var(--c);color:var(--tx);cursor:pointer">
+          <option value="">UF auto</option>
+          <option value="MT">MT</option><option value="RO">RO</option><option value="MS">MS</option>
+          <option value="GO">GO</option><option value="MA">MA</option><option value="TO">TO</option>
+          <option value="PA">PA</option><option value="MG">MG</option><option value="BA">BA</option><option value="SP">SP</option>
+        </select>
       </div>
     </div>
     <!-- Guia de preenchimento do Excel CONSOLIDADO -->
@@ -2330,42 +2308,47 @@ function renderDadosImpeditivos(data){
   const dash = (pct/100)*circ;
   const scoreColor = pct<40 ? 'var(--ork-danger)' : pct<70 ? 'var(--ork-warning)' : 'var(--ork-success)';
 
-  const item = (x, cor, bg) => `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 9px;border-radius:7px;background:${bg};margin-bottom:4px">
-    <span style="color:${cor};flex-shrink:0;font-size:.75rem;line-height:1.6">${x.nivel==='impeditivo'?'⛔':x.nivel==='alerta'?'⚠':'✓'}</span>
-    <div>
-      <div style="font-size:.72rem;font-weight:700;color:${cor}">${x.descricao}</div>
-      ${x.nivel!=='ok'?`<div style="font-size:.63rem;color:var(--ork-copy);margin-top:1px">${x.nivel==='impeditivo'?'Impeditivo — bloqueia aprovação':'Pendente — necessário para parecer conclusivo'}</div>`:''}
-    </div></div>`;
+  const item = (x) => {
+    const isImp = x.nivel==='impeditivo', isOk = x.nivel==='ok';
+    const dot = isImp ? 'var(--ork-danger)' : isOk ? 'var(--ork-success)' : 'var(--ork-warning)';
+    return `<div style="display:flex;align-items:flex-start;gap:7px;padding:6px 0;border-bottom:1px solid var(--ork-line)">
+      <div style="width:6px;height:6px;border-radius:50%;background:${dot};flex-shrink:0;margin-top:5px"></div>
+      <div style="font-size:.72rem;color:var(--ork-ink);line-height:1.4">${x.descricao}${isImp?'<span style="color:var(--ork-copy);font-size:.62rem"> — bloqueia aprovação</span>':''}</div>
+    </div>`;
+  };
 
-  const col3 = (titulo, cor, bg, lista) => lista.length ? `
+  const col3 = (titulo, dot, lista) => lista.length ? `
     <div>
-      <div style="font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:${cor};margin-bottom:8px">${titulo} (${lista.length})</div>
-      ${lista.map(x=>item(x,cor,bg)).join('')}
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:8px">
+        <div style="width:7px;height:7px;border-radius:50%;background:${dot};flex-shrink:0"></div>
+        <div style="font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ork-ink)">${titulo} (${lista.length})</div>
+      </div>
+      ${lista.map(x=>item(x)).join('')}
     </div>` : '';
 
-  return `<div class="card" style="margin-bottom:16px;border-left:3px solid ${corStatus}">
+  return `<div class="card" style="margin-bottom:16px">
     <div class="ch">
       <div class="ct"><div class="cd" style="background:${corStatus}"></div>Completude da Análise</div>
       <div style="display:flex;align-items:center;gap:10px">
-        <svg width="44" height="44" viewBox="0 0 44 44" style="flex-shrink:0">
+        <svg width="40" height="40" viewBox="0 0 44 44" style="flex-shrink:0">
           <circle cx="22" cy="22" r="18" fill="none" stroke="var(--ork-line)" stroke-width="4"/>
           <circle cx="22" cy="22" r="18" fill="none" stroke="${scoreColor}" stroke-width="4"
             stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}"
             stroke-dashoffset="${(circ/4).toFixed(1)}" stroke-linecap="round"
             style="transition:stroke-dasharray .6s ease"/>
-          <text x="22" y="26" text-anchor="middle" fill="${scoreColor}"
+          <text x="22" y="26" text-anchor="middle" fill="var(--ork-ink)"
             font-family="var(--ork-font-mono)" font-size="9" font-weight="700">${pct}%</text>
         </svg>
         <div style="font-size:.75rem;line-height:1.4">
-          <div style="font-weight:700;color:${corStatus}">${iconStatus} ${status==='completo'?'Completo':status==='parcial'?'Parcial':'Incompleto'}</div>
+          <div style="font-weight:700;color:var(--ork-ink)">${status==='completo'?'Completo':status==='parcial'?'Parcial':'Incompleto'}</div>
           <div style="color:var(--ork-copy);font-size:.68rem">${mensagem}</div>
         </div>
       </div>
     </div>
-    <div class="cb" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
-      ${col3('Impeditivos','var(--ork-danger)','rgba(155,79,66,.06)',impeditivos)}
-      ${col3('Pendentes','var(--ork-warning)','rgba(168,118,49,.06)',alertas)}
-      ${col3('OK','var(--ork-success)','rgba(63,104,73,.05)',ok)}
+    <div class="cb" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px">
+      ${col3('Impeditivos','var(--ork-danger)',impeditivos)}
+      ${col3('Pendentes','var(--ork-warning)',alertas)}
+      ${col3('OK','var(--ork-success)',ok)}
     </div>
   </div>`;
 }
@@ -2440,20 +2423,10 @@ function renderAnalisesCredito(data, parecer){
   const ratingColor={A:'#4ADE80',B:'#86EFAC',C:'#FBBF24',D:'#FB923C',E:'#F87171'}[rating.faixa]||'#8891A5';
   const labels={capacidade_pagamento:'Capacidade de pagamento',risco_credito:'Risco de crédito',garantia:'Garantia'};
   const statusLabel={aprovada:'ADEQUADA',ressalva:'RESSALVA',reprovada:'INSUFICIENTE',baixo:'BAIXO',medio:'MÉDIO',alto:'ALTO',suficiente:'SUFICIENTE',insuficiente:'INSUFICIENTE',nao_avaliada:'NÃO AVALIADA'};
-  const color=s=>({aprovada:'#4ADE80',baixo:'#4ADE80',suficiente:'#4ADE80',ressalva:'#FBBF24',medio:'#FBBF24',reprovada:'#F87171',alto:'#F87171',insuficiente:'#F87171'}[s]||'#8891A5');
-  return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:#60A5FA"></div>Três dimensões da análise</div><div style="font-size:.72rem;color:${ratingColor};font-weight:800">RATING ${rating.faixa||'—'} · ${rating.score??'—'}/100</div></div><div class="cb analises-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
-    ${Object.entries(labels).map(([k,l])=>{const x=a[k]||{},s=x.status||'nao_avaliada',co=color(s);return `<div style="border:1px solid ${co}55;border-radius:10px;padding:14px;background:${co}0D"><div style="font-size:.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:.08em">${l}</div><div style="font-size:1.05rem;font-weight:800;color:${co};margin:7px 0">${statusLabel[s]||s}</div><div style="font-size:.75rem;color:var(--sb);line-height:1.45">${k==='capacidade_pagamento'?(x.dscr!=null?'DSCR: '+x.dscr:'Sem crédito informado'):k==='risco_credito'?`Confiança: ${x.confianca_classificacao!=null?(x.confianca_classificacao*100).toFixed(0)+'%':'—'} · Consistência: ${x.score_consistencia??'—'}`:`LTV: ${x.ltv!=null?x.ltv+'%':'—'} · Execução: ${x.valor_execucao!=null?fR(x.valor_execucao):'—'}`}</div></div>`}).join('')}
-  </div><div style="padding:0 14px 14px;color:var(--mu);font-size:.7rem">A análise é uma pré-avaliação de apoio à consultoria. Confirme documentos, pesos, custos, dívidas e movimentações antes da decisão final.</div>
-  ${(()=>{
-    const imp=docs.impeditivos||[],alt=docs.alertas||[],pen=docs.pendentes||[];
-    const todos=[...imp,...alt,...pen];
-    if(!todos.length) return '';
-    const bloqueio=docs.bloqueio_aprovacao||imp.length>0;
-    const cor=bloqueio?'rgba(155,79,66,':'rgba(168,118,49,';
-    const corText=bloqueio?'#E57373':'#FBBF24';
-    const titulo=bloqueio?'⛔ Dados impeditivos ausentes':'⚠ Documentos pendentes';
-    return `<div style="margin:0 14px 14px;padding:11px 13px;border:1px solid ${cor}.3);border-radius:9px;background:${cor}.06);font-size:.72rem;color:var(--sb)"><strong style="color:${corText}">${titulo}</strong><br>${todos.map(d=>'• '+d.descricao).join('<br>')}</div>`;
-  })()}</div>`;
+  const dot=s=>({aprovada:'var(--ork-success)',baixo:'var(--ork-success)',suficiente:'var(--ork-success)',ressalva:'var(--ork-warning)',medio:'var(--ork-warning)',reprovada:'var(--ork-danger)',alto:'var(--ork-danger)',insuficiente:'var(--ork-danger)'}[s]||'var(--ork-copy)');
+  return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:var(--ork-line-strong)"></div>Três dimensões da análise</div><div style="font-size:.72rem;color:var(--ork-copy);font-weight:700">Rating ${rating.faixa||'—'} · ${rating.score??'—'}/100</div></div><div class="cb analises-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+    ${Object.entries(labels).map(([k,l])=>{const x=a[k]||{},s=x.status||'nao_avaliada',dc=dot(s);return `<div style="border:1px solid var(--ork-line);border-radius:10px;padding:14px;background:var(--ork-surface-raised)"><div style="font-size:.65rem;color:var(--ork-copy);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${l}</div><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><div style="width:8px;height:8px;border-radius:50%;background:${dc};flex-shrink:0"></div><div style="font-size:.88rem;font-weight:700;color:var(--ork-ink)">${statusLabel[s]||s}</div></div><div style="font-size:.72rem;color:var(--ork-copy);line-height:1.45">${k==='capacidade_pagamento'?(x.dscr!=null?'DSCR: '+x.dscr:'Sem crédito informado'):k==='risco_credito'?`Confiança: ${x.confianca_classificacao!=null?(x.confianca_classificacao*100).toFixed(0)+'%':'—'} · Consistência: ${x.score_consistencia??'—'}`:`LTV: ${x.ltv!=null?x.ltv+'%':'—'} · Execução: ${x.valor_execucao!=null?fR(x.valor_execucao):'—'}`}</div></div>`}).join('')}
+  </div><div style="padding:0 14px 14px;color:var(--ork-copy);font-size:.68rem">Pré-avaliação de apoio à consultoria. Confirme documentos, pesos, custos, dívidas e movimentações antes da decisão final.</div></div>`;
 }
 function renderFluxoMensal(data, parecer){
   const f=(parecer&&parecer.fluxo_mensal)||data.fluxo_mensal;

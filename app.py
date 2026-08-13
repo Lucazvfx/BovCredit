@@ -1158,7 +1158,7 @@ def api_classificar():
         taxa_descarte_pct=float(data.get('taxa_descarte_pct') or 15.0),
         aproveitamento_pct=float(data.get('aproveitamento_pct') or 90.0),
         expansao_cabecas=float(data.get('expansao_cabecas') or 0.0),
-        area_ha=float(data.get('area_ha') or 0.0),
+        area_ha=float(data.get('area_pasto_ha') or data.get('area_ha') or 0.0),
         ua_atual=_ua_atual,
         peso_medio_bezerra_kg=float(data.get('peso_medio_bezerra_kg') or 170.0),
         lotacao_segura_ua_ha=float(data.get('lotacao_segura_ua_ha') or 1.0),
