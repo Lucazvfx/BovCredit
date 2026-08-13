@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Orkavyn Agro Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="/static/favicon-cow.png">
 <style>
@@ -3601,7 +3603,7 @@ function _atualizarLabelPreset(tipo){
   const mod=PERFIL_DESEMBOLSO[tipo]?tipo:'CICLO_COMPLETO';
   const totMedia=COMP_DESEMB.reduce((s,k)=>s+(PERFIL_DESEMBOLSO[mod][k][0]||0),0);
   const totTop  =COMP_DESEMB.reduce((s,k)=>s+(PERFIL_DESEMBOLSO[mod][k][1]||0),0);
-  const bMedia=document.querySelector('button[onclick="aplicarPresetDesembolho(\'media\')"],button[onclick*="aplicarPresetDesembolso(\'media\')"]');
+  const bMedia=document.querySelector('button[onclick*="aplicarPresetDesembolso(\'media\')"]');
   const bTop  =document.querySelector('button[onclick*="aplicarPresetDesembolso(\'top\')"]');
   if(bMedia) bMedia.textContent=`Média ${label} (R$${totMedia.toFixed(0)})`;
   if(bTop)   bTop.textContent  =`Top ${label} (R$${totTop.toFixed(0)})`;
@@ -4405,8 +4407,8 @@ carregarCotacaoDia();
 carregarEmpresaAtiva();
 carregarFazendasSelect();
 </script>
-<footer style="text-align: center; padding: 24px 16px 16px; border-top: 1px solid var(--border); margin-top: 32px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted);">
-  <p>Desenvolvido por <strong style="color: var(--green);">Lucas Vinicius</strong>. &nbsp;·&nbsp; <a href="/privacidade" target="_blank" style="color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border)">Privacidade</a> &nbsp;·&nbsp; <a href="/termos" target="_blank" style="color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border)">Termos de Uso</a></p>
+<footer style="text-align: center; padding: 24px 16px 16px; border-top: 1px solid #333; margin-top: 32px; font-family: monospace; font-size: 0.7rem; color: #000;">
+  <p>Desenvolvido por <strong style="color: #000;">Lucas Vinicius</strong>. &nbsp;·&nbsp; <a href="/privacidade" target="_blank" style="color:#000;text-decoration:none;border-bottom:1px solid #333">Privacidade</a> &nbsp;·&nbsp; <a href="/termos" target="_blank" style="color:#000;text-decoration:none;border-bottom:1px solid #333">Termos de Uso</a></p>
 </footer>
 {% include 'partials/fields_mobile_nav.html' %}
 </div>
