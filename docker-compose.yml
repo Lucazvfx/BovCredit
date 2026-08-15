@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: orkavyn
+      POSTGRES_USER: orkavyn
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orkavyn"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://orkavyn:${DB_PASSWORD}@db:5432/orkavyn
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_EMAILS: ${ADMIN_EMAILS}
+      ADMIN_SENHA_INICIAL: ${ADMIN_SENHA_INICIAL}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      APP_URL: ${APP_URL}
+      FLASK_ENV: production
+      RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-memory://}
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - uploads:/app/uploads
+
+volumes:
+  pgdata:
+  uploads:
