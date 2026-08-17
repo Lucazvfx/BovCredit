@@ -91,6 +91,7 @@ from services.groq_narrativa import (
     _feature_ativa as _narrativa_ativa,
 )
 from services.rate_limit import limiter
+from services.situacao_cadastral import consultar as _consultar_situacao_cadastral
 
 # Narrativa IA: por padrão assíncrona (endpoint /api/narrativa), para não
 # somar até 20s de latência do Groq ao parecer. NARRATIVA_INLINE=1 restaura
@@ -917,6 +918,37 @@ def api_criar_fazenda():
         criado_por=current_user.id,
     )
     return jsonify({'ok': True, 'id': fid})
+
+@app.route('/api/situacao-cadastral', methods=['POST'])
+@login_required
+@limiter.limit("15 per minute; 100 per hour")
+def api_situacao_cadastral():
+    """Situação cadastral pública (Receita Federal) — não é score de crédito.
+
+    Exige `consentimento: true` no corpo antes de consultar. Não é o
+    consentimento do Art. 8 da LGPD (a base legal aqui é legítimo interesse,
+    Art. 7 IX — a mesma consulta que qualquer pessoa faz no site da Receita);
+    é confirmação de que o titular foi informado, por transparência (Art. 9).
+    Ver a nota completa em services/lgpd.py.
+    """
+    data = request.json or {}
+    documento = (data.get('documento') or '').strip()
+    if not documento:
+        return jsonify({'erro': 'Informe um CPF ou CNPJ.'}), 400
+    if not data.get('consentimento'):
+        return jsonify({
+            'erro': 'Confirme que o titular foi informado desta consulta '
+                     'antes de prosseguir.',
+        }), 400
+
+    resultado = _consultar_situacao_cadastral(documento)
+
+    if resultado.get('tipo') == 'CNPJ':
+        _auditar(_aud.CONSULTA_CADASTRAL,
+                 detalhe=f"CNPJ {resultado['documento']}",
+                 sucesso=resultado.get('encontrado') is not None)
+
+    return jsonify(resultado)
 
 @app.route('/api/fazendas/<int:fid>/historico', methods=['GET'])
 @login_required

@@ -49,6 +49,7 @@ LOGIN_2FA_FALHOU  = 'login_2fa_falhou'
 LOGIN_2FA_BACKUP  = 'login_2fa_backup'
 DOIS_FATORES_ATIVADO    = '2fa_ativado'
 DOIS_FATORES_DESATIVADO = '2fa_desativado'
+CONSULTA_CADASTRAL      = 'consulta_cadastral'
 
 EVENTOS = {
     LOGIN:             'Entrou no sistema',
@@ -70,13 +71,14 @@ EVENTOS = {
     LOGIN_2FA_BACKUP:  'Entrou usando código de recuperação',
     DOIS_FATORES_ATIVADO:    'Ativou o segundo fator',
     DOIS_FATORES_DESATIVADO: 'Desativou o segundo fator',
+    CONSULTA_CADASTRAL:      'Consultou situação cadastral (CPF/CNPJ)',
 }
 
 # Eventos que tocam dado de crédito de um cliente identificado. É esta lista
 # que a auditoria interna do banco pede primeiro.
 SENSIVEIS = frozenset({
     PARECER_GERADO, PARECER_PDF, HISTORICO_LIDO, PARECERES_LIDOS,
-    DOC_LIDO, WHATSAPP_CONSULTA, LGPD_EXPORTACAO,
+    DOC_LIDO, WHATSAPP_CONSULTA, LGPD_EXPORTACAO, CONSULTA_CADASTRAL,
 })
 
 

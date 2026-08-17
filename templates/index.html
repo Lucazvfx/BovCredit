@@ -669,6 +669,27 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div id="consist-panel" style="display:none;margin-top:16px"></div>
         <div id="comparativo-panel" style="display:none;margin-top:16px"></div>
         <div style="margin-top:14px">
+          <button class="btn-sm" onclick="toggleSituacaoCadastral()" id="btn-situacao-cadastral" style="width:100%;justify-content:center">🔍 Situação Cadastral (CNPJ) <span style="font-size:.65rem;opacity:.6">(opcional — consulta gratuita, Receita Federal)</span></button>
+          <div id="situacao-cadastral-wrap" style="display:none;margin-top:12px;padding:14px;border:1px solid var(--b);border-radius:var(--rs);background:var(--c)">
+            <div style="font-size:.72rem;color:var(--mu);margin-bottom:10px;line-height:1.5">
+              Consulta pública de situação cadastral na Receita Federal — <strong>não é score de crédito</strong>
+              e <strong>não é o Serasa</strong>. Mostra só se a empresa está ativa, baixada, suspensa, inapta ou
+              nula. Só funciona para <strong>CNPJ</strong>: a consulta oficial de CPF exige captcha e uso manual
+              da Receita Federal, sem fonte gratuita automatizável — para verificar CPF é necessário contratar
+              um bureau de crédito.
+            </div>
+            <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;align-items:end">
+              <div class="field"><label>CPF ou CNPJ</label><input type="text" id="sc-documento" placeholder="Ex: 12.345.678/0001-95"></div>
+              <button class="btn-sm" onclick="consultarSituacaoCadastral()" id="sc-btn" disabled style="justify-content:center">Consultar</button>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:.72rem;color:var(--mu);cursor:pointer">
+              <input type="checkbox" id="sc-consentimento" onchange="document.getElementById('sc-btn').disabled=!this.checked">
+              Confirmo que o titular foi informado desta consulta.
+            </label>
+            <div id="sc-resultado" style="margin-top:12px"></div>
+          </div>
+        </div>
+        <div style="margin-top:14px">
           <button class="btn-sm" onclick="toggleConds()" id="btn-conds" style="width:100%;justify-content:center">⚙ Condições de Classificação <span style="font-size:.65rem;opacity:.6">(opcional)</span></button>
           <div id="conds-wrap" style="display:none;margin-top:12px">
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
@@ -1575,6 +1596,51 @@ const EX={
 function fillEx(t){const e=EX[t];setValsFromApi(e.v);document.getElementById('f_faz').value=e.faz;document.getElementById('f_mun').value=e.mun;document.getElementById('f_prop').value=e.prop;}
 function clearAll(){FAIXAS.forEach(f=>{document.getElementById(f.key+'_F').value=0;document.getElementById(f.key+'_M').value=0});upd();renderConsistencia(null)}
 function toggleGuiaFicha(btn){const p=document.getElementById('guia-ficha-panel');const show=p.style.display==='none';p.style.display=show?'block':'none';btn.style.background=show?'var(--border-accent)':''}
+
+function toggleSituacaoCadastral(){
+  const p = document.getElementById('situacao-cadastral-wrap');
+  p.style.display = (p.style.display === 'none') ? 'block' : 'none';
+}
+
+async function consultarSituacaoCadastral(){
+  const doc = document.getElementById('sc-documento').value.trim();
+  const consentimento = document.getElementById('sc-consentimento').checked;
+  const out = document.getElementById('sc-resultado');
+  if(!doc){ showToast('Informe um CPF ou CNPJ.', true); return; }
+  out.innerHTML = '<span style="font-size:.72rem;color:var(--mu)">Consultando…</span>';
+  try{
+    const res = await fetch('/api/situacao-cadastral', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({documento: doc, consentimento})
+    });
+    const d = await res.json();
+    if(!res.ok){ out.innerHTML = `<span style="font-size:.72rem;color:var(--danger,#c0392b)">${d.erro || 'Erro na consulta.'}</span>`; return; }
+    if(!d.disponivel){
+      out.innerHTML = `<div style="font-size:.72rem;color:var(--mu);line-height:1.5">${d.motivo || d.erro}</div>`;
+      return;
+    }
+    if(d.encontrado === null){
+      out.innerHTML = `<span style="font-size:.72rem;color:var(--danger,#c0392b)">Não foi possível verificar agora: ${d.erro}</span>`;
+      return;
+    }
+    if(d.encontrado === false){
+      out.innerHTML = `<span style="font-size:.72rem;color:var(--danger,#c0392b)">${d.erro || 'CNPJ não encontrado.'}</span>`;
+      return;
+    }
+    const cor = d.regular ? 'var(--ok,#2e7d32)' : 'var(--danger,#c0392b)';
+    out.innerHTML = `
+      <div style="font-size:.78rem;line-height:1.7">
+        <div><strong>Situação:</strong> <span style="color:${cor};font-weight:600">${d.situacao}</span></div>
+        ${d.razao_social ? `<div><strong>Razão social:</strong> ${d.razao_social}</div>` : ''}
+        ${d.data_situacao ? `<div><strong>Desde:</strong> ${d.data_situacao}</div>` : ''}
+        ${d.motivo_situacao ? `<div><strong>Motivo:</strong> ${d.motivo_situacao}</div>` : ''}
+        ${(d.municipio||d.uf) ? `<div><strong>Local:</strong> ${d.municipio||''}${d.municipio&&d.uf?'/':''}${d.uf||''}</div>` : ''}
+        <div style="margin-top:6px;font-size:.65rem;color:var(--mu)">Fonte: ${d.fonte} — não é score de crédito.</div>
+      </div>`;
+  }catch(e){
+    out.innerHTML = '<span style="font-size:.72rem;color:var(--danger,#c0392b)">Falha ao conectar. Tente novamente.</span>';
+  }
+}
 
 // ================== CLASSIFICAR ==================
 let lastRegistroId=null;

@@ -51,9 +51,18 @@ INVENTARIO = {
         'retencao':  'enquanto a conta existir',
     },
     'auditoria_acessos': {
-        'campos':    ['user_email', 'ip'],
-        'titular':   'usuário do sistema (analista)',
-        'finalidade': 'trilha de auditoria de acesso a dado de crédito',
+        # `detalhe` carrega o CPF/CNPJ consultado no evento CONSULTA_CADASTRAL
+        # (services/situacao_cadastral.py) — a única tabela do sistema com dado
+        # pessoal de DOIS titulares diferentes. Regra 3 do módulo continua
+        # valendo: guarda a referência ao documento consultado, não a resposta
+        # da Receita Federal — essa não é persistida em lugar nenhum.
+        'campos':    ['user_email', 'ip', 'detalhe (CPF/CNPJ em CONSULTA_CADASTRAL)'],
+        'titular':   'usuário do sistema (analista); e, no campo detalhe de '
+                      'CONSULTA_CADASTRAL, cliente da consultoria (produtor/empresa)',
+        'finalidade': 'trilha de auditoria de acesso a dado de crédito; e, para '
+                       'CONSULTA_CADASTRAL, verificar situação cadastral pública '
+                       '(Receita Federal, legítimo interesse — LGPD Art. 7 IX) '
+                       'antes de prosseguir com a análise',
         'retencao':  'RETENCAO_AUDITORIA_DIAS (default 730)',
     },
     'whatsapp_vinculos': {
