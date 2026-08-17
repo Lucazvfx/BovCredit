@@ -1696,6 +1696,7 @@ def _simular_cria(
 def _simular_recria(
     v, cenario, mort_pct, preco_arroba, peso_entrada_arr, peso_saida_arr,
     meses_recria, custo_arroba, anos, preco_reposicao_cab=None,
+    reposicao_pct=100.0,
 ):
     """
     Recria por coortes etárias.
@@ -1724,6 +1725,7 @@ def _simular_recria(
     mort  = (mort_pct / 100) * m['mort']
     preco = preco_arroba * m['preco']
     ganho_arr = max(peso_saida_arr - peso_entrada_arr, 0.0)
+    _repos_frac = min(max(float(reposicao_pct), 0.0), 100.0)
 
     c0_f, c0_m = float(va[0] + va[2]), float(va[1] + va[3])   # 0–12 meses
     c1_f, c1_m = float(va[4]), float(va[5])                    # 13–24 meses
@@ -1758,10 +1760,16 @@ def _simular_recria(
         n2_f, n2_m = c1_f, c1_m - vend_c1_m
         n1_f, n1_m = c0_f, c0_m
 
-        # Reposição 1:1 por compra, como na ficha (venda 315 → compra 315).
-        # Entra como jovem e macho: a recria compra bezerro desmamado, não boi
-        # magro, e a relação de troca é outra (≈9,26@ contra 12,4@).
-        compras = animais_sai
+        # Reposição por compra, entrando como jovem e macho: a recria compra
+        # bezerro desmamado, não boi magro, e a relação de troca é outra
+        # (≈9,26@ contra 12,4@).
+        #
+        # Era 1:1 fixo — `compras = animais_sai` —, número que veio da ficha de
+        # 700 cabeças (venda 315 → compra 315) e virou lei do motor. A ficha de
+        # estoque não comprova reposição: não diz se o produtor recompra o
+        # lote, reduz a escala ou traz os animais da própria cria. Agora é
+        # premissa declarável, com o default no comportamento antigo.
+        compras = animais_sai * (_repos_frac / 100.0)
         n0_f, n0_m = 0.0, compras
 
         # O MESMO animal precisa ser comprado e valorado pelo mesmo preço.
@@ -1810,6 +1818,7 @@ def _simular_recria(
             'jovens_f_fim': int(round(n0_f + n1_f)),
             'jovens_m_fim': int(round(n0_m + n1_m)),
             'compras':      int(round(compras)),
+            'reposicao_pct': _repos_frac,
             'mortes':       int(round(mortes)),
         })
         c0_f, c0_m = n0_f, n0_m
@@ -1998,6 +2007,7 @@ def simular_cenario(
     preco_vaca_arr:     float = None,   # R$/@ vaca do dia
     preco_bezerra_cab:  float = None,   # R$/cabeça bezerra do dia
     preco_bezerro_cab:  float = None,   # R$/cabeça bezerro do dia
+    reposicao_pct:      float = 100.0,  # RECRIA: % do lote que sai e é recomprado
 ) -> dict:
     # ── Duração da engorda: derivada, não fixa ───────────────────────────────
     #
@@ -2062,6 +2072,7 @@ def simular_cenario(
             v, cenario, mort_pct, preco_arroba, peso_entrada_arr, peso_saida_arr,
             meses_recria, _custo_recria, anos,
             preco_reposicao_cab=preco_bezerro_cab,
+            reposicao_pct=reposicao_pct,
         )
     if ciclo == 'ENGORDA':
         return _simular_engorda(

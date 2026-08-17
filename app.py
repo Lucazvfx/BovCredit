@@ -1500,6 +1500,13 @@ def api_classificar():
         _sim_volume['venda_bez_pct'] = max(0.0, min(float(_venda_bez), 100.0))
     if _desc_mat is not None:
         _sim_volume['desc_pct'] = max(0.0, min(float(_desc_mat), 100.0))
+    # Recria: quanto do lote que sai é recomprado. O motor assumia 100% sempre,
+    # e a ficha de estoque não comprova reposição nenhuma — o analista que sabe
+    # que a fazenda vai reduzir escala, ou que os animais vêm da própria cria,
+    # precisa poder dizer isso. Ausente, mantém os 100% de antes.
+    _repos_recria = _opt_float(data.get('reposicao_recria_pct'))
+    if _repos_recria is not None:
+        _sim_volume['reposicao_pct'] = max(0.0, min(float(_repos_recria), 100.0))
 
     _cx = simular_cenario(
         v, 'conservador', ciclo=result['tipo'],

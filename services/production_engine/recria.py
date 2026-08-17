@@ -30,6 +30,11 @@ def project_recria(state: HerdState, parameters: dict, years: int = 5) -> dict[s
     if preco_reposicao_cab is not None:
         preco_reposicao_cab = _coerce_float(preco_reposicao_cab, default=0.0)
     reposicao_precificada = _coerce_bool(params.get("reposicao_precificada"), default=True)
+    # Quanto do lote que sai é reposto por compra. Era 100% fixo — hipótese
+    # que veio de uma ficha real com reposição 1:1 documentada e virou lei do
+    # motor. A ficha de estoque não comprova reposição nenhuma, então isto
+    # passa a ser premissa declarável. O default mantém o comportamento antigo.
+    reposicao_pct = min(max(_coerce_float(params.get("reposicao_pct"), default=100.0), 0.0), 100.0)
 
     mort = mort_pct / 100.0
     preco = preco_arroba
@@ -64,7 +69,7 @@ def project_recria(state: HerdState, parameters: dict, years: int = 5) -> dict[s
         n2_f, n2_m = c1_f, c1_m - vend_c1_m
         n1_f, n1_m = c0_f, c0_m
 
-        compras = animais_sai
+        compras = animais_sai * (reposicao_pct / 100.0)
         n0_f, n0_m = 0.0, compras
 
         _p_repo = (preco_reposicao_cab if preco_reposicao_cab is not None else TROCA_ARROBAS_BEZERRO * preco)
@@ -96,6 +101,7 @@ def project_recria(state: HerdState, parameters: dict, years: int = 5) -> dict[s
                 "jovens_f_fim": int(round(n0_f + n1_f)),
                 "jovens_m_fim": int(round(n0_m + n1_m)),
                 "compras": int(round(compras)),
+                "reposicao_pct": reposicao_pct,
                 "mortes": int(round(mortes)),
             }
         )
