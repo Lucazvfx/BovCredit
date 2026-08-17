@@ -76,6 +76,7 @@ from services.validacao_zootecnica import analisar_validacoes_zootecnicas
 from services.checklist_credito import checklist_credito
 from services.dados_impeditivos import detectar as detectar_impeditivos
 from services.retencao import calcular_retencao
+from services.base_reprodutiva import base_reprodutiva
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services.rating_credito import calcular_rating
 from services.precos_regionais import aplicar as aplicar_preco_regional
@@ -1190,7 +1191,11 @@ def api_classificar():
     documentos_credito = checklist_credito(_dados_para_impeditivos, qualidade_dados)
 
     # Motor de retenção: os 3 limites (zootécnico, pastagem, financeiro)
-    _mat = float(v[6] + v[8]) if len(v) >= 10 else 0.0
+    #
+    # A base é quem já pariu. Somar a faixa de 25–36m aqui — como este bloco
+    # fazia — infla a reposição necessária e a desmama projetada em 25% na
+    # cria de referência, e a retenção entra na capacidade de pagamento.
+    _mat = base_reprodutiva(v).matrizes
     _natalidade = float(data.get('natalidade_pct') or data.get('taxa_natalidade', 0.0) or 70.0) / 100
     _desm_pct   = float(data.get('desmama_pct', 82.0) or 82.0) / 100
     _bezerras_desm = _mat * _natalidade * _desm_pct * 0.5

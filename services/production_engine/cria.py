@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from services.base_reprodutiva import base_reprodutiva
 from services.engine.contracts import HerdState
 from services.parametros_zootecnicos import (
     PESO_BEZERRA_ARR,
@@ -55,9 +56,10 @@ def project_cria(state: HerdState, parameters: dict, years: int = 5) -> dict[str
     bez_F = float(va[0] + va[2])
     bez_M = float(va[1] + va[3])
     mac_R = float(va[5] + va[7])
-    matrizes = float(va[8])
+    _base = base_reprodutiva(va)
+    matrizes = _base.matrizes
     nov_F = float(va[4])
-    prestes_F = float(va[6])
+    prestes_F = _base.prestes
     bois = float(va[9])
 
     anos_proj: list[dict[str, Any]] = []

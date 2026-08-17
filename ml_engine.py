@@ -17,6 +17,7 @@ from sklearn import __version__ as _sklearn_version
 
 _log = logging.getLogger(__name__)
 warnings.filterwarnings('ignore')
+from services.base_reprodutiva import base_reprodutiva
 from services.pesos_rebanho import arrobas_categorias
 from services.benchmarks_nacionais import DESFRUTE_MODALIDADE as _FAIXAS_DESFRUTE
 from services.parametros_zootecnicos import (
@@ -274,7 +275,12 @@ def extrair_features(
 
     femeas_024  = v[0] + v[2] + v[4]
     machos_024  = v[1] + v[3] + v[5]
-    matrizes    = v[6] + v[8]
+    # Plantel adulto, não base reprodutiva: aqui a pergunta é "que fração
+    # deste rebanho é fêmea adulta", e para isso a de 30 meses conta como a de
+    # 40. É de propósito que este número difere do que projeta bezerro — ver
+    # services/base_reprodutiva.py. Mexer nele desloca as features e invalida
+    # gestao_model.pkl, que foi treinado com a soma.
+    matrizes    = base_reprodutiva(v).plantel_adulto
     bois        = v[7] + v[9]
     bois_25_36  = v[7]
     bezerros_0_24 = femeas_024 + machos_024

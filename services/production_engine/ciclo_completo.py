@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from services.base_reprodutiva import base_reprodutiva
 from services.engine.contracts import HerdState
 from services.pesos_rebanho import arrobas_categorias
 from services.parametros_zootecnicos import (
@@ -154,8 +155,9 @@ def project_full_cycle(state: HerdState, parameters: dict, years: int = 5) -> di
 
     femeas_024 = float(va[0] + va[2] + va[4])
     machos_024 = float(va[1] + va[3] + va[5])
-    matrizes = float(va[8])
-    prestes_F = float(va[6])
+    _base = base_reprodutiva(va)
+    matrizes = _base.matrizes
+    prestes_F = _base.prestes
     bois = float(va[7] + va[9])
 
     _n_cria = matrizes + femeas_024

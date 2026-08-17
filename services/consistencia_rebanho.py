@@ -12,9 +12,12 @@ Ordem do vetor (10 posições), idêntica a `ml_engine.classificar`:
     6 f25_F  7 f25_M   (25–36 meses)
     8 fac_F  9 fac_M   (acima de 36 meses)
 
-Convenções: matrizes = f25_F + fac_F; touros = fac_M; bezerros = f00_F + f00_M.
+Convenções: matrizes = fac_F (quem já pariu — ver services/base_reprodutiva.py);
+plantel adulto = f25_F + fac_F; touros = fac_M; bezerros = f00_F + f00_M.
 """
 from __future__ import annotations
+
+from services.base_reprodutiva import base_reprodutiva
 
 ERRO = "erro"
 ALERTA = "alerta"
@@ -48,7 +51,7 @@ def estimar_compra_animais(v: list, natalidade: float = 0.70) -> dict:
         raise ValueError(f"Esperado vetor de 10 posições, recebido {len(v)}.")
     v = [max(float(x), 0.0) for x in v]
 
-    matrizes = v[6] + v[8]
+    matrizes = base_reprodutiva(v).matrizes
     coorte = v[0] + v[1] + v[2] + v[3]          # 0–4m + 5–12m
     producao = matrizes * max(natalidade, 0.0)
     compra = coorte - producao
@@ -103,11 +106,12 @@ def analisar_consistencia(
         matriz_touro_max: Máx. de matrizes por touro antes de sinalizar (monta natural).
         matriz_touro_min: Mín. de matrizes por touro antes de sinalizar excesso.
         prop_sexual_bezerro: Faixa (min, max) plausível da razão F/M ao nascer.
-        reposicao_min: Razão mínima novilhas/matrizes para o rebanho se sustentar.
+        reposicao_min: Razão mínima novilhas/fêmeas adultas para o rebanho se sustentar.
         piramide_fator: Fator acima do qual uma faixa mais velha excede a mais nova.
 
     Returns:
-        Dict com `total_animais`, `matrizes`, `score_consistencia` (0–100),
+        Dict com `total_animais`, `matrizes` (base reprodutiva, fac_F),
+        `score_consistencia` (0–100),
         `resumo` (contagem por severidade) e `flags` (lista de checagens).
 
     Raises:
@@ -119,7 +123,8 @@ def analisar_consistencia(
     total = sum(v)
 
     bezerros = v[0] + v[1]
-    matrizes = v[6] + v[8]
+    _base = base_reprodutiva(v)
+    matrizes = _base.matrizes
     touros = v[9]
 
     # ── v[6] estava contado NOS DOIS lados ───────────────────────────────────
@@ -137,15 +142,25 @@ def analisar_consistencia(
     # diferentes para a mesma coisa no mesmo documento — a classe de defeito
     # que já custou a sensibilidade e o benchmark de custo.
     #
-    # QUAL DOS DOIS LADOS CEDEU, e por quê: v[6] segue como matriz, porque é
-    # assim que ml_engine o trata em todo o motor (`va[6] + va[8]`). Mudar o
+    # QUAL DOS DOIS LADOS CEDEU, na época: v[6] seguiu como matriz, porque era
+    # assim que ml_engine o tratava em todo o motor (`va[6] + va[8]`). Mudar o
     # denominador do rebanho inteiro para acertar um flag seria o rabo abanando
-    # o cachorro.
+    # o cachorro, e ficou registrado como item aberto.
     #
-    # FICA REGISTRADO O INCÔMODO: a faixa 25–36m como matriz contradiz
-    # IDADE_PRIMEIRA_PARICAO_MESES (36,3 medido pela Embrapa, 40,0 no Pantanal
-    # extensivo) — uma fêmea de 30 meses ainda não pariu. O motor documenta a
-    # escolha em ml_engine.py:68. É item aberto, não desta correção.
+    # O ITEM FOI FECHADO DEPOIS, e o desfecho é que a função tinha DUAS
+    # perguntas diferentes penduradas na mesma variável:
+    #
+    #   quantos bezerros este rebanho consegue parir   → só v[8]
+    #   qual a razão novilha : fêmea adulta em estoque → v[6] + v[8]
+    #
+    # A primeira é projeção biológica e estava inflada em 25% na cria de
+    # referência, contando bezerro de fêmea que ainda não pariu — o mesmo
+    # defeito que os motores de produção já tinham corrigido. A segunda é
+    # composição de plantel e continua na soma.
+    #
+    # Agora as duas saem de services/base_reprodutiva.py, cada uma pedindo o
+    # campo que quer, em vez de compartilharem um nome ambíguo.
+    plantel_adulto = _base.plantel_adulto
     novilhas_repo = v[4]
 
     flags = []
@@ -231,16 +246,18 @@ def analisar_consistencia(
         flags.append(_flag("prop_sexual_bezerros", OK,
                            "Proporção sexual de bezerros", "Amostra pequena — não avaliado."))
 
-    # 3. Relação touro:matriz
-    if matrizes > 0:
+    # 3. Relação touro:matriz — medida contra o plantel adulto, não contra a
+    # base reprodutiva: a fêmea de 25–36m está EM COBERTURA agora, é por isso
+    # que ela pare aos 36. O touro serve as duas faixas.
+    if plantel_adulto > 0:
         if touros == 0:
             flags.append(_flag(
                 "touro_matriz", ALERTA,
                 "Matrizes sem touro declarado",
-                f"{matrizes:.0f} matrizes e nenhum touro. Plausível apenas com IATF/inseminação.",
-                declarado=0, esperado=matrizes / matriz_touro_max))
+                f"{plantel_adulto:.0f} fêmeas adultas e nenhum touro. Plausível apenas com IATF/inseminação.",
+                declarado=0, esperado=plantel_adulto / matriz_touro_max))
         else:
-            razao = matrizes / touros
+            razao = plantel_adulto / touros
             if razao > matriz_touro_max:
                 flags.append(_flag(
                     "touro_matriz", ALERTA,
@@ -253,18 +270,18 @@ def analisar_consistencia(
                     f"{razao:.0f} matrizes por touro (> {matriz_touro_max:.0f}). "
                     f"A monta natural nessa proporção não sustenta prenhez alta — "
                     f"confirme se há IATF ou estação de monta.",
-                    declarado=touros, esperado=matrizes / matriz_touro_max))
+                    declarado=touros, esperado=plantel_adulto / matriz_touro_max))
             elif razao < matriz_touro_min:
                 flags.append(_flag(
                     "touro_matriz", ALERTA,
                     "Excesso de touros",
                     f"{razao:.0f} matrizes por touro (< {matriz_touro_min:.0f}).",
-                    declarado=touros, esperado=matrizes / matriz_touro_min))
+                    declarado=touros, esperado=plantel_adulto / matriz_touro_min))
             else:
                 flags.append(_flag("touro_matriz", OK, "Relação touro:matriz",
                                    f"{razao:.0f} matrizes por touro — adequado."))
     else:
-        flags.append(_flag("touro_matriz", OK, "Relação touro:matriz", "Sem matrizes."))
+        flags.append(_flag("touro_matriz", OK, "Relação touro:matriz", "Sem fêmeas adultas."))
 
     # 4. Continuidade da pirâmide etária (sem compra, faixa velha <= faixa nova)
     #    Não se aplica às faixas +36m (fêmeas adultas acumulam vários ciclos).
@@ -292,19 +309,20 @@ def analisar_consistencia(
         flags.append(_flag("piramide_etaria", OK, "Pirâmide etária",
                            "Faixas etárias coerentes."))
 
-    # 5. Reposição de fêmeas
-    if matrizes > 50:
-        taxa_repo = novilhas_repo / matrizes
+    # 5. Reposição de fêmeas — razão de composição, medida contra o plantel
+    # adulto inteiro: a fêmea de 25–36m é parte do que precisa ser reposto.
+    if plantel_adulto > 50:
+        taxa_repo = novilhas_repo / plantel_adulto
         if taxa_repo < reposicao_min:
             flags.append(_flag(
                 "reposicao_femeas", ALERTA,
                 "Reposição de fêmeas insuficiente",
-                f"Apenas {novilhas_repo:.0f} novilhas de reposição para {matrizes:.0f} "
-                f"matrizes ({taxa_repo:.0%}). Rebanho não se sustenta.",
-                declarado=novilhas_repo, esperado=matrizes * reposicao_min))
+                f"Apenas {novilhas_repo:.0f} novilhas de reposição para {plantel_adulto:.0f} "
+                f"fêmeas adultas ({taxa_repo:.0%}). Rebanho não se sustenta.",
+                declarado=novilhas_repo, esperado=plantel_adulto * reposicao_min))
         else:
             flags.append(_flag("reposicao_femeas", OK, "Reposição de fêmeas",
-                               f"Reposição de {taxa_repo:.0%} das matrizes — adequada."))
+                               f"Reposição de {taxa_repo:.0%} das fêmeas adultas — adequada."))
     else:
         flags.append(_flag("reposicao_femeas", OK, "Reposição de fêmeas",
                            "Rebanho pequeno — não avaliado."))
