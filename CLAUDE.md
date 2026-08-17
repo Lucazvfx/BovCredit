@@ -124,7 +124,9 @@ static/
 | `GROQ_API_KEY` | API Groq para narrativas |
 | `APP_URL` | URL pública sem barra final |
 
-Opcionais: `RATELIMIT_STORAGE_URI` (Redis), `WEB_CONCURRENCY`, `WEB_THREADS`, `WEB_TIMEOUT`.
+Opcionais: `RATELIMIT_STORAGE_URI` (Redis), `WEB_CONCURRENCY`, `WEB_THREADS`, `WEB_TIMEOUT`, `TOTP_CHAVE`.
+
+**`TOTP_CHAVE`** — cifra o segredo 2FA no banco. Sem ela a chave é derivada da `SECRET_KEY`, o que funciona mas amarra as duas: rotacionar a `SECRET_KEY` torna os segredos ilegíveis e todos os usuários precisam entrar por código de backup e reativar o 2FA. Defina antes de qualquer rotação — ver `services/cripto_segredo.py`.
 
 ## Desenvolvimento local
 

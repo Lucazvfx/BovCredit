@@ -11,6 +11,10 @@ flask==3.1.3
 scikit-learn==1.5.2
 numpy==1.26.4
 pdfplumber==0.11.10
+# Já vinha como dependência transitiva do pdfminer.six, mas agora o segredo
+# TOTP é cifrado com Fernet — depender disso por acaso, no caminho de
+# autenticação, é o tipo de coisa que quebra numa atualização do pdfplumber.
+cryptography==50.0.0
 openpyxl==3.1.5
 gunicorn==26.0.0
 psycopg2-binary==2.9.12

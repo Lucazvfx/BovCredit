@@ -123,6 +123,74 @@ def test_hash_de_reset_nao_valida_como_se_fosse_o_token():
     assert db.validar_token_reset(db._hash_token_reset(token)) is None
 
 
+# ── Segredo TOTP cifrado no banco ────────────────────────────────────────────
+
+def _usuario_totp(email):
+    db.init_db()
+    u = db.buscar_usuario_email(email)
+    if not u:
+        db.criar_usuario(email, 'TOTP', 'senha123')
+        u = db.buscar_usuario_email(email)
+    return u['id']
+
+
+def _segredo_cru(uid):
+    return db._exec(f'SELECT totp_segredo FROM usuarios WHERE id={db._PH}',
+                    (uid,), fetch='one')['totp_segredo']
+
+
+def test_segredo_totp_nao_fica_em_claro_no_banco():
+    """Um dump do banco não pode entregar o segundo fator de ninguém.
+
+    Diferente de uma senha, o segredo TOTP não expira nem é trocado: quem o
+    lê gera códigos válidos para sempre.
+    """
+    from services import totp as _totp
+
+    uid = _usuario_totp('totp-cifrado@example.com')
+    segredo = _totp.gerar_segredo()
+    db.totp_guardar_segredo(uid, segredo)
+
+    assert _segredo_cru(uid) != segredo, 'o segredo foi gravado em claro'
+    assert db.totp_estado(uid)['segredo'] == segredo
+
+
+def test_segredo_legado_em_claro_e_recifrado_na_leitura():
+    """A base se corrige sozinha: quem já tinha 2FA não precisa reativar."""
+    from services import totp as _totp
+
+    uid = _usuario_totp('totp-legado@example.com')
+    segredo = _totp.gerar_segredo()
+    # Simula o que está gravado hoje em produção: base32 puro.
+    db._exec(f'UPDATE usuarios SET totp_segredo={db._PH} WHERE id={db._PH}',
+             (segredo, uid), commit=True)
+    assert _segredo_cru(uid) == segredo
+
+    assert db.totp_estado(uid)['segredo'] == segredo   # continua funcionando
+    assert _segredo_cru(uid) != segredo                # e já subiu cifrado
+    assert db.totp_estado(uid)['segredo'] == segredo   # e segue legível
+
+
+def test_chave_trocada_derruba_para_o_backup_sem_trancar_a_conta(monkeypatch):
+    """SECRET_KEY rotacionada sem TOTP_CHAVE não pode virar bloqueio total.
+
+    O segredo fica ilegível de propósito — mas os códigos de backup são hash
+    próprio e continuam valendo, então o usuário entra e reativa o 2FA.
+    Silenciar seria burlar o 2FA; estourar trancaria também o backup.
+    """
+    from services import cripto_segredo as cripto
+    from services import totp as _totp
+
+    uid = _usuario_totp('totp-chave-trocada@example.com')
+    db.totp_guardar_segredo(uid, _totp.gerar_segredo())
+
+    monkeypatch.setenv('TOTP_CHAVE', cripto.Fernet.generate_key().decode())
+    est = db.totp_estado(uid)
+
+    assert est['segredo'] is None
+    assert _totp.verificar(est['segredo'], '123456') is None
+
+
 # ── Rotas caras têm limite ───────────────────────────────────────────────────
 
 ROTAS_QUE_PRECISAM_DE_LIMITE = [

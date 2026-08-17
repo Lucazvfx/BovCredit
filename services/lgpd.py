@@ -45,7 +45,10 @@ import os
 # tabela nova com dado pessoal e sem entrada aqui é buraco de conformidade.
 INVENTARIO = {
     'usuarios': {
-        'campos':    ['email', 'nome', 'senha_hash', 'security_answer_hash'],
+        # totp_segredo é cifrado (services/cripto_segredo.py) e totp_backup
+        # guarda hashes — nenhum dos dois é legível num dump do banco.
+        'campos':    ['email', 'nome', 'senha_hash', 'security_answer_hash',
+                      'totp_segredo (cifrado)', 'totp_backup (hashes)'],
         'titular':   'usuário do sistema (analista)',
         'finalidade': 'autenticação e identificação do autor do parecer',
         'retencao':  'enquanto a conta existir',

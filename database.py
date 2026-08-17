@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from werkzeug.security import generate_password_hash, check_password_hash
 from contextlib import contextmanager
+from services import cripto_segredo as _cripto
 
 
 def _sanitizar_database_url(raw: str) -> str:
@@ -1693,9 +1694,18 @@ def totp_estado(user_id: int) -> dict:
         f'FROM usuarios WHERE id={ph}', (user_id,), fetch='one')
     if not row:
         return {'ativo': False, 'segredo': None, 'contador': 0, 'backup': []}
+
+    guardado = row.get('totp_segredo')
+    # Segredos gravados antes da cifragem sobem em claro. Regrava cifrado na
+    # primeira leitura, para a base se corrigir sozinha conforme cada usuário
+    # usa o 2FA, em vez de exigir uma migração de uma vez só.
+    if _cripto.precisa_recifrar(guardado):
+        _exec(f'UPDATE usuarios SET totp_segredo={ph} WHERE id={ph}',
+              (_cripto.cifrar(guardado), user_id), commit=True)
+
     return {
         'ativo':    bool(row.get('totp_ativo')),
-        'segredo':  row.get('totp_segredo'),
+        'segredo':  _cripto.decifrar(guardado),
         'contador': int(row.get('totp_contador') or 0),
         'backup':   json.loads(row.get('totp_backup') or '[]'),
     }
@@ -1706,7 +1716,7 @@ def totp_guardar_segredo(user_id: int, segredo: str) -> None:
     _ensure_totp_colunas()
     ph = _PH
     _exec(f'UPDATE usuarios SET totp_segredo={ph}, totp_ativo=0 WHERE id={ph}',
-          (segredo, user_id), commit=True)
+          (_cripto.cifrar(segredo), user_id), commit=True)
 
 
 def totp_ativar(user_id: int, hashes_backup: list) -> None:
