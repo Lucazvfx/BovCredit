@@ -19,13 +19,26 @@ if [ -z "$DOMAIN" ]; then
   exit 1
 fi
 
+# Este VPS pode já servir outros sites. Nada aqui remove ou substitui
+# configuração existente: instala só o que falta, adiciona um server block
+# novo e não toca no default.
+if [ -e "$APP_DIR" ]; then
+  echo "$APP_DIR já existe — este script é só para a primeira instalação." >&2
+  echo "Para atualizar:  cd $APP_DIR && git pull && docker compose up -d --build" >&2
+  exit 1
+fi
+
 echo "==> Atualizando pacotes"
 apt-get update -qq
-apt-get install -y --no-install-recommends \
-  curl git nginx certbot python3-certbot-nginx
+apt-get install -y --no-install-recommends curl git certbot python3-certbot-nginx
+command -v nginx >/dev/null || apt-get install -y --no-install-recommends nginx
 
 echo "==> Instalando Docker"
-curl -fsSL https://get.docker.com | sh
+if command -v docker >/dev/null; then
+  echo "    já instalado, pulando"
+else
+  curl -fsSL https://get.docker.com | sh
+fi
 systemctl enable --now docker
 
 echo "==> Clonando repositório (branch $BRANCH)"
@@ -49,7 +62,10 @@ echo "==> Configurando nginx (HTTP)"
 sed "s/seudominio\.com\.br/$DOMAIN/g" nginx/orkavyn.conf \
   > /etc/nginx/sites-available/orkavyn
 ln -sf /etc/nginx/sites-available/orkavyn /etc/nginx/sites-enabled/orkavyn
-rm -f /etc/nginx/sites-enabled/default
+# O site default NÃO é removido. A versão anterior o apagava, o que numa
+# máquina nova era inofensivo e aqui derrubaria o que já está no ar. nginx
+# casa por server_name antes de cair no default_server, então o bloco novo
+# convive com os existentes sem disputar nada.
 mkdir -p /var/www/certbot
 nginx -t && systemctl reload nginx
 
