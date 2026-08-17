@@ -40,18 +40,24 @@ jobs:
       # A confiança na chave do host não muda: o keyscan aceitava a chave que
       # respondesse naquele instante, que é o mesmo TOFU do accept-new. A
       # diferença é que agora não há um passo separado para falhar sozinho.
+      # Sobe o commit que a suíte aprovou, não o que estiver na ponta de main
+      # no instante do deploy. `git pull origin main` deixava uma janela: um
+      # push durante o job publicava código que nunca rodou os testes.
+      # Em workflow_dispatch não há workflow_run, então cai no SHA do próprio
+      # disparo — que é o que o usuário escolheu redeployar.
       - name: Atualizar e subir no VPS
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=accept-new \
-              -o ConnectTimeout=15 root@179.198.115.127 '
+              -o ConnectTimeout=15 root@179.198.115.127 "
             set -e
             cd /opt/orkavyn
             git fetch origin main
-            git checkout main
-            git pull origin main
+            git checkout --detach '$SHA'
             docker compose up -d --build
-          '
+          "
 
       - name: Verificar que o site respondeu
         run: |

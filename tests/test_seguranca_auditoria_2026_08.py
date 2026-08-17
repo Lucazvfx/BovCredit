@@ -1,0 +1,156 @@
+"""Regressões das correções de segurança da auditoria de 17/08/2026.
+
+Cada teste aqui trava um buraco que já esteve aberto em produção. Se algum
+voltar a passar por acidente numa refatoração, é para a suíte gritar.
+"""
+import database as db
+import pytest
+from app import app
+
+from services.api_v1.authentication import APIKeyIdentity
+
+
+# ── Chave de API sem escopo não autoriza nada ────────────────────────────────
+
+def _identidade(escopos):
+    return APIKeyIdentity(
+        api_key_id=1, organization_id=1, user_id=None,
+        name='teste', scopes=tuple(escopos), key_prefix='lii_00000000',
+    )
+
+
+def test_chave_sem_escopo_nao_abre_rota_nenhuma():
+    """O caso provável não é ataque, é descuido: chave criada sem escopo.
+
+    Antes, lista vazia caía num `or not granted` e liberava tudo.
+    """
+    assert _identidade([]).allows(('herd:analyze',)) is False
+    assert _identidade([]).allows(('analysis:write',)) is False
+
+
+def test_escopo_curinga_continua_valendo():
+    """`*` é um "tudo" que alguém escolheu — diferente de não escolher nada."""
+    assert _identidade(['*']).allows(('herd:analyze',)) is True
+
+
+def test_escopo_certo_autoriza_e_escopo_errado_nao():
+    ident = _identidade(['herd:analyze'])
+    assert ident.allows(('herd:analyze',)) is True
+    assert ident.allows(('analysis:write',)) is False
+
+
+# ── CSRF fecha para sessão sem token ─────────────────────────────────────────
+
+def _cliente_logado():
+    db.init_db()
+    email = 'csrf-auditoria@example.com'
+    u = db.buscar_usuario_email(email)
+    if not u:
+        db.criar_usuario(email, 'CSRF', 'senha123')
+        u = db.buscar_usuario_email(email)
+    app.config['TESTING'] = True
+    c = app.test_client()
+    with c.session_transaction() as s:
+        s['_user_id'] = str(u['id'])
+    return c
+
+
+def test_sessao_sem_token_csrf_nao_passa_fora_do_admin():
+    """O buraco antigo: `if not esperado and not path.startswith('/admin')`.
+
+    Uma sessão que nunca renderizou página fazia POST sem token nenhum, que é
+    exatamente o request que um site malicioso consegue forjar com o cookie
+    da vítima. Só /admin fechava.
+    """
+    c = _cliente_logado()
+    c.csrf = False   # sessão crua, sem token semeado nem header
+    r = c.post('/api/fazendas', json={'nome': 'Forjada'})
+    assert r.status_code == 403
+
+
+def test_token_errado_tambem_nao_passa():
+    c = _cliente_logado()
+    with c.session_transaction() as s:
+        s['csrf_token'] = 'o-token-certo'
+    c.csrf = False
+    r = c.post('/api/fazendas', json={'nome': 'Forjada'},
+               headers={'X-CSRF-Token': 'o-token-errado'})
+    assert r.status_code == 403
+
+
+# ── Token de reset guardado por hash ─────────────────────────────────────────
+
+def test_token_de_reset_nao_fica_em_claro_no_banco():
+    """Um dump do banco não pode entregar reset de senha de ninguém."""
+    db.init_db()
+    email = 'reset-hash@example.com'
+    if not db.buscar_usuario_email(email):
+        db.criar_usuario(email, 'Reset', 'senha123')
+
+    token = db.criar_token_reset(email)
+
+    guardado = db._exec(
+        f'SELECT token FROM reset_tokens WHERE email={db._PH} AND used=0',
+        (email,), fetch='one',
+    )
+    assert guardado is not None
+    assert guardado['token'] != token, 'o token foi gravado em claro'
+    assert guardado['token'] == db._hash_token_reset(token)
+
+
+def test_o_token_original_continua_validando_e_sendo_consumido():
+    """Guardar hash não pode quebrar o fluxo de quem recebeu o e-mail."""
+    db.init_db()
+    email = 'reset-hash-fluxo@example.com'
+    if not db.buscar_usuario_email(email):
+        db.criar_usuario(email, 'Reset Fluxo', 'senha123')
+
+    token = db.criar_token_reset(email)
+    assert db.validar_token_reset(token) == email
+
+    db.consumir_token_reset(token)
+    assert db.validar_token_reset(token) is None
+
+
+def test_hash_de_reset_nao_valida_como_se_fosse_o_token():
+    """Quem lê o banco tem o hash — e o hash não pode servir de senha."""
+    db.init_db()
+    email = 'reset-hash-nao-serve@example.com'
+    if not db.buscar_usuario_email(email):
+        db.criar_usuario(email, 'Reset Hash', 'senha123')
+
+    token = db.criar_token_reset(email)
+    assert db.validar_token_reset(db._hash_token_reset(token)) is None
+
+
+# ── Rotas caras têm limite ───────────────────────────────────────────────────
+
+ROTAS_QUE_PRECISAM_DE_LIMITE = [
+    '/api/shap',                  # pico de ~460 MB derruba o worker
+    '/api/narrativa',             # Groq: abuso vira conta paga
+    '/api/chat',                  # Groq
+    '/api/ler-pdf',               # OCR
+    '/api/fichas/importar',       # OCR em lote
+    '/api/ler-planilha',
+    '/api/importar-ficha-excel',
+    '/api/parecer/pdf',
+    '/api/parse-text',
+    '/api/cenario',
+    '/api/estimativa-valor',
+    '/api/reconciliacao',
+]
+
+
+@pytest.mark.parametrize('rota', ROTAS_QUE_PRECISAM_DE_LIMITE)
+def test_rota_cara_tem_rate_limit(rota):
+    """Sem limite, um usuário logado em laço tira o app do ar para todos."""
+    from services.rate_limit import limiter
+
+    endpoints = {r.endpoint for r in app.url_map.iter_rules() if r.rule == rota}
+    assert endpoints, f'rota {rota} não existe mais — atualize a lista'
+
+    # O flask-limiter indexa os limites decorados por "modulo.qualname" da
+    # view, não pelo nome do endpoint — daí a comparação por sufixo.
+    limitados = set(limiter.limit_manager._decorated_limits)
+    assert any(chave.endswith(f'.{ep}') for ep in endpoints for chave in limitados), \
+        f'{rota} está sem @limiter.limit'

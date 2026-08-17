@@ -202,14 +202,15 @@ def _verificar_csrf():
     """Protege toda mutação autenticada, inclusive endpoints JSON e upload."""
     if (request.method in {'POST', 'PUT', 'PATCH', 'DELETE'}
             and current_user.is_authenticated):
+        # Sessão sem token não é exceção, é o caso a barrar: se ela nunca
+        # renderizou uma página do app, ninguém legítimo tem o que enviar.
+        # A versão anterior liberava esse caso fora de /admin — que é
+        # exatamente o buraco que o CSRF existe para fechar. Quem cair aqui
+        # recupera recarregando a página, que emite o token.
         esperado = session.get('csrf_token')
-        # Sessões antigas recebem o token na próxima renderização do app. As
-        # rotas admin sempre o criam no formulário e continuam falhando fechado.
-        if not esperado and not request.path.startswith('/admin'):
-            return None
         token = (request.form.get('csrf_token', '')
                  or request.headers.get('X-CSRF-Token', ''))
-        if not token or not _secrets.compare_digest(token, esperado or ''):
+        if not esperado or not token or not _secrets.compare_digest(token, esperado):
             abort(403)
 
 # ── Validação de tipo de arquivo por magic bytes ─────────────────────────────
@@ -272,6 +273,23 @@ app.config['RATELIMIT_HEADERS_ENABLED'] = True  # X-RateLimit-* nos responses
 limiter.init_app(app)
 if _redis_uri != 'memory://':
     logger.info(f'[limiter] backend Redis: {_redis_uri.split("@")[-1]}')
+
+# As rotas autenticadas caras têm limite próprio, em três faixas por custo:
+#
+#   _LIM_MEMORIA  /api/shap — o SHAP sozinho chega a 460 MB de pico. Com
+#                 preload_app e poucos workers, um laço aqui derruba o
+#                 processo para todo mundo, não só para quem abusou.
+#   _LIM_EXTERNO  Groq — abuso vira conta paga, não só lentidão.
+#   _LIM_ARQUIVO  OCR, parsing de PDF/planilha e geração de PDF — CPU e I/O
+#                 por vários segundos, com o worker preso o tempo todo.
+#   _LIM_CALCULO  cálculo puro: barato por chamada, mas não ilimitado.
+#
+# Os números são folgados para o uso real de um analista (importar um lote,
+# revisar, gerar o parecer) e apertados para laço automatizado.
+_LIM_MEMORIA = "5 per minute; 40 per hour"
+_LIM_EXTERNO = "20 per minute; 200 per hour"
+_LIM_ARQUIVO = "15 per minute; 120 per hour"
+_LIM_CALCULO = "40 per minute; 400 per hour"
 
 # ── Controle de acesso: administradores ───────────────────────────────────────
 # Defina ADMIN_EMAILS no Railway (ex.: "voce@email.com"). Só admins acessam
@@ -997,6 +1015,7 @@ def api_empresa_perfil():
     })
 
 @app.route('/api/parecer/pdf', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
 @login_required
 def api_parecer_pdf():
     parecer = (request.json or {}).get('parecer')
@@ -2450,6 +2469,7 @@ def api_descartar_caso_real(caso_id):
 
 
 @app.route('/api/shap', methods=['POST'])
+@limiter.limit(_LIM_MEMORIA)
 @login_required
 def api_shap():
     """
@@ -2482,6 +2502,7 @@ def api_shap():
 
 
 @app.route('/api/narrativa', methods=['POST'])
+@limiter.limit(_LIM_EXTERNO)
 @login_required
 def api_narrativa():
     """
@@ -2510,6 +2531,7 @@ def api_narrativa():
     return jsonify({'narrativa': texto})
 
 @app.route('/api/chat', methods=['POST'])
+@limiter.limit(_LIM_EXTERNO)
 @login_required
 def api_chat():
     """Chat do assistente de crédito."""
@@ -2839,6 +2861,7 @@ def api_noticias():
 
 
 @app.route('/api/cenario', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
 @login_required
 def api_cenario():
     data = request.json
@@ -2875,6 +2898,7 @@ def api_cenarios():
 
 # ── Rota: Matemática Financeira da Arroba ──────────────────────────────────
 @app.route('/api/estimativa-valor', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
 @login_required
 def api_estimativa_valor():
     """Calcula o valor estimado de um animal baseado no peso, sexo e cotação do dia."""
@@ -2961,6 +2985,7 @@ def detectar_origem(text: str) -> str:
     return _det(text)
 
 @app.route('/api/ler-pdf', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
 @login_required
 def api_ler_pdf():
     if 'pdf' not in request.files:
@@ -3061,6 +3086,7 @@ def api_template_download():
 
 
 @app.route('/api/fichas/importar', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
 @login_required
 def api_importar_fichas():
     """Importa um lote de PDFs usando o fluxo baseado no XLSM.
@@ -3207,6 +3233,7 @@ def api_ficha_instrucoes():
 
 
 @app.route('/api/importar-ficha-excel', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
 @login_required
 def api_importar_ficha_excel():
     """Importa a planilha 'Classificação de Rebanho - Fichas' (CONSOLIDADO).
@@ -3246,6 +3273,7 @@ def api_importar_ficha_excel():
 
 
 @app.route('/api/ler-planilha', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
 @login_required
 def api_ler_planilha():
     """Lê o template preenchido e já retorna a análise de consistência do rebanho."""
@@ -3276,6 +3304,7 @@ def api_ler_planilha():
 
 
 @app.route('/api/reconciliacao', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
 @login_required
 def api_reconciliacao():
     """Cruza o rebanho declarado em Ficha Sanitária, IR e GTA.
@@ -3298,6 +3327,7 @@ def api_reconciliacao():
 
 
 @app.route('/api/parse-text', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
 @login_required
 def api_parse_text():
     """Reprocessa um texto extraído de PDF com o parser escolhido."""

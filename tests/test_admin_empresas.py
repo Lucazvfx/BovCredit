@@ -35,6 +35,7 @@ def test_admin_cria_empresa():
 def test_admin_rejeita_post_sem_csrf():
     """Regressão: a proteção CSRF de /admin deve devolver 403, não 500."""
     client = _login_admin_client()
+    client.csrf = False   # o ponto do teste é chegar sem token nenhum
     r = client.post('/admin/empresas/criar', data={'nome': 'Sem Token'})
     assert r.status_code == 403
 

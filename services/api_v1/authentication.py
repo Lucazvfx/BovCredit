@@ -31,11 +31,20 @@ class APIKeyIdentity:
     raw_key: str | None = None
 
     def allows(self, required_scopes: tuple[str, ...] | list[str] | None = None) -> bool:
+        """Chave sem escopo não autoriza nada.
+
+        Antes, uma lista de escopos vazia liberava qualquer rota. O caminho
+        provável não era ataque, era descuido: chave criada às pressas, sem
+        escopo marcado, virava chave-mestra. Agora ela não abre porta nenhuma
+        até alguém dizer explicitamente quais.
+
+        O curinga `*` continua valendo — esse é um "tudo" que alguém escolheu.
+        """
         required_scopes = tuple(required_scopes or ())
         if not required_scopes:
             return True
         granted = {scope for scope in self.scopes if scope}
-        if "*" in granted or not granted:
+        if "*" in granted:
             return True
         return any(scope in granted for scope in required_scopes)
 

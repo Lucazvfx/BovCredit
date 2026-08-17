@@ -28,6 +28,7 @@ def test_app_entrega_csp_e_token_csrf():
 def test_api_autenticada_rejeita_post_sem_csrf_depois_de_renderizar_app():
     c = _cliente_autenticado()
     c.get('/app')  # cria o token da sessão
+    c.csrf = False   # ...mas o request sai sem enviá-lo
     r = c.post('/api/fazendas', json={'nome': 'Teste'})
     assert r.status_code == 403
 

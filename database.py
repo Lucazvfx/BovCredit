@@ -743,6 +743,23 @@ def buscar_usuario_id(user_id: int) -> dict | None:
 
 
 # ── Reset de senha por token ────────────────────────────────────────────────
+#
+# A coluna `token` guarda o SHA-256 do token, nunca o token em si. O valor
+# original existe uma vez só: no retorno de criar_token_reset(), que vai para
+# o e-mail do usuário e não é gravado em lugar nenhum.
+#
+# O motivo é o pior caso: um dump do banco. Com o token em claro, quem lesse a
+# tabela redefinia a senha de qualquer conta com reset pendente — sem precisar
+# do e-mail da vítima. Com o hash, a leitura não serve para nada.
+#
+# O nome da coluna continua `token` para não exigir migração de um dado que
+# vive uma hora; o conteúdo é hash desde esta versão. Tokens emitidos antes
+# param de validar, que é o lado seguro de errar.
+
+def _hash_token_reset(token: str) -> str:
+    import hashlib
+    return hashlib.sha256((token or '').encode()).hexdigest()
+
 
 def _ensure_reset_tokens_table():
     _exec(f'''
@@ -756,9 +773,10 @@ def _ensure_reset_tokens_table():
 
 
 def criar_token_reset(email: str) -> str:
-    """Gera um token seguro de 1h para reset de senha e salva no banco.
+    """Gera um token seguro de 1h para reset de senha e salva o hash dele.
 
-    Invalida tokens anteriores do mesmo e-mail antes de criar o novo.
+    Invalida tokens anteriores do mesmo e-mail antes de criar o novo. O valor
+    devolvido é o único lugar onde o token existe em claro.
     """
     import secrets
     _ensure_reset_tokens_table()
@@ -769,12 +787,12 @@ def criar_token_reset(email: str) -> str:
     if _USE_PG:
         _exec(
             f"INSERT INTO reset_tokens (token, email, expires_at) VALUES ({ph},{ph}, NOW() + INTERVAL '1 hour')",
-            (token, email.lower()), commit=True,
+            (_hash_token_reset(token), email.lower()), commit=True,
         )
     else:
         _exec(
             f"INSERT INTO reset_tokens (token, email, expires_at) VALUES ({ph},{ph}, datetime('now','+1 hour'))",
-            (token, email.lower()), commit=True,
+            (_hash_token_reset(token), email.lower()), commit=True,
         )
     return token
 
@@ -786,12 +804,12 @@ def validar_token_reset(token: str) -> str | None:
     if _USE_PG:
         row = _exec(
             f'SELECT email FROM reset_tokens WHERE token={ph} AND used=0 AND expires_at > NOW()',
-            (token,), fetch='one',
+            (_hash_token_reset(token),), fetch='one',
         )
     else:
         row = _exec(
             f"SELECT email FROM reset_tokens WHERE token={ph} AND used=0 AND expires_at > datetime('now')",
-            (token,), fetch='one',
+            (_hash_token_reset(token),), fetch='one',
         )
     return row['email'] if row else None
 
@@ -799,7 +817,8 @@ def validar_token_reset(token: str) -> str | None:
 def consumir_token_reset(token: str):
     """Marca o token como usado após a senha ser redefinida."""
     ph = _PH
-    _exec(f'UPDATE reset_tokens SET used=1 WHERE token={ph}', (token,), commit=True)
+    _exec(f'UPDATE reset_tokens SET used=1 WHERE token={ph}',
+          (_hash_token_reset(token),), commit=True)
 
 def atualizar_perfil_consultoria(user_id: int, nome_consultoria: str, logo_base64: str):
     ph = _PH
