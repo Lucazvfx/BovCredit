@@ -48,10 +48,6 @@ _REPOR_COMPRA_DESMAMA = os.environ.get('REPOR_COMPRA_DESMAMA', '0') == '1'
 # Razão bezerra/adulto para derivar mort_bezerra quando só mort_adulto é informada
 _RAZAO_MORT_BEZERRA = MORTALIDADE_BEZERRA_PCT / MORTALIDADE_ADULTO_PCT  # 3.5
 
-# Fração dos machos de 0–24m que completa 25 meses no ano e entra na
-# terminação. A faixa cobre dois anos, então em regime metade gradua.
-_FRAC_GRADUACAO_MACHO = 0.5
-
 # Participação mínima de matrizes para um rebanho poder ser chamado de CRIA.
 # Cria é produzir bezerro, e bezerro vem de vaca: sem base reprodutiva o
 # rebanho pode ser predominantemente fêmea e ainda assim não ser cria — é o
@@ -1207,7 +1203,7 @@ def calcular_indicadores(v: list) -> dict:
 # 7. SIMULAÇÕES FINANCEIRAS (PARÂMETROS ATUALIZADOS)
 # ==================================================================
 def calcular_ano(
-    matrizes, femeas_024, machos_024, bois,
+    matrizes, c0_femeas, c1_femeas, c0_machos, c1_machos, bois,
     nat_pct, desc_mat_pct, prop_boi, renov_boi_pct,
     venda_bez_pct, mort_pct, preco_arroba, custo_arroba,
     peso_boi: float = PESO_BOI_ARR, peso_vaca: float = PESO_VACA_ARR,
@@ -1216,53 +1212,39 @@ def calcular_ano(
     preco_bezerra_cab: float = None, preco_bezerro_cab: float = None,
     mort_adulto_pct: float = None,   # fração; default = mort_pct
     mort_bezerra_pct: float = None,  # fração; default = mort_pct × 3.5 (EMBRAPA)
-    # Fêmeas de 25–36 meses declaradas: cruzam os 36 meses dentro do ano e
-    # entram na base reprodutiva. NÃO produzem bezerro neste ano — ver a
-    # derivação em _simular_cria. Só o ano 1 recebe valor aqui; do ano 2 em
-    # diante a coorte vem da regra de reposição sobre as fêmeas jovens.
+    # Fêmeas de 25–36 meses ("prestes") — coorte que amadurece dentro do ano
+    # e entra na base reprodutiva. Estado corrente, não injeção de uma vez:
+    # do ano 2 em diante ela é alimentada por c1_femeas do ano anterior (ver
+    # o loop de simular_cenario), não mais zerada.
     prestes_matrizes: float = 0.0,
 ) -> dict:
     """
-    Pesos diferenciados na faixa jovem (0-25 meses):
-    'femeas_024'/'machos_024' agrupam 3 sub-faixas etárias. Bezerras
-    vendidas (bez_vend) tendem a ser do desmame, mais leves (peso_bezerra=6.0@).
-    Machos jovens excedentes (machos_024_vend) são predominantemente
-    garrotes próximos dos 25 meses — mais pesados (peso_garrote=10.67@).
-    Todos os pesos seguem GEP Araguaia safra 24/25 via parametros_zootecnicos.
+    Coortes reais, não um pool 0–24m misturado.
+
+    c0 (0–12m) → c1 (13–24m) → prestes_matrizes (25–36m) → matriz. Cada ano
+    avança uma etapa. Antes, `femeas_024`/`machos_024` eram um único número
+    cobrindo dois anos de idade, e QUALQUER fêmea retida — tivesse ela um mês
+    ou vinte e três — virava matriz reprodutiva no ano seguinte via
+    `fem_repor`. Uma novilha de 30 meses ainda não pariu (idade média à
+    primeira parição: 36,3 meses, Embrapa, 468 matrizes Nelore); uma bezerra
+    de três, muito menos. Numa cria de 190 fêmeas jovens recém-nascidas isso
+    promovia ~38 delas a matriz no ano 1.
+
+    Machos seguem o mesmo princípio: só quem já estava em c1 (13–24m) no
+    início do ano gradua para o pipeline de terminação — não mais metade de
+    um pool misturado, gradue o animal tivesse nascido ontem ou há dois anos.
+
+    Pesos: bezerra vendida (bez_vend) é do desmame, mais leve (peso_bezerra=
+    6.0@). Macho jovem excedente (machos_024_vend, sempre 0 — ver abaixo) seria
+    garrote, mais pesado (peso_garrote=10.67@). Pesos GEP Araguaia 24/25.
     """
 
     bezerros = matrizes * nat_pct
-    bois_nec   = max(round(matrizes / max(prop_boi, 1)), 1)
-    renovacao  = round(bois_nec * renov_boi_pct)
+    nascidos_f = bezerros * 0.5
+    nascidos_m = bezerros * 0.5
+    bois_nec  = max(round(matrizes / max(prop_boi, 1)), 1)
+    renovacao = round(bois_nec * renov_boi_pct)
 
-    # ── Pipeline de terminação ───────────────────────────────────────────────
-    # Num ciclo completo o macho jovem NÃO é vendido: ele envelhece até a
-    # terminação. É isso que torna o ciclo "completo".
-    #
-    # Antes o modelo vendia todos os machos de 0–24m como garrote E liquidava
-    # os bois adultos no mesmo ano, sem repor. Resultado: o ano 1 vendia o
-    # estoque inteiro e o ano 2 não tinha o que vender — as vendas caíam 55% e
-    # o DSCR ia de 6,56 para −2,25, enquanto o parecer aprovava olhando só o
-    # ano 1.
-    #
-    # A faixa de 0–24m cobre dois anos, então em regime ~metade dela completa
-    # 25 meses a cada ano e entra no estoque de terminação. É aproximação:
-    # a ficha agrega as sub-faixas, e um rebanho concentrado em bezerros
-    # gradua menos que isso.
-    graduados = machos_024 * _FRAC_GRADUACAO_MACHO
-    bois_disp = bois + graduados                 # prontos ou em terminação
-    bois_vendidos   = max(bois_disp - bois_nec, 0)
-    # Garrote só é vendido se o pipeline transbordar a capacidade de terminação
-    machos_024_vend = 0.0
-    desc_mat = round(matrizes * desc_mat_pct)
-    bez_vend  = round(femeas_024 * venda_bez_pct)
-    fem_repor = femeas_024 - bez_vend
-    # A coorte que amadurece entra no plantel sem passar pela regra de venda:
-    # cruzar os 36 meses é calendário, não decisão de manejo. Submetê-la a
-    # `venda_bez_pct` liquidaria 75% das fêmeas prestes a parir.
-    aumento  = fem_repor - desc_mat + float(prestes_matrizes or 0.0)
-    vendidos = bois_vendidos + desc_mat + bez_vend + machos_024_vend
-    # Mortalidade diferenciada por categoria (EMBRAPA: bezerros 5–10%, adultos 1.5–2.5%)
     _mort_adulto  = mort_adulto_pct  if mort_adulto_pct  is not None else mort_pct
     _mort_bezerra = mort_bezerra_pct if mort_bezerra_pct is not None else min(mort_pct * _RAZAO_MORT_BEZERRA, 0.25)
 
@@ -1272,23 +1254,71 @@ def calcular_ano(
             return 0
         return max(1, round(n * taxa))
 
+    def _sobrevive(n, taxa):
+        """Como _mortes, mas devolve quem fica — para encadear coortes."""
+        return max(n - _mortes(n, taxa), 0.0) if n > 0 else 0.0
+
+    # ── Venda na desmama ──────────────────────────────────────────────────────
+    # `venda_bez_pct` incide sobre a bezerra recém-nascida/desmamada — mesma
+    # convenção de production_engine/cria.py —, não sobre um pool de dois anos.
+    bez_vend = round(nascidos_f * venda_bez_pct)
+    reter_f0 = max(nascidos_f - bez_vend, 0.0)
+
+    # ── Pipeline de terminação ───────────────────────────────────────────────
+    # Num ciclo completo o macho jovem NÃO é vendido: ele envelhece até a
+    # terminação. É isso que torna o ciclo "completo". Todo c1_machos — quem
+    # já estava em 13–24m no início do ano — completa 25 meses dentro deste
+    # ano e entra no estoque de terminação.
+    #
+    # Antes (histórico) o modelo vendia todos os machos de 0–24m como garrote
+    # E liquidava os bois adultos no mesmo ano, sem repor. Resultado: o ano 1
+    # vendia o estoque inteiro e o ano 2 não tinha o que vender — as vendas
+    # caíam 55% e o DSCR ia de 6,56 para −2,25, enquanto o parecer aprovava
+    # olhando só o ano 1. A correção por coortes preserva essa garantia: o
+    # pipeline nunca esvazia, porque c1 é reposto por c0 todo ano.
+    graduados = _sobrevive(c1_machos, _mort_adulto)
+    bois_disp = bois + graduados                 # prontos ou em terminação
+    bois_vendidos   = max(bois_disp - bois_nec, 0)
+    # Garrote (0–24m) não é vendido: só o boi formado, via bois_vendidos acima.
+    machos_024_vend = 0.0
+
+    desc_mat = round(matrizes * desc_mat_pct)
+    # A coorte prestes_matrizes (25–36m) cruza os 36 meses dentro do ano e
+    # entra no plantel sem passar pela regra de venda: cruzar os 36 meses é
+    # calendário, não decisão de manejo. Submetê-la a `venda_bez_pct`
+    # liquidaria fêmeas prestes a parir.
+    prestes_sobrevivente = _sobrevive(prestes_matrizes, _mort_adulto)
+    aumento  = prestes_sobrevivente - desc_mat
+    vendidos = bois_vendidos + desc_mat + bez_vend + machos_024_vend
+
     mortes_mat      = _mortes(matrizes, _mort_adulto)
     mortes_bois_tot = _mortes(bois, _mort_adulto)
-    mortes_jovens   = _mortes(femeas_024 + machos_024, _mort_adulto)
-    mortes_bezerros = _mortes(bezerros, _mort_bezerra)
-    mortes          = mortes_mat + mortes_bois_tot + mortes_jovens + mortes_bezerros
+    # Perdas em cada transição de coorte: prestes→matriz, c1→(terminação ou
+    # prestes), c0→c1, e recém-nascidos retidos→c0.
+    mortes_prestes  = _mortes(prestes_matrizes, _mort_adulto)
+    mortes_c1_f     = _mortes(c1_femeas, _mort_adulto)
+    mortes_c1_m     = _mortes(c1_machos, _mort_adulto)
+    mortes_c0_f     = _mortes(c0_femeas, _mort_bezerra)
+    mortes_c0_m     = _mortes(c0_machos, _mort_bezerra)
+    mortes_nasc     = _mortes(reter_f0, _mort_bezerra) + _mortes(nascidos_m, _mort_bezerra)
+    mortes = (mortes_mat + mortes_bois_tot + mortes_prestes + mortes_c1_f
+              + mortes_c1_m + mortes_c0_f + mortes_c0_m + mortes_nasc)
 
-    mat_prox       = max(matrizes + aumento - mortes_mat, 0)
-    bois_prox      = max(bois_nec, 1)
-    femeas_024_prx = round(bezerros * 0.5 * (1 - _mort_bezerra))
-    # Machos jovens do ano seguinte: os que ficaram na faixa (não graduaram)
-    # mais os bezerros machos nascidos. Antes contava só os nascidos, o que
-    # esvaziava o pipeline e impedia o rebanho de repor a terminação.
-    machos_024_prx = round(
-        max(machos_024 - graduados - machos_024_vend, 0) * (1 - _mort_adulto)
-        + bezerros * 0.5 * (1 - _mort_bezerra)
-    )
-    total_prox     = mat_prox + femeas_024_prx + machos_024_prx + bois_prox
+    mat_prox     = max(matrizes + aumento - mortes_mat, 0)
+    bois_prox    = max(bois_nec, 1)
+    prestes_prox = _sobrevive(c1_femeas, _mort_adulto)      # c1 → prestes (25–36m)
+    c1_femeas_prox = _sobrevive(c0_femeas, _mort_bezerra)   # c0 → c1
+    c0_femeas_prox = _sobrevive(reter_f0, _mort_bezerra)    # nascidas retidas → c0
+    c1_machos_prox = _sobrevive(c0_machos, _mort_bezerra)   # c0 → c1
+    c0_machos_prox = _sobrevive(nascidos_m, _mort_bezerra)  # nascidos → c0
+
+    # Somas para compatibilidade com quem só quer "jovem fêmea"/"jovem macho"
+    # totais (arrobas_categorias, valorização) — a distinção por coorte
+    # importa para a simulação, não para essas consumidoras externas.
+    femeas_024_prx = round(c0_femeas_prox + c1_femeas_prox)
+    machos_024_prx = round(c0_machos_prox + c1_machos_prox)
+    total_prox = (mat_prox + prestes_prox + femeas_024_prx
+                  + machos_024_prx + bois_prox)
     # Receita por categoria: boi/vaca em R$/@ (× peso), bezerra/bezerro em
     # R$/cabeça (direto). Sem preço da categoria → cai no preço da arroba único.
     p_boi  = preco_boi_arr  if preco_boi_arr  is not None else preco_arroba
@@ -1320,6 +1350,11 @@ def calcular_ano(
         'mortes':              mortes,
         'matrizes_prox':       int(mat_prox),
         'bois_prox':           bois_prox,
+        'prestes_matrizes_prox': prestes_prox,
+        'c0_femeas_prox':      c0_femeas_prox,
+        'c1_femeas_prox':      c1_femeas_prox,
+        'c0_machos_prox':      c0_machos_prox,
+        'c1_machos_prox':      c1_machos_prox,
         'femeas_024_prox':     int(femeas_024_prx),
         'machos_024_prox':     int(machos_024_prx),
         'total_prox':          int(total_prox),
@@ -2089,8 +2124,12 @@ def simular_cenario(
     mort = (mort_pct / 100) * m['mort']
     desc = min((desc_pct / 100) * m['desc'], 0.99)
 
-    femeas_024 = float(va[0]+va[2]+va[4])
-    machos_024 = float(va[1]+va[3]+va[5])
+    # Coortes reais, não um pool 0–24m misturado — ver calcular_ano. c0 é
+    # 0–12m (as duas sub-faixas mais jovens do vetor), c1 é 13–24m.
+    c0_femeas = float(va[0]+va[2])
+    c1_femeas = float(va[4])
+    c0_machos = float(va[1]+va[3])
+    c1_machos = float(va[5])
     # Base reprodutiva = só quem já pariu (acima de 36 meses). A faixa de
     # 25–36m entra como coorte que AMADURECE — mesma correção de _simular_cria,
     # e pela mesma fonte: idade média à primeira parição de 36,3 meses
@@ -2103,9 +2142,9 @@ def simular_cenario(
     # Custo médio PONDERADO por cabeças em cada fase — não simples média aritmética.
     # Exemplo: 150 cab em CRIA (R$40/@) + 50 cab em ENGORDA (R$120/@)
     # → ponderado = R$60/@ vs. média simples = R$80/@ (erro de 33%).
-    _n_cria    = matrizes + femeas_024  # matrizes + fêmeas em crescimento
-    _n_recria  = machos_024             # machos em fase de recria
-    _n_engorda = bois                   # garrotes e bois adultos
+    _n_cria    = matrizes + c0_femeas + c1_femeas  # matrizes + fêmeas em crescimento
+    _n_recria  = c0_machos + c1_machos             # machos em fase de recria
+    _n_engorda = bois                              # garrotes e bois adultos
 
     _pesos_fase = [
         (_custo_cria,    custo_arroba_cria,    _n_cria),
@@ -2123,8 +2162,10 @@ def simular_cenario(
     for yr in range(1, anos + 1):
         r = calcular_ano(
             prestes_matrizes=prestes_F,
-            matrizes=matrizes, femeas_024=femeas_024,
-            machos_024=machos_024, bois=bois,
+            matrizes=matrizes,
+            c0_femeas=c0_femeas, c1_femeas=c1_femeas,
+            c0_machos=c0_machos, c1_machos=c1_machos,
+            bois=bois,
             nat_pct=nat, desc_mat_pct=desc,
             prop_boi=prop_boi, renov_boi_pct=renov_boi_pct/100,
             venda_bez_pct=venda_bez_pct/100,
@@ -2151,21 +2192,32 @@ def simular_cenario(
             'bezerras_vendidas':    r['bezerras_vendidas'],
             'machos_vendidos':      r['machos_024_vendidos'],
             'aumento_matrizes':     r['aumento_matrizes'],
+            'mortes':    r['mortes'],
             'receita':   r['receita'],
             'custo':     r['custo'],
             'resultado': r['resultado'],
             'bois_fim':      r['bois_prox'],
             'jovens_f_fim':  r['femeas_024_prox'],
             'jovens_m_fim':  r['machos_024_prox'],
+            # Fêmeas de 25–36m ("prestes") que ainda não pariram — estado
+            # contínuo agora (ver calcular_ano), não mais absorvido dentro de
+            # `matrizes` no mesmo ano. Fica de fora de `matrizes` de propósito:
+            # inflar a contagem exibida ao analista repetiria o defeito que
+            # base_reprodutiva.py corrigiu na classificação, só que na tela.
+            'prestes_matrizes_fim': round(r['prestes_matrizes_prox']),
         })
-        matrizes   = float(r['matrizes_prox'])
-        # A coorte de 25–36m declarada existe UMA vez: no ano 1 ela cruza os 36
-        # meses e já está dentro de `matrizes_prox`. Do ano 2 em diante quem
-        # alimenta o plantel é `fem_repor`, a regra de reposição.
-        prestes_F  = 0.0
-        bois       = float(r['bois_prox'])
-        femeas_024 = float(r['femeas_024_prox'])
-        machos_024 = float(r['machos_024_prox'])
+        matrizes  = float(r['matrizes_prox'])
+        # A coorte "prestes" (25–36m) agora é estado corrente, não injeção de
+        # uma vez: do ano 2 em diante ela vem de c1_femeas do ano anterior —
+        # quem tinha 13–24m no início do ano e completou 25 dentro dele —, não
+        # mais zerada. Zerar aqui era o que fazia QUALQUER fêmea jovem retida
+        # virar matriz em um ano só, pulando as duas etapas intermediárias.
+        prestes_F = float(r['prestes_matrizes_prox'])
+        bois      = float(r['bois_prox'])
+        c0_femeas = float(r['c0_femeas_prox'])
+        c1_femeas = float(r['c1_femeas_prox'])
+        c0_machos = float(r['c0_machos_prox'])
+        c1_machos = float(r['c1_machos_prox'])
 
     result = _montar_resultado(cenario, sc, anos_proj, total_ini, 'CICLO_COMPLETO')
     ano1 = anos_proj[0]

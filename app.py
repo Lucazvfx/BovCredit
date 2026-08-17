@@ -1601,7 +1601,13 @@ def api_classificar():
     )
     _ano1 = _cx['anos'][0]
     _val_fim = valor_rebanho_gep(
-        matrizes = float(_ano1['matrizes']),
+        # Inclui prestes_matrizes_fim (25–36m que ainda não pariram) no mesmo
+        # grupo de "matrizes" que _val_ini_cmp usa na abertura (va[6]+va[8],
+        # logo abaixo) — mesma convenção de VALORIZAÇÃO por peso nos dois
+        # lados. Não é o mesmo que contar como matriz reprodutiva: essa
+        # distinção fica na tela (projecao_anos, mais abaixo), não aqui.
+        matrizes = (float(_ano1['matrizes'])
+                    + float(_ano1.get('prestes_matrizes_fim', 0) or 0)),
         bois     = _ano1.get('bois_fim', _va[7] + _va[9]),
         jovens_f = float(_ano1.get('jovens_f_fim', 0)),
         jovens_m = float(_ano1.get('jovens_m_fim', 0)),
@@ -1948,8 +1954,11 @@ def api_classificar():
     # safra. `calcular_desfrute` já faz isso em cabeças; aqui é em arroba, que
     # é a unidade em que o crédito raciocina.
     def _estoque_arrobas(_a):
+        # Mesma convenção de _est_ant, abaixo: v[6]+v[8] (ou o equivalente
+        # projetado, matrizes+prestes) contam juntos como peso de matriz.
         return arrobas_categorias(
-            matrizes=float(_a.get('matrizes', 0) or 0),
+            matrizes=(float(_a.get('matrizes', 0) or 0)
+                      + float(_a.get('prestes_matrizes_fim', 0) or 0)),
             bois=float(_a.get('bois_fim', 0) or 0),
             jovens_f=float(_a.get('jovens_f_fim', 0) or 0),
             jovens_m=float(_a.get('jovens_m_fim', 0) or 0))

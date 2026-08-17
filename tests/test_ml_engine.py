@@ -158,7 +158,8 @@ def test_calcular_breakeven_simples_engorda():
 
 def test_calcular_ano_pesos_separados():
     r = calcular_ano(
-        matrizes=500, femeas_024=300, machos_024=200, bois=20,
+        matrizes=500, c0_femeas=150, c1_femeas=150, c0_machos=100, c1_machos=100,
+        bois=20,
         nat_pct=0.75, desc_mat_pct=0.30, prop_boi=30, renov_boi_pct=0.20,
         venda_bez_pct=0.30, mort_pct=0.03,
         preco_arroba=350.0, custo_arroba=57.0,

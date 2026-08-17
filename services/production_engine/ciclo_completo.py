@@ -21,8 +21,10 @@ def _ano(
     *,
     prestes_matrizes: float,
     matrizes: float,
-    femeas_024: float,
-    machos_024: float,
+    c0_femeas: float,
+    c1_femeas: float,
+    c0_machos: float,
+    c1_machos: float,
     bois: float,
     nat_pct: float,
     desc_mat_pct: float,
@@ -44,39 +46,62 @@ def _ano(
     preco_bezerro_cab: float | None,
     custo_arroba: float,
 ) -> dict[str, Any]:
+    """Coortes reais — ver ml_engine.calcular_ano para a derivação completa.
+
+    c0 (0–12m) → c1 (13–24m) → prestes_matrizes (25–36m) → matriz, uma etapa
+    por ano. Espelha exatamente ml_engine.calcular_ano, que alimenta o
+    parecer; este motor atende a API v1.
+    """
     bezerros = matrizes * nat_pct
+    nascidos_f = bezerros * 0.5
+    nascidos_m = bezerros * 0.5
     bois_nec = max(round(matrizes / max(prop_boi, 1.0)), 1)
     renovacao = round(bois_nec * renov_boi_pct)
-
-    graduados = machos_024 * 0.5
-    bois_disp = bois + graduados
-    bois_vendidos = max(bois_disp - bois_nec, 0)
-    machos_024_vend = 0.0
-    desc_mat = round(matrizes * desc_mat_pct)
-    bez_vend = round(femeas_024 * venda_bez_pct)
-    fem_repor = femeas_024 - bez_vend
-    aumento = fem_repor - desc_mat + float(prestes_matrizes or 0.0)
-    vendidos = bois_vendidos + desc_mat + bez_vend + machos_024_vend
 
     def _mortes(n: float, taxa: float) -> int:
         if n <= 0 or taxa <= 0:
             return 0
         return max(1, round(n * taxa))
 
+    _mort_bezerra = min(mort_pct * 3.5, 0.25)
+
+    def _sobrevive(n: float, taxa: float) -> float:
+        return max(n - _mortes(n, taxa), 0.0) if n > 0 else 0.0
+
+    bez_vend = round(nascidos_f * venda_bez_pct)
+    reter_f0 = max(nascidos_f - bez_vend, 0.0)
+
+    graduados = _sobrevive(c1_machos, mort_pct)
+    bois_disp = bois + graduados
+    bois_vendidos = max(bois_disp - bois_nec, 0)
+    machos_024_vend = 0.0
+    desc_mat = round(matrizes * desc_mat_pct)
+    prestes_sobrevivente = _sobrevive(prestes_matrizes, mort_pct)
+    aumento = prestes_sobrevivente - desc_mat
+    vendidos = bois_vendidos + desc_mat + bez_vend + machos_024_vend
+
     mortes_mat = _mortes(matrizes, mort_pct)
     mortes_bois_tot = _mortes(bois, mort_pct)
-    mortes_jovens = _mortes(femeas_024 + machos_024, mort_pct)
-    mortes_bezerros = _mortes(bezerros, min(mort_pct * 3.5, 0.25))
-    mortes = mortes_mat + mortes_bois_tot + mortes_jovens + mortes_bezerros
+    mortes_prestes = _mortes(prestes_matrizes, mort_pct)
+    mortes_c1_f = _mortes(c1_femeas, mort_pct)
+    mortes_c1_m = _mortes(c1_machos, mort_pct)
+    mortes_c0_f = _mortes(c0_femeas, _mort_bezerra)
+    mortes_c0_m = _mortes(c0_machos, _mort_bezerra)
+    mortes_nasc = _mortes(reter_f0, _mort_bezerra) + _mortes(nascidos_m, _mort_bezerra)
+    mortes = (mortes_mat + mortes_bois_tot + mortes_prestes + mortes_c1_f
+              + mortes_c1_m + mortes_c0_f + mortes_c0_m + mortes_nasc)
 
     mat_prox = max(matrizes + aumento - mortes_mat, 0)
     bois_prox = max(bois_nec, 1)
-    femeas_024_prx = round(bezerros * 0.5 * (1 - min(mort_pct * 3.5, 0.25)))
-    machos_024_prx = round(
-        max(machos_024 - graduados - machos_024_vend, 0) * (1 - mort_pct)
-        + bezerros * 0.5 * (1 - min(mort_pct * 3.5, 0.25))
-    )
-    total_prox = mat_prox + femeas_024_prx + machos_024_prx + bois_prox
+    prestes_prox = _sobrevive(c1_femeas, mort_pct)
+    c1_femeas_prox = _sobrevive(c0_femeas, _mort_bezerra)
+    c0_femeas_prox = _sobrevive(reter_f0, _mort_bezerra)
+    c1_machos_prox = _sobrevive(c0_machos, _mort_bezerra)
+    c0_machos_prox = _sobrevive(nascidos_m, _mort_bezerra)
+
+    femeas_024_prx = round(c0_femeas_prox + c1_femeas_prox)
+    machos_024_prx = round(c0_machos_prox + c1_machos_prox)
+    total_prox = mat_prox + prestes_prox + femeas_024_prx + machos_024_prx + bois_prox
 
     p_boi = preco_boi_arr if preco_boi_arr is not None else preco_arroba
     p_vaca = preco_vaca_arr if preco_vaca_arr is not None else preco_arroba
@@ -111,6 +136,11 @@ def _ano(
         "mortes": mortes,
         "matrizes_prox": int(mat_prox),
         "bois_prox": bois_prox,
+        "prestes_matrizes_prox": prestes_prox,
+        "c0_femeas_prox": c0_femeas_prox,
+        "c1_femeas_prox": c1_femeas_prox,
+        "c0_machos_prox": c0_machos_prox,
+        "c1_machos_prox": c1_machos_prox,
         "femeas_024_prox": int(femeas_024_prx),
         "machos_024_prox": int(machos_024_prx),
         "total_prox": int(total_prox),
@@ -153,15 +183,17 @@ def project_full_cycle(state: HerdState, parameters: dict, years: int = 5) -> di
     if preco_bezerro_cab is not None:
         preco_bezerro_cab = _coerce_float(preco_bezerro_cab, default=0.0)
 
-    femeas_024 = float(va[0] + va[2] + va[4])
-    machos_024 = float(va[1] + va[3] + va[5])
+    c0_femeas = float(va[0] + va[2])
+    c1_femeas = float(va[4])
+    c0_machos = float(va[1] + va[3])
+    c1_machos = float(va[5])
     _base = base_reprodutiva(va)
     matrizes = _base.matrizes
     prestes_F = _base.prestes
     bois = float(va[7] + va[9])
 
-    _n_cria = matrizes + femeas_024
-    _n_recria = machos_024
+    _n_cria = matrizes + c0_femeas + c1_femeas
+    _n_recria = c0_machos + c1_machos
     _n_engorda = bois
     _fases = [
         (custo_arroba_cria, _n_cria),
@@ -180,8 +212,10 @@ def project_full_cycle(state: HerdState, parameters: dict, years: int = 5) -> di
         r = _ano(
             prestes_matrizes=prestes_F,
             matrizes=matrizes,
-            femeas_024=femeas_024,
-            machos_024=machos_024,
+            c0_femeas=c0_femeas,
+            c1_femeas=c1_femeas,
+            c0_machos=c0_machos,
+            c1_machos=c1_machos,
             bois=bois,
             nat_pct=nat,
             desc_mat_pct=desc,
@@ -215,19 +249,26 @@ def project_full_cycle(state: HerdState, parameters: dict, years: int = 5) -> di
                 "bezerras_vendidas": r["bezerras_vendidas"],
                 "machos_vendidos": r["machos_024_vendidos"],
                 "aumento_matrizes": r["aumento_matrizes"],
+                "mortes": r["mortes"],
                 "receita": r["receita"],
                 "custo": r["custo"],
                 "resultado": r["resultado"],
                 "bois_fim": r["bois_prox"],
                 "jovens_f_fim": r["femeas_024_prox"],
                 "jovens_m_fim": r["machos_024_prox"],
+                # Estado contínuo agora, não mais absorvido em "matrizes" no
+                # mesmo ano — ver a nota em ml_engine.calcular_ano.
+                "prestes_matrizes_fim": round(r["prestes_matrizes_prox"]),
             }
         )
         matrizes = float(r["matrizes_prox"])
-        prestes_F = 0.0
+        # Estado corrente, não injeção de uma vez — ver a nota em _ano/calcular_ano.
+        prestes_F = float(r["prestes_matrizes_prox"])
         bois = float(r["bois_prox"])
-        femeas_024 = float(r["femeas_024_prox"])
-        machos_024 = float(r["machos_024_prox"])
+        c0_femeas = float(r["c0_femeas_prox"])
+        c1_femeas = float(r["c1_femeas_prox"])
+        c0_machos = float(r["c0_machos_prox"])
+        c1_machos = float(r["c1_machos_prox"])
 
     ano1 = anos_proj[0]
     preco_adj = preco_arroba
