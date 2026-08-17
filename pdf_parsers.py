@@ -23,6 +23,8 @@ import os
 import re
 import subprocess
 
+from services.faixa_0_12 import dividir_0_12
+
 # ─────────────────────────────────────────────
 # EXTRAÇÃO DE TEXTO
 # ─────────────────────────────────────────────
@@ -362,9 +364,9 @@ def _faixa_de_celula(cell_up: str):
 
 def _adicionar(animais: dict, faixa: str, sexo: str, qtd: int):
     if faixa == 'f00_12':
-        metade = qtd // 2
-        animais[f'f00_{sexo}'] += metade
-        animais[f'f05_{sexo}'] += qtd - metade
+        f00, f05 = dividir_0_12(qtd)
+        animais[f'f00_{sexo}'] += f00
+        animais[f'f05_{sexo}'] += f05
     else:
         animais[f'{faixa}_{sexo}'] += qtd
 
@@ -525,9 +527,9 @@ def _parse_idaron_linhas(text: str) -> dict:
             continue
 
         if re.search(r'0\s*A\s*12', up) or 'ATÉ 12' in up or 'ATE 12' in up:
-            metade = qtd // 2
-            animais[f'f00_{sexo}'] += metade
-            animais[f'f05_{sexo}'] += qtd - metade
+            f00, f05 = dividir_0_12(qtd)
+            animais[f'f00_{sexo}'] += f00
+            animais[f'f05_{sexo}'] += f05
         elif re.search(r'0\s*A\s*0?6', up) or re.search(r'ATÉ\s*6', up, re.I):
             animais[f'f00_{sexo}'] += qtd
         elif re.search(r'0?7\s*A\s*12', up):
@@ -569,9 +571,9 @@ def _parse_idaron_linhas(text: str) -> dict:
                 if sexo:
                     if faixa == 'f00_12':
                         if animais[f'f00_{sexo}'] == 0 and animais[f'f05_{sexo}'] == 0:
-                            metade = qtd // 2
-                            animais[f'f00_{sexo}'] += metade
-                            animais[f'f05_{sexo}'] += qtd - metade
+                            f00, f05 = dividir_0_12(qtd)
+                            animais[f'f00_{sexo}'] += f00
+                            animais[f'f05_{sexo}'] += f05
                     elif animais[f'{faixa}_{sexo}'] == 0:
                         animais[f'{faixa}_{sexo}'] = qtd
                 break
