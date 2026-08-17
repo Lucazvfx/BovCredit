@@ -31,9 +31,6 @@ services:
       RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-memory://}
     ports:
       - "127.0.0.1:8080:8080"
-    volumes:
-      - uploads:/app/uploads
 
 volumes:
   pgdata:
-  uploads:
