@@ -236,3 +236,130 @@ def test_a_tela_deixa_escolher_o_sistema_e_envia():
     assert 'id="credito_sistema"' in html
     assert 'value="sac"' in html
     assert "body.sistema_amortizacao=document.getElementById('credito_sistema').value" in html
+
+
+# ── Periodicidade ───────────────────────────────────────────────────────────
+# Crédito rural raramente é mensal: a receita chega na venda do lote, e o
+# contrato acompanha. Parcela semestral ou anual muda de novo o perfil de
+# caixa — e o `12 × parcela_mensal` que todo o cálculo a jusante faz deixaria
+# de valer se `parcela_mensal` virasse a parcela real do período.
+from services.payment_capacity_engine.dscr import (  # noqa: E402
+    ANUAL, MENSAL, SEMESTRAL, TRIMESTRAL, taxa_do_periodo,
+)
+
+
+def test_taxa_do_periodo_e_composta_nao_proporcional():
+    """Um semestre a 12,5% a.a. rende 6,07%, não 6,25%."""
+    assert taxa_do_periodo(0.125, SEMESTRAL) == pytest.approx(
+        (1.125) ** 0.5 - 1, rel=1e-12)
+    assert taxa_do_periodo(0.125, ANUAL) == pytest.approx(0.125, rel=1e-12)
+    assert taxa_do_periodo(0.125, MENSAL) == pytest.approx(_i_mensal(), rel=1e-12)
+
+
+@pytest.mark.parametrize('p,esperado', [(MENSAL, 36), (TRIMESTRAL, 12),
+                                        (SEMESTRAL, 6), (ANUAL, 3)])
+def test_numero_de_parcelas_sai_da_periodicidade(p, esperado):
+    c = cronograma_divida(PV, JUROS, 36, 0, SAC, p)
+    assert sum(a['parcelas_nova_operacao'] for a in c['anos']) == esperado
+
+
+def test_anual_concentra_uma_parcela_por_ano():
+    c = cronograma_divida(PV, JUROS, 36, 0, SAC, ANUAL)
+    assert [a['parcelas_nova_operacao'] for a in c['anos']] == [1, 1, 1]
+
+
+def test_semestral_concentra_duas_por_ano():
+    c = cronograma_divida(PV, JUROS, 36, 0, SAC, SEMESTRAL)
+    assert [a['parcelas_nova_operacao'] for a in c['anos']] == [2, 2, 2]
+
+
+def test_parcela_mensal_e_equivalente_e_preserva_o_calculo_a_jusante():
+    """`12 × parcela_mensal` tem de continuar dando o serviço do ano — é o que
+    endividamento e capacidade de pagamento fazem."""
+    for p in (MENSAL, TRIMESTRAL, SEMESTRAL, ANUAL):
+        c = cronograma_divida(PV, JUROS, 36, 0, PRICE, p)
+        assert 12 * c['parcela_mensal'] == pytest.approx(
+            c['anos'][0]['servico_nova_operacao'], rel=0.01), f'periodicidade {p}'
+
+
+def test_parcela_periodica_e_a_de_verdade_e_e_maior_que_a_mensal():
+    c = cronograma_divida(PV, JUROS, 36, 0, SAC, ANUAL)
+    assert c['parcela_periodica'] == pytest.approx(c['parcela_mensal'] * 12, rel=1e-6)
+    assert c['parcela_periodica'] > c['parcela_mensal']
+
+
+def test_amortizacao_fecha_o_principal_em_qualquer_periodicidade():
+    for p in (MENSAL, TRIMESTRAL, SEMESTRAL, ANUAL):
+        i = taxa_do_periodo(JUROS, p)
+        parcelas = parcelas_sac(PV, JUROS, 36, p)
+        saldo = PV
+        for parcela in parcelas:
+            saldo -= parcela - saldo * i
+        assert saldo == pytest.approx(0.0, abs=1e-6), f'periodicidade {p}'
+
+
+def test_prazo_incompativel_com_a_periodicidade_falha_alto():
+    """30 meses com parcela anual não tem interpretação única — recusar é
+    melhor que adivinhar."""
+    with pytest.raises(ValueError, match='múltiplo da periodicidade'):
+        cronograma_divida(PV, JUROS, 30, 0, SAC, ANUAL)
+
+
+def test_default_continua_mensal():
+    assert cronograma_divida(PV, JUROS, 36)['periodicidade_meses'] == MENSAL
+    assert cronograma_price(PV, JUROS, 36)['periodicidade_meses'] == MENSAL
+
+
+def test_credito_maximo_e_o_inverso_em_qualquer_periodicidade():
+    from services.payment_capacity_engine.dscr import DSCR_APROVAR
+    caixa = 500_000.0
+    for p in (MENSAL, TRIMESTRAL, SEMESTRAL, ANUAL):
+        pv = credito_maximo(caixa, JUROS, 36, sistema=SAC, periodicidade_meses=p)
+        c = cronograma_divida(pv, JUROS, 36, 0, SAC, p)
+        assert 12 * c['parcela_mensal'] == pytest.approx(
+            caixa / DSCR_APROVAR, rel=0.01), f'periodicidade {p}'
+
+
+def test_a_rota_aceita_periodicidade_e_recusa_prazo_incompativel():
+    import database as db
+    from app import app
+
+    db.init_db()
+    email = 'sacteste@example.com'
+    u = db.buscar_usuario_email(email)
+    if not u:
+        db.criar_usuario(email, 'SAC', 'senha123')
+        u = db.buscar_usuario_email(email)
+    app.config['TESTING'] = True
+    cli = app.test_client()
+    with cli.session_transaction() as s:
+        s['_user_id'] = str(u['id'])
+
+    base = {
+        'valores': [40, 40, 40, 40, 50, 50, 80, 35, 275, 50],
+        'preco': 320, 'custo_arroba': 119,
+        'credito_valor': 1_000_000, 'juros_aa': 0.125,
+        'sistema_amortizacao': 'sac',
+    }
+    ok = cli.post('/api/classificar',
+                  json={**base, 'prazo_meses': 36, 'periodicidade_meses': 12})
+    assert ok.status_code == 200
+    assert ok.get_json()['parecer']['conclusao']['periodicidade_meses'] == 12
+
+    ruim = cli.post('/api/classificar',
+                    json={**base, 'prazo_meses': 30, 'periodicidade_meses': 12})
+    assert ruim.status_code == 400
+    assert 'múltiplo' in ruim.get_json()['erro']
+
+    invalida = cli.post('/api/classificar',
+                        json={**base, 'prazo_meses': 36, 'periodicidade_meses': 5})
+    assert invalida.status_code == 400
+
+
+def test_a_tela_deixa_escolher_a_periodicidade():
+    from pathlib import Path
+    html = (Path(__file__).parents[1] / 'templates' / 'index.html').read_text(
+        encoding='utf-8')
+    assert 'id="credito_periodicidade"' in html
+    assert 'value="12"' in html
+    assert "body.periodicidade_meses=+document.getElementById('credito_periodicidade').value" in html

@@ -560,6 +560,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div class="field"><label title="Plano Safra 2026/27: Custeio empresarial 12,5% · Moderfrota empresarial 12,5% · Pronamp custeio 9,0% · Pronamp Moderfrota 11,5% · RenovAgro/PCA pastagens 8,0–9,5%">Juros (% a.a.) ℹ</label><input type="number" id="credito_juros" min="0" step="0.1" placeholder="Ex: 12,5 (Moderfrota 2026/27)"></div>
         <div class="field"><label>Finalidade</label><select id="credito_finalidade"><option value="custeio">Custeio</option><option value="investimento">Investimento</option></select></div>
         <div class="field"><label title="SAC: amortização constante, parcela começa alta e cai — padrão do crédito rural (Pronaf, Pronamp, custeio). Price: parcela fixa do início ao fim.">Amortização ℹ</label><select id="credito_sistema"><option value="price">Price — parcela fixa</option><option value="sac">SAC — parcela decrescente</option></select></div>
+        <div class="field"><label title="Crédito rural raramente é mensal: a receita chega na venda do lote. O prazo menos a carência precisa ser múltiplo da periodicidade.">Periodicidade ℹ</label><select id="credito_periodicidade"><option value="1">Mensal</option><option value="3">Trimestral</option><option value="6">Semestral</option><option value="12">Anual (safra)</option></select></div>
       </div>
 
       <!-- Endividamento existente: era um número solto digitado sem origem, e
@@ -1696,6 +1697,7 @@ async function classificar(){
     // Price (default) ou SAC. Crédito rural é majoritariamente SAC: a parcela
     // começa alta, e é o ano 1 que aperta.
     body.sistema_amortizacao=document.getElementById('credito_sistema').value;
+    body.periodicidade_meses=+document.getElementById('credito_periodicidade').value||1;
     const natV=document.getElementById('c-nat').value;
     const boisvV=document.getElementById('c-boisv').value;
     const bezvV=document.getElementById('c-bezv').value;

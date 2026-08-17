@@ -35,6 +35,8 @@ _CARENCIA_SEM_CAP = os.environ.get('CARENCIA_SEM_CAPITALIZACAO', '0') == '1'
 #
 # O motor é a fonte; aqui ficam só os nomes que já eram importados.
 from services.payment_capacity_engine.dscr import (  # noqa: E402
+    MENSAL,
+    PERIODICIDADES,
     PRICE,
     SAC,
     SISTEMAS,
@@ -55,6 +57,7 @@ def avaliar_capacidade_pagamento(
     carencia_meses: int = 0,
     dividas_mensais: float = 0.0,
     sistema: str = PRICE,
+    periodicidade_meses: int = MENSAL,
 ) -> dict:
     from services.payment_capacity_engine import calculate_payment_capacity
 
@@ -69,6 +72,7 @@ def avaliar_capacidade_pagamento(
             'juros_aa': juros_aa,
             'carencia_meses': carencia_meses,
             'sistema_amortizacao': sistema,
+            'periodicidade_meses': periodicidade_meses,
         },
         {'parcela_existente_mensal': dividas_mensais},
     )
@@ -240,7 +244,8 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
         juros_aa=_f(credito.get('juros_aa')),
         carencia_meses=_i(credito.get('carencia_meses')),
         dividas_mensais=_f(credito.get('dividas_mensais')),
-        sistema=credito.get('sistema_amortizacao'))
+        sistema=credito.get('sistema_amortizacao'),
+        periodicidade_meses=credito.get('periodicidade_meses'))
 
     # Reavalia sobre todos os anos do prazo — o DSCR do ano 1 isolado engana.
     conclusao = avaliar_capacidade_no_prazo(
