@@ -29,12 +29,34 @@ decide o comprometimento de caixa e o pior momento do contrato, e usar a maior
 erra contra aprovar — o lado seguro, mesma convenção de
 `principal_apos_carencia`.
 
-O QUE AINDA NÃO EXISTE
+O QUE O SAC NÃO GARANTE
 
-Periodicidade: as duas amortizações são MENSAIS. Crédito rural costuma ter
-parcela anual ou semestral alinhada à colheita, e isso muda de novo o perfil
-de caixa. Fica registrado como o próximo passo, não como algo que este módulo
-já resolve.
+Ele NÃO é uniformemente mais conservador que o Price no DSCR. Desloca o peso
+para o começo do contrato, e o efeito no DSCR MÍNIMO depende de qual ano é o
+crítico. Medido num ciclo completo de 700 cabeças com crédito de R$ 600.000:
+
+    ano   caixa      serviço Price   DSCR    serviço SAC   DSCR
+      1   636.175          238.580   2,67        260.168   2,45
+      3   297.568          238.580   1,25        212.823   1,40
+
+O ano 1 liquida o estoque declarado e sobra caixa; o aperto está no ano 3, e
+lá a parcela do SAC já caiu abaixo da do Price. O DSCR mínimo do SAC sai
+MELHOR, e o ano crítico muda de lugar. É exatamente por isso que o parecer
+avalia todos os anos do prazo em vez do primeiro isolado — ver
+`avaliar_capacidade_no_prazo`.
+
+PERIODICIDADE
+
+Os dois sistemas aceitam parcela mensal, trimestral, semestral ou anual. Não é
+enfeite: crédito rural costuma ter parcela alinhada à colheita, e a receita
+chega na venda do lote, não todo mês. Quanto mais espaçada a parcela, mais
+tempo o saldo passa rendendo juros — R$ 1.000.000 em 36 meses a 12,5% custa
+R$ 1.182.476 no SAC mensal e R$ 1.250.000 no SAC anual.
+
+A taxa do período é COMPOSTA (ver `taxa_do_periodo`), e `parcela_mensal` vira
+o EQUIVALENTE mensal (parcela ÷ periodicidade) porque todo o cálculo a jusante
+multiplica por 12 para chegar ao ano. A parcela de fato está em
+`parcela_periodica`.
 """
 from __future__ import annotations
 

@@ -198,10 +198,71 @@ def test_a_rota_aceita_sac_e_aperta_o_parecer():
     c_sac = sac['parecer']['conclusao']
     assert c_price['sistema_amortizacao'] == 'price'
     assert c_sac['sistema_amortizacao'] == 'sac'
-    # A parcela do SAC é maior no início, então o DSCR mínimo tem de ser menor
-    # ou igual — nunca melhor.
+    # A parcela e o serviço do PRIMEIRO ano são maiores no SAC. Isso é
+    # aritmética do mesmo PV, prazo e taxa — vale sempre.
     assert c_sac['parcela_mensal'] > c_price['parcela_mensal']
-    assert c_sac['dscr_minimo'] <= c_price['dscr_minimo']
+    assert (c_sac['cronograma_divida'][0]['servico_nova_operacao']
+            > c_price['cronograma_divida'][0]['servico_nova_operacao'])
+    # E o serviço do ÚLTIMO ano é menor, porque a parcela decresce.
+    assert (c_sac['cronograma_divida'][-1]['servico_nova_operacao']
+            < c_price['cronograma_divida'][-1]['servico_nova_operacao'])
+
+
+def test_o_dscr_minimo_do_sac_nao_e_necessariamente_pior():
+    """Esta é a armadilha: o DSCR mínimo depende de QUAL ano é o crítico.
+
+    Uma versão anterior deste arquivo afirmava que o DSCR mínimo do SAC seria
+    sempre menor ou igual ao do Price, "porque a parcela começa maior". Passou
+    por acaso, no cenário escolhido. Não é lei.
+
+    Medido num ciclo completo de 700 cabeças, crédito de R$ 600.000:
+
+        ano   caixa      serviço Price   DSCR    serviço SAC   DSCR
+          1   636.175          238.580   2,67        260.168   2,45
+          2   312.847          238.580   1,31        236.495   1,32
+          3   297.568          238.580   1,25        212.823   1,40
+
+    O ano 1 liquida o estoque declarado e sobra caixa; o aperto está no ano 3.
+    Lá a parcela do SAC já caiu abaixo da do Price, e o DSCR mínimo do SAC
+    fica MELHOR (1,32 contra 1,25) — o ano crítico muda de 3 para 2.
+
+    Ou seja: SAC não é uniformemente mais conservador. Ele desloca o peso para
+    o começo, e se o começo for o ano de caixa forte, ajuda. É por isso que o
+    parecer avalia todos os anos do prazo em vez do primeiro isolado.
+    """
+    import database as db
+    from app import app
+
+    db.init_db()
+    email = 'sacdscr@example.com'
+    u = db.buscar_usuario_email(email)
+    if not u:
+        db.criar_usuario(email, 'SACdscr', 'senha123')
+        u = db.buscar_usuario_email(email)
+    app.config['TESTING'] = True
+    cli = app.test_client()
+    with cli.session_transaction() as s:
+        s['_user_id'] = str(u['id'])
+
+    base = {
+        'valores': [40, 40, 40, 40, 50, 50, 80, 35, 275, 50],
+        'preco': 320, 'custo_arroba': 57,
+        'credito_valor': 600_000, 'prazo_meses': 36, 'juros_aa': 0.125,
+    }
+    price = cli.post('/api/classificar', json=base).get_json()
+    sac = cli.post('/api/classificar',
+                   json={**base, 'sistema_amortizacao': 'sac'}).get_json()
+
+    anos_price = {a['ano']: a for a in price['projecao_anos'] if a['dscr'] is not None}
+    anos_sac = {a['ano']: a for a in sac['projecao_anos'] if a['dscr'] is not None}
+
+    # Ano 1: SAC aperta mais — o serviço é maior e o DSCR é menor.
+    assert anos_sac[1]['servico_divida_anual'] > anos_price[1]['servico_divida_anual']
+    assert anos_sac[1]['dscr'] < anos_price[1]['dscr']
+    # Último ano: a parcela do SAC já decresceu abaixo da do Price, e alivia.
+    ultimo = max(anos_price)
+    assert anos_sac[ultimo]['servico_divida_anual'] < anos_price[ultimo]['servico_divida_anual']
+    assert anos_sac[ultimo]['dscr'] > anos_price[ultimo]['dscr']
 
 
 def test_a_rota_recusa_sistema_invalido():
