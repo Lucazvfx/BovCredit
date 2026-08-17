@@ -1,4 +1,4 @@
-from services.fichas_rebanho.base_reader import registros_do_parse
+from services.fichas_rebanho.base_reader import read_ficha_text, registros_do_parse
 from services.fichas_rebanho.mapping_loader import load_mapping
 from services.fichas_rebanho.validator import validar_registros
 
@@ -51,3 +51,35 @@ def test_validador_marca_quantidade_invalida_e_nao_descarta_linha():
     assert resultado['valido'] is False
     assert resultado['erros']
     assert resultado['registros'][0]['status'] == 'Revisão'
+
+
+def test_pdf_com_texto_mas_sem_animais_falha_explicitamente():
+    """PDF legível de layout desconhecido não pode passar como leitura boa.
+
+    Um contrato ou uma ficha de layout não suportado tem texto extraível, o
+    parser roda até o fim e devolve as dez faixas zeradas. Sem esta guarda a
+    leitura era `sucesso: True` com zero animais, e o rebanho vazio seguia
+    para classificação e parecer como se fosse um dado observado.
+    """
+    resultado = read_ficha_text(
+        'Contrato de arrendamento rural. Cláusula primeira: o arrendatário '
+        'pagará R$ 50.000,00 em 12 parcelas mensais.'
+    )
+
+    assert resultado['sucesso'] is False
+    assert resultado['erros']
+    assert not resultado['registros']
+
+
+def test_ficha_legivel_continua_sendo_lida():
+    resultado = read_ficha_text(
+        'Fazenda Boa Esperança\n'
+        'Município: Cuiabá\n'
+        'Fêmea 13 a 24 meses      200\n'
+        'Macho 13 a 24 meses      180\n'
+        'Vaca acima de 36         400\n'
+        'Touro acima de 36         25\n'
+    )
+
+    assert resultado['sucesso'] is True
+    assert sum(r['quantidade'] for r in resultado['registros']) == 805
