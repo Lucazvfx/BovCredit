@@ -138,3 +138,19 @@ def test_a_rota_aceita_a_premissa_do_analista():
         f'analista não chegou ao motor'
     )
     assert a_sem['resultado'] > a_padrao['resultado']
+
+
+# ── A tela ──────────────────────────────────────────────────────────────────
+def test_a_tela_expoe_a_premissa_e_a_envia():
+    """De nada adianta o motor aceitar se o analista não consegue informar."""
+    from pathlib import Path
+
+    html = (Path(__file__).parents[1] / 'templates' / 'index.html').read_text(
+        encoding='utf-8')
+
+    assert 'id="c-repos-recria"' in html, 'campo ausente na tela'
+    assert 'body.reposicao_recria_pct=parseFloat(reposV)' in html, (
+        'o campo existe mas não entra no payload de /api/classificar')
+    # Fica sob um rótulo que o separa do que a ficha comprova — a distinção
+    # entre informado e estimado é o ponto da mudança.
+    assert 'Premissas da projeção' in html
