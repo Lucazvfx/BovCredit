@@ -143,8 +143,14 @@ def test_entra_na_memoria_de_calculo():
 
 # ── A reversão ──────────────────────────────────────────────────────────────
 def test_reversao_documentada():
-    """Convenção alternativa existe; a saída tem de existir e estar escrita."""
-    import services.parecer_credito as P
-    fonte = open(P.__file__, encoding='utf-8').read()
+    """Convenção alternativa existe; a saída tem de existir e estar escrita.
+
+    O texto migrou de services/parecer_credito.py para o motor quando as duas
+    cópias da matemática de amortização foram unificadas (a inclusão do SAC
+    teria criado uma terceira). O parecer agora só reexporta; a documentação
+    vive junto da conta que ela descreve.
+    """
+    import services.payment_capacity_engine.dscr as D
+    fonte = open(D.__file__, encoding='utf-8').read()
     assert "CARENCIA_SEM_CAPITALIZACAO" in fonte
     assert 'PAGA os juros durante a carência' in fonte

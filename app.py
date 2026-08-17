@@ -53,7 +53,8 @@ from services.benchmarks_nacionais import (
     avaliar_nacional, avaliar_zootecnico, CICLO_CATEGORIAS,
     calcular_desfrute, alerta_liquidacao,
 )
-from services.parecer_credito import montar_parecer, cronograma_price
+from services.parecer_credito import (
+    montar_parecer, cronograma_divida, SISTEMAS as _SISTEMAS_AMORT)
 from services.parecer_pdf import gerar_pdf_parecer
 from services.pesos_rebanho import arrobas_categorias
 from services.parametros_zootecnicos import (
@@ -1199,6 +1200,13 @@ def api_classificar():
     prazo_credito = int(prazo_raw or 0)
     carencia_credito = int(carencia_raw or 0)
     juros_credito = float(juros_raw or 0)
+    # Price (default) ou SAC. Crédito rural é majoritariamente SAC, mas o
+    # default fica em Price para não mudar o resultado de quem já usava a rota
+    # sem informar o sistema. Ver services/payment_capacity_engine/dscr.py.
+    sistema_amort = (str(data.get('sistema_amortizacao') or 'price')
+                     .strip().lower())
+    if sistema_amort not in _SISTEMAS_AMORT:
+        return jsonify({'erro': "sistema_amortizacao deve ser 'price' ou 'sac'."}), 400
     if credito_valor > 0:
         if prazo_credito < 1 or prazo_credito > 60:
             return jsonify({'erro': 'O prazo do crédito deve estar entre 1 e 60 meses.'}), 400
@@ -1673,8 +1681,9 @@ def api_classificar():
     geracao_caixa_anual -= _reposicao_reprodutores
 
     # Serviço da dívida para o fluxo GEP (mesma base do DSCR do parecer)
-    _cronograma_nova = cronograma_price(
-        credito_valor, juros_credito, prazo_credito, carencia_credito
+    _cronograma_nova = cronograma_divida(
+        credito_valor, juros_credito, prazo_credito, carencia_credito,
+        sistema_amort
     ) if credito_valor > 0 else {'parcela_mensal': 0.0, 'anos': []}
     _parcela_nova = _cronograma_nova['parcela_mensal']
 
@@ -1833,6 +1842,7 @@ def api_classificar():
     credito_inputs = {k: data.get(k) for k in
                       ('credito_valor', 'prazo_meses', 'juros_aa',
                        'carencia_meses')}
+    credito_inputs['sistema_amortizacao'] = sistema_amort
     # A dívida que entra no DSCR é a consolidada, não o número solto do
     # formulário: se o proponente discriminou credores, é a soma das parcelas.
     credito_inputs['dividas_mensais'] = endividamento['parcela_existente_mensal']

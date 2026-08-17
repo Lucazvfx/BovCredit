@@ -22,125 +22,29 @@ DSCR_RESSALVA = politica(
 _CARENCIA_SEM_CAP = os.environ.get('CARENCIA_SEM_CAPITALIZACAO', '0') == '1'
 
 
-def parcela_price(pv: float, juros_aa: float, n_meses: int) -> float:
-    """Parcela mensal por amortização Price. juros_aa nominal anual."""
-    if n_meses <= 0 or pv <= 0:
-        return 0.0
-    i = (1 + juros_aa) ** (1 / 12) - 1
-    if i <= 0:
-        return pv / n_meses
-    return pv * i / (1 - (1 + i) ** (-n_meses))
-
-
-def principal_apos_carencia(pv: float, juros_aa: float,
-                            carencia_meses: int = 0) -> float:
-    """Principal no fim da carência, com os juros do período incorporados.
-
-    O sistema calculava a parcela sobre `prazo − carência` e mantinha o
-    principal parado, como se a carência fosse de graça. Não é: durante ela o
-    saldo devedor rende juros, e quem amortiza depois amortiza um saldo maior.
-
-    Medido num crédito de R$ 1.000.000, 36 meses, 12 de carência a 12,5% a.a.:
-
-        parcela antes ....... R$ 46.997
-        parcela correta ..... R$ 52.871      a parcela precisa subir 12,5%
-
-    A parcela saía 11,1% abaixo do devido e o DSCR subia na mesma proporção —
-    ou seja, o erro corria a favor de APROVAR. E carência é padrão em custeio
-    pecuário, então o caso não é raro.
-
-    A OUTRA CONVENÇÃO, que existe e não é esta
-
-    Há linhas em que o tomador PAGA os juros durante a carência, e só o
-    principal fica suspenso. Nelas o saldo não cresce e a parcela de
-    amortização é a de antes — mas há desembolso de juros nos meses da
-    carência, que este modelo também não representava.
-
-    Adotada a capitalização por ser a estrutura corrente em custeio e a mais
-    conservadora das duas: superestimar a parcela erra contra aprovar, que é o
-    lado seguro num produto de crédito. `CARENCIA_SEM_CAPITALIZACAO=1` volta ao
-    comportamento anterior.
-    """
-    if pv <= 0 or carencia_meses <= 0 or juros_aa <= 0 or _CARENCIA_SEM_CAP:
-        return max(pv, 0.0)
-    i = (1 + juros_aa) ** (1 / 12) - 1
-    return pv * (1 + i) ** carencia_meses
-
-
-def cronograma_price(
-    pv: float,
-    juros_aa: float,
-    prazo_meses: int,
-    carencia_meses: int = 0,
-) -> dict:
-    """Cronograma anual da nova operação, respeitando carência e ano parcial.
-
-    A parcela é mensal e constante após a carência. O principal capitaliza
-    durante a carência; cada ano recebe somente as parcelas que efetivamente
-    vencem nele. Assim, 30 meses com 6 de carência produzem 6 parcelas no ano
-    1, 12 no ano 2 e 6 no ano 3 — nunca ``12 × parcela`` cegamente.
-    """
-    pv = max(float(pv or 0), 0.0)
-    prazo = int(prazo_meses or 0)
-    carencia = int(carencia_meses or 0)
-    if pv <= 0 or prazo <= 0:
-        return {'parcela_mensal': 0.0, 'principal_amortizado': pv,
-                'anos': []}
-    if carencia < 0 or carencia >= prazo:
-        raise ValueError('A carência deve ser menor que o prazo do crédito.')
-
-    n = prazo - carencia
-    principal = principal_apos_carencia(pv, juros_aa, carencia)
-    parcela = parcela_price(principal, juros_aa, n)
-    anos = []
-    for ano in range(1, -(-prazo // 12) + 1):
-        inicio = (ano - 1) * 12 + 1
-        fim = min(ano * 12, prazo)
-        parcelas = sum(1 for mes in range(inicio, fim + 1)
-                       if mes > carencia)
-        anos.append({
-            'ano': ano,
-            'parcelas_nova_operacao': parcelas,
-            'servico_nova_operacao': round(parcelas * parcela, 2),
-        })
-    return {
-        'parcela_mensal': round(parcela, 2),
-        'principal_amortizado': round(principal, 2),
-        'anos': anos,
-    }
-
-
-def credito_maximo(
-    geracao_caixa_anual: float,
-    juros_aa: float,
-    prazo_meses: int,
-    carencia_meses: int = 0,
-    dividas_mensais: float = 0.0,
-    dscr_alvo: float = DSCR_APROVAR,
-) -> float:
-    """
-    Capacidade máxima de endividamento: PV tal que DSCR = dscr_alvo.
-
-    Inverso do Price: parcela_max = caixa_disponivel / 12
-    PV_max = parcela_max × (1 − (1+i)^−n) / i
-    """
-    n = max(prazo_meses - carencia_meses, 0)
-    if n <= 0 or juros_aa <= 0 or geracao_caixa_anual <= 0:
-        return 0.0
-    caixa_disponivel = geracao_caixa_anual / dscr_alvo - 12 * max(dividas_mensais, 0.0)
-    if caixa_disponivel <= 0:
-        return 0.0
-    parcela_max = caixa_disponivel / 12
-    i = (1 + juros_aa) ** (1 / 12) - 1
-    if i <= 0:
-        return round(parcela_max * n, 2)
-    pv_no_fim_da_carencia = parcela_max * (1 - (1 + i) ** (-n)) / i
-    # Desconta a capitalização: o valor LIBERADO hoje é menor que o saldo que
-    # será amortizado. Sem isto o crédito máximo ficaria acima do que a mesma
-    # geração de caixa aguenta, e as duas funções — que são uma o inverso da
-    # outra — passariam a discordar.
-    fator = (1 + i) ** carencia_meses if (carencia_meses > 0 and not _CARENCIA_SEM_CAP) else 1.0
-    return round(pv_no_fim_da_carencia / fator, 2)
+# ── Matemática de amortização: uma cópia só ─────────────────────────────────
+#
+# Estas quatro funções existiam DUPLICADAS aqui e em
+# payment_capacity_engine/dscr.py — mesma matemática, diferindo só em aspas e
+# quebra de linha. app.py importava a daqui; o motor usava a de lá.
+#
+# Duas cópias da mesma conta é a classe de defeito que já apareceu três vezes
+# nesta base (base reprodutiva, faixa 0–12, motores de recria): elas não
+# divergem no dia em que nascem, divergem no dia em que alguém corrige uma
+# só. Acrescentar SAC teria criado a quarta e a quinta cópia.
+#
+# O motor é a fonte; aqui ficam só os nomes que já eram importados.
+from services.payment_capacity_engine.dscr import (  # noqa: E402
+    PRICE,
+    SAC,
+    SISTEMAS,
+    cronograma_divida,
+    cronograma_price,
+    credito_maximo,
+    parcela_price,
+    parcelas_sac,
+    principal_apos_carencia,
+)
 
 
 def avaliar_capacidade_pagamento(
@@ -150,6 +54,7 @@ def avaliar_capacidade_pagamento(
     juros_aa: float,
     carencia_meses: int = 0,
     dividas_mensais: float = 0.0,
+    sistema: str = PRICE,
 ) -> dict:
     from services.payment_capacity_engine import calculate_payment_capacity
 
@@ -163,6 +68,7 @@ def avaliar_capacidade_pagamento(
             'prazo_meses': prazo_meses,
             'juros_aa': juros_aa,
             'carencia_meses': carencia_meses,
+            'sistema_amortizacao': sistema,
         },
         {'parcela_existente_mensal': dividas_mensais},
     )
@@ -333,7 +239,8 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
         prazo_meses=_i(credito.get('prazo_meses')),
         juros_aa=_f(credito.get('juros_aa')),
         carencia_meses=_i(credito.get('carencia_meses')),
-        dividas_mensais=_f(credito.get('dividas_mensais')))
+        dividas_mensais=_f(credito.get('dividas_mensais')),
+        sistema=credito.get('sistema_amortizacao'))
 
     # Reavalia sobre todos os anos do prazo — o DSCR do ano 1 isolado engana.
     conclusao = avaliar_capacidade_no_prazo(

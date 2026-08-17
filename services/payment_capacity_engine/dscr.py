@@ -1,7 +1,40 @@
 """Motor puro de capacidade de pagamento e DSCR.
 
-O módulo concentra a matemática de Price, carência capitalizada e leitura do
-fluxo anual para suportar o novo engine independente.
+O módulo concentra a matemática de amortização (Price e SAC), carência
+capitalizada e leitura do fluxo anual.
+
+PRICE E SAC NÃO SÃO DETALHE DE PREFERÊNCIA
+
+    Price  parcela constante; nos primeiros meses quase tudo é juros. Paga
+           mais juros no total do contrato.
+    SAC    amortização constante e juros sobre o saldo devedor, que encolhe.
+           A parcela COMEÇA ALTA e cai mês a mês. Paga menos juros no total.
+
+O sistema só tinha Price, e crédito rural brasileiro é majoritariamente SAC —
+Pronaf, Pronamp e custeio agrícola usam amortização constante. A diferença não
+é acadêmica para este produto: no SAC a parcela mais pesada vence logo no
+começo, justamente quando o produtor ainda não vendeu a safra. Simular Price
+onde o contrato é SAC suaviza a parcela do ano 1 e infla o DSCR do ano mais
+apertado — o erro corre a favor de APROVAR.
+
+Medido em R$ 1.000.000, 36 meses, 12,5% a.a., sem carência:
+
+    Price  parcela fixa ....... R$ 33.454 nos 36 meses
+    SAC    primeira ........... R$ 37.646      +12,5% no ano 1
+           última ............. R$ 28.070
+           juros totais ....... 6,3% menores que no Price
+
+`parcela_mensal` no SAC devolve a PRIMEIRA parcela, que é a maior. É ela que
+decide o comprometimento de caixa e o pior momento do contrato, e usar a maior
+erra contra aprovar — o lado seguro, mesma convenção de
+`principal_apos_carencia`.
+
+O QUE AINDA NÃO EXISTE
+
+Periodicidade: as duas amortizações são MENSAIS. Crédito rural costuma ter
+parcela anual ou semestral alinhada à colheita, e isso muda de novo o perfil
+de caixa. Fica registrado como o próximo passo, não como algo que este módulo
+já resolve.
 """
 from __future__ import annotations
 
@@ -51,6 +84,18 @@ def _coerce_int(value: Any, default: int = 0) -> int:
         return default
 
 
+PRICE = "price"
+SAC = "sac"
+SISTEMAS = (PRICE, SAC)
+
+
+def _normalizar_sistema(sistema) -> str:
+    """Aceita None/'' como Price — o default histórico, para não mudar o que
+    já chamava sem informar sistema."""
+    s = str(sistema or PRICE).strip().lower()
+    return s if s in SISTEMAS else PRICE
+
+
 def parcela_price(pv: float, juros_aa: float, n_meses: int) -> float:
     """Parcela mensal por amortização Price."""
     if n_meses <= 0 or pv <= 0:
@@ -61,27 +106,85 @@ def parcela_price(pv: float, juros_aa: float, n_meses: int) -> float:
     return pv * i / (1 - (1 + i) ** (-n_meses))
 
 
+def parcelas_sac(pv: float, juros_aa: float, n_meses: int) -> list[float]:
+    """As n parcelas do SAC, em ordem de vencimento — decrescentes.
+
+    Amortização constante (pv/n) mais juros sobre o saldo devedor do período.
+    Devolve a lista inteira, e não uma parcela só, porque no SAC não existe
+    "a parcela": cada uma é menor que a anterior, e o cronograma anual precisa
+    somar exatamente as que vencem em cada ano.
+    """
+    if n_meses <= 0 or pv <= 0:
+        return []
+    i = (1 + juros_aa) ** (1 / 12) - 1
+    amortizacao = pv / n_meses
+    if i <= 0:
+        return [amortizacao] * n_meses
+    # Saldo devedor ANTES da k-ésima parcela (k começa em 0): pv − amort × k.
+    return [amortizacao + (pv - amortizacao * k) * i for k in range(n_meses)]
+
+
 def principal_apos_carencia(pv: float, juros_aa: float, carencia_meses: int = 0) -> float:
-    """Principal no fim da carência, com capitalização de juros."""
+    """Principal no fim da carência, com os juros do período incorporados.
+
+    O sistema calculava a parcela sobre `prazo − carência` e mantinha o
+    principal parado, como se a carência fosse de graça. Não é: durante ela o
+    saldo devedor rende juros, e quem amortiza depois amortiza um saldo maior.
+
+    Medido num crédito de R$ 1.000.000, 36 meses, 12 de carência a 12,5% a.a.:
+
+        parcela antes ....... R$ 46.997
+        parcela correta ..... R$ 52.871      a parcela precisa subir 12,5%
+
+    A parcela saía 11,1% abaixo do devido e o DSCR subia na mesma proporção —
+    ou seja, o erro corria a favor de APROVAR. E carência é padrão em custeio
+    pecuário, então o caso não é raro.
+
+    A OUTRA CONVENÇÃO, que existe e não é esta
+
+    Há linhas em que o tomador PAGA os juros durante a carência, e só o
+    principal fica suspenso. Nelas o saldo não cresce e a parcela de
+    amortização é a de antes — mas há desembolso de juros nos meses da
+    carência, que este modelo também não representa.
+
+    Adotada a capitalização por ser a estrutura corrente em custeio e a mais
+    conservadora das duas: superestimar a parcela erra contra aprovar, que é o
+    lado seguro num produto de crédito. `CARENCIA_SEM_CAPITALIZACAO=1` volta ao
+    comportamento anterior.
+    """
     if pv <= 0 or carencia_meses <= 0 or juros_aa <= 0 or _CARENCIA_SEM_CAP:
         return max(pv, 0.0)
     i = (1 + juros_aa) ** (1 / 12) - 1
     return pv * (1 + i) ** carencia_meses
 
 
-def cronograma_price(
+def cronograma_divida(
     pv: float,
     juros_aa: float,
     prazo_meses: int,
     carencia_meses: int = 0,
+    sistema: str = PRICE,
 ) -> dict:
-    """Cronograma anual do novo crédito, respeitando carência e ano parcial."""
+    """Cronograma anual do novo crédito, respeitando carência e ano parcial.
+
+    O principal capitaliza durante a carência; cada ano recebe somente as
+    parcelas que efetivamente vencem nele. Assim, 30 meses com 6 de carência
+    produzem 6 parcelas no ano 1, 12 no ano 2 e 6 no ano 3 — nunca
+    ``12 × parcela`` cegamente.
+
+    No SAC as parcelas caem ao longo do contrato, então o serviço de cada ano
+    soma as parcelas daquele ano especificamente, e não conta × parcela fixa.
+    """
     pv = max(float(pv or 0), 0.0)
     prazo = int(prazo_meses or 0)
     carencia = int(carencia_meses or 0)
+    sistema = _normalizar_sistema(sistema)
     if pv <= 0 or prazo <= 0:
         return {
+            "sistema": sistema,
             "parcela_mensal": 0.0,
+            "parcela_primeira": 0.0,
+            "parcela_ultima": 0.0,
             "principal_amortizado": pv,
             "anos": [],
         }
@@ -90,22 +193,46 @@ def cronograma_price(
 
     n = prazo - carencia
     principal = principal_apos_carencia(pv, juros_aa, carencia)
-    parcela = parcela_price(principal, juros_aa, n)
+    if sistema == SAC:
+        parcelas = parcelas_sac(principal, juros_aa, n)
+    else:
+        parcelas = [parcela_price(principal, juros_aa, n)] * n
+
     anos = []
     for ano in range(1, -(-prazo // 12) + 1):
         inicio = (ano - 1) * 12 + 1
         fim = min(ano * 12, prazo)
-        parcelas = sum(1 for mes in range(inicio, fim + 1) if mes > carencia)
+        # Índice da parcela que vence no mês `mes`: a primeira vence no mês
+        # seguinte ao fim da carência.
+        do_ano = [parcelas[mes - carencia - 1]
+                  for mes in range(inicio, fim + 1)
+                  if mes > carencia and (mes - carencia - 1) < len(parcelas)]
         anos.append({
             "ano": ano,
-            "parcelas_nova_operacao": parcelas,
-            "servico_nova_operacao": round(parcelas * parcela, 2),
+            "parcelas_nova_operacao": len(do_ano),
+            "servico_nova_operacao": round(sum(do_ano), 2),
         })
+    # `parcela_mensal` é a PRIMEIRA parcela. No Price todas são iguais e nada
+    # muda; no SAC é a MAIOR, e é ela que define comprometimento de caixa e o
+    # aperto do primeiro ano. Usar a maior erra contra aprovar.
     return {
-        "parcela_mensal": round(parcela, 2),
+        "sistema": sistema,
+        "parcela_mensal": round(parcelas[0], 2),
+        "parcela_primeira": round(parcelas[0], 2),
+        "parcela_ultima": round(parcelas[-1], 2),
         "principal_amortizado": round(principal, 2),
         "anos": anos,
     }
+
+
+def cronograma_price(
+    pv: float,
+    juros_aa: float,
+    prazo_meses: int,
+    carencia_meses: int = 0,
+) -> dict:
+    """Atalho histórico para `cronograma_divida(..., sistema='price')`."""
+    return cronograma_divida(pv, juros_aa, prazo_meses, carencia_meses, PRICE)
 
 
 def credito_maximo(
@@ -115,9 +242,23 @@ def credito_maximo(
     carencia_meses: int = 0,
     dividas_mensais: float = 0.0,
     dscr_alvo: float = DSCR_APROVAR,
+    sistema: str = PRICE,
 ) -> float:
-    """Capacidade máxima de endividamento: PV tal que DSCR = dscr_alvo."""
+    """Capacidade máxima de endividamento: PV tal que DSCR = dscr_alvo.
+
+    É o inverso do cronograma, e por isso precisa do MESMO sistema de
+    amortização — senão as duas funções discordam sobre a mesma operação.
+
+        Price   PV = parcela × (1 − (1+i)^−n) / i
+        SAC     a restrição é a PRIMEIRA parcela, a maior:
+                parcela₁ = PV/n + PV×i  ⇒  PV = parcela / (1/n + i)
+
+    Para o mesmo caixa disponível o SAC comporta MENOS crédito que o Price,
+    porque é a parcela inicial que precisa caber — exatamente o aperto que
+    motivou separar os dois sistemas.
+    """
     n = max(prazo_meses - carencia_meses, 0)
+    sistema = _normalizar_sistema(sistema)
     if n <= 0 or juros_aa <= 0 or geracao_caixa_anual <= 0:
         return 0.0
     caixa_disponivel = geracao_caixa_anual / dscr_alvo - 12 * max(dividas_mensais, 0.0)
@@ -127,7 +268,10 @@ def credito_maximo(
     i = (1 + juros_aa) ** (1 / 12) - 1
     if i <= 0:
         return round(parcela_max * n, 2)
-    pv_no_fim_da_carencia = parcela_max * (1 - (1 + i) ** (-n)) / i
+    if sistema == SAC:
+        pv_no_fim_da_carencia = parcela_max / (1.0 / n + i)
+    else:
+        pv_no_fim_da_carencia = parcela_max * (1 - (1 + i) ** (-n)) / i
     fator = (
         (1 + i) ** carencia_meses
         if (carencia_meses > 0 and not _CARENCIA_SEM_CAP)
@@ -143,9 +287,11 @@ def avaliar_capacidade_pagamento(
     juros_aa: float,
     carencia_meses: int = 0,
     dividas_mensais: float = 0.0,
+    sistema: str = PRICE,
 ) -> dict:
     """Compatibilidade legada: mantém o contrato histórico do parecer."""
-    cronograma = cronograma_price(credito_valor, juros_aa, prazo_meses, carencia_meses)
+    cronograma = cronograma_divida(
+        credito_valor, juros_aa, prazo_meses, carencia_meses, sistema)
     _pv = cronograma["principal_amortizado"]
     parcela = cronograma["parcela_mensal"]
     _cap_carencia = (
@@ -165,12 +311,16 @@ def avaliar_capacidade_pagamento(
         prazo_meses,
         carencia_meses,
         dividas_mensais,
+        sistema=sistema,
     )
 
     if servico_anual <= 0:
         return {
             "dscr": None,
+            "sistema_amortizacao": cronograma["sistema"],
             "parcela_mensal": round(parcela, 2),
+            "parcela_primeira": cronograma["parcela_primeira"],
+            "parcela_ultima": cronograma["parcela_ultima"],
             "capitalizacao_carencia": _cap_carencia,
             "cronograma_divida": cronograma["anos"],
             "servico_divida_anual": 0.0,
@@ -205,7 +355,10 @@ def avaliar_capacidade_pagamento(
 
     return {
         "dscr": round(dscr, 2),
+        "sistema_amortizacao": cronograma["sistema"],
         "parcela_mensal": round(parcela, 2),
+        "parcela_primeira": cronograma["parcela_primeira"],
+        "parcela_ultima": cronograma["parcela_ultima"],
         "servico_divida_anual": round(servico_anual, 2),
         "geracao_caixa_anual": round(geracao_caixa_anual, 2),
         "capacidade_maxima": cap_max,
@@ -341,9 +494,11 @@ def calculate_payment_capacity(
     interest_aa = _coerce_float(debt_request.get("juros_aa"))
     term_months = _coerce_int(debt_request.get("prazo_meses"))
     grace_months = _coerce_int(debt_request.get("carencia_meses"))
+    sistema = _normalizar_sistema(debt_request.get("sistema_amortizacao"))
     existing_monthly = _existing_monthly_debt(existing_debt)
 
-    cronograma = cronograma_price(credit_value, interest_aa, term_months, grace_months)
+    cronograma = cronograma_divida(
+        credit_value, interest_aa, term_months, grace_months, sistema)
     cashflow_rows = _cashflow_rows(cashflow)
     if not cashflow_rows and cashflow.get("geracao_caixa_anual") is not None:
         cashflow_rows = [{"ano": 1, "resultado": _coerce_float(cashflow.get("geracao_caixa_anual"))}]
@@ -375,6 +530,7 @@ def calculate_payment_capacity(
         term_months,
         grace_months,
         existing_monthly,
+        sistema=sistema,
     )
 
     melhor_periodo = _best_period(periods, reverse=True)
@@ -410,6 +566,7 @@ def calculate_payment_capacity(
         interest_aa,
         grace_months,
         existing_monthly,
+        sistema,
     )
 
     analysis = {
@@ -417,6 +574,7 @@ def calculate_payment_capacity(
         "debt_request": deepcopy(debt_request) if isinstance(debt_request, dict) else {},
         "existing_debt": deepcopy(existing_debt) if isinstance(existing_debt, dict) else {},
         "cronograma_divida": cronograma["anos"],
+        "sistema_amortizacao": cronograma["sistema"],
         "periods": periods,
         **summary,
     }
