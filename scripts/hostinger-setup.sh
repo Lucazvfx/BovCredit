@@ -59,9 +59,20 @@ fi
 # O certbot --nginx precisa de um server block VÁLIDO e servindo na porta 80
 # para resolver o desafio. Só depois ele injeta o TLS neste mesmo bloco.
 echo "==> Configurando nginx (HTTP)"
-sed "s/seudominio\.com\.br/$DOMAIN/g" nginx/orkavyn.conf \
-  > /etc/nginx/sites-available/orkavyn
-ln -sf /etc/nginx/sites-available/orkavyn /etc/nginx/sites-enabled/orkavyn
+# O arquivo leva o nome do DOMÍNIO, não "orkavyn".
+#
+# O nome fixo colidia: o VPS onde isto vai rodar já tinha um site habilitado
+# chamado exatamente `orkavyn`, servindo o domínio raiz. O `>` teria
+# sobrescrito a configuração no ar. Nome por domínio torna a colisão
+# impossível entre subdomínios, e a checagem abaixo cobre o resto.
+NGINX_CONF="/etc/nginx/sites-available/$DOMAIN"
+if [ -e "$NGINX_CONF" ]; then
+  echo "$NGINX_CONF já existe — não vou sobrescrever." >&2
+  echo "Remova ou renomeie o arquivo antes de rodar de novo." >&2
+  exit 1
+fi
+sed "s/seudominio\.com\.br/$DOMAIN/g" nginx/orkavyn.conf > "$NGINX_CONF"
+ln -sf "$NGINX_CONF" "/etc/nginx/sites-enabled/$DOMAIN"
 # O site default NÃO é removido. A versão anterior o apagava, o que numa
 # máquina nova era inofensivo e aqui derrubaria o que já está no ar. nginx
 # casa por server_name antes de cair no default_server, então o bloco novo
