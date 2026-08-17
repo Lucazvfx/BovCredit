@@ -18,7 +18,11 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 10 min ficou apertado: um deploy que mexe no requirements.txt invalida o
+    # cache de camadas e o VPS recompila a stack ML inteira (3m34 no de
+    # 1b598f5, contra 9s quando o cache vale). Somando as retentativas de
+    # conexão, 15 dá folga sem deixar um deploy travado pendurado.
+    timeout-minutes: 15
     steps:
       # Sem ações de terceiros de propósito — só ssh, que o runner já traz.
       # Superfície de supply-chain menor para um workflow com acesso de
@@ -45,19 +49,42 @@ jobs:
       # push durante o job publicava código que nunca rodou os testes.
       # Em workflow_dispatch não há workflow_run, então cai no SHA do próprio
       # disparo — que é o que o usuário escolheu redeployar.
+      # Repete só quando a CONEXÃO falha, nunca quando o comando remoto falha.
+      #
+      # O ssh reserva o código 255 para os próprios erros — recusa, timeout,
+      # DNS. Qualquer outro código vem do que rodou no servidor: build
+      # quebrado, git sem o commit, disco cheio. Repetir esses seria esconder
+      # o problema e ainda gastar três builds de vários minutos até o job
+      # estourar o tempo.
+      #
+      # É a segunda vez que rede derruba este deploy: antes foi um ssh-keyscan
+      # com cinco segundos de soluço, agora um "connection timed out" três
+      # minutos depois de um rebuild pesado, com o VPS provavelmente ainda
+      # ocupado. Nos dois casos o commit estava bom e o deploy morreu à toa.
       - name: Atualizar e subir no VPS
         env:
           SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=accept-new \
-              -o ConnectTimeout=15 root@179.198.115.127 "
-            set -e
-            cd /opt/orkavyn
-            git fetch origin main
-            git checkout --detach '$SHA'
-            docker compose up -d --build
-          "
+          for tentativa in 1 2 3; do
+            ssh -i ~/.ssh/deploy_key \
+                -o StrictHostKeyChecking=accept-new \
+                -o ConnectTimeout=20 root@179.198.115.127 "
+              set -e
+              cd /opt/orkavyn
+              git fetch origin main
+              git checkout --detach '$SHA'
+              docker compose up -d --build
+            " && exit 0
+            codigo=$?
+            if [ "$codigo" -ne 255 ]; then
+              echo "::error::O comando remoto falhou (código $codigo) — não é problema de rede, não vou repetir."
+              exit "$codigo"
+            fi
+            echo "::warning::Tentativa $tentativa não conectou no VPS. Nova tentativa em $((tentativa * 20))s."
+            sleep $((tentativa * 20))
+          done
+          echo "::error::Três tentativas sem conectar no VPS."
+          exit 1
 
       - name: Verificar que o site respondeu
         run: |
