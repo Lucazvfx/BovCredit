@@ -16,7 +16,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from ml_engine import (
-    treinar_modelo, classificar, calcular_indicadores,
+    classificar, calcular_indicadores,
     simular_cenario, carregar_modelo, CENARIOS,
     comparar_cenarios,
     avaliar_benchmarks, extrair_indicadores_benchmark, calcular_breakeven_simples,
@@ -364,15 +364,27 @@ def load_user(user_id):
     u = db.buscar_usuario_id(int(user_id))
     return User(u) if u else None
 
-# ── Startup: carrega modelo do disco ou treina do zero ──────────────────────
-_saved = carregar_modelo()
-if _saved:
-    stats = _saved
-    logger.info(f"✅ Modelo carregado do disco | Acurácia: {stats['accuracy_mean']*100:.1f}% | Amostras: {stats['n_samples']}")
-else:
-    logger.info("🧠 Treinando modelo ML (primeira execução)...")
-    stats = treinar_modelo()
-    logger.info(f"✅ Modelo treinado | Acurácia CV: {stats['accuracy_mean']*100:.1f}% ± {stats['accuracy_std']*100:.1f}% | Amostras: {stats['n_samples']}")
+# ── Startup: carrega modelo do disco ────────────────────────────────────────
+#
+# Antes, falhar aqui caía no retreino: 34.902 amostras, minutos de CPU, dentro
+# do import do app. Com preload_app o gunicorn faz esse import no master, antes
+# de existir qualquer worker — o boot estoura o timeout de 120s e o deploy cai
+# sem ter servido uma requisição. O pico de memória do treino também é bem
+# maior que os 300 MB do modelo pronto, então em container modesto o desfecho
+# provável era OOM, não lentidão.
+#
+# O pickle é versionado no git e entra na imagem. Se ele não carrega, a causa
+# quase sempre é divergência de versão de biblioteca, e o conserto é regerar o
+# artefato e commitar — não gastar o boot tentando adivinhar.
+stats = carregar_modelo()
+if stats is None:
+    raise RuntimeError(
+        'Modelo ML indisponível: gestao_model.pkl não existe, está corrompido '
+        'ou foi gravado com outra versão de scikit-learn/numpy. O traceback '
+        'acima de [ML] diz qual. Regenere com `python treinar_ciclos.py` e '
+        'commite o artefato — o app não retreina no boot.'
+    )
+logger.info(f"✅ Modelo carregado do disco | Acurácia: {stats['accuracy_mean']*100:.1f}% | Amostras: {stats['n_samples']}")
 
 db.init_db()
 logger.info("🗃️  Banco SQLite inicializado.")

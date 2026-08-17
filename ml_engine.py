@@ -494,17 +494,16 @@ def salvar_modelo(stats_dict: dict):
 
 def carregar_modelo() -> dict | None:
     """
-    Carrega o modelo do disco. Devolve None se não der, e o chamador retreina.
+    Carrega o modelo do disco. Devolve None se não der, e o app aborta o boot.
 
-    Falhar aqui não é evento menor: o retreino leva minutos e acontece dentro
-    do import do app, então em produção o worker do gunicorn morre antes de
-    terminar. O motivo precisa aparecer no log com o traceback — a mensagem
-    curta ("cannot unpickle") não diz qual versão de biblioteca divergiu, e é
+    Falhar aqui derruba a aplicação — o app não retreina no boot (ver app.py).
+    O motivo precisa aparecer no log com o traceback: a mensagem curta
+    ("cannot unpickle") não diz qual versão de biblioteca divergiu, e é
     justamente essa a causa quase sempre.
     """
     if not os.path.exists(_MODEL_PATH):
-        _log.warning('[ML] %s não existe — treinando do zero (leva minutos).',
-                     _MODEL_PATH)
+        _log.error('[ML] %s não existe — regenere com `python '
+                   'treinar_ciclos.py`.', _MODEL_PATH)
         return None
     try:
         data = joblib.load(_MODEL_PATH)
@@ -512,18 +511,19 @@ def carregar_modelo() -> dict | None:
         # Validação de estrutura (branch 9318087) — rejeita modelos antigos incompatíveis
         if not hasattr(pipeline.named_steps['model'], 'estimators'):
             _log.error('[ML] Modelo em disco tem estrutura antiga (sem '
-                       'estimators) — treinando do zero (leva minutos).')
+                       'estimators) — regenere com `python '
+                       'treinar_ciclos.py`.')
             return None
         global _pipeline
         _pipeline = pipeline
         return data['stats']
     except Exception:
         _log.error(
-            '[ML] Falha ao ler %s — treinando do zero (leva minutos, e em '
-            'produção o worker do gunicorn morre antes de terminar). Quase '
+            '[ML] Falha ao ler %s — o app não vai subir. Quase '
             'sempre é divergência de versão: o pickle foi gravado com '
             'scikit-learn %s / numpy %s. Confira se requirements.txt está '
-            'fixado e se a imagem usa o mesmo Python de runtime.txt.',
+            'fixado e se a imagem usa o mesmo Python de runtime.txt, '
+            'regenere com `python treinar_ciclos.py` e commite o artefato.',
             _MODEL_PATH, _sklearn_version, np.__version__, exc_info=True)
         return None
 
