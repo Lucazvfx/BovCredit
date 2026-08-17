@@ -144,7 +144,9 @@ O banco SQLite (`gestao.db`) é criado automaticamente na primeira execução.
 - **Banco**: Supabase — o compose sobe só o app, o Postgres é externo
 - **Deploy**: Docker Compose (`docker compose up -d --build`)
 - **App dir**: `/opt/orkavyn`
-- **Atualizar**: `cd /opt/orkavyn && git pull && docker compose up -d --build`
+- **Atualizar**: normalmente não precisa — o workflow `deploy` sobe sozinho depois que `tests` passa em `main`. Para forçar, use o "Run workflow" da aba Actions.
+- **Atualizar na mão**: `cd /opt/orkavyn && git fetch origin main && git checkout --detach origin/main && docker compose up -d --build`
+  O `git pull` puro não serve mais: o deploy deixa o repositório num commit fixo (HEAD solto), de propósito — é assim que ele garante subir exatamente o commit que a suíte aprovou, e não a ponta de `main` no instante do deploy.
 - **Logs**: `docker compose logs -f app`
 - nginx reverse proxy na porta 8080, SSL via Certbot/Let's Encrypt
 - O container roda como `orkavyn` (uid 10001), não root — ver `Dockerfile`
