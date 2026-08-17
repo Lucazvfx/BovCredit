@@ -142,7 +142,11 @@ def test_landing_keeps_real_routes_and_avoids_unverified_telemetry():
 
     assert "url_for('login')" in html
     assert "Orkavyn Agro Intelligence" in html
-    assert "orkavyn-fields.css" in html
+    # A landing não usa orkavyn-fields.css desde a reescrita com a animação
+    # de scroll (e10db3e): ela é standalone, com os próprios tokens de design
+    # num <style> inline — só as páginas autenticadas usam a folha
+    # compartilhada. Ver a seção "Landing page" do CLAUDE.md.
+    assert "<style>" in html
     assert "99,8%" not in html
     assert "< 4min" not in html
     assert "BovCredit" not in html
