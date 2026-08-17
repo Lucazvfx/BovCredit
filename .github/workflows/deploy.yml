@@ -30,11 +30,21 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H 179.198.115.127 >> ~/.ssh/known_hosts 2>/dev/null
 
+      # StrictHostKeyChecking=accept-new no lugar de um passo de ssh-keyscan.
+      #
+      # O keyscan derrubou o deploy do commit bbdc5f4 com um soluço de rede de
+      # cinco segundos, e o `2>/dev/null` que ele tinha engoliu o motivo — o
+      # log só dizia "exit code 1". Duas falhas de uma vez: frágil e mudo.
+      #
+      # A confiança na chave do host não muda: o keyscan aceitava a chave que
+      # respondesse naquele instante, que é o mesmo TOFU do accept-new. A
+      # diferença é que agora não há um passo separado para falhar sozinho.
       - name: Atualizar e subir no VPS
         run: |
-          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 root@179.198.115.127 '
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=accept-new \
+              -o ConnectTimeout=15 root@179.198.115.127 '
             set -e
             cd /opt/orkavyn
             git fetch origin main
