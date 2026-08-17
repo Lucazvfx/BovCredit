@@ -55,6 +55,19 @@ if [ ! -f .env ]; then
   read -rp "Pressione ENTER após salvar o .env..."
 fi
 
+# Placeholder esquecido no .env derruba o container só lá no fim, com um
+# traceback de psycopg2 — aconteceu no primeiro deploy real, com o
+# `postgres.SEUPROJETO` do modelo indo inteiro para a connection string.
+# Melhor barrar aqui, antes de buildar 200s de imagem.
+if grep -qE 'SEUPROJETO|SUA_SENHA|troque_por|gsk_\.\.\.|seudominio' .env; then
+  echo "" >&2
+  echo "O .env ainda tem valores de exemplo:" >&2
+  grep -nE 'SEUPROJETO|SUA_SENHA|troque_por|gsk_\.\.\.|seudominio' .env >&2
+  echo "" >&2
+  echo "Preencha com os valores reais e rode de novo." >&2
+  exit 1
+fi
+
 # ── nginx em HTTP primeiro ───────────────────────────────────────────────────
 # O certbot --nginx precisa de um server block VÁLIDO e servindo na porta 80
 # para resolver o desafio. Só depois ele injeta o TLS neste mesmo bloco.
