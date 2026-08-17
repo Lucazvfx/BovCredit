@@ -69,7 +69,7 @@ Critérios fortes permitem iterar de forma independente. Critérios fracos ("fa�
 
 - **Backend**: Flask 3.1 + Gunicorn (gthread, preload_app)
 - **ML**: scikit-learn + LightGBM + XGBoost — modelo salvo em `gestao_model.pkl` (~300 MB RSS)
-- **Banco**: PostgreSQL em produção, SQLite local (`gestao.db`)
+- **Banco**: Supabase (PostgreSQL gerenciado) em produção, SQLite local (`gestao.db`)
 - **OCR**: Tesseract (`tesseract-ocr-por`) via pytesseract
 - **PDF**: pdfplumber + poppler-utils (`pdftotext`)
 - **IA narrativa**: Groq API (`services/groq_narrativa.py`)
@@ -118,7 +118,7 @@ static/
 | Variável | Descrição |
 |---|---|
 | `SECRET_KEY` | Chave Flask — gere com `secrets.token_hex(32)` |
-| `DATABASE_URL` | `postgresql://user:pass@host/db` |
+| `DATABASE_URL` | Connection string do Supabase — use a do pooler (porta 6543) |
 | `ADMIN_EMAILS` | E-mails admin separados por vírgula |
 | `ADMIN_SENHA_INICIAL` | Senha do primeiro login (trocar depois) |
 | `GROQ_API_KEY` | API Groq para narrativas |
@@ -136,14 +136,16 @@ flask run
 
 O banco SQLite (`gestao.db`) é criado automaticamente na primeira execução.
 
-## Produção (Hostinger VPS)
+## Produção (Hostinger VPS + Supabase)
 
 - **URL**: `https://credito.orkavyn.tech`
+- **Banco**: Supabase — o compose sobe só o app, o Postgres é externo
 - **Deploy**: Docker Compose (`docker compose up -d --build`)
 - **App dir**: `/opt/orkavyn`
 - **Atualizar**: `cd /opt/orkavyn && git pull && docker compose up -d --build`
 - **Logs**: `docker compose logs -f app`
 - nginx reverse proxy na porta 8080, SSL via Certbot/Let's Encrypt
+- O container roda como `orkavyn` (uid 10001), não root — ver `Dockerfile`
 
 ## Branch de trabalho
 

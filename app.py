@@ -387,8 +387,19 @@ if stats is None:
     )
 logger.info(f"✅ Modelo carregado do disco | Acurácia: {stats['accuracy_mean']*100:.1f}% | Amostras: {stats['n_samples']}")
 
+# Em produção o banco é externo (Supabase) e não sobe junto com o app. Uma
+# DATABASE_URL vazia ou malformada faz database.py cair no SQLite em silêncio:
+# o app subiria com um banco vazio e efêmero dentro do container, aceitando
+# cadastros e análises que somem no próximo deploy. Falhar aqui é barato;
+# descobrir depois, não.
+if os.environ.get('FLASK_ENV') == 'production' and not db._USE_PG:
+    raise RuntimeError(
+        'DATABASE_URL ausente ou malformada: em produção o banco é o Supabase '
+        'e o app não pode cair no SQLite. Confira a connection string no .env '
+        '— use a do pooler (porta 6543), com sslmode=require.'
+    )
 db.init_db()
-logger.info("🗃️  Banco SQLite inicializado.")
+logger.info("🗃️  Banco %s inicializado.", 'PostgreSQL' if db._USE_PG else 'SQLite')
 garantir_admins()
 from services.api_v1 import api_v1_bp
 app.register_blueprint(api_v1_bp)
