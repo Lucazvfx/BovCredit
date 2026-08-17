@@ -215,6 +215,25 @@ def read_ficha_text(
     for registro in registros:
         registro.setdefault('origem', origem)
         registro.setdefault('modelo', modelo_real)
+    # O parser roda até o fim mesmo quando não reconhece nenhuma linha e
+    # devolve as dez faixas zeradas. Um contrato ou um layout não suportado
+    # tem texto extraível e chegaria aqui como leitura bem-sucedida — o
+    # rebanho vazio seguiria para classificação e parecer como dado observado.
+    if not any(
+        (registro.get('quantidade') or 0) > 0 for registro in registros
+    ):
+        return {
+            'sucesso': False,
+            'origem': origem,
+            'modelo': modelo_real,
+            'dados_brutos': dados,
+            'registros': [],
+            'avisos': [],
+            'erros': [
+                'Nenhuma categoria de animal foi reconhecida — '
+                'layout não suportado ou ficha sem rebanho.'
+            ],
+        }
     return {
         'sucesso': True,
         'origem': origem,

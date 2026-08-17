@@ -143,15 +143,19 @@ def test_a_coorte_do_ciclo_completo_entra_no_plantel():
 
 def test_calcular_ano_sem_coorte_e_o_comportamento_de_antes():
     """`prestes_matrizes` é opcional e default 0 — nada que já chamava mudou."""
-    comum = dict(matrizes=270, femeas_024=240, machos_024=220, bois=120,
+    comum = dict(matrizes=270, c0_femeas=120, c1_femeas=120,
+                 c0_machos=110, c1_machos=110, bois=120,
                  nat_pct=0.70, desc_mat_pct=0.10, prop_boi=30, renov_boi_pct=0.20,
                  venda_bez_pct=0.75, mort_pct=0.03, preco_arroba=330,
                  custo_arroba=57)
     a = calcular_ano(**comum)
     b = calcular_ano(**comum, prestes_matrizes=0.0)
     assert a['matrizes_prox'] == b['matrizes_prox']
+    # A coorte prestes agora sofre mortalidade normal antes de ser promovida
+    # (ver calcular_ano) — não entra mais intacta como antes.
     c = calcular_ano(**comum, prestes_matrizes=150.0)
-    assert c['matrizes_prox'] == b['matrizes_prox'] + 150
+    assert c['matrizes_prox'] > b['matrizes_prox']
+    assert c['matrizes_prox'] < b['matrizes_prox'] + 150
 
 
 # ── A direção do erro corrigido ─────────────────────────────────────────────

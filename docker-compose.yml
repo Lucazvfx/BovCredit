@@ -1,0 +1,29 @@
+# O Postgres saiu daqui e virou Supabase.
+#
+# O que se ganha: backup contínuo, point-in-time recovery e um painel de SQL
+# sem ninguém administrar servidor de banco. O que se perde: o banco deixa de
+# subir junto com o app, então a DATABASE_URL precisa estar certa no .env
+# antes do primeiro `up` — não há mais fallback local.
+#
+# Este compose passou a ter um serviço só. Fica como compose, e não como
+# `docker run`, porque preserva restart, env-file e o comando de atualização
+# que já está documentado.
+services:
+  app:
+    build: .
+    restart: always
+    environment:
+      # Supabase: use o CONNECTION POOLER (porta 6543, modo transaction).
+      # database.py abre e fecha conexão por chamada — é exatamente o padrão
+      # que o pooler atende bem. A conexão direta na 5432 esgota o limite de
+      # conexões do projeto quando o gunicorn sobe com várias threads.
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_EMAILS: ${ADMIN_EMAILS}
+      ADMIN_SENHA_INICIAL: ${ADMIN_SENHA_INICIAL}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      APP_URL: ${APP_URL}
+      FLASK_ENV: production
+      RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-memory://}
+    ports:
+      - "127.0.0.1:8080:8080"

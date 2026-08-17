@@ -3,6 +3,8 @@
 import re
 import unicodedata
 
+from services.faixa_0_12 import dividir_0_12
+
 
 def _normalizar(texto: str) -> str:
     texto = unicodedata.normalize('NFKD', texto.upper())
@@ -41,12 +43,17 @@ def dados_go_ir(texto: str) -> list[dict]:
     dados = []
     for bloco in extrair_blocos(texto):
         qtd = bloco['quantidades']
+        _m00, _m05 = dividir_0_12(qtd[0])
+        _f00, _f05 = dividir_0_12(qtd[1])
         dados.append({
             'fazenda': '',
             'codigo_propriedade': bloco['codigo_propriedade'],
             'animais': {
-                'f00_M': qtd[0], 'f00_F': qtd[1],
-                'f05_M': 0, 'f05_F': 0,
+                # A ficha GO IR declara 0–12 num número só, como as demais
+                # de quatro faixas. Jogar tudo em f00 fazia deste leitor o
+                # terceiro comportamento para a mesma faixa.
+                'f00_M': _m00, 'f00_F': _f00,
+                'f05_M': _m05, 'f05_F': _f05,
                 'f13_M': qtd[2], 'f13_F': qtd[3],
                 'f25_M': qtd[4], 'f25_F': qtd[5],
                 'fac_M': qtd[6], 'fac_F': qtd[7],

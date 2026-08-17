@@ -24,6 +24,8 @@ Fonte do mapeamento: MAPEAMENTO (aba da mesma planilha), estados MT/GO/MS/MA/TO/
 from __future__ import annotations
 import io
 
+from services.faixa_0_12 import dividir_0_12
+
 _FEMALE_MAP: dict[str, tuple] = {
     'bezerra':         ('f00_F', 'f05_F'),
     'bezerra desmama': ('f13_F',),
@@ -58,9 +60,9 @@ def _para_valores(animais: dict) -> list:
 
 def _add(animais: dict, keys: tuple, qtd: int) -> None:
     if len(keys) == 2:
-        metade = qtd // 2
-        animais[keys[0]] += metade
-        animais[keys[1]] += qtd - metade
+        f00, f05 = dividir_0_12(qtd)
+        animais[keys[0]] += f00
+        animais[keys[1]] += f05
     else:
         animais[keys[0]] += qtd
 

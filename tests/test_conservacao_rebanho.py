@@ -47,7 +47,15 @@ def test_rebanho_conserva_animais(ciclo):
     inicio  = sum(v)
     nasc    = a.get('bezerros', 0)
     compras = a.get('compras', 0)
-    vendas  = a.get('vendidos', 0) + a.get('matrizes_descartadas', 0)
+    # `vendidos` já inclui o descarte de matrizes no CICLO_COMPLETO — a média
+    # ponderada de peso em ml_engine.py (peso_medio = Σ(categoria×peso) /
+    # vendidos) exige que o denominador cubra as quatro categorias, descarte
+    # incluído. Nos demais ciclos (CRIA, por exemplo) `vendidos` NÃO inclui o
+    # descarte, e ele precisa ser somado à parte. É inconsistência real entre
+    # motores, não escolha deste teste — somar aqui incondicionalmente dobra
+    # a contagem só no ciclo completo.
+    descarte_ja_incluido = ciclo == 'CICLO_COMPLETO'
+    vendas = a.get('vendidos', 0) + (0 if descarte_ja_incluido else a.get('matrizes_descartadas', 0))
     mortes  = a.get('mortes', 0)
     esperado = inicio + nasc + compras - vendas - mortes
     fim = a.get('total', 0)
@@ -63,13 +71,15 @@ def test_rebanho_conserva_animais(ciclo):
 @pytest.mark.parametrize('ciclo', list(REBANHOS))
 def test_fechamento_declara_todas_as_categorias(ciclo):
     """
-    O fluxo GEP valora o fechamento por matrizes + bois_fim + jovens_f/m.
+    O fluxo GEP valora o fechamento por matrizes + bois_fim + jovens_f/m
+    (+ prestes_matrizes_fim, só no CICLO_COMPLETO — ver test_conservacao_seis_ciclos).
     Se essas chaves não somarem o rebanho final, a variação de estoque acusa
     perda de animais que continuam no plantel.
     """
     a = _ano1(ciclo, REBANHOS[ciclo])
     soma_categorias = (a.get('matrizes', 0) + a.get('bois_fim', 0)
-                       + a.get('jovens_f_fim', 0) + a.get('jovens_m_fim', 0))
+                       + a.get('jovens_f_fim', 0) + a.get('jovens_m_fim', 0)
+                       + a.get('prestes_matrizes_fim', 0))
     total = a.get('total', 0)
     assert abs(soma_categorias - total) <= max(3, total * 0.02), (
         f'{ciclo}: categorias do fechamento somam {soma_categorias} '
@@ -138,7 +148,8 @@ def test_compras_sao_explicitas_onde_o_modelo_repoe():
 def test_ciclo_completo_retem_macho_para_terminacao():
     """O 'completo' do ciclo completo: macho jovem vira boi, não é vendido."""
     from ml_engine import calcular_ano
-    r = calcular_ano(matrizes=310, femeas_024=190, machos_024=190, bois=100,
+    r = calcular_ano(matrizes=310, c0_femeas=100, c1_femeas=90,
+                     c0_machos=100, c1_machos=90, bois=100,
                      nat_pct=0.665, desc_mat_pct=0.08, prop_boi=30,
                      renov_boi_pct=0.2, venda_bez_pct=0.75, mort_pct=0.03,
                      preco_arroba=304, custo_arroba=122)

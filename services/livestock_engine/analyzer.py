@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from services.base_reprodutiva import base_reprodutiva
 from services.engine.contracts import HerdState
 from services.parametros_zootecnicos import NATALIDADE_PCT
 
@@ -31,7 +32,9 @@ def _calculate_herd_indicators(
 
     females_0_24 = herd[0] + herd[2] + herd[4]
     males_0_24 = herd[1] + herd[3] + herd[5]
-    matrices = herd[6] + herd[8]
+    # Composição do plantel adulto, não base reprodutiva — este motor mede
+    # estrutura de rebanho, não projeta nascimento. Ver base_reprodutiva.py.
+    matrices = base_reprodutiva(herd).plantel_adulto
     adult_males = herd[7] + herd[9]
     cria = herd[0] + herd[1] + herd[2] + herd[3]
     recria = herd[4] + herd[5]

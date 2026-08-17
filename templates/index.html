@@ -686,6 +686,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
               </div>
             </div>
             <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
+              <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Premissas da projeção <span style="opacity:.6">— o motor assume estes valores; a ficha de rebanho não os comprova</span></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
+                <div class="field"><label>Reposição da recria (%)</label><input type="number" id="c-repos-recria" placeholder="100 — recompra o lote" min="0" max="100" step="1"></div>
+              </div>
+            </div>
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
               <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Indicadores para Benchmark Regional (RO) <span style="opacity:.6">— opcional, sem dado usa média regional</span></div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:14px">
                 <div class="field"><label>Mortalidade (%)</label><input type="number" id="c-mort" placeholder="5" min="0" max="100" step="0.1"></div>
@@ -1648,6 +1654,10 @@ async function classificar(){
     const desembV=document.getElementById('c-desemb').value;
     if(prenhV!=='') body.taxa_prenhez_pct=parseFloat(prenhV);
     if(desembV!=='') body.desembolso_cab_mes=parseFloat(desembV);
+    // Recria: o motor recompra 100% do lote que sai, todo ano, e a ficha não
+    // comprova isso. Em branco mantém os 100%.
+    const reposV=document.getElementById('c-repos-recria').value;
+    if(reposV!=='') body.reposicao_recria_pct=parseFloat(reposV);
     const res=await fetch('/api/classificar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     // Um 500 devolve HTML, não JSON: sem esta checagem o res.json() lançava,
     // a exceção subia sem catch e a tela ficava muda — o usuário via só o

@@ -84,8 +84,9 @@ threads = int(os.environ.get('WEB_THREADS', '2'))
 max_requests = 500
 max_requests_jitter = 50
 
-# Folgado de propósito: se o modelo em disco não carregar, o boot cai no
-# retreino, que leva minutos.
+# Dimensionado pela requisição mais lenta (classificação + geração de parecer),
+# não pelo boot: se o modelo em disco não carregar, o app aborta o import em
+# vez de cair no retreino de minutos.
 timeout = int(os.environ.get('WEB_TIMEOUT', '120'))
 graceful_timeout = 30
 keepalive = 5

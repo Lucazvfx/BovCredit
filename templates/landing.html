@@ -250,6 +250,152 @@
       50%       { box-shadow: 0 4px 36px rgba(37,211,102,.8), 0 0 0 8px rgba(37,211,102,.12); }
     }
 
+    /* ── ANIMATIONS — hero entrance ── */
+    @keyframes fade-up   { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:none; } }
+    @keyframes fade-in   { from { opacity:0; } to { opacity:1; } }
+    @keyframes line-grow { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+
+    .hero-kicker { opacity:0; animation: fade-up .6s .15s ease-out forwards; }
+    .hero h1     { opacity:0; animation: fade-up .7s .3s  ease-out forwards; }
+    .hero-sub    { opacity:0; animation: fade-up .6s .5s  ease-out forwards; }
+    .hero-ctas   { opacity:0; animation: fade-up .6s .65s ease-out forwards; }
+    .hero-trust  { opacity:0; animation: fade-in .6s .85s ease-out forwards; }
+
+    /* ── SCROLL REVEAL ── */
+    [data-reveal] { opacity:0; transform:translateY(32px); transition: opacity .65s ease, transform .65s ease; }
+    [data-reveal].is-visible { opacity:1; transform:none; }
+
+    /* ── NAV SCROLL STATE ── */
+    .nav.scrolled { background: rgba(26,58,42,.98); box-shadow: 0 2px 20px rgba(0,0,0,.3); }
+
+    /* ── SCROLL VIDEO SECTION ── */
+    #sv-section { position:relative; }
+    #sv-sticky {
+      position:sticky; top:0; height:100vh; overflow:hidden;
+      display:flex; flex-direction:column;
+      background: #0A1810;
+    }
+    .sv-progress {
+      height:3px; background: rgba(74,222,128,.15); position:absolute; top:0; left:0; right:0; z-index:10;
+    }
+    .sv-progress-fill { height:100%; background: var(--fresh); width:0%; transition:width .05s linear; }
+    .sv-inner {
+      flex:1; display:flex; align-items:stretch; overflow:hidden; position:relative;
+      padding: 0 clamp(20px,5vw,72px);
+    }
+    .sv-left {
+      width:220px; flex-shrink:0; display:flex; flex-direction:column; justify-content:center;
+      gap:0; padding-right:32px; border-right:1px solid rgba(74,222,128,.12);
+    }
+    .sv-step {
+      display:flex; align-items:center; gap:12px; padding:14px 0; cursor:default;
+      border-bottom:1px solid rgba(74,222,128,.06); transition:opacity .3s;
+      opacity:.35;
+    }
+    .sv-step.active { opacity:1; }
+    .sv-step.done   { opacity:.6; }
+    .sv-step-dot {
+      width:28px; height:28px; border-radius:50%; border:2px solid rgba(74,222,128,.3);
+      display:flex; align-items:center; justify-content:center;
+      font-family:var(--fn); font-weight:900; font-size:.78rem; color:rgba(74,222,128,.5);
+      transition: background .3s, border-color .3s, color .3s; flex-shrink:0;
+    }
+    .sv-step.active .sv-step-dot { background:var(--fresh); border-color:var(--fresh); color:#0A1810; }
+    .sv-step.done   .sv-step-dot { background:rgba(74,222,128,.2); border-color:var(--fresh); color:var(--fresh); }
+    .sv-step-label { font-size:.8rem; color:rgba(255,255,255,.7); line-height:1.3; }
+    .sv-step.active .sv-step-label { color:#fff; font-weight:600; }
+
+    .sv-right { flex:1; position:relative; display:flex; align-items:center; padding-left:48px; }
+
+    .sv-panel {
+      position:absolute; top:0; left:48px; right:0; bottom:0;
+      display:flex; align-items:center;
+      opacity:0; transform:translateX(24px);
+      transition: opacity .4s ease, transform .4s ease;
+      pointer-events:none;
+    }
+    .sv-panel.sv-active {
+      opacity:1; transform:none; pointer-events:auto;
+    }
+    .sv-panel-inner { width:100%; }
+
+    /* panel styles */
+    .sv-card {
+      background:rgba(255,255,255,.04); border:1px solid rgba(74,222,128,.12);
+      border-radius:12px; padding:28px 32px;
+    }
+    .sv-card-title { font-family:var(--fn); font-weight:900; font-size:1.1rem; color:rgba(255,255,255,.5); letter-spacing:.05em; text-transform:uppercase; margin-bottom:20px; }
+    .sv-field { margin-bottom:14px; }
+    .sv-field label { display:block; font-size:.7rem; color:rgba(74,222,128,.7); font-weight:700; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px; }
+    .sv-field-val { font-family:var(--fn); font-size:1.35rem; font-weight:700; color:#fff; }
+    .sv-fields-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px 28px; }
+
+    .sv-tipo-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .sv-tipo {
+      background:rgba(255,255,255,.05); border:1px solid rgba(74,222,128,.1); border-radius:8px;
+      padding:14px 16px;
+    }
+    .sv-tipo.sv-best { border-color:var(--fresh); background:rgba(74,222,128,.08); }
+    .sv-tipo-name { font-size:.78rem; color:rgba(255,255,255,.6); margin-bottom:6px; }
+    .sv-tipo.sv-best .sv-tipo-name { color:var(--fresh); font-weight:700; }
+    .sv-bar-wrap { height:6px; background:rgba(255,255,255,.08); border-radius:3px; overflow:hidden; }
+    .sv-bar-fill { height:100%; border-radius:3px; background:rgba(255,255,255,.25); transition:width 1s ease; }
+    .sv-tipo.sv-best .sv-bar-fill { background:var(--fresh); }
+    .sv-pct { font-size:.7rem; color:rgba(255,255,255,.4); margin-top:4px; text-align:right; }
+    .sv-tipo.sv-best .sv-pct { color:var(--fresh); }
+
+    .sv-dscr-row { display:flex; align-items:center; gap:32px; margin-bottom:24px; }
+    .sv-gauge { position:relative; width:120px; height:60px; }
+    .sv-gauge svg { width:120px; height:60px; }
+    .sv-gauge-val { position:absolute; bottom:0; left:50%; transform:translateX(-50%); font-family:var(--fn); font-weight:900; font-size:1.6rem; color:var(--fresh); }
+    .sv-gauge-lbl { font-size:.65rem; color:rgba(74,222,128,.6); text-align:center; margin-top:2px; }
+    .sv-metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:16px; }
+    .sv-metric { background:rgba(255,255,255,.04); border-radius:8px; padding:12px 14px; }
+    .sv-metric-v { font-family:var(--fn); font-weight:900; font-size:1.3rem; color:#fff; }
+    .sv-metric-l { font-size:.68rem; color:rgba(255,255,255,.45); margin-top:2px; }
+
+    .sv-verdict {
+      text-align:center; padding:28px;
+    }
+    .sv-verdict-badge {
+      display:inline-flex; align-items:center; gap:10px;
+      background:rgba(74,222,128,.12); border:1.5px solid var(--fresh); border-radius:40px;
+      padding:10px 24px; font-family:var(--fn); font-weight:900; font-size:1.1rem; color:var(--fresh);
+      letter-spacing:.05em; margin-bottom:20px;
+    }
+    .sv-verdict-title { font-family:var(--fn); font-weight:900; font-size:2rem; color:#fff; margin-bottom:8px; }
+    .sv-verdict-sub { font-size:.88rem; color:rgba(255,255,255,.55); margin-bottom:24px; }
+    .sv-export-row { display:flex; justify-content:center; gap:12px; flex-wrap:wrap; }
+    .sv-export-btn {
+      display:inline-flex; align-items:center; gap:8px;
+      background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15); color:rgba(255,255,255,.8);
+      border-radius:8px; padding:10px 20px; font-size:.82rem; font-weight:600; transition:background .2s;
+    }
+    .sv-export-btn:hover { background:rgba(255,255,255,.13); }
+
+    .sv-callouts { position:absolute; bottom:0; left:0; right:0; height:90px; padding:0 clamp(20px,5vw,72px) 20px; display:flex; align-items:flex-end; }
+    .sv-callout { position:absolute; bottom:20px; left:clamp(20px,5vw,72px); right:clamp(20px,5vw,72px); background:rgba(26,58,42,.9); border:1px solid rgba(74,222,128,.2); border-radius:10px; padding:14px 20px; display:flex; align-items:center; gap:14px; opacity:0; transform:translateY(12px); transition:opacity .35s, transform .35s; pointer-events:none; }
+    .sv-callout.sv-active { opacity:1; transform:none; pointer-events:auto; }
+    .sv-callout-ico { font-size:1.4rem; flex-shrink:0; }
+    .sv-callout p { font-size:.85rem; color:rgba(255,255,255,.8); line-height:1.45; margin:0; }
+    .sv-callout strong { color:var(--fresh); }
+
+    .sv-header { padding:28px clamp(20px,5vw,72px) 0; display:flex; align-items:center; justify-content:space-between; }
+    .sv-header-title { font-family:var(--fn); font-weight:900; font-size:clamp(1.4rem,2.5vw,2rem); color:#fff; }
+    .sv-header-sub { font-size:.8rem; color:rgba(74,222,128,.7); font-weight:600; letter-spacing:1px; text-transform:uppercase; }
+    .sv-hint { position:absolute; bottom:110px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:6px; opacity:1; transition:opacity .4s; }
+    .sv-hint span { font-size:.7rem; color:rgba(255,255,255,.35); letter-spacing:1px; text-transform:uppercase; }
+    .sv-hint-arrow { width:20px; height:20px; border-right:2px solid rgba(255,255,255,.3); border-bottom:2px solid rgba(255,255,255,.3); transform:rotate(45deg); animation:sv-bounce .9s ease-in-out infinite; }
+    @keyframes sv-bounce { 0%,100%{transform:rotate(45deg) translateY(0)} 50%{transform:rotate(45deg) translateY(5px)} }
+
+    .sv-section-label {
+      text-align:center; padding:56px clamp(20px,5vw,72px) 24px;
+      background:#0A1810;
+    }
+    .sv-section-label .section-kicker { justify-content:center; color:var(--fresh); }
+    .sv-section-label .section-kicker::before { background:var(--fresh); }
+    .sv-section-label h2 { font-family:var(--fn); font-weight:900; font-size:clamp(1.8rem,3.5vw,2.8rem); color:#fff; letter-spacing:-.02em; line-height:.95; }
+
     /* ── RESPONSIVE ── */
     @media (max-width: 768px) {
       .nav-links { display: none; }
@@ -260,6 +406,9 @@
       .como-grid::before { display: none; }
       .como-step { padding-right: 0; margin-bottom: 40px; }
       .float-wa { bottom: 20px; right: 20px; width: 54px; height: 54px; }
+      .sv-left { display:none; }
+      .sv-panel { left:0; }
+      .sv-right { padding-left:0; }
     }
   </style>
 </head>
@@ -341,17 +490,17 @@
   <h2 class="section-title">O que está custando caro<br>para sua consultoria hoje</h2>
   <p class="section-sub">Cada hora perdida em planilhas é uma hora que poderia estar sendo usada para fechar mais operações.</p>
   <div class="dor-grid">
-    <div class="dor-card">
+    <div class="dor-card" data-reveal>
       <div class="dor-icon">⏱</div>
       <h3>Horas em planilha para cada análise</h3>
       <p>Montar fluxo de caixa, calcular DSCR e projetar receitas manualmente consome tempo de analista que deveria estar fechando negócio.</p>
     </div>
-    <div class="dor-card">
+    <div class="dor-card" data-reveal>
       <div class="dor-icon">📋</div>
       <h3>Parecer sem rastreabilidade</h3>
       <p>Quando o banco questiona a origem de um número, revisar a cadeia de cálculo vira uma investigação interna que compromete a credibilidade.</p>
     </div>
-    <div class="dor-card">
+    <div class="dor-card" data-reveal>
       <div class="dor-icon">❌</div>
       <h3>Erros que custam operações</h3>
       <p>Um dado mal interpretado na ficha do rebanho pode levar a uma análise equivocada — e à perda da operação ou à inadimplência futura.</p>
@@ -387,6 +536,143 @@
     </div>
   </div>
 </section>
+
+<!-- ── SCROLL VIDEO ── -->
+<div id="sv-section">
+  <div class="sv-section-label">
+    <p class="section-kicker">Veja em ação</p>
+    <h2>Do rebanho ao parecer —<br>role para avançar</h2>
+  </div>
+  <div id="sv-sticky">
+    <div class="sv-progress"><div class="sv-progress-fill" id="sv-fill"></div></div>
+    <div class="sv-header">
+      <div>
+        <div class="sv-header-sub">Simulação ao vivo</div>
+        <div class="sv-header-title">Análise de Crédito Rural</div>
+      </div>
+    </div>
+    <div class="sv-inner">
+      <div class="sv-left" id="sv-steps">
+        <div class="sv-step active" data-i="0">
+          <div class="sv-step-dot">01</div>
+          <div class="sv-step-label">Dados do rebanho</div>
+        </div>
+        <div class="sv-step" data-i="1">
+          <div class="sv-step-dot">02</div>
+          <div class="sv-step-label">Ciclo produtivo</div>
+        </div>
+        <div class="sv-step" data-i="2">
+          <div class="sv-step-dot">03</div>
+          <div class="sv-step-label">DSCR e crédito</div>
+        </div>
+        <div class="sv-step" data-i="3">
+          <div class="sv-step-dot">04</div>
+          <div class="sv-step-label">Parecer final</div>
+        </div>
+      </div>
+      <div class="sv-right">
+        <!-- Phase 0: entrada de dados -->
+        <div class="sv-panel sv-active" data-phase="0">
+          <div class="sv-panel-inner">
+            <div class="sv-card">
+              <div class="sv-card-title">Ficha do rebanho</div>
+              <div class="sv-fields-grid">
+                <div class="sv-field"><label>Vacas em lactação</label><div class="sv-field-val">320 cab.</div></div>
+                <div class="sv-field"><label>Novilhas 1–2 anos</label><div class="sv-field-val">148 cab.</div></div>
+                <div class="sv-field"><label>Bezerros até 1 ano</label><div class="sv-field-val">210 cab.</div></div>
+                <div class="sv-field"><label>Touros</label><div class="sv-field-val">12 cab.</div></div>
+                <div class="sv-field"><label>Área total</label><div class="sv-field-val">1.840 ha</div></div>
+                <div class="sv-field"><label>Valor solicitado</label><div class="sv-field-val">R$ 480.000</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Phase 1: ciclo -->
+        <div class="sv-panel" data-phase="1">
+          <div class="sv-panel-inner">
+            <div class="sv-card">
+              <div class="sv-card-title">Classificação do ciclo</div>
+              <div class="sv-tipo-grid">
+                <div class="sv-tipo">
+                  <div class="sv-tipo-name">Cria</div>
+                  <div class="sv-bar-wrap"><div class="sv-bar-fill" style="width:14%"></div></div>
+                  <div class="sv-pct">14%</div>
+                </div>
+                <div class="sv-tipo sv-best">
+                  <div class="sv-tipo-name">Cria + Recria</div>
+                  <div class="sv-bar-wrap"><div class="sv-bar-fill" style="width:81%"></div></div>
+                  <div class="sv-pct">81% — selecionado</div>
+                </div>
+                <div class="sv-tipo">
+                  <div class="sv-tipo-name">Recria + Engorda</div>
+                  <div class="sv-bar-wrap"><div class="sv-bar-fill" style="width:4%"></div></div>
+                  <div class="sv-pct">4%</div>
+                </div>
+                <div class="sv-tipo">
+                  <div class="sv-tipo-name">Ciclo Completo</div>
+                  <div class="sv-bar-wrap"><div class="sv-bar-fill" style="width:1%"></div></div>
+                  <div class="sv-pct">1%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Phase 2: DSCR -->
+        <div class="sv-panel" data-phase="2">
+          <div class="sv-panel-inner">
+            <div class="sv-card">
+              <div class="sv-card-title">Análise de crédito</div>
+              <div class="sv-dscr-row">
+                <div>
+                  <div class="sv-gauge">
+                    <svg viewBox="0 0 120 60" fill="none">
+                      <path d="M10 55 A 50 50 0 0 1 110 55" stroke="rgba(255,255,255,.08)" stroke-width="10" stroke-linecap="round"/>
+                      <path d="M10 55 A 50 50 0 0 1 110 55" stroke="#4ADE80" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="50"/>
+                    </svg>
+                    <div class="sv-gauge-val">1,43</div>
+                  </div>
+                  <div class="sv-gauge-lbl">DSCR</div>
+                </div>
+                <div style="flex:1">
+                  <div style="font-size:.82rem;color:rgba(255,255,255,.6);line-height:1.55">Índice de cobertura do serviço da dívida acima do mínimo exigido (1,20). Folga de <strong style="color:#4ADE80">R$ 38.400/ano</strong>.</div>
+                </div>
+              </div>
+              <div class="sv-metrics">
+                <div class="sv-metric"><div class="sv-metric-v">R$ 184k</div><div class="sv-metric-l">Receita líquida/ano</div></div>
+                <div class="sv-metric"><div class="sv-metric-v">R$ 129k</div><div class="sv-metric-l">Serviço da dívida</div></div>
+                <div class="sv-metric"><div class="sv-metric-v">+29%</div><div class="sv-metric-l">Folga financeira</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Phase 3: parecer -->
+        <div class="sv-panel" data-phase="3">
+          <div class="sv-panel-inner">
+            <div class="sv-verdict">
+              <div class="sv-verdict-badge">✅ RECOMENDADO</div>
+              <div class="sv-verdict-title">Parecer favorável à operação</div>
+              <div class="sv-verdict-sub">Análise concluída em 3 min 12 s · Todas as premissas registradas e auditáveis</div>
+              <div class="sv-export-row">
+                <div class="sv-export-btn">📄 Exportar PDF</div>
+                <div class="sv-export-btn">📊 Excel detalhado</div>
+                <div class="sv-export-btn">🔗 Link compartilhável</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- callouts -->
+    <div class="sv-callouts">
+      <div class="sv-callout sv-active" data-c="0"><div class="sv-callout-ico">📋</div><p>Dados inseridos manualmente ou via <strong>importação de PDF</strong> — sem digitação duplicada.</p></div>
+      <div class="sv-callout" data-c="1"><div class="sv-callout-ico">🤖</div><p>Modelo classificou o ciclo com <strong>81% de confiança</strong> baseado em composição zootécnica e estatística.</p></div>
+      <div class="sv-callout" data-c="2"><div class="sv-callout-ico">📊</div><p>DSCR calculado com fluxo de caixa real. <strong>Stress de ±20%</strong> em preço e produtividade já aplicado.</p></div>
+      <div class="sv-callout" data-c="3"><div class="sv-callout-ico">✅</div><p>PDF gerado com <strong>memória de cálculo completa</strong>, fontes de dados e premissas declaradas.</p></div>
+    </div>
+    <!-- scroll hint -->
+    <div class="sv-hint" id="sv-hint"><span>role para avançar</span><div class="sv-hint-arrow"></div></div>
+  </div>
+</div>
 
 <!-- ── FEATURES ── -->
 <section class="section section-feat" id="capacidades">
@@ -469,5 +755,104 @@
   <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.003 2C6.477 2 2 6.477 2 12.003c0 1.774.466 3.44 1.274 4.888L2.05 21.99l5.237-1.205A9.963 9.963 0 0012.003 22C17.529 22 22 17.523 22 12.003 22 6.483 17.529 2 12.003 2zm0 18.198a8.187 8.187 0 01-4.176-1.138l-.3-.177-3.107.815.828-3.019-.196-.31A8.19 8.19 0 013.809 12a8.194 8.194 0 018.194-8.194c2.19 0 4.248.853 5.796 2.401a8.143 8.143 0 012.399 5.793c0 4.524-3.678 8.198-8.195 8.198z"/></svg>
 </a>
 
+<script>
+/* ── NAV SCROLL ── */
+(function(){
+  var nav = document.querySelector('.nav');
+  window.addEventListener('scroll', function(){ nav.classList.toggle('scrolled', window.scrollY > 40); }, {passive:true});
+})();
+
+/* ── SCROLL REVEAL ── */
+(function(){
+  var els = document.querySelectorAll('[data-reveal]');
+  if (!els.length) return;
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('is-visible'); io.unobserve(e.target); } });
+  }, {threshold:.12});
+  els.forEach(function(el){ io.observe(el); });
+})();
+
+/* ── COUNTER ANIMATION ── */
+(function(){
+  function ease(t){ return t<.5 ? 2*t*t : -1+(4-2*t)*t; }
+  function animCount(el, from, to, dur, suffix){
+    var start = null;
+    function step(ts){
+      if(!start) start = ts;
+      var p = Math.min((ts-start)/dur, 1);
+      el.textContent = Math.round(from + (to-from)*ease(p)) + suffix;
+      if(p<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(!e.isIntersecting) return;
+      io.unobserve(e.target);
+      var el = e.target, to = +el.dataset.to, suf = el.dataset.suffix||'';
+      animCount(el, 0, to, 1200, suf);
+    });
+  }, {threshold:.5});
+  document.querySelectorAll('[data-counter]').forEach(function(el){ io.observe(el); });
+})();
+
+/* ── SCROLL VIDEO ── */
+(function(){
+  var section = document.getElementById('sv-section');
+  if (!section) return;
+
+  var PHASES = 4;
+  var SCROLL_PER_PHASE = 1; /* 1 viewport per phase */
+  section.style.height = ((PHASES * SCROLL_PER_PHASE + 1) * 100) + 'vh';
+
+  var fill    = document.getElementById('sv-fill');
+  var hint    = document.getElementById('sv-hint');
+  var panels  = document.querySelectorAll('.sv-panel');
+  var callouts= document.querySelectorAll('.sv-callout');
+  var steps   = document.querySelectorAll('.sv-step');
+  var hinted  = false;
+
+  function getProgress(){
+    var rect = section.getBoundingClientRect();
+    var scrollable = section.offsetHeight - window.innerHeight;
+    return Math.max(0, Math.min(1, -rect.top / scrollable));
+  }
+
+  function setPhase(phaseF){
+    var phaseI = Math.min(Math.floor(phaseF), PHASES - 1);
+
+    panels.forEach(function(p, i){
+      var dist = Math.abs(i - phaseF);
+      var op = Math.max(0, 1 - dist * 2);
+      var tx = (i - phaseF) * 28;
+      p.style.opacity = op;
+      p.style.transform = 'translateX(' + tx + 'px)';
+      p.classList.toggle('sv-active', i === phaseI);
+    });
+
+    callouts.forEach(function(c, i){ c.classList.toggle('sv-active', i === phaseI); });
+
+    steps.forEach(function(s, i){
+      s.classList.toggle('active', i === phaseI);
+      s.classList.toggle('done',   i <  phaseI);
+    });
+  }
+
+  var raf = null;
+  function onScroll(){
+    if (raf) return;
+    raf = requestAnimationFrame(function(){
+      raf = null;
+      var p = getProgress();
+      fill.style.width = (p * 100) + '%';
+      setPhase(p * PHASES);
+      if (p > .02 && !hinted){ hint.style.opacity = '0'; hinted = true; }
+    });
+  }
+
+  window.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+})();
+</script>
 </body>
 </html>

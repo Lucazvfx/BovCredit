@@ -16,7 +16,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from ml_engine import (
-    treinar_modelo, classificar, calcular_indicadores,
+    classificar, calcular_indicadores,
     simular_cenario, carregar_modelo, CENARIOS,
     comparar_cenarios,
     avaliar_benchmarks, extrair_indicadores_benchmark, calcular_breakeven_simples,
@@ -76,6 +76,7 @@ from services.validacao_zootecnica import analisar_validacoes_zootecnicas
 from services.checklist_credito import checklist_credito
 from services.dados_impeditivos import detectar as detectar_impeditivos
 from services.retencao import calcular_retencao
+from services.base_reprodutiva import base_reprodutiva
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services.rating_credito import calcular_rating
 from services.precos_regionais import aplicar as aplicar_preco_regional
@@ -364,18 +365,41 @@ def load_user(user_id):
     u = db.buscar_usuario_id(int(user_id))
     return User(u) if u else None
 
-# ── Startup: carrega modelo do disco ou treina do zero ──────────────────────
-_saved = carregar_modelo()
-if _saved:
-    stats = _saved
-    logger.info(f"✅ Modelo carregado do disco | Acurácia: {stats['accuracy_mean']*100:.1f}% | Amostras: {stats['n_samples']}")
-else:
-    logger.info("🧠 Treinando modelo ML (primeira execução)...")
-    stats = treinar_modelo()
-    logger.info(f"✅ Modelo treinado | Acurácia CV: {stats['accuracy_mean']*100:.1f}% ± {stats['accuracy_std']*100:.1f}% | Amostras: {stats['n_samples']}")
+# ── Startup: carrega modelo do disco ────────────────────────────────────────
+#
+# Antes, falhar aqui caía no retreino: 34.902 amostras, minutos de CPU, dentro
+# do import do app. Com preload_app o gunicorn faz esse import no master, antes
+# de existir qualquer worker — o boot estoura o timeout de 120s e o deploy cai
+# sem ter servido uma requisição. O pico de memória do treino também é bem
+# maior que os 300 MB do modelo pronto, então em container modesto o desfecho
+# provável era OOM, não lentidão.
+#
+# O pickle é versionado no git e entra na imagem. Se ele não carrega, a causa
+# quase sempre é divergência de versão de biblioteca, e o conserto é regerar o
+# artefato e commitar — não gastar o boot tentando adivinhar.
+stats = carregar_modelo()
+if stats is None:
+    raise RuntimeError(
+        'Modelo ML indisponível: gestao_model.pkl não existe, está corrompido '
+        'ou foi gravado com outra versão de scikit-learn/numpy. O traceback '
+        'acima de [ML] diz qual. Regenere com `python treinar_ciclos.py` e '
+        'commite o artefato — o app não retreina no boot.'
+    )
+logger.info(f"✅ Modelo carregado do disco | Acurácia: {stats['accuracy_mean']*100:.1f}% | Amostras: {stats['n_samples']}")
 
+# Em produção o banco é externo (Supabase) e não sobe junto com o app. Uma
+# DATABASE_URL vazia ou malformada faz database.py cair no SQLite em silêncio:
+# o app subiria com um banco vazio e efêmero dentro do container, aceitando
+# cadastros e análises que somem no próximo deploy. Falhar aqui é barato;
+# descobrir depois, não.
+if os.environ.get('FLASK_ENV') == 'production' and not db._USE_PG:
+    raise RuntimeError(
+        'DATABASE_URL ausente ou malformada: em produção o banco é o Supabase '
+        'e o app não pode cair no SQLite. Confira a connection string no .env '
+        '— use a do pooler (porta 6543), com sslmode=require.'
+    )
 db.init_db()
-logger.info("🗃️  Banco SQLite inicializado.")
+logger.info("🗃️  Banco %s inicializado.", 'PostgreSQL' if db._USE_PG else 'SQLite')
 garantir_admins()
 from services.api_v1 import api_v1_bp
 app.register_blueprint(api_v1_bp)
@@ -1178,7 +1202,11 @@ def api_classificar():
     documentos_credito = checklist_credito(_dados_para_impeditivos, qualidade_dados)
 
     # Motor de retenção: os 3 limites (zootécnico, pastagem, financeiro)
-    _mat = float(v[6] + v[8]) if len(v) >= 10 else 0.0
+    #
+    # A base é quem já pariu. Somar a faixa de 25–36m aqui — como este bloco
+    # fazia — infla a reposição necessária e a desmama projetada em 25% na
+    # cria de referência, e a retenção entra na capacidade de pagamento.
+    _mat = base_reprodutiva(v).matrizes
     _natalidade = float(data.get('natalidade_pct') or data.get('taxa_natalidade', 0.0) or 70.0) / 100
     _desm_pct   = float(data.get('desmama_pct', 82.0) or 82.0) / 100
     _bezerras_desm = _mat * _natalidade * _desm_pct * 0.5
@@ -1483,6 +1511,13 @@ def api_classificar():
         _sim_volume['venda_bez_pct'] = max(0.0, min(float(_venda_bez), 100.0))
     if _desc_mat is not None:
         _sim_volume['desc_pct'] = max(0.0, min(float(_desc_mat), 100.0))
+    # Recria: quanto do lote que sai é recomprado. O motor assumia 100% sempre,
+    # e a ficha de estoque não comprova reposição nenhuma — o analista que sabe
+    # que a fazenda vai reduzir escala, ou que os animais vêm da própria cria,
+    # precisa poder dizer isso. Ausente, mantém os 100% de antes.
+    _repos_recria = _opt_float(data.get('reposicao_recria_pct'))
+    if _repos_recria is not None:
+        _sim_volume['reposicao_pct'] = max(0.0, min(float(_repos_recria), 100.0))
 
     _cx = simular_cenario(
         v, 'conservador', ciclo=result['tipo'],
@@ -1566,7 +1601,13 @@ def api_classificar():
     )
     _ano1 = _cx['anos'][0]
     _val_fim = valor_rebanho_gep(
-        matrizes = float(_ano1['matrizes']),
+        # Inclui prestes_matrizes_fim (25–36m que ainda não pariram) no mesmo
+        # grupo de "matrizes" que _val_ini_cmp usa na abertura (va[6]+va[8],
+        # logo abaixo) — mesma convenção de VALORIZAÇÃO por peso nos dois
+        # lados. Não é o mesmo que contar como matriz reprodutiva: essa
+        # distinção fica na tela (projecao_anos, mais abaixo), não aqui.
+        matrizes = (float(_ano1['matrizes'])
+                    + float(_ano1.get('prestes_matrizes_fim', 0) or 0)),
         bois     = _ano1.get('bois_fim', _va[7] + _va[9]),
         jovens_f = float(_ano1.get('jovens_f_fim', 0)),
         jovens_m = float(_ano1.get('jovens_m_fim', 0)),
@@ -1913,8 +1954,11 @@ def api_classificar():
     # safra. `calcular_desfrute` já faz isso em cabeças; aqui é em arroba, que
     # é a unidade em que o crédito raciocina.
     def _estoque_arrobas(_a):
+        # Mesma convenção de _est_ant, abaixo: v[6]+v[8] (ou o equivalente
+        # projetado, matrizes+prestes) contam juntos como peso de matriz.
         return arrobas_categorias(
-            matrizes=float(_a.get('matrizes', 0) or 0),
+            matrizes=(float(_a.get('matrizes', 0) or 0)
+                      + float(_a.get('prestes_matrizes_fim', 0) or 0)),
             bois=float(_a.get('bois_fim', 0) or 0),
             jovens_f=float(_a.get('jovens_f_fim', 0) or 0),
             jovens_m=float(_a.get('jovens_m_fim', 0) or 0))

@@ -56,7 +56,12 @@ def test_balanco_de_animais_fecha(ciclo):
     inicio  = sum(v)
     nasc    = a.get('bezerros', 0)
     compras = a.get('compras', 0)
-    vendas  = a.get('vendidos', 0) + a.get('matrizes_descartadas', 0)
+    # `vendidos` já inclui o descarte de matrizes no CICLO_COMPLETO (a média
+    # ponderada de peso em ml_engine.py exige isso do denominador) — somar de
+    # novo aqui dobraria a contagem. Nos demais ciclos `vendidos` exclui o
+    # descarte e precisa da soma. Ver test_conservacao_rebanho.py.
+    descarte_ja_incluido = ciclo == 'CICLO_COMPLETO'
+    vendas = a.get('vendidos', 0) + (0 if descarte_ja_incluido else a.get('matrizes_descartadas', 0))
     mortes  = a.get('mortes', 0)
     esperado = inicio + nasc + compras - vendas - mortes
 
@@ -71,13 +76,16 @@ def test_balanco_de_animais_fecha(ciclo):
 @pytest.mark.parametrize('ciclo', list(REBANHOS))
 def test_fechamento_soma_o_total(ciclo):
     """
-    O fluxo GEP valora o fechamento por matrizes + bois_fim + jovens_f/m. Se
-    essas quatro chaves não somarem `total`, a variação de estoque acusa perda
-    de animais que continuam no plantel.
+    O fluxo GEP valora o fechamento por matrizes + bois_fim + jovens_f/m
+    (+ prestes_matrizes_fim, só no CICLO_COMPLETO — fêmeas de 25–36m que
+    ainda não pariram, coorte própria desde a correção por coortes reais). Se
+    essas chaves não somarem `total`, a variação de estoque acusa perda de
+    animais que continuam no plantel.
     """
     a = _ano1(ciclo, REBANHOS[ciclo])
     soma = (a.get('matrizes', 0) + a.get('bois_fim', 0)
-            + a.get('jovens_f_fim', 0) + a.get('jovens_m_fim', 0))
+            + a.get('jovens_f_fim', 0) + a.get('jovens_m_fim', 0)
+            + a.get('prestes_matrizes_fim', 0))
     assert abs(soma - a['total']) <= max(3, a['total'] * 0.02), (
         f'{ciclo}: categorias somam {soma} mas total={a["total"]}'
     )
