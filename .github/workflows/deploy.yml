@@ -1,0 +1,54 @@
+name: deploy
+
+# Roda depois de "tests" passar em main — nunca antes. Um push que quebra a
+# suíte não deve chegar a tocar o servidor de produção.
+on:
+  workflow_run:
+    workflows: ["tests"]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:   # redeploy manual, sem precisar de commit novo
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Sem ações de terceiros de propósito — só ssh, que o runner já traz.
+      # Superfície de supply-chain menor para um workflow com acesso de
+      # produção.
+      - name: Configurar chave SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H 179.198.115.127 >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Atualizar e subir no VPS
+        run: |
+          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 root@179.198.115.127 '
+            set -e
+            cd /opt/orkavyn
+            git fetch origin main
+            git checkout main
+            git pull origin main
+            docker compose up -d --build
+          '
+
+      - name: Verificar que o site respondeu
+        run: |
+          sleep 15
+          curl -sSf -o /dev/null https://credito.orkavyn.tech/ \
+            || (echo "::error::Site não respondeu depois do deploy" && exit 1)
+
+      - name: Limpar chave temporária
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
