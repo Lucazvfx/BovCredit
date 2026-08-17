@@ -2,6 +2,69 @@
 
 Plataforma de análise de crédito pecuário. Analistas fazem upload de fichas de rebanho (PDF/Excel), o sistema extrai os dados, classifica o risco via ML e gera um parecer de crédito.
 
+## Diretrizes de trabalho
+
+Regras de comportamento para reduzir erros comuns. Priorizam cautela sobre velocidade — em tarefas triviais, use bom senso.
+
+### 1. Pensar antes de codar
+
+**Não presuma. Não esconda dúvidas. Exponha tradeoffs.**
+
+Antes de implementar:
+- Declare as premissas explicitamente. Se houver incerteza, pergunte.
+- Se existem múltiplas interpretações, apresente-as — não escolha em silêncio.
+- Se existe uma abordagem mais simples, diga. Discorde quando fizer sentido.
+- Se algo está confuso, pare. Nomeie o que não está claro. Pergunte.
+
+### 2. Simplicidade primeiro
+
+**O mínimo de código que resolve o problema. Nada especulativo.**
+
+- Nenhuma feature além do que foi pedido.
+- Nenhuma abstração para código usado uma vez só.
+- Nenhuma "flexibilidade" ou "configurabilidade" não solicitada.
+- Nenhum tratamento de erro para cenários impossíveis.
+- Se escreveu 200 linhas e daria para fazer em 50, reescreva.
+
+Pergunte-se: "Um engenheiro sênior diria que isso está complicado demais?" Se sim, simplifique.
+
+### 3. Mudanças cirúrgicas
+
+**Toque só no necessário. Limpe só a própria bagunça.**
+
+Ao editar código existente:
+- Não "melhore" código, comentários ou formatação adjacentes.
+- Não refatore o que não está quebrado.
+- Acompanhe o estilo existente, mesmo que você faria diferente.
+- Se notar código morto não relacionado, avise — não apague.
+
+Quando suas mudanças criam órfãos:
+- Remova imports/variáveis/funções que as SUAS mudanças deixaram sem uso.
+- Não remova código morto pré-existente sem ser pedido.
+
+O teste: toda linha alterada deve rastrear diretamente ao pedido do usuário.
+
+### 4. Execução orientada a objetivo
+
+**Defina critérios de sucesso. Itere até verificar.**
+
+Transforme tarefas em objetivos verificáveis:
+- "Adicionar validação" → "Escrever testes para entradas inválidas, depois fazê-los passar"
+- "Corrigir o bug" → "Escrever um teste que reproduz o bug, depois fazê-lo passar"
+- "Refatorar X" → "Garantir que os testes passam antes e depois"
+
+Para tarefas com várias etapas, declare um plano curto:
+
+```
+1. [Etapa] → verificar: [checagem]
+2. [Etapa] → verificar: [checagem]
+3. [Etapa] → verificar: [checagem]
+```
+
+Critérios fortes permitem iterar de forma independente. Critérios fracos ("faça funcionar") exigem esclarecimento constante.
+
+**Estas diretrizes estão funcionando se:** menos mudanças desnecessárias nos diffs, menos reescritas por excesso de complexidade, e perguntas de esclarecimento vindo antes da implementação em vez de depois dos erros.
+
 ## Stack
 
 - **Backend**: Flask 3.1 + Gunicorn (gthread, preload_app)
