@@ -806,7 +806,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="g2">
       <div>
         <div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Animais Base</div><button class="btn-sm" onclick="syncFromClass()">↺ Sincronizar da classificação</button></div>
-          <div class="cb"><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div class="field"><label>Matrizes (cab.)</label><input type="number" id="s-mat" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Fêmeas 0–24m (cab.)</label><input type="number" id="s-fem" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Machos 0–24m (cab.)</label><input type="number" id="s-mac" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Bois Adultos (cab.)</label><input type="number" id="s-boi" value="0" min="0" oninput="recalcCiclo()"></div></div></div>
+          <div class="cb"><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div class="field"><label title="Fêmeas que já pariram. São as que produzem bezerro neste ano.">Matrizes · 36m+ (cab.) ℹ</label><input type="number" id="s-mat" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label title="Já estão sendo cobertas, por isso contam para a relação touro:fêmea — mas ainda não pariram, então não produzem bezerro neste ano.">Novilhas · 25–36m (cab.) ℹ</label><input type="number" id="s-prestes" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Fêmeas 0–24m (cab.)</label><input type="number" id="s-fem" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Machos 0–24m (cab.)</label><input type="number" id="s-mac" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Bois Adultos (cab.)</label><input type="number" id="s-boi" value="0" min="0" oninput="recalcCiclo()"></div></div></div>
         </div>
         <div class="card"><div class="ch"><div class="ct"><div class="cd" style="background:var(--g)"></div>Parâmetros Zootécnicos</div></div>
           <div class="cb"><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div class="field"><label>Taxa Natalidade (%)</label><input type="number" id="s-nat" value="65" min="1" max="100" oninput="recalcCiclo()"></div><div class="field"><label>Proporção Boi/Matriz (:1)</label><input type="number" id="s-propboi" value="30" min="1" max="100" oninput="recalcCiclo()"></div><div class="field"><label>Renovação de Bois (%)</label><input type="number" id="s-renovboi" value="20" min="0" max="100" oninput="recalcCiclo()"></div><div class="field"><label>Descarte de Matrizes (%)</label><input type="number" id="s-desc" value="30" min="0" max="100" oninput="recalcCiclo()"></div><div class="field"><label>Venda de Bezerras (%)</label><input type="number" id="s-vendbez" value="30" min="0" max="100" oninput="recalcCiclo()"></div></div></div>
@@ -1749,7 +1749,11 @@ async function classificar(){
     document.getElementById('tab-res').setAttribute('aria-disabled','false');
     document.getElementById('tab-cen').setAttribute('aria-disabled','false');
     window.scrollTo({top:0,behavior:'smooth'});
-    document.getElementById('s-mat').value=v[6]+v[8];
+    // v[8] = fêmeas 36m+ (pariram) · v[6] = 25–36m (cobertas, ainda não
+    // pariram). Somar as duas aqui inflava os bezerros desta aba em ~40%
+    // contra o parecer, no mesmo rebanho — ver services/base_reprodutiva.py.
+    document.getElementById('s-mat').value=v[8];
+    document.getElementById('s-prestes').value=v[6];
     document.getElementById('s-fem').value=v[0]+v[2]+v[4];
     document.getElementById('s-mac').value=v[1]+v[3]+v[5];
     document.getElementById('s-boi').value=v[7]+v[9];
@@ -3758,8 +3762,18 @@ function renderFluxoProjetado(){
   }
 }
 
+// Duas coortes, não uma. `mat` são as fêmeas que JÁ PARIRAM (36m+); `prestes`
+// são as de 25–36m, que já estão sendo cobertas mas ainda não pariram.
+//
+// A distinção não é cosmética: a novilha de 25–36m conta para a relação
+// touro:fêmea (o touro cobre ela agora) e come como adulta, mas NÃO produz
+// bezerro neste ano e não é "descarte de matriz". Usar um número só para as
+// três perguntas é o defeito que services/base_reprodutiva.py corrigiu na
+// classificação — e que sobrevivia aqui, inflando os bezerros desta aba em
+// ~40% contra o parecer, no mesmo rebanho.
 function calcCiclo(){
-  const mat=gS('s-mat'),fem=gS('s-fem'),mac=gS('s-mac'),boi=gS('s-boi');
+  const mat=gS('s-mat'),prestes=gS('s-prestes'),fem=gS('s-fem'),mac=gS('s-mac'),boi=gS('s-boi');
+  const plantelAdulto=mat+prestes;
   const nat=gS('s-nat')/100||0.75;
   const prop=gS('s-propboi')||30;
   const rb=gS('s-renovboi')/100||0.2;
@@ -3770,27 +3784,27 @@ function calcCiclo(){
   const pMat=(gS('s-mat-arr')||17)*pArr;
   const pBezArr=gS('s-bez-arr')||8;
 
-  const totBez=Math.floor(mat*nat);
+  const totBez=Math.floor(mat*nat);            // só pare quem já pariu
   const bezF=Math.floor(totBez/2),bezM=totBez-bezF;
-  const bNec=Math.max(1,Math.ceil(mat/prop));
+  const bNec=Math.max(1,Math.ceil(plantelAdulto/prop));  // o touro cobre as duas
   const bExc=Math.max(0,boi-bNec);
   const bRen=Math.ceil(bNec*rb);
   const macRest=Math.max(0,mac-bRen);
   const bVend=bExc+bRen;
-  const desQ=Math.floor(mat*des);
+  const desQ=Math.floor(mat*des);              // não se descarta quem nunca pariu
   const bezV=Math.floor(fem*vbp);
   const bezMV=Math.floor(bezM*vbp);
   const femR=fem-bezV;
   const cresc=femR-desQ;
-  const totReb=mat+fem+mac+boi+totBez;
-  const totCusto=mat+fem+mac+boi; // base de custo: apenas animais adultos/jovens (bezerros incluídos no custo da matriz)
+  const totReb=plantelAdulto+fem+mac+boi+totBez;   // rebanho inteiro
+  const totCusto=plantelAdulto+fem+mac+boi; // base de custo: apenas animais adultos/jovens (bezerros incluídos no custo da matriz) — a novilha de 25–36m come como adulta
   const totVend=bVend+desQ+bezV+bezMV;
   const pBezCab=pBezArr*pArr;
   const rBoi=bVend*pBoi,rMat=desQ*pMat,rBez=bezV*pBezCab,rBezM=bezMV*pBezCab,rTot=rBoi+rMat+rBez+rBezM;
   const desembMensal=desembolsoTotalMensal();
   const cTot=totCusto*desembMensal*12;
   const res=rTot-cTot;
-  return{mat,fem,mac,boi,nat,prop,rb,des,vbp,totBez,bezF,bezM,bNec,bExc,bRen,bVend,macRest,desQ,bezV,bezMV,femR,cresc,totReb,totCusto,totVend,pBoi,pMat,pBezCab,rBoi,rMat,rBez,rBezM,rTot,desembMensal,cTot,res};
+  return{mat,prestes,plantelAdulto,fem,mac,boi,nat,prop,rb,des,vbp,totBez,bezF,bezM,bNec,bExc,bRen,bVend,macRest,desQ,bezV,bezMV,femR,cresc,totReb,totCusto,totVend,pBoi,pMat,pBezCab,rBoi,rMat,rBez,rBezM,rTot,desembMensal,cTot,res};
 }
 
 function makeBarsS(items,maxV,colors){
@@ -3821,9 +3835,9 @@ function recalcCiclo(){
   if(resEl){resEl.textContent=fR(d.res);resEl.className='pjc-v '+(d.res>=0?'cg':'cr');}
 
   // Dashboard bars
-  const maxReb=Math.max(d.mat,d.fem,d.macRest,d.bNec,d.bezF,d.bezM,1);
+  const maxReb=Math.max(d.mat,d.prestes,d.fem,d.macRest,d.bNec,d.bezF,d.bezM,1);
   const bRebEl=ki('s-bar-rebanho');
-  if(bRebEl) bRebEl.innerHTML=makeBarsS([{lbl:'Matrizes',val:d.mat,dis:fN(d.mat)},{lbl:'Fêmeas 0–24m',val:d.fem,dis:fN(d.fem)},{lbl:'Machos 0–24m',val:d.macRest,dis:fN(d.macRest)},{lbl:'Bois',val:d.bNec,dis:fN(d.bNec)},{lbl:'Bezerras',val:d.bezF,dis:fN(d.bezF)},{lbl:'Bezerros',val:d.bezM,dis:fN(d.bezM)}],maxReb,['#22C55E','#16A34A','#15803D','#F59E0B','#FBBF24','#FCD34D']);
+  if(bRebEl) bRebEl.innerHTML=makeBarsS([{lbl:'Matrizes 36m+',val:d.mat,dis:fN(d.mat)},{lbl:'Novilhas 25–36m',val:d.prestes,dis:fN(d.prestes)},{lbl:'Fêmeas 0–24m',val:d.fem,dis:fN(d.fem)},{lbl:'Machos 0–24m',val:d.macRest,dis:fN(d.macRest)},{lbl:'Bois',val:d.bNec,dis:fN(d.bNec)},{lbl:'Bezerras',val:d.bezF,dis:fN(d.bezF)},{lbl:'Bezerros',val:d.bezM,dis:fN(d.bezM)}],maxReb,['#22C55E','#4ADE80','#16A34A','#15803D','#F59E0B','#FBBF24','#FCD34D']);
   const maxVnd=Math.max(d.bVend,d.desQ,d.bezV,d.bezMV,1);
   const bVndEl=ki('s-bar-vendas');
   if(bVndEl) bVndEl.innerHTML=makeBarsS([{lbl:'Bois',val:d.bVend,dis:fN(d.bVend)},{lbl:'Matrizes',val:d.desQ,dis:fN(d.desQ)},{lbl:'Bezerras',val:d.bezV,dis:fN(d.bezV)},{lbl:'Bezerros',val:d.bezMV,dis:fN(d.bezMV)}],maxVnd,['#F59E0B','#D97706','#FBBF24','#FCD34D']);
@@ -3835,15 +3849,15 @@ function recalcCiclo(){
 
   // Rebanho tab
   const tReb=document.querySelector('#s-tbl-rebanho tbody');
-  if(tReb){const cats=[['Matrizes (25m+)',d.mat],['Fêmeas 0–24m',d.fem],['Machos 0–24m',d.mac],['Bois Adultos',d.boi],['Bezerras',d.bezF],['Bezerros',d.bezM]];tReb.innerHTML=cats.map(([c,q])=>`<tr><td>${c}</td><td class="r">${fN(q)}</td><td class="r g">${d.totReb>0?fP(q/d.totReb):'0%'}</td></tr>`).join('');const el=ki('s-tot-reb');if(el)el.textContent=fN(d.totReb);}
+  if(tReb){const cats=[['Matrizes (36m+, pariram)',d.mat],['Novilhas (25–36m, cobertas)',d.prestes],['Fêmeas 0–24m',d.fem],['Machos 0–24m',d.mac],['Bois Adultos',d.boi],['Bezerras',d.bezF],['Bezerros',d.bezM]];tReb.innerHTML=cats.map(([c,q])=>`<tr><td>${c}</td><td class="r">${fN(q)}</td><td class="r g">${d.totReb>0?fP(q/d.totReb):'0%'}</td></tr>`).join('');const el=ki('s-tot-reb');if(el)el.textContent=fN(d.totReb);}
   const pBez=ki('s-prod-bez');
-  if(pBez) pBez.innerHTML=[['Matrizes',fN(d.mat)+' cab.',''],['Taxa Natalidade',fP(d.nat),'ca'],['Total Bezerros',fN(d.totBez),'cg'],['♀ Bezerras',fN(d.bezF),'cg'],['♂ Bezerros',fN(d.bezM),'ca']].map(([k,v,c])=>mr(k,v,c)).join('');
+  if(pBez) pBez.innerHTML=[['Matrizes que parem (36m+)',fN(d.mat)+' cab.',''],['Novilhas 25–36m (não parem este ano)',fN(d.prestes)+' cab.',''],['Taxa Natalidade',fP(d.nat),'ca'],['Total Bezerros',fN(d.totBez),'cg'],['♀ Bezerras',fN(d.bezF),'cg'],['♂ Bezerros',fN(d.bezM),'ca']].map(([k,v,c])=>mr(k,v,c)).join('');
 
   // Reprodução tab
   const rBoisEl=ki('s-rep-bois');
-  if(rBoisEl) rBoisEl.innerHTML=[['Matrizes',fN(d.mat),''],['Bois existentes',fN(d.boi),''],['Bois necessários',fN(d.bNec),'ca'],['Excedentes',fN(d.bExc),'ca'],['Renovação',fN(d.bRen),'ca'],['Machos promovidos','-'+fN(d.bRen),'cr'],['Machos restantes',fN(d.macRest),'cg'],['Total bois vendidos',fN(d.bVend),'cr']].map(([k,v,c])=>mr(k,v,c)).join('');
+  if(rBoisEl) rBoisEl.innerHTML=[['Fêmeas cobertas (25m+)',fN(d.plantelAdulto),''],['Bois existentes',fN(d.boi),''],['Bois necessários',fN(d.bNec),'ca'],['Excedentes',fN(d.bExc),'ca'],['Renovação',fN(d.bRen),'ca'],['Machos promovidos','-'+fN(d.bRen),'cr'],['Machos restantes',fN(d.macRest),'cg'],['Total bois vendidos',fN(d.bVend),'cr']].map(([k,v,c])=>mr(k,v,c)).join('');
   const rMatEl=ki('s-rep-mat');
-  if(rMatEl) rMatEl.innerHTML=[['Matrizes',fN(d.mat),''],['Descarte',fN(d.desQ),'cr'],['Fêmeas jovens',fN(d.fem),''],['Bezerras vendidas',fN(d.bezV),'ca'],['Fêmeas que ficam',fN(d.femR),'cg'],['Reposição necessária',fN(d.desQ),''],['Crescimento líquido',(d.cresc>=0?'+':'')+fN(d.cresc),d.cresc>=0?'cg':'cr']].map(([k,v,c])=>mr(k,v,c)).join('');
+  if(rMatEl) rMatEl.innerHTML=[['Matrizes (36m+)',fN(d.mat),''],['Descarte',fN(d.desQ),'cr'],['Novilhas 25–36m (repõem sem compra)',fN(d.prestes),'cg'],['Fêmeas jovens',fN(d.fem),''],['Bezerras vendidas',fN(d.bezV),'ca'],['Fêmeas que ficam',fN(d.femR),'cg'],['Reposição necessária',fN(d.desQ),''],['Crescimento líquido',(d.cresc>=0?'+':'')+fN(d.cresc),d.cresc>=0?'cg':'cr']].map(([k,v,c])=>mr(k,v,c)).join('');
 
   // Vendas tab
   const tVnd=document.querySelector('#s-tbl-vendas tbody');
@@ -3869,7 +3883,8 @@ function showScSub(id,btn){
 
 function syncFromClass(){
   if(!lastVals){showToast('Classifique um rebanho primeiro.',true);return}
-  document.getElementById('s-mat').value=lastVals[6]+lastVals[8];
+  document.getElementById('s-mat').value=lastVals[8];
+  document.getElementById('s-prestes').value=lastVals[6];
   document.getElementById('s-fem').value=lastVals[0]+lastVals[2]+lastVals[4];
   document.getElementById('s-mac').value=lastVals[1]+lastVals[3]+lastVals[5];
   document.getElementById('s-boi').value=lastVals[7]+lastVals[9];
