@@ -495,7 +495,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <div class="tab-bar ork-legacy-tabs" aria-label="Navegação de compatibilidade">
   <button class="tab-btn active" aria-controls="panel-entrada" aria-selected="true" role="tab" onclick="showTab('entrada',this)">Inserir Dados</button>
   <button class="tab-btn tab-locked" id="tab-res" aria-controls="panel-resultado" aria-selected="false" aria-disabled="true" role="tab" onclick="showTab('resultado',this)">Resultado</button>
-  <button class="tab-btn tab-locked" id="tab-cen" aria-controls="panel-cenarios" aria-selected="false" aria-disabled="true" role="tab" onclick="showTab('cenarios',this)">Simular Cenários</button>
+  <!-- Destravada de início de propósito. O desembolso real do produtor mora
+       aqui dentro (Parâmetros), e travar a aba obrigava a rodar uma primeira
+       análise com os custos padrão só para abrir a porta — análise que ainda
+       gravava histórico se houvesse cliente selecionado. Os sub-painéis que
+       dependem de classificação já dizem o que falta. -->
+  <button class="tab-btn" id="tab-cen" aria-controls="panel-cenarios" aria-selected="false" role="tab" onclick="showTab('cenarios',this)">Simular Cenários</button>
   <button class="tab-btn" aria-controls="panel-historico" aria-selected="false" role="tab" onclick="showTab('historico',this)">Histórico</button>
   <button class="tab-btn" aria-controls="panel-ajuda" aria-selected="false" role="tab" onclick="showTab('ajuda',this)">Ajuda</button>
 </div>
@@ -744,6 +749,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <span style="opacity:.5">· cotações usadas no cálculo de valor do rebanho</span>
   </div>
   <button class="btn-p ork-action ork-submit-analysis" id="btn-class" onclick="classificar()"><span>Executar análise econômico-produtiva</span></button>
+  <!-- Sem este aviso, o custo do produtor só é descoberto depois da primeira
+       análise — que sai com o desembolso padrão e não vale nada. -->
+  <div style="text-align:center;margin-top:10px;font-size:.72rem;color:var(--mu)">
+    Usa o desembolso padrão (GEP médio) se você não informar o do produtor —
+    <a href="#" onclick="showTab('cenarios',document.getElementById('tab-cen'));return false" style="color:var(--tx)">informe em Simular Cenários → Parâmetros</a>
+    antes de analisar.
+  </div>
 </div>
 
 <!-- ═══ PDF ═══ -->
@@ -1456,7 +1468,128 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }
   }
   iniciarTicker();
+
+  // Um listener na captura em vez de onchange em 60 campos: pega inclusive as
+  // linhas de credor, que nascem depois. Não interfere nos oninput já
+  // existentes — só observa.
+  document.addEventListener('input', salvarRascunho, true);
+  document.addEventListener('change', salvarRascunho, true);
+  restaurarRascunho();
 });
+
+// ================== RASCUNHO LOCAL ==================
+//
+// Uma análise completa são mais de 40 campos. Sem rascunho, um refresh sem
+// querer ou uma sessão expirada mandavam tudo embora — e ninguém interrompe
+// uma análise para atender o telefone sabendo disso.
+//
+// Fica no navegador do analista, não no servidor: é trabalho em andamento,
+// não registro. O que vale vira parecer e aí sim é gravado.
+//
+// A lista é ALLOWLIST por prefixo, nunca "salva tudo menos". Campo novo
+// entra em silêncio na versão preguiçosa; aqui ele precisa ser incluído de
+// propósito, o que obriga a decidir se ele deve mesmo ser guardado.
+//
+// Três coisas ficam de fora, cada uma por um motivo diferente:
+//
+//   cot-*  — carregam `dataset.auto`, que é o que distingue "cotação que o
+//            sistema trouxe" de "preço que o analista digitou". Restaurar o
+//            valor sem o dataset faria a cotação de ontem passar por preço
+//            digitado e escapar do diferencial de praça, silenciosamente.
+//            São recarregadas a cada abertura de qualquer forma.
+//
+//   sc-*   — o CPF/CNPJ da consulta cadastral. Documento de terceiro não fica
+//            guardado no disco de quem consultou, e o consentimento tem que
+//            ser um ato novo a cada consulta, não algo restaurado.
+//
+//   marca-* — já persistem no servidor, por empresa.
+const RASCUNHO_CHAVE = 'orkavyn_rascunho';
+const RASCUNHO_VALIDADE_MS = 7 * 24 * 60 * 60 * 1000;
+const RASCUNHO_PREFIXOS = ['f_', 'credito_', 'c-', 'cd-', 's-'];
+// 'f_area_previa' é <div> de saída, não entrada; entra aqui para o dia em que
+// alguém transformá-lo em input sem perceber.
+const RASCUNHO_FORA = new Set(['f_area_previa']);
+
+function _rascunhoIds(){
+  const ids = FAIXAS.flatMap(f => [f.key + '_F', f.key + '_M']);
+  ids.push('dividas_mensais', 'ciclo-alvo');
+  document.querySelectorAll('input[id], select[id]').forEach(el => {
+    if (el.type === 'file' || el.type === 'checkbox') return;
+    if (el.id.startsWith('cot-')) return;
+    if (RASCUNHO_FORA.has(el.id)) return;
+    if (RASCUNHO_PREFIXOS.some(p => el.id.startsWith(p))) ids.push(el.id);
+  });
+  return [...new Set(ids)];
+}
+
+// Sinaliza que o preço da arroba veio do rascunho — ver atualizarPrecos().
+let _rascunhoDefiniuPreco = false;
+
+let _rascunhoDebounce = null;
+function salvarRascunho(){
+  clearTimeout(_rascunhoDebounce);
+  _rascunhoDebounce = setTimeout(() => {
+    try{
+      const campos = {};
+      _rascunhoIds().forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.value !== '' && el.value !== '0') campos[id] = el.value;
+      });
+      const dividas = coletarDividas();
+      if (!Object.keys(campos).length && !dividas.length) {
+        localStorage.removeItem(RASCUNHO_CHAVE);
+        return;
+      }
+      localStorage.setItem(RASCUNHO_CHAVE, JSON.stringify({
+        ts: Date.now(), campos, dividas,
+      }));
+    }catch(e){ /* cota cheia ou modo privado: rascunho é conveniência */ }
+  }, 800);
+}
+
+function descartarRascunho(){
+  try{ localStorage.removeItem(RASCUNHO_CHAVE); }catch(e){}
+}
+
+function restaurarRascunho(){
+  let d;
+  try{ d = JSON.parse(localStorage.getItem(RASCUNHO_CHAVE) || 'null'); }
+  catch(e){ return; }
+  if (!d || !d.campos) return;
+  if (Date.now() - (d.ts || 0) > RASCUNHO_VALIDADE_MS){ descartarRascunho(); return; }
+
+  Object.entries(d.campos).forEach(([id, valor]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = valor;
+  });
+  _rascunhoDefiniuPreco = 's-preco-arr' in d.campos;
+  (d.dividas || []).forEach(x =>
+    addCredor(x.instituicao || '', x.saldo_devedor || '', x.parcela_mensal || ''));
+
+  upd();
+  syncDividasVazio();
+  if (typeof _previaNivel === 'function') _previaNivel();
+
+  const quem = d.campos['f_faz'] || 'sem fazenda identificada';
+  const quando = new Date(d.ts).toLocaleString('pt-BR',
+    {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+  mostrarAvisoRascunho(quem, quando);
+}
+
+function mostrarAvisoRascunho(quem, quando){
+  const alvo = document.getElementById('pdf-status-main');
+  if (!alvo) return;
+  alvo.style.display = 'block';
+  alvo.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <span>Rascunho restaurado: <b>${escapeHtml(quem)}</b> · salvo em ${escapeHtml(quando)}</span>
+    <button class="btn-sm" onclick="limparRascunhoEFormulario()">Descartar e começar do zero</button>
+  </div>`;
+}
+
+function limparRascunhoEFormulario(){
+  descartarRascunho();
+  location.reload();
+}
 
 // ================== BUILD TABLE ==================
 function buildTable(){
@@ -4049,6 +4182,12 @@ function showTab(id,btn){
     if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
   if(!btn)document.querySelectorAll('.tab-btn')[idx[id]]?.classList.add('active');
+  // Antes de existir classificação, o Dashboard de cenários é uma tela de
+  // zeros. Quem abre a aba nesse momento está atrás dos custos, então cai
+  // direto em Parâmetros.
+  if(id==='cenarios' && !lastVals){
+    showScSub('params', document.querySelector('.sc-sn[onclick*="params"]'));
+  }
 }
 function resetApp(){clearAll();document.getElementById('tab-res').style.display='none';document.getElementById('tab-cen').style.display='none';showTab('entrada',document.querySelectorAll('.tab-btn')[0]);lastVals=null;document.getElementById('result-wrap').innerHTML='';document.getElementById('sc-result').innerHTML=''}
 
@@ -4257,7 +4396,12 @@ async function carregarCotacaoDia(){
     const f=document.getElementById('cot-fonte');
     const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     if(f) f.textContent = (d.origem==='banco' ? 'CEPEA/ESALQ (boi) · Scot (vaca)' : 'referência') + ` · atualizado ${hora}`;
-    usarCotacaoDia();
+    // Semear o preço da arroba com o boi do dia só vale quando o analista
+    // ainda não escolheu um. Esta função é async e termina DEPOIS do
+    // restaurarRascunho(), então sem a guarda ela apagaria em silêncio o
+    // preço negociado que veio do rascunho. O botão "usar boi do dia"
+    // continua chamando direto — ali é ato deliberado.
+    if(!_rascunhoDefiniuPreco) usarCotacaoDia();
     upd();
   }catch(e){}
 }
