@@ -198,9 +198,33 @@ def _csrf_token() -> str:
 
 app.jinja_env.globals['csrf_token'] = _csrf_token
 
+# Entradas que acontecem ANTES de haver sessão autenticada para proteger.
+#
+# Não é conveniência, é correção: `login_user(..., remember=True)` faz quem já
+# entrou uma vez voltar ao site já autenticado. Se essa pessoa abre /login e
+# manda o formulário de novo — e o formulário de login não tem token, nem faz
+# sentido ter —, a checagem de CSRF barrava o próprio login com um 403 de
+# página inteira. Foi o que aconteceu em produção.
+#
+# O CSRF existe para impedir que um site de terceiros dispare uma AÇÃO em nome
+# de quem já está logado. Aqui não há ação a forjar: são o login, o segundo
+# fator e a redefinição de senha, todos protegidos por credencial própria
+# (senha, código TOTP, token de uso único enviado por e-mail).
+#
+# O webhook do WhatsApp entra pelo mesmo motivo e mais um: quem chama é a Meta,
+# sem sessão, e a autenticidade vem da assinatura HMAC conferida na rota.
+_CSRF_ISENTOS = {
+    'login', 'login_2fa', 'cadastro',
+    'api_esqueci_senha', 'api_redefinir_senha',
+    'whatsapp_verificacao', 'whatsapp_webhook',
+}
+
+
 @app.before_request
 def _verificar_csrf():
     """Protege toda mutação autenticada, inclusive endpoints JSON e upload."""
+    if request.endpoint in _CSRF_ISENTOS:
+        return None
     if (request.method in {'POST', 'PUT', 'PATCH', 'DELETE'}
             and current_user.is_authenticated):
         # Sessão sem token não é exceção, é o caso a barrar: se ela nunca

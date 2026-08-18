@@ -222,3 +222,59 @@ def test_rota_cara_tem_rate_limit(rota):
     limitados = set(limiter.limit_manager._decorated_limits)
     assert any(chave.endswith(f'.{ep}') for ep in endpoints for chave in limitados), \
         f'{rota} está sem @limiter.limit'
+
+
+# ── O CSRF não pode barrar a própria entrada ─────────────────────────────────
+#
+# Regressão que chegou a produção: `login_user(..., remember=True)` faz quem já
+# entrou uma vez voltar ao site AUTENTICADO. Se essa pessoa abre /login e manda
+# o formulário de novo, a checagem de CSRF via — e o formulário de login não
+# tem token, nem faz sentido ter. Resultado: 403 de página inteira no login.
+#
+# O CSRF existe para impedir que um site de terceiros dispare uma AÇÃO em nome
+# de quem está logado. No login, no 2FA e na redefinição de senha não há ação a
+# forjar: cada um tem credencial própria.
+
+def _usuario_para_login(email):
+    db.init_db()
+    if not db.buscar_usuario_email(email):
+        db.criar_usuario(email, 'Login', 'senha123')
+    app.config['TESTING'] = True
+    return app.test_client()
+
+
+def test_quem_ja_esta_logado_consegue_reenviar_o_login():
+    email = 'csrf-relogin@example.com'
+    c = _usuario_para_login(email)
+    c.csrf = False   # o formulário de login não manda token, e não deve mesmo
+    assert c.post('/login', data={'email': email, 'senha': 'senha123'}).status_code == 302
+    # segunda vez, agora já autenticado — era aqui que dava 403
+    assert c.post('/login', data={'email': email, 'senha': 'senha123'}).status_code == 302
+
+
+def test_as_rotas_de_recuperacao_de_senha_nao_pedem_csrf():
+    email = 'csrf-recuperacao@example.com'
+    c = _usuario_para_login(email)
+    c.csrf = False
+    c.post('/login', data={'email': email, 'senha': 'senha123'})
+    assert c.post('/api/esqueci-senha', json={'email': email}).status_code != 403
+    # 400 por token inválido é resposta da rota; 403 seria o CSRF barrando
+    assert c.post('/api/redefinir-senha',
+                  json={'token': 'x', 'senha': 'y'}).status_code != 403
+
+
+def test_a_isencao_nao_vaza_para_o_resto_do_app():
+    """Só as entradas pré-autenticação; nenhuma rota de ação."""
+    import app as app_module
+    assert app_module._CSRF_ISENTOS == {
+        'login', 'login_2fa', 'cadastro',
+        'api_esqueci_senha', 'api_redefinir_senha',
+        'whatsapp_verificacao', 'whatsapp_webhook',
+    }
+
+
+def test_rota_de_acao_continua_exigindo_csrf():
+    """A correção não pode ter reaberto o buraco que ela veio fechar."""
+    c = _cliente_logado()
+    c.csrf = False
+    assert c.post('/api/fazendas', json={'nome': 'Forjada'}).status_code == 403
