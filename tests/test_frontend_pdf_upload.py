@@ -11,9 +11,14 @@ TEMPLATE = Path(__file__).parents[1] / 'templates' / 'index.html'
 def test_upload_pdf_fica_visivel_na_area_de_entrada():
     html = TEMPLATE.read_text(encoding='utf-8')
     inicio = re.search(r'<div class="[^"]*\bpanel\b[^"]*" id="panel-entrada">', html)
-    fim = re.search(r'<div class="[^"]*\bpanel\b[^"]*" id="panel-pdf">', html)
-    assert inicio is not None and fim is not None
-    entrada = html[inicio.end():fim.start()]
+    assert inicio is not None
+    # Fronteira é "o próximo painel, qualquer que seja". Antes era o
+    # panel-pdf fixo, que foi removido por estar inalcançável — e aí o teste
+    # quebrava por causa da moldura, não do que ele afirma.
+    fim = re.search(r'<div class="[^"]*\bpanel\b[^"]*" id="panel-[a-z]+">',
+                    html[inicio.end():])
+    assert fim is not None, 'painel de entrada não tem painel seguinte'
+    entrada = html[inicio.end():inicio.end() + fim.start()]
 
     assert 'id="pdf-inp-main"' in entrada
     assert 'onchange="lerPDFs(this.files);this.value=\'\'"' in entrada

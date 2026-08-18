@@ -311,6 +311,15 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         'consultoria. Este documento não substitui a conferência documental, '
         'a visita à propriedade ou a decisão final do agente de crédito.',
         ss['Subtitulo']))
+    # O aviso acima é sobre o documento; este é sobre o DADO. Todo número deste
+    # parecer — receita, DSCR, garantia — sai do efetivo, e nenhum caminho de
+    # entrada conta boi. Sem dizer isso, o DSCR com duas casas passa uma
+    # precisão que o dado não tem.
+    origem = ident.get('origem_rebanho') or {}
+    if origem.get('aviso'):
+        story.append(Spacer(1, 4))
+        story.append(Paragraph(
+            f"<b>Origem do efetivo:</b> {origem['aviso']}", ss['Subtitulo']))
     story.append(HRFlowable(width='100%', color=colors.HexColor('#D8C9B3'), spaceBefore=8, spaceAfter=4))
 
     _append_b2b_sections(story, ss, parecer)

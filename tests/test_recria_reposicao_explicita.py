@@ -152,5 +152,8 @@ def test_a_tela_expoe_a_premissa_e_a_envia():
     assert 'body.reposicao_recria_pct=parseFloat(reposV)' in html, (
         'o campo existe mas não entra no payload de /api/classificar')
     # Fica sob um rótulo que o separa do que a ficha comprova — a distinção
-    # entre informado e estimado é o ponto da mudança.
-    assert 'Premissas da projeção' in html
+    # entre informado e estimado é o ponto da mudança. O rótulo foi reescrito
+    # quando os blocos passaram a dizer se mudam o resultado ou só a
+    # comparação; a afirmação aqui continua sendo a mesma.
+    assert 'Premissas que o motor assume' in html
+    assert 'a ficha de rebanho não as comprova' in html

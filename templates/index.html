@@ -560,13 +560,19 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="cb">
       <div class="fgrid">
         <div class="field"><label>Valor solicitado (R$)</label><input type="number" id="credito_valor" min="0" step="1000" placeholder="Ex: 500000"></div>
-        <div class="field"><label>Prazo (meses)</label><input type="number" id="credito_prazo" min="1" max="60" placeholder="Ex: 24"></div>
-        <div class="field"><label>Carência (meses)</label><input type="number" id="credito_carencia" min="0" value="0"></div>
+        <div class="field"><label>Prazo (meses)</label><input type="number" id="credito_prazo" min="1" max="60" placeholder="Ex: 24" oninput="validarParcelamento()"></div>
+        <div class="field"><label>Carência (meses)</label><input type="number" id="credito_carencia" min="0" value="0" oninput="validarParcelamento()"></div>
         <div class="field"><label title="Plano Safra 2026/27: Custeio empresarial 12,5% · Moderfrota empresarial 12,5% · Pronamp custeio 9,0% · Pronamp Moderfrota 11,5% · RenovAgro/PCA pastagens 8,0–9,5%">Juros (% a.a.) ℹ</label><input type="number" id="credito_juros" min="0" step="0.1" placeholder="Ex: 12,5 (Moderfrota 2026/27)"></div>
         <div class="field"><label>Finalidade</label><select id="credito_finalidade"><option value="custeio">Custeio</option><option value="investimento">Investimento</option></select></div>
         <div class="field"><label title="SAC: amortização constante, parcela começa alta e cai — padrão do crédito rural (Pronaf, Pronamp, custeio). Price: parcela fixa do início ao fim.">Amortização ℹ</label><select id="credito_sistema"><option value="price">Price — parcela fixa</option><option value="sac">SAC — parcela decrescente</option></select></div>
-        <div class="field"><label title="Crédito rural raramente é mensal: a receita chega na venda do lote. O prazo menos a carência precisa ser múltiplo da periodicidade.">Periodicidade ℹ</label><select id="credito_periodicidade"><option value="1">Mensal</option><option value="3">Trimestral</option><option value="6">Semestral</option><option value="12">Anual (safra)</option></select></div>
+        <div class="field"><label title="Crédito rural raramente é mensal: a receita chega na venda do lote. O prazo menos a carência precisa ser múltiplo da periodicidade.">Periodicidade ℹ</label><select id="credito_periodicidade" onchange="validarParcelamento()"><option value="1">Mensal</option><option value="3">Trimestral</option><option value="6">Semestral</option><option value="12">Anual (safra)</option></select></div>
       </div>
+      <!-- A regra "prazo − carência múltiplo da periodicidade" só falhava no
+           servidor, depois de submeter tudo, e voltava como toast que some.
+           O analista tinha que memorizar a mensagem enquanto procurava qual
+           dos dois números ajustar. Agora ela é conferida aqui, marca os
+           campos e propõe os prazos que servem. -->
+      <div id="parcelamento-erro" style="display:none;margin-top:10px;padding:9px 12px;border:1px solid rgba(248,113,113,.4);border-radius:8px;background:rgba(248,113,113,.08);font-size:.75rem;line-height:1.5;color:var(--sb)"></div>
 
       <!-- Endividamento existente: era um número solto digitado sem origem, e
            todo o DSCR se apoiava nele. Discriminado por credor, vira declaração
@@ -613,10 +619,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <button class="btn-sm" onclick="toggleGuiaFicha(this)" title="Como preencher o Excel">?</button>
         <button class="btn-sm" onclick="clearAll()">✕ Limpar</button>
         <select id="insr-uf-ficha" class="btn-sm" title="Estado do PDF (somente se detecção automática falhar)" style="border:1px solid var(--b);background:var(--c);color:var(--tx);cursor:pointer">
+          <!-- Só as UFs que o roteador de fato conhece — ver _modelo() em
+               services/fichas_rebanho/base_reader.py. MG, BA e SP estavam
+               nesta lista sem parser correspondente: escolher uma delas caía
+               no fallback e a seleção era ignorada em silêncio, com o
+               analista achando que tinha forçado um formato. Ficha desses
+               estados continua funcionando pela detecção automática. -->
           <option value="">UF auto</option>
           <option value="MT">MT</option><option value="RO">RO</option><option value="MS">MS</option>
           <option value="GO">GO</option><option value="MA">MA</option><option value="TO">TO</option>
-          <option value="PA">PA</option><option value="MG">MG</option><option value="BA">BA</option><option value="SP">SP</option>
+          <option value="PA">PA</option>
         </select>
       </div>
     </div>
@@ -699,13 +711,30 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div style="margin-top:14px">
           <button class="btn-sm" onclick="toggleConds()" id="btn-conds" style="width:100%;justify-content:center">⚙ Condições de Classificação <span style="font-size:.65rem;opacity:.6">(opcional)</span></button>
           <div id="conds-wrap" style="display:none;margin-top:12px">
+            <!-- Dezenove campos com a mesma cara, e nenhuma pista de quais
+                 mudam o veredito. Uns reescrevem a projeção inteira, outros
+                 só movem a barrinha de comparação com a média. Quem tem
+                 pressa preenchia os errados. Os blocos agora dizem o que
+                 fazem, e os que mudam o resultado ficam juntos no topo. -->
+            <div style="font-size:.72rem;color:var(--sb);line-height:1.55;margin-bottom:14px;padding:9px 12px;border-radius:8px;background:var(--c2);border:1px solid var(--b)">
+              Os <b>blocos 1 e 2 mudam o resultado</b> — projeção, DSCR e parecer. O <b>3
+              confere a coerência</b> da ficha. Os <b>4 e 5 movem só a comparação</b>
+              com médias de referência: em branco, não alteram a recomendação.
+            </div>
+            <div style="font-size:.65rem;color:var(--am);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">1 · Reescrevem a projeção <span style="opacity:.7;text-transform:none;letter-spacing:0">— em branco, o motor usa o próprio cálculo</span></div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
-              <div class="field"><label>Taxa Natalidade (%)</label><input type="number" id="c-nat" placeholder="65" min="1" max="100" step="1" oninput="upd()"></div>
+              <div class="field"><label title="Manda na produção de bezerros, que é a origem da receita da cria e de todo o crescimento do rebanho. É o campo mais decisivo deste painel.">Taxa Natalidade (%) ℹ</label><input type="number" id="c-nat" placeholder="65" min="1" max="100" step="1" oninput="upd()"></div>
               <div class="field"><label>Bois Vendidos (cab.)</label><input type="number" id="c-boisv" placeholder="Automático" min="0" oninput="upd()"></div>
               <div class="field"><label>Bezerros Vendidos (cab.)</label><input type="number" id="c-bezv" placeholder="Automático" min="0" oninput="upd()"></div>
             </div>
             <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
-              <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Dados produtivos declarados <span style="opacity:.6">— opcionais; entram na qualidade da análise</span></div>
+              <div style="font-size:.65rem;color:var(--am);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">2 · Premissas que o motor assume <span style="opacity:.6">— mudam a projeção; a ficha de rebanho não as comprova</span></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
+                <div class="field"><label>Reposição da recria (%)</label><input type="number" id="c-repos-recria" placeholder="100 — recompra o lote" min="0" max="100" step="1"></div>
+              </div>
+            </div>
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
+              <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">3 · Conferem a coerência da ficha <span style="opacity:.6">— alimentam o fechamento do rebanho e a nota de qualidade; não reescrevem a projeção</span></div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
                 <div class="field"><label>Vendas anuais (cab.)</label><input type="number" id="c-vendas" placeholder="Ex: 35" min="0" step="1"></div>
                 <div class="field"><label>Compras/reposição (cab.)</label><input type="number" id="c-compras" placeholder="Ex: 30" min="0" step="1"></div>
@@ -714,13 +743,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
               </div>
             </div>
             <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
-              <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Premissas da projeção <span style="opacity:.6">— o motor assume estes valores; a ficha de rebanho não os comprova</span></div>
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
-                <div class="field"><label>Reposição da recria (%)</label><input type="number" id="c-repos-recria" placeholder="100 — recompra o lote" min="0" max="100" step="1"></div>
-              </div>
-            </div>
-            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
-              <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Indicadores para Benchmark Regional (RO) <span style="opacity:.6">— opcional, sem dado usa média regional</span></div>
+              <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">4 · Comparação regional (RO) <span style="opacity:.6">— só move a comparação com a média; a Mortalidade é exceção, ver abaixo</span></div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:14px">
                 <div class="field"><label title="Além do benchmark, é a mortalidade que fecha o rebanho: nascimentos + compras − vendas − mortes contra o estoque projetado. Sem ela essa conferência não roda.">Mortalidade (%) <span style="color:var(--am);font-weight:400;text-transform:none;letter-spacing:0">— fecha o rebanho</span></label><input type="number" id="c-mort" placeholder="5" min="0" max="100" step="0.1"></div>
                 <div class="field"><label>Desmama (%)</label><input type="number" id="c-desm" placeholder="82" min="0" max="100" step="0.1"></div>
@@ -730,7 +753,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
               </div>
             </div>
             <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
-              <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Benchmark Nacional Multi-Fonte <span style="opacity:.6">— opcional, compara com Embrapa/Scot/CEPEA/ABCZ/ASBIA e Inttegra</span></div>
+              <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">5 · Comparação nacional <span style="opacity:.6">— só move a comparação (Embrapa/Scot/CEPEA/ABCZ/ASBIA e Inttegra)</span></div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
                 <div class="field"><label>Prenhez (%)</label><input type="number" id="c-prenh" placeholder="Ex: 72" min="0" max="100" step="0.1"></div>
                 <div class="field"><label>Desembolso (R$/cab·mês)</label><input type="number" id="c-desemb" placeholder="Ex: 95" min="0" step="0.01"></div>
@@ -756,22 +779,22 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <a href="#" onclick="showTab('cenarios',document.getElementById('tab-cen'));return false" style="color:var(--tx)">informe em Simular Cenários → Parâmetros</a>
     antes de analisar.
   </div>
-</div>
-
-<!-- ═══ PDF ═══ -->
-<div class="panel" id="panel-pdf">
-  <div class="ptitle">Ler PDF do <em>INDEA</em></div>
-  <p class="psub">Upload do "Saldo Atual da Exploração". Selecione vários arquivos para somar o rebanho de todas as fazendas.</p>
-
-  <div class="upzone" id="dz" onclick="document.getElementById('pdf-inp').click()">
-    <span class="upzone-icon"></span>
-    <h2 class="upzone-title">Carregue o PDF<span></span></h2>
-    <p class="upzone-sub">Saldo Atual da Exploração · Arraste ou clique · Aceita vários arquivos</p>
-    <button class="btn-sm" style="margin:0 auto" onclick="event.stopPropagation();document.getElementById('pdf-inp').click()">📂 Selecionar PDF(s)</button>
-    <input type="file" id="pdf-inp" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files)">
+  <!-- Sem este aviso, o custo do produtor só é descoberto depois da primeira
+       análise — que sai com o desembolso padrão e não vale nada. -->
+  <div style="text-align:center;margin-top:10px;font-size:.72rem;color:var(--mu)">
+    Usa o desembolso padrão (GEP médio) se você não informar o do produtor —
+    <a href="#" onclick="showTab('cenarios',document.getElementById('tab-cen'));return false" style="color:var(--tx)">informe em Simular Cenários → Parâmetros</a>
+    antes de analisar.
   </div>
-  <div id="pdf-status" style="margin-top:16px;display:none"></div>
 </div>
+
+<!-- O painel "Ler PDF do INDEA" ficava aqui: um <div class="panel"> sem
+     nenhuma aba apontando para ele desde alguma refatoração antiga. Dizia
+     INDEA quando o sistema já lê sete estados, e levava junto o alvo do
+     arrastar-e-soltar (#dz) — que por estar num painel inalcançável nunca
+     recebia arquivo nenhum. O "Arraste ou clique" era promessa que nada
+     cumpria. O arrastar-e-soltar foi religado no card de importação da
+     entrada, que é visível; ver o listener perto do fim do script. -->
 
 <!-- ═══ RESULTADO ═══ -->
 <div class="panel ork-result-view" id="panel-resultado">
@@ -1477,6 +1500,46 @@ document.addEventListener('DOMContentLoaded', ()=>{
   restaurarRascunho();
 });
 
+// ================== PARCELAMENTO: PRAZO × PERIODICIDADE ==================
+//
+// Crédito rural raramente é mensal — a receita chega na venda do lote. Daí a
+// regra: o prazo, já descontada a carência, precisa fechar um número inteiro
+// de parcelas. 30 meses com 6 de carência não parcela anualmente: sobram 24,
+// que dá 2 anos exatos — mas 28 com 6 sobra 22, e aí não fecha.
+//
+// A conta é a mesma do servidor (app.py). Aqui ela existe para dizer ANTES de
+// submeter, apontando o campo e propondo prazos que servem, em vez de um
+// toast que some depois da viagem de ida e volta.
+const _ROTULO_PERIODICIDADE={1:'mensal',3:'trimestral',6:'semestral',12:'anual'};
+
+function _erroParcelamento(){
+  const valor=+document.getElementById('credito_valor').value||0;
+  const prazo=+document.getElementById('credito_prazo').value||0;
+  const car=+document.getElementById('credito_carencia').value||0;
+  const p=+document.getElementById('credito_periodicidade').value||1;
+  if(valor<=0||prazo<=0||p===1) return null;
+  if(car>=prazo) return 'A carência precisa ser menor que o prazo.';
+  const resto=(prazo-car)%p;
+  if(!resto) return null;
+  const menor=prazo-resto, maior=prazo+(p-resto);
+  return `Parcelamento ${_ROTULO_PERIODICIDADE[p]}: sobram ${prazo-car} meses após a `
+       + `carência, que não fecham parcelas de ${p} meses. Use prazo de `
+       + `<b>${menor}</b> ou <b>${maior}</b> meses — ou mude a periodicidade.`;
+}
+
+function validarParcelamento(){
+  const msg=_erroParcelamento();
+  const cx=document.getElementById('parcelamento-erro');
+  const campos=['credito_prazo','credito_carencia','credito_periodicidade']
+    .map(id=>document.getElementById(id));
+  if(cx){
+    cx.style.display=msg?'block':'none';
+    if(msg) cx.innerHTML=msg;
+  }
+  campos.forEach(el=>{ if(el) el.style.borderColor=msg?'rgba(248,113,113,.7)':''; });
+  return !msg;
+}
+
 // ================== RASCUNHO LOCAL ==================
 //
 // Uma análise completa são mais de 40 campos. Sem rascunho, um refresh sem
@@ -1737,6 +1800,24 @@ function toggleSituacaoCadastral(){
   p.style.display = (p.style.display === 'none') ? 'block' : 'none';
 }
 
+// O botão "Condições de Classificação" chamava esta função havia tempo e ela
+// não existia em lugar nenhum — nem aqui, nem no orkavyn-shell.js. O clique
+// lançava ReferenceError e o painel ficava em display:none para sempre.
+//
+// Não era um painel qualquer: nele moram natalidade, mortalidade,
+// compras/reposição, vendas declaradas, reposição da recria e os indicadores
+// de benchmark. Ou seja, TODAS as premissas que o analista tem para informar
+// sobre o produtor estavam inacessíveis, e o motor sempre rodou com os
+// próprios defaults. Explica também por que a reconciliação de rebanho nunca
+// disparava: ela depende da mortalidade, que ninguém conseguia digitar.
+function toggleConds(){
+  const p = document.getElementById('conds-wrap');
+  const abrir = p.style.display === 'none';
+  p.style.display = abrir ? 'block' : 'none';
+  const btn = document.getElementById('btn-conds');
+  if (btn) btn.style.background = abrir ? 'var(--border-accent)' : '';
+}
+
 async function consultarSituacaoCadastral(){
   const doc = document.getElementById('sc-documento').value.trim();
   const consentimento = document.getElementById('sc-consentimento').checked;
@@ -1783,6 +1864,14 @@ let _pdfImportMetadata=null;
 async function classificar(){
   const v=getVals();
   if(v.reduce((a,b)=>a+b,0)<10){showToast('Insira pelo menos 10 animais.',true);return}
+  // Barra antes da viagem: o servidor recusaria isso com 400 e o analista
+  // veria só um toast, sem saber qual campo mexer.
+  if(!validarParcelamento()){
+    document.getElementById('parcelamento-erro')
+      .scrollIntoView({behavior:'smooth',block:'center'});
+    document.getElementById('credito_prazo').focus();
+    return;
+  }
   showLoading(['Analisando composição do rebanho...','Calculando indicadores técnicos...','Calculando fluxo GEP...','Gerando parecer de crédito...']);
   try{
     const body={valores:v,fazenda:document.getElementById('f_faz').value,municipio:document.getElementById('f_mun').value,proprietario:document.getElementById('f_prop').value};
@@ -2265,7 +2354,8 @@ function mostrarPDFPreview(data){
     <button class="btn-p" style="margin-top:16px" onclick="classificarPDF(window._pdfPreviewData.valores,window._pdfPreviewData)"><span>🧠 Classificar com Machine Learning</span></button>`;
   window._pdfPreviewData = data;
   status.scrollIntoView({behavior:'smooth', block:'start'});
-  document.getElementById('dz').innerHTML=`<span class="upzone-icon">✅</span><h2 class="upzone-title">PDF carregado: <span>${escapeHtml(data.fazenda||'Exploração')}</span></h2><p class="upzone-sub">${fN(data.total)} animais · Clique para carregar outro(s)</p><input type="file" id="pdf-inp" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files)">`;
+  // Aqui o #dz do painel órfão era repintado com "PDF carregado" — num painel
+  // que ninguém via. O sucesso já é reportado em #pdf-status-main, logo acima.
 }
 
 function setPDFStatusState(state,message){
@@ -3033,12 +3123,21 @@ function renderDecisionSummary(data){
   const risco=rating.faixa||rating.rotulo||'—';
   const nivelQualidade=qualidade.nivel_confianca||qualidade.status||'—';
 
+  // O aviso vem pronto do backend (services/origem_rebanho.py) em vez de ser
+  // escrito aqui: tela e PDF divergirem sobre a validade do dado é pior do
+  // que nenhum dos dois avisar.
+  const orig=(parecer.identificacao||{}).origem_rebanho||{};
+
   return `<section class="ork-decision-summary" aria-label="Resumo executivo da análise">
     <div class="ork-decision-summary__primary">
       <span>Recomendação econômico-produtiva</span>
       <strong>${escapeHtml(recomendacao)}</strong>
       <small>Sistema identificado: ${escapeHtml(TL[data.tipo]||data.tipo||'—')}</small>
     </div>
+    ${orig.aviso?`<p style="grid-column:1/-1;margin:10px 0 0;padding:9px 12px;border:1px solid rgba(251,191,36,.35);border-radius:8px;background:rgba(251,191,36,.08);font-size:.74rem;line-height:1.55;color:var(--sb)">
+      <b style="color:var(--tx)">Análise preliminar — efetivo não verificado.</b>
+      ${escapeHtml(orig.aviso.replace('Análise preliminar — efetivo não verificado. ',''))}
+    </p>`:''}
     <div class="ork-decision-summary__metrics">
       <div><span>Capacidade estimada</span><strong>${capacidade==null?'—':fR(capacidade)}</strong></div>
       <div><span>DSCR mínimo</span><strong class="${dscr!=null&&dscr<1?'is-critical':''}">${dscr==null?'—':Number(dscr).toFixed(2)+'x'}</strong></div>
@@ -4192,10 +4291,19 @@ function showTab(id,btn){
 function resetApp(){clearAll();document.getElementById('tab-res').style.display='none';document.getElementById('tab-cen').style.display='none';showTab('entrada',document.querySelectorAll('.tab-btn')[0]);lastVals=null;document.getElementById('result-wrap').innerHTML='';document.getElementById('sc-result').innerHTML=''}
 
 // ================== DRAG & DROP ==================
-const dz2=document.getElementById('dz');
-dz2.addEventListener('dragover',e=>{e.preventDefault();dz2.classList.add('drag')});
-dz2.addEventListener('dragleave',()=>dz2.classList.remove('drag'));
-dz2.addEventListener('drop',e=>{e.preventDefault();dz2.classList.remove('drag');const fs=[...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith('.pdf'));if(fs.length)lerPDFs(fs)});
+// Arrastar-e-soltar no card de importação da entrada. Os mesmos handlers
+// estavam presos ao #dz do painel órfão, que nenhuma aba abria — arquivo
+// nenhum chegava lá. Mesmo comportamento, alvo que o analista enxerga.
+const dz2=document.querySelector('.ork-import-panel');
+if(dz2){
+  dz2.addEventListener('dragover',e=>{e.preventDefault();dz2.classList.add('drag')});
+  dz2.addEventListener('dragleave',()=>dz2.classList.remove('drag'));
+  dz2.addEventListener('drop',e=>{
+    e.preventDefault();dz2.classList.remove('drag');
+    const fs=[...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith('.pdf'));
+    if(fs.length)lerPDFs(fs);
+  });
+}
 
 // ================== UTILS ==================
 let _loadTimer=null;

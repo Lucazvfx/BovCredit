@@ -79,6 +79,7 @@ from services.checklist_credito import checklist_credito
 from services.dados_impeditivos import detectar as detectar_impeditivos
 from services.retencao import calcular_retencao
 from services.base_reprodutiva import base_reprodutiva
+from services.origem_rebanho import origem_rebanho, normalizar as normalizar_origem
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services.rating_credito import calcular_rating
 from services.precos_regionais import aplicar as aplicar_preco_regional
@@ -1364,9 +1365,7 @@ def api_classificar():
 
     # Camada de dados reais: cada classificação fica pendente de revisão humana
     # e só entra no treinamento depois de confirmada pelo analista.
-    origem_dados = (data.get('origem_dados') or 'MANUAL').strip().upper()
-    if origem_dados not in {'PDF', 'EXCEL', 'MANUAL'}:
-        origem_dados = 'MANUAL'
+    origem_dados = normalizar_origem(data.get('origem_dados'))
     db.criar_caso_real(
         valores=v,
         classificacao_ml=result['classificacao'],
@@ -2123,7 +2122,11 @@ def api_classificar():
 
     parecer = montar_parecer(
         identificacao={'fazenda': fazenda, 'municipio': municipio,
-                       'proprietario': data.get('proprietario', '')},
+                       'proprietario': data.get('proprietario', ''),
+                       # Ninguém contou boi em nenhum dos caminhos de entrada.
+                       # O parecer precisa dizer isso onde ele é lido, não só
+                       # no banco de casos reais — ver services/origem_rebanho.
+                       'origem_rebanho': origem_rebanho(origem_dados)},
         composicao={'total': int(sum(v)), 'valores': v},
         indicadores=ind, benchmarks=benchmarks,
         consistencia=consistencia, financeiro=breakeven,
