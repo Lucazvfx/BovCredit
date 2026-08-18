@@ -50,6 +50,24 @@
         <button type="submit" style="margin-top:8px;cursor:pointer;letter-spacing:.04em">Entrar</button>
       </form>
 
+      {% if google_ativo() %}
+      {# O botão só existe quando há credencial configurada: melhor não
+         oferecer do que oferecer e falhar. O "G" é SVG inline com as cores
+         oficiais — a marca do Google não pode ser recolorida, e um <img>
+         remoto quebraria com a CSP. #}
+      <div class="ork-sep" role="separator" aria-label="ou"><span>ou</span></div>
+
+      <a class="ork-btn-social" href="{{ url_for('entrar_google') }}">
+        <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+          <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.2-.4-4.7H24v8.9h11.8c-.5 2.7-2.1 5.1-4.4 6.6v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.3z"/>
+          <path fill="#34A853" d="M24 46c6 0 11-2 14.5-5.2l-7.1-5.5c-2 1.3-4.5 2.1-7.4 2.1-5.7 0-10.6-3.9-12.3-9.1H4.3v5.7C7.8 41.1 15.3 46 24 46z"/>
+          <path fill="#FBBC05" d="M11.7 28.3c-.4-1.3-.7-2.7-.7-4.3s.2-2.9.7-4.3v-5.7H4.3C2.8 17 2 20.4 2 24s.8 7 2.3 10l7.4-5.7z"/>
+          <path fill="#EA4335" d="M24 10.6c3.2 0 6.1 1.1 8.4 3.3l6.3-6.3C34.9 4 30 2 24 2 15.3 2 7.8 6.9 4.3 14l7.4 5.7c1.7-5.2 6.6-9.1 12.3-9.1z"/>
+        </svg>
+        <span>Entrar com Google</span>
+      </a>
+      {% endif %}
+
       <div class="links" style="margin-top:18px;font-size:.82rem">
         <a href="{{ url_for('esqueci_senha') }}">Esqueceu a senha?</a>
       </div>

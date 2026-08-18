@@ -50,6 +50,9 @@ LOGIN_2FA_BACKUP  = 'login_2fa_backup'
 DOIS_FATORES_ATIVADO    = '2fa_ativado'
 DOIS_FATORES_DESATIVADO = '2fa_desativado'
 CONSULTA_CADASTRAL      = 'consulta_cadastral'
+# Conta criada sem um admin ter clicado em nada — é o que o login social por
+# domínio liberado faz. Justamente por ser automático precisa deixar rastro.
+CONTA_CRIADA            = 'conta_criada'
 
 EVENTOS = {
     LOGIN:             'Entrou no sistema',
@@ -72,6 +75,7 @@ EVENTOS = {
     DOIS_FATORES_ATIVADO:    'Ativou o segundo fator',
     DOIS_FATORES_DESATIVADO: 'Desativou o segundo fator',
     CONSULTA_CADASTRAL:      'Consultou situação cadastral (CPF/CNPJ)',
+    CONTA_CRIADA:            'Conta criada por login social (domínio liberado)',
 }
 
 # Eventos que tocam dado de crédito de um cliente identificado. É esta lista

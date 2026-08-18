@@ -785,6 +785,52 @@
 }
 .ork-auth-page button:hover,
 .ork-auth-page .btn:hover { background: #214d38; }
+/* Entrar com Google.
+   Botão secundário de propósito: fundo claro e borda, contra o verde sólido
+   do "Entrar". Quem já tem senha não deve ser empurrado para trocar de
+   caminho, e quem vai de Google acha na hora do mesmo jeito.
+   Altura de 48px igual à do primário — dedo em tela pequena não distingue
+   hierarquia visual, distingue alvo. */
+.ork-sep {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 16px;
+}
+.ork-sep::before,
+.ork-sep::after {
+  content: '';
+  height: 1px;
+  background: var(--ork-line);
+}
+.ork-sep span {
+  color: var(--ork-copy);
+  font-family: var(--ork-font-mono, var(--ork-font-body));
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.ork-btn-social {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--ork-line-strong);
+  border-radius: var(--ork-radius-control);
+  color: var(--ork-ink) !important;
+  background: var(--ork-surface-raised);
+  font: 750 0.92rem var(--ork-font-body);
+  text-decoration: none;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.ork-btn-social:hover { border-color: var(--ork-forest); background: var(--ork-oat); }
+.ork-btn-social:focus-visible { outline: 2px solid var(--ork-forest); outline-offset: 2px; }
+.ork-btn-social svg { flex-shrink: 0; }
+
 .ork-auth-page .links,
 .ork-auth-page .back { color: var(--ork-copy); text-align: left; }
 .ork-auth-page a { color: var(--ork-forest) !important; }

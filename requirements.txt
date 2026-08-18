@@ -20,6 +20,10 @@ gunicorn==26.0.0
 psycopg2-binary==2.9.12
 joblib==1.5.3
 flask-login==0.6.3
+# Entrar com Google (OpenID Connect). Cliente OAuth mantido, em vez de
+# montar o fluxo à mão: a troca de código por token e a validação do
+# id_token são exatamente onde um erro sutil vira falha de autenticação.
+authlib==1.7.2
 xgboost==3.2.0
 apscheduler==3.11.3
 requests==2.33.1

@@ -80,6 +80,8 @@ from services.dados_impeditivos import detectar as detectar_impeditivos
 from services.retencao import calcular_retencao
 from services.base_reprodutiva import base_reprodutiva
 from services.origem_rebanho import origem_rebanho, normalizar as normalizar_origem
+from services import login_social as _social
+from authlib.integrations.flask_client import OAuth
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services.rating_credito import calcular_rating
 from services.precos_regionais import aplicar as aplicar_preco_regional
@@ -541,6 +543,119 @@ def login():
         logger.warning(f'[LOGIN] Falha de autenticação para e-mail: {email!r}')
         erro = 'E-mail ou senha incorretos.'
     return render_template('login.html', erro=erro)
+
+# ── Entrar com Google ───────────────────────────────────────────────────────
+#
+# O Google prova quem é a pessoa. Quem decide se ela entra continua sendo o
+# sistema — ver services/login_social.py. Sem essa separação, qualquer conta
+# Google entraria numa ferramenta de análise de crédito.
+#
+# O e-mail e senha continuam funcionando: o botão é atalho, não substituição.
+# Por isso o segundo fator também continua valendo — se a pessoa ativou TOTP,
+# entrar pelo Google não pula o código. A conta Google dela pode estar
+# comprometida, e é justamente para isso que o segundo fator existe.
+#
+# A estrutura é genérica de propósito: acrescentar Apple depois é registrar
+# outro provedor e reaproveitar o mesmo callback, sem mexer nesta lógica.
+_oauth = OAuth(app)
+_GOOGLE_ID = os.environ.get('GOOGLE_CLIENT_ID', '').strip()
+_GOOGLE_SEGREDO = os.environ.get('GOOGLE_CLIENT_SECRET', '').strip()
+_DOMINIOS_OK = _social.normalizar_dominios(os.environ.get('DOMINIOS_PERMITIDOS'))
+
+if _GOOGLE_ID and _GOOGLE_SEGREDO:
+    _oauth.register(
+        name='google',
+        client_id=_GOOGLE_ID,
+        client_secret=_GOOGLE_SEGREDO,
+        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        client_kwargs={'scope': 'openid email profile'},
+    )
+    logger.info('[auth] Entrar com Google ativo · domínios: %s',
+                ', '.join(_DOMINIOS_OK) or 'nenhum (só e-mail já cadastrado)')
+
+
+def google_ativo() -> bool:
+    """Sem credencial configurada o botão não aparece — e a rota recusa."""
+    return bool(_GOOGLE_ID and _GOOGLE_SEGREDO)
+
+
+app.jinja_env.globals['google_ativo'] = google_ativo
+
+
+@app.route('/entrar/google')
+@limiter.limit("20 per minute; 60 per hour")
+def entrar_google():
+    if not google_ativo():
+        abort(404)
+    if current_user.is_authenticated:
+        return redirect(url_for('app_main'))
+    destino = url_for('entrar_google_callback', _external=True)
+    app_url = os.environ.get('APP_URL', '').rstrip('/')
+    if app_url:
+        # Atrás do nginx o Flask enxerga http://127.0.0.1:8000 e monta um
+        # redirect_uri que o Google recusa por não bater com o cadastrado.
+        destino = app_url + url_for('entrar_google_callback')
+    return _oauth.google.authorize_redirect(destino)
+
+
+@app.route('/entrar/google/callback')
+@limiter.limit("20 per minute; 60 per hour")
+def entrar_google_callback():
+    if not google_ativo():
+        abort(404)
+    try:
+        token = _oauth.google.authorize_access_token()
+    except Exception:
+        logger.warning('[auth] callback do Google recusado', exc_info=True)
+        return render_template('login.html',
+                               erro='Não foi possível concluir a entrada pelo Google.'), 400
+
+    perfil = token.get('userinfo') or {}
+    email = (perfil.get('email') or '').strip().lower()
+    provedor_id = str(perfil.get('sub') or '')
+
+    ja = db.buscar_usuario_por_provedor('google', provedor_id) if provedor_id else None
+    cadastrado = db.buscar_usuario_email(email) if email else None
+
+    decisao = _social.decidir(
+        email=email,
+        email_verificado=bool(perfil.get('email_verified')),
+        hosted_domain=perfil.get('hd'),
+        dominios_permitidos=_DOMINIOS_OK,
+        ja_vinculado=bool(ja),
+        ja_cadastrado=bool(cadastrado),
+    )
+    if not decisao.permitido:
+        _auditar(_aud.LOGIN_FALHOU, email=email or '(sem e-mail)', sucesso=False,
+                 detalhe=f'google: {decisao.motivo}')
+        return render_template('login.html',
+                               erro=_social.mensagem(decisao.motivo)), 403
+
+    if decisao.acao == _social.ENTRAR:
+        u = ja
+    elif decisao.acao == _social.VINCULAR:
+        db.vincular_provedor(cadastrado['id'], 'google', provedor_id)
+        u = db.buscar_usuario_email(email)
+    else:
+        empresa = db.empresa_unica_do_dominio(_social.dominio_do_email(email))
+        uid = db.criar_usuario_do_provedor(
+            email=email, nome=perfil.get('name') or '',
+            provedor='google', provedor_id=provedor_id, empresa_id=empresa)
+        u = db.buscar_usuario_id(uid)
+        _auditar(_aud.CONTA_CRIADA, email=email,
+                 detalhe='criado por domínio liberado (google)'
+                         + ('' if empresa else ' · sem empresa: vincular no /admin'))
+
+    # O segundo fator não é pulado por ter vindo do Google.
+    if db.totp_estado(u['id'])['ativo']:
+        session['totp_pendente'] = u['id']
+        session['totp_desde'] = _time.time()
+        return redirect(url_for('login_2fa'))
+
+    login_user(User(u), remember=True)
+    _auditar(_aud.LOGIN, email=u['email'], detalhe='com Google')
+    return redirect(url_for('app_main'))
+
 
 @app.route('/esqueci-senha', methods=['GET'])
 def esqueci_senha():

@@ -667,6 +667,17 @@ def init_db():
     _add_column_safe('usuarios', 'security_answer_hash', 'TEXT DEFAULT \'\'')
     _add_column_safe('usuarios', 'nome_consultoria', 'TEXT DEFAULT \'\'')
     _add_column_safe('usuarios', 'logo_base64', 'TEXT DEFAULT \'\'')
+    # Login social. O identificador do provedor mora AQUI, numa coluna, e não
+    # substitui o `id` — que é chave estrangeira em dez tabelas (fazendas,
+    # pareceres, registros, casos_reais, documentos, auditoria_acessos,
+    # empresa_membros, analysis_api_keys, analysis_snapshots,
+    # whatsapp_vinculos). Trocar a identidade por um UUID de terceiro
+    # significaria migrar todo o histórico de pareceres já emitidos.
+    # Assim o provedor responde "quem é você" e a tabela local segue
+    # respondendo "o que é seu" — e trocar de provedor amanhã é reescrever
+    # duas colunas, não o banco.
+    _add_column_safe('usuarios', 'provedor', 'TEXT DEFAULT \'\'')
+    _add_column_safe('usuarios', 'provedor_id', 'TEXT DEFAULT \'\'')
     _add_column_safe('fazendas', 'empresa_id', 'INTEGER')
 
     _migrar_usuarios_para_empresas()
@@ -691,6 +702,68 @@ def criar_usuario(email: str, nome: str, senha: str,
     _exec(f'INSERT INTO empresa_membros (empresa_id, user_id) VALUES ({ph},{ph})',
           (eid, uid), commit=True)
     return uid
+
+# ── Login social ─────────────────────────────────────────────────────────────
+
+def buscar_usuario_por_provedor(provedor: str, provedor_id: str) -> dict | None:
+    ph = _PH
+    return _exec(
+        f'SELECT * FROM usuarios WHERE provedor={ph} AND provedor_id={ph}',
+        (provedor, str(provedor_id)), fetch='one')
+
+
+def vincular_provedor(user_id: int, provedor: str, provedor_id: str) -> None:
+    """Liga uma conta já existente ao provedor, sem tocar em senha nem 2FA.
+
+    É o caminho de quem já entrava com senha e passou a usar o botão: continua
+    o mesmo `id`, o mesmo histórico e o mesmo segundo fator.
+    """
+    ph = _PH
+    _exec(f'UPDATE usuarios SET provedor={ph}, provedor_id={ph} WHERE id={ph}',
+          (provedor, str(provedor_id), user_id), commit=True)
+
+
+def empresa_unica_do_dominio(dominio: str) -> int | None:
+    """Empresa dos usuários que já usam este domínio — se houver só uma.
+
+    Sem isso, cada analista que entrasse por domínio liberado ganharia a
+    própria "Consultoria" (é o que `criar_usuario` faz) e não enxergaria a
+    carteira dos colegas: cinco analistas da mesma firma viram cinco ilhas.
+
+    Só decide quando a resposta é inequívoca. Havendo zero ou mais de uma
+    empresa no domínio, devolve None e a conta nasce sem vínculo — aí quem
+    escolhe é o admin, que é quem sabe.
+    """
+    ph = _PH
+    linhas = _exec(f'''SELECT DISTINCT m.empresa_id FROM empresa_membros m
+                       JOIN usuarios u ON u.id = m.user_id
+                       WHERE LOWER(u.email) LIKE {ph}''',
+                   (f'%@{dominio.lower()}',), fetch='all') or []
+    return int(linhas[0]['empresa_id']) if len(linhas) == 1 else None
+
+
+def criar_usuario_do_provedor(email: str, nome: str, provedor: str,
+                              provedor_id: str, empresa_id: int | None) -> int:
+    """Cria conta sem senha utilizável, vinda de login social.
+
+    A senha recebe um valor aleatório que ninguém conhece — em vez de vazia,
+    que passaria por hash de string vazia e viraria porta. Quem quiser entrar
+    por senha usa "esqueci minha senha" e define a dela.
+    """
+    import secrets
+    ph = _PH
+    nome = (nome or email.split('@')[0]).strip()
+    uid = int(_exec(
+        f'INSERT INTO usuarios (email, nome, senha_hash, provedor, provedor_id) '
+        f'VALUES ({ph},{ph},{ph},{ph},{ph})',
+        (email.lower().strip(), nome, generate_password_hash(secrets.token_urlsafe(32)),
+         provedor, str(provedor_id)),
+        fetch='lastrow', commit=True))
+    if empresa_id:
+        _exec(f'INSERT INTO empresa_membros (empresa_id, user_id) VALUES ({ph},{ph})',
+              (empresa_id, uid), commit=True)
+    return uid
+
 
 def empresas_do_usuario(user_id: int) -> list:
     """Empresas às quais o usuário pertence."""
