@@ -143,3 +143,72 @@ def test_o_nome_completo_sobrevive_ao_truncamento():
 
 def test_o_aviso_de_desembolso_aparece_uma_vez_so():
     assert INDEX.count('Usa o desembolso padrão (GEP médio)') == 1
+
+
+# ── Fundo decorativo não pode brigar com o texto ─────────────────────────────
+
+CSS_CAMPOS = (ROOT / "static" / "orkavyn-fields.css").read_text(encoding="utf-8")
+
+
+def _blocos(css: str, consulta: str) -> str:
+    """Concatena TODOS os @media com esta consulta.
+
+    Há mais de um bloco por breakpoint no arquivo; pegar só o primeiro dá
+    falso negativo — já me pegou duas vezes.
+    """
+    partes, pos = [], 0
+    while True:
+        i = css.find(consulta, pos)
+        if i < 0:
+            break
+        prof, fim = 0, i
+        for j in range(css.index('{', i), len(css)):
+            if css[j] == '{':
+                prof += 1
+            elif css[j] == '}':
+                prof -= 1
+                if prof == 0:
+                    fim = j
+                    break
+        partes.append(css[i:fim])
+        pos = fim
+    assert partes, f'nenhum bloco {consulta}'
+    return '\n'.join(partes)
+
+
+def test_a_foto_de_fundo_recua_no_celular():
+    """`center / cover` numa viewport estreita corta a foto e joga um borrão
+    claro atrás de "Inserir dados do rebanho".
+
+    .ptitle e .psub ficam FORA de card, lidos direto sobre a textura. Medido
+    em 390px alternando só a opacidade no mesmo recorte: 27 KB de PNG com a
+    foto a 0.12 contra 9 KB sem ela.
+    """
+    regra = _blocos(CSS_CAMPOS, '@media (max-width: 480px)')
+    op = re.search(r'#bg-rebanho \{ opacity: ([\d.]+); \}', regra)
+    assert op, 'regra do fundo sumiu do bloco de celular'
+    assert float(op.group(1)) <= 0.05, f'fundo ainda forte demais: {op.group(1)}'
+
+
+def test_a_foto_continua_inteira_na_tela_grande():
+    """Lá há respiro e o texto quase sempre cai sobre card."""
+    base = re.search(
+        r'\.ork-dashboard-surface #bg-rebanho \{(.*?)\}', CSS_CAMPOS, re.S).group(1)
+    assert 'opacity: 0.12' in base
+
+
+# ── A barra de abas antiga já está aposentada ────────────────────────────────
+
+def test_a_barra_de_abas_antiga_e_so_para_leitor_de_tela():
+    """Documenta o que eu tinha afirmado errado: não há duas navegações visíveis.
+
+    `.ork-legacy-tabs` usa o padrão sr-only (1x1 + clip) com !important, e o
+    arquivo carrega depois do <style> do template. A barra fica no DOM pelos
+    papéis ARIA e porque showTab consulta a classe `tab-locked` dela.
+    """
+    regra = re.search(r'\.ork-legacy-tabs \{(.*?)\}', CSS_CAMPOS, re.S).group(1)
+    assert 'position: absolute !important' in regra
+    assert 'clip: rect(0, 0, 0, 0) !important' in regra
+    # o JS continua dependendo da classe, então ela não pode simplesmente sair
+    assert "querySelector(`.tab-btn[aria-controls=" in INDEX
+    assert 'tab-locked' in INDEX

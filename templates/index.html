@@ -285,6 +285,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
      abas cabem. A rolagem já existia, mas nada indicava que havia mais — o
      analista não descobre uma aba que não aparece. A máscara em degradê na
      borda direita é a dica: some quando chega ao fim. */
+  /* ATENÇÃO: estas regras de .tab-bar/.tab-btn não pintam nada hoje.
+     `.ork-legacy-tabs` (orkavyn-fields.css) aplica o padrão só-leitor-de-tela
+     — position:absolute, 1x1, clip — com !important, e aquele arquivo carrega
+     DEPOIS deste <style>. A barra existe no DOM pelos papéis ARIA e porque o
+     showTab consulta a classe `tab-locked` dela, mas ninguém a enxerga: a
+     navegação visível é a sidebar e a barra de rodapé.
+     Ficam aqui por segurança, para o dia em que a barra voltar a ser visível.
+     A medição do comentário acima (587px, duas de cinco abas) foi feita antes
+     de ela virar só-leitor-de-tela. */
   .tab-bar{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:20px;flex-wrap:nowrap;
            -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);
            mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);

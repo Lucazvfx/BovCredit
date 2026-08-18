@@ -1018,7 +1018,15 @@
 }
 
 @media (max-width: 480px) {
-  .ork-dashboard-surface #bg-rebanho { opacity: 0.1; }
+  /* A foto do rebanho é decoração, e no celular ela cobra caro por isso.
+     `center / cover` numa viewport estreita corta a imagem no meio e joga um
+     borrão claro justamente atrás de "Inserir dados do rebanho", enquanto os
+     textos que ficam FORA de card (.ptitle, .psub) são lidos direto sobre a
+     textura. Medido em 390px: o mesmo recorte de tela pesa 27 KB com a foto a
+     0.12 e 9 KB sem ela — três vezes mais ruído atrás do texto.
+     Na tela grande ela continua como está: lá há respiro e o texto quase
+     sempre cai sobre card. */
+  .ork-dashboard-surface #bg-rebanho { opacity: 0.04; }
   .ork-page-header, .ork-context-header { align-items: flex-start; padding: 16px; }
   .ork-main { padding: 20px 16px; }
   .ork-panel { padding: 20px 16px; }
