@@ -50,6 +50,9 @@ header{position:sticky;top:0;z-index:200;background:rgba(6,8,16,.93);backdrop-fi
 .hdr-r{display:flex;align-items:center;gap:12px}
 .ml-badge{font-family:var(--fm);font-size:.54rem;letter-spacing:2px;background:rgba(74,222,128,.1);color:var(--tx);border:1px solid rgba(74,222,128,.25);padding:4px 12px;border-radius:20px}
 .ml-acc{font-family:var(--fm);font-size:.58rem;color:var(--tx);background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);padding:4px 10px;border-radius:8px}
+/* Cotação que não veio não pode parecer cotação: o chip perde o verde e o
+   texto vira "—", em vez de exibir zero como se fosse preço. */
+.ml-acc.sem-cotacao{background:rgba(148,163,184,.10);border-color:rgba(148,163,184,.28);color:var(--mu)}
 
 main{max-width:1340px;margin:0 auto;padding:44px 36px 120px;position:relative;z-index:1}
 
@@ -106,6 +109,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .ni.nf{color:var(--tx)}.ni.nm{color:var(--tx)}
 .ni:focus{border-color:var(--tx);box-shadow:0 0 0 3px rgba(74,222,128,.1)}
 .tdc{text-align:center}
+/* Só no celular: na tela grande o cabeçalho "Fêmeas | Machos" fica visível e
+   as duas etiquetas cabem na mesma linha, então o símbolo seria repetição. */
+.sexo-cel{display:none}
 .tdtot{font-family:var(--fm);font-size:.8rem;color:var(--tx);text-align:center;font-weight:600}
 
 .tstrip{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--b);border-radius:var(--rs);overflow:hidden;border:1px solid var(--b);margin-top:18px}
@@ -258,8 +264,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .tstrip{grid-template-columns:repeat(2,1fr)}
 
   /* header */
-  header{padding:0 14px;height:52px}
-  #hdr-boi,#hdr-vaca{display:none}
+  /* min-height, não height. Com altura fixa, qualquer quebra de linha no
+     grupo da direita transbordava para cima do ticker de notícias — era daí
+     o "Marca" pousado em cima de "AGRO / Carregando notícias". Agora o
+     cabeçalho cresce em vez de vazar. */
+  header{padding:0 14px;min-height:52px}
+  /* A cotação do boi FICA no celular. Ela sumia junto com a da vaca, e o
+     analista perdia o único dado ao vivo da tela — justamente o número de
+     que todo o resto depende. A vaca sai porque não cabem as duas ao lado do
+     seletor de empresa; ela continua no painel de cotações da entrada. */
+  #hdr-vaca{display:none}
+  #hdr-boi{font-size:.62rem;padding:3px 8px;white-space:nowrap}
   .hdr-r{gap:6px}
 
   /* main */
@@ -314,7 +329,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   header{flex-wrap:wrap;row-gap:8px}
   .logo img{max-width:130px;height:auto}
   .hdr-r{min-width:0;flex-wrap:wrap;justify-content:flex-end}
-  #empresa-ativa-select{max-width:52vw;min-width:0;text-overflow:ellipsis}
+  /* O seletor cede espaço em vez de empurrar os vizinhos para a linha de
+     baixo: os outros dois itens (cotação e Marca) têm largura própria e não
+     encolhem. Em 390px cabem os três lado a lado. */
+  #empresa-ativa-select{flex:1 1 auto;max-width:42vw;min-width:0;text-overflow:ellipsis}
 
   /* typography */
   .ptitle{font-size:1.6rem}.psub{font-size:.8rem}
@@ -325,6 +343,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
   /* input table */
   .itbl thead th,.itbl td{padding:6px 7px;font-size:.75rem}
+
+  /* Cada campo passa a dizer de que sexo é.
+     Em 390px as duas etiquetas da primeira coluna (♀ Bezerra / ♂ Bezerro)
+     quebram em linhas separadas, enquanto os campos ficam lado a lado numa
+     linha só — a correspondência etiqueta→campo desmonta, e o cabeçalho
+     "Fêmeas | Machos" já rolou para fora da tela. O analista digitava sem
+     ter certeza de qual coluna era qual. O símbolo dentro da célula não
+     depende de alinhamento nem de cabeçalho visível. */
+  .sexo-cel{display:block;font-family:var(--fm);font-size:.6rem;color:var(--mu);line-height:1;margin-bottom:3px}
+  /* Etiqueta em UMA linha, sempre. "Bezerra Desmama" e "Boi Gordo" quebravam
+     em duas e deixavam as linhas da tabela com alturas diferentes (76, 102,
+     76 e 89px medidos num iPhone 13) — é esse desencontro que dá a sensação
+     de a tela sambar ao rolar. Truncar não perde informação: o sexo agora
+     está dentro do campo, a faixa etária vem logo abaixo, e o nome completo
+     fica no title. */
+  .itbl td:first-child .fc{width:100%;justify-content:flex-start;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
   .ni{width:80px;font-size:.8rem;padding:7px 8px;min-height:44px}
   .cbar-l{width:80px;font-size:.54rem}
   .brow-l{width:80px;font-size:.54rem}
@@ -772,13 +807,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <span style="opacity:.5">· cotações usadas no cálculo de valor do rebanho</span>
   </div>
   <button class="btn-p ork-action ork-submit-analysis" id="btn-class" onclick="classificar()"><span>Executar análise econômico-produtiva</span></button>
-  <!-- Sem este aviso, o custo do produtor só é descoberto depois da primeira
-       análise — que sai com o desembolso padrão e não vale nada. -->
-  <div style="text-align:center;margin-top:10px;font-size:.72rem;color:var(--mu)">
-    Usa o desembolso padrão (GEP médio) se você não informar o do produtor —
-    <a href="#" onclick="showTab('cenarios',document.getElementById('tab-cen'));return false" style="color:var(--tx)">informe em Simular Cenários → Parâmetros</a>
-    antes de analisar.
-  </div>
   <!-- Sem este aviso, o custo do produtor só é descoberto depois da primeira
        análise — que sai com o desembolso padrão e não vale nada. -->
   <div style="text-align:center;margin-top:10px;font-size:.72rem;color:var(--mu)">
@@ -1440,17 +1468,44 @@ function atualizarTituloCiclo() {
 }
 
 // ================== PRECOS (FALLBACK) ==================
-const _COTACOES_FALLBACK = { boi: 0, vaca: 0 };
-function _fmtValor(v){ const n = Number(v) || 0; return n.toFixed(2) + ' R$'; }
+// Não existe fallback de cotação: se a API não responde, não há preço.
+//
+// Antes havia um `_COTACOES_FALLBACK = {boi:0, vaca:0}` e a falha escrevia
+// "Boi: 0.00 R$" no cabeçalho, com um toast dizendo "usando última cotação
+// conhecida" — que não existia. Preço zero apresentado como dado é pior que
+// preço nenhum: quem olha rápido lê um número, não uma ausência.
+function _fmtArroba(v){
+  const n = Number(v) || 0;
+  return n > 0 ? 'R$ ' + n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '/@' : '—';
+}
 function escapeHtml(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;'); }
 function showToast(msg, isError=false){ const t = document.getElementById('toast'); if(!t) return; t.textContent = msg; t.classList.toggle('err', !!isError); t.classList.add('show'); clearTimeout(window._toastTimer); window._toastTimer = setTimeout(()=> t.classList.remove('show'), 6000); }
+function _pintarCotacaoCabecalho(boi, vaca){
+  const b = document.getElementById('hdr-boi');
+  const v = document.getElementById('hdr-vaca');
+  if (b) b.textContent = 'Boi ' + _fmtArroba(boi);
+  if (v) v.textContent = 'Vaca ' + _fmtArroba(vaca);
+  // No celular o cabeçalho não comporta os dois. Some a vaca, e o boi — que
+  // é a referência de tudo — fica marcado como indisponível quando é o caso,
+  // em vez de sumir junto.
+  if (b) b.classList.toggle('sem-cotacao', !(Number(boi) > 0));
+}
+
 async function atualizarPrecos(){
-  try{ const res = await fetch('/api/precos/live');
-    if(!res.ok){ try{ const err = await res.json(); const m = err.msg || err.erro || JSON.stringify(err); showToast(m, true); }catch(e){ showToast('Erro ao obter preços (network). Usando última cotação conhecida.', true); } }
-    else { const j = await res.json(); if(j && j.ok && j.precos){ const p = j.precos; document.getElementById('hdr-boi').textContent = 'Boi: ' + _fmtValor(p.boi); document.getElementById('hdr-vaca').textContent = 'Vaca: ' + _fmtValor(p.vaca); return; } if(j && (j.erro || j.msg)){ const m = j.msg || j.erro; showToast(m, true); } }
-  }catch(e){ showToast('Não foi possível conectar ao serviço de preços. Usando última cotação conhecida.', true); }
-  document.getElementById('hdr-boi').textContent = 'Boi: ' + _fmtValor(_COTACOES_FALLBACK.boi);
-  document.getElementById('hdr-vaca').textContent = 'Vaca: ' + _fmtValor(_COTACOES_FALLBACK.vaca);
+  try{
+    const res = await fetch('/api/precos/live');
+    const j = res.ok ? await res.json() : null;
+    if (j && j.ok && j.precos){
+      _pintarCotacaoCabecalho(j.precos.boi, j.precos.vaca);
+      return;
+    }
+    const m = (j && (j.msg || j.erro)) || 'Cotação indisponível agora.';
+    showToast(m, true);
+  }catch(e){
+    showToast('Não foi possível conectar ao serviço de cotações.', true);
+  }
+  // Sem número inventado: o cabeçalho diz que não sabe.
+  _pintarCotacaoCabecalho(0, 0);
 }
 document.addEventListener('DOMContentLoaded', ()=>{
   atualizarPrecos();
@@ -1662,13 +1717,13 @@ function buildTable(){
     tb.innerHTML+=`<tr>
       <td>
         <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
-          <span class="fc" style="color:${f.cF};border-color:${f.cF}25;background:${f.cF}0D">♀ ${f.lF}</span>
-          <span class="fc" style="color:${f.cM};border-color:${f.cM}25;background:${f.cM}0D">♂ ${f.lM}</span>
+          <span class="fc" title="${f.lF} — ${f.l}" style="color:${f.cF};border-color:${f.cF}25;background:${f.cF}0D">♀ ${f.lF}</span>
+          <span class="fc" title="${f.lM} — ${f.l}" style="color:${f.cM};border-color:${f.cM}25;background:${f.cM}0D">♂ ${f.lM}</span>
         </div>
         <div style="font-size:.57rem;color:var(--mu);margin-top:2px;font-family:var(--fm);letter-spacing:.02em">${f.l}</div>
       </td>
-      <td class="tdc"><input type="number" class="ni nf" id="${f.key}_F" value="0" min="0" oninput="upd()"></td>
-      <td class="tdc"><input type="number" class="ni nm" id="${f.key}_M" value="0" min="0" oninput="upd()"></td>
+      <td class="tdc"><span class="sexo-cel" aria-hidden="true">♀</span><input type="number" class="ni nf" id="${f.key}_F" value="0" min="0" oninput="upd()" aria-label="${f.lF} — ${f.l}"></td>
+      <td class="tdc"><span class="sexo-cel" aria-hidden="true">♂</span><input type="number" class="ni nm" id="${f.key}_M" value="0" min="0" oninput="upd()" aria-label="${f.lM} — ${f.l}"></td>
       <td class="tdc tdtot" id="${f.key}_T">0</td>
       <td class="tdc tdtot col-pct" id="${f.key}_P" style="color:var(--mu)">0%</td>
     </tr>`;
@@ -4479,11 +4534,25 @@ function baixarPdfParecerHistorico(i){
 
 // ================== COTAÇÃO DO DIA ==================
 let cotacaoDia = null;
+
+function _avisarCotacaoIndisponivel(){
+  const faixa = document.getElementById('cot-strip');
+  if (faixa) faixa.innerHTML =
+    '<span style="color:var(--am)">Cotação indisponível agora — '
+  + 'informe os preços à mão em Simular Cenários → Parâmetros, '
+  + 'senão o valor do rebanho não é calculado.</span>';
+  const fonte = document.getElementById('cot-fonte');
+  if (fonte) fonte.textContent = 'sem cotação';
+}
 async function carregarCotacaoDia(){
   try{
     const r = await fetch('/api/precos/live');
     const d = await r.json();
-    if(!d || !d.ok) return;
+    // A falha saía por um `return` mudo: a faixa de cotações ficava com três
+    // travessões e nada explicando se era falta de dado ou tela ainda
+    // carregando. Os campos continuam vazios de propósito — preencher com
+    // valor velho faria o rebanho ser avaliado por um preço que ninguém viu.
+    if(!d || !d.ok){ _avisarCotacaoIndisponivel(); return; }
     cotacaoDia = d.precos;
     // Guarda o valor auto-preenchido: é o que distingue "cotação nacional que
     // o sistema trouxe" de "preço que o analista digitou". Sem isso o servidor
