@@ -717,7 +717,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
               <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Indicadores para Benchmark Regional (RO) <span style="opacity:.6">— opcional, sem dado usa média regional</span></div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:14px">
-                <div class="field"><label>Mortalidade (%)</label><input type="number" id="c-mort" placeholder="5" min="0" max="100" step="0.1"></div>
+                <div class="field"><label title="Além do benchmark, é a mortalidade que fecha o rebanho: nascimentos + compras − vendas − mortes contra o estoque projetado. Sem ela essa conferência não roda.">Mortalidade (%) <span style="color:var(--am);font-weight:400;text-transform:none;letter-spacing:0">— fecha o rebanho</span></label><input type="number" id="c-mort" placeholder="5" min="0" max="100" step="0.1"></div>
                 <div class="field"><label>Desmama (%)</label><input type="number" id="c-desm" placeholder="82" min="0" max="100" step="0.1"></div>
                 <div class="field"><label>Rend. Carcaça (%)</label><input type="number" id="c-rc" placeholder="52" min="0" max="100" step="0.1"></div>
                 <div class="field"><label>Ganho Peso (@/mês)</label><input type="number" id="c-gp" placeholder="0.55" min="0" step="0.01"></div>
@@ -3157,6 +3157,45 @@ function renderResult(data){
   setTimeout(renderFluxoProjetado,250);
 }
 
+// O que cada checagem pulada significa, e o que preencher para destravá-la.
+//
+// Sem isso a tela dizia "Nenhum alerta zootécnico encontrado" tanto quando
+// tudo passou quanto quando nada pôde ser conferido — silêncio de checagem
+// que não rodou aparecendo como atestado de saúde. Os códigos só existiam
+// como slug cru no PDF; quem trabalha na tela não via nem isso.
+const CHECAGEM_PULADA={
+  vendas_ausentes:
+    ['Vendas × estoque', 'Informe "Bois Vendidos" ou "Bezerros Vendidos" em Condições de Classificação.'],
+  nascimentos_ou_natalidade_ausentes:
+    ['Nascimentos × base reprodutiva', 'Informe a Taxa de Natalidade em Condições de Classificação.'],
+  mortalidade_ausente:
+    ['Mortalidade dentro da faixa', 'Informe a Mortalidade (%) em Condições de Classificação.'],
+  reposicao_ausente:
+    ['Reposição declarada', 'Informe "Compras/reposição (cab.)" em Condições de Classificação.'],
+  reconciliacao_estoque_ausente:
+    ['Fechamento do rebanho projetado', 'Depende da projeção — refaça a análise se ela não rodou.'],
+  reconciliacao_mortalidade_ausente:
+    ['Fechamento do rebanho projetado', 'Informe a Mortalidade (%): sem ela o rebanho não fecha entradas contra saídas.'],
+};
+
+function renderChecagensPuladas(vz){
+  const codigos=[...new Set(vz.nao_avaliadas||[])];
+  if(!codigos.length) return '';
+  const itens=codigos.map(c=>{
+    const [nome,como]=CHECAGEM_PULADA[c]||[c,'Dado de origem ausente.'];
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--b)">
+      <b>${escapeHtml(nome)}</b><br>
+      <span style="color:var(--mu)">${escapeHtml(como)}</span>
+    </div>`;
+  }).join('');
+  return `<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--b)">
+    <div style="font-family:var(--fm);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--am);margin-bottom:8px">
+      ${codigos.length} checagem(ns) não realizada(s) — falta dado
+    </div>
+    <div style="font-size:.75rem">${itens}</div>
+  </div>`;
+}
+
 function renderTransparencia(data){
   const q=data.qualidade_dados||{};
   const e=data.explicacao_classificacao||{};
@@ -3182,7 +3221,12 @@ function renderTransparencia(data){
     </div></div>
   </div>
   <div class="card" style="margin-bottom:24px"><div class="ch"><div class="ct"><div class="cd" style="background:var(--rd)"></div>Riscos e cenários</div></div><div class="cb">
-    ${avisos||'<div style="font-size:.75rem;color:var(--tx)">Nenhum alerta zootécnico encontrado com os dados disponíveis.</div>'}
+    ${avisos||`<div style="font-size:.75rem;color:var(--tx)">${
+      (vz.nao_avaliadas||[]).length
+        ? 'As checagens que puderam rodar não apontaram problema.'
+        : 'Nenhum alerta zootécnico. Todas as checagens rodaram.'
+    }</div>`}
+    ${renderChecagensPuladas(vz)}
     ${cen?`<div style="overflow:auto;margin-top:14px"><table class="dt"><thead><tr><th>Cenário</th><th>Receita</th><th>Custo</th><th>Resultado</th><th>DSCR mín.</th><th>Ano crítico</th></tr></thead><tbody>${cen}</tbody></table></div>`:''}
   </div></div>`;
 }

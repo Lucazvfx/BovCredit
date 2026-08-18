@@ -1,6 +1,8 @@
 """Alertas zootécnicos derivados da ficha, sem bloquear a análise."""
 from __future__ import annotations
 
+from services.base_reprodutiva import base_reprodutiva
+
 
 def _numero(dados: dict, *nomes):
     for nome in nomes:
@@ -50,7 +52,11 @@ def analisar_validacoes_zootecnicas(
 
     natalidade = _numero(dados, 'taxa_natalidade_pct', 'natalidade_pct', 'taxa_natalidade')
     nascimentos = _numero(dados, 'nascimentos', 'nascimentos_ano')
-    matrizes = (v[6] + v[8]) if len(v) >= 9 else 0.0
+    # Só quem já pariu entra nos nascimentos esperados. Somar as 25–36m aqui
+    # inflava o esperado em ~40%, e como o alerta só dispara acima de 1,15× o
+    # esperado, ele parava de pegar exatamente a declaração exagerada que
+    # existe para pegar — o erro corria a favor de aprovar.
+    matrizes = base_reprodutiva(v).matrizes
     if natalidade is not None and not 40 <= natalidade <= 95:
         alertas.append(_alerta(
             'natalidade_fora_faixa', 'alerta', 'Natalidade fora da faixa de análise',

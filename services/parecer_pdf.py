@@ -31,6 +31,23 @@ _LABEL_RECOMENDACAO = {
     'aprovar': 'APROVAR', 'ressalva': 'APROVAR COM RESSALVA', 'negar': 'NEGAR',
 }
 
+# Os códigos de services/validacao_zootecnica.py em linguagem de parecer.
+CHECAGEM_NAO_REALIZADA = {
+    'vendas_ausentes':
+        'Vendas declaradas contra o estoque da ficha — vendas não informadas.',
+    'nascimentos_ou_natalidade_ausentes':
+        'Nascimentos contra a base reprodutiva — natalidade não informada.',
+    'mortalidade_ausente':
+        'Mortalidade dentro da faixa de análise — não informada.',
+    'reposicao_ausente':
+        'Reposição declarada — compras/reposição não informadas.',
+    'reconciliacao_estoque_ausente':
+        'Fechamento do rebanho projetado — projeção indisponível.',
+    'reconciliacao_mortalidade_ausente':
+        'Fechamento do rebanho projetado (entradas contra saídas) — '
+        'depende da mortalidade, não informada.',
+}
+
 
 def _styles():
     ss = getSampleStyleSheet()
@@ -345,10 +362,18 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
                 f"• <b>{alerta.get('titulo', '—')}</b>: "
                 f"{alerta.get('evidencia', '—')} · Ação: {alerta.get('acao', '—')}",
                 ss['Corpo']))
-        if validacoes.get('nao_avaliadas'):
+        nao_avaliadas = list(dict.fromkeys(validacoes.get('nao_avaliadas') or []))
+        if nao_avaliadas:
+            # Um parecer que vai a comitê não pode listar slug interno. Pior:
+            # sem dizer o que ficou de fora, a ausência de alertas se lê como
+            # aprovação — e parte destas checagens é justamente o que pegaria
+            # uma declaração exagerada.
             story.append(Paragraph(
-                f"Não avaliadas por falta de dados: {', '.join(validacoes['nao_avaliadas'])}.",
-                ss['Subtitulo']))
+                'Checagens não realizadas por falta de dado — a ausência de '
+                'alerta acima não cobre estes pontos:', ss['Subtitulo']))
+            for codigo in nao_avaliadas:
+                story.append(Paragraph(
+                    f"• {CHECAGEM_NAO_REALIZADA.get(codigo, codigo)}", ss['Corpo']))
 
     rating = parecer.get('rating') or {}
     if rating:
