@@ -6,8 +6,9 @@ o rebanho de uma propriedade identificável. Três problemas no mesmo arquivo �
 procedência, superfície de macro na máquina do analista e dado real no git.
 
 A ficha atual é gerada por scripts/generate_ficha_consolidado.py e a tabela de
-classificação vive em data/mapeamento_classificacao.csv. Estes testes existem
-para que o arquivo antigo não volte por descuido.
+classificação por scripts/generate_mapeamento.py. Estes testes existem para que
+o arquivo antigo não volte por descuido, e para deixar registrado que a tabela
+é derivável da regra que a define — não transcrição de planilha de ninguém.
 """
 import io
 import zipfile
@@ -17,6 +18,7 @@ import openpyxl
 import pytest
 
 import database as db
+from scripts.generate_mapeamento import SAIDA, escrever, linhas
 from services.fichas_rebanho.mapping_loader import load_mapping
 from services.importar_excel import parsear_ficha_excel
 
@@ -101,3 +103,25 @@ def test_o_mapeamento_vem_do_csv_versionado(estado, sexo, faixa, esperado):
 
     assert regra is not None
     assert regra.classificacao == esperado
+
+
+def test_a_tabela_distribuida_e_a_saida_do_gerador(tmp_path):
+    """A tabela é o produto (faixas do formulário × sexo) rotulado por 12 regras.
+
+    Nenhuma linha depende de julgamento por estado: a classificação é função de
+    (sexo, faixa). Regenerar e comparar prova isso a cada execução da suíte.
+    """
+    destino = tmp_path / 'mapeamento.csv'
+    escrever(destino)
+
+    assert destino.read_text(encoding='utf-8') == SAIDA.read_text(encoding='utf-8')
+
+
+def test_a_classificacao_nao_depende_do_estado():
+    """Se um dia depender, a regra do gerador deixa de descrever a tabela."""
+    por_sexo_e_faixa = {}
+    for linha in linhas():
+        _, _, faixa, sexo, _, classificacao, _, _ = linha
+        anterior = por_sexo_e_faixa.setdefault((sexo, faixa), classificacao)
+        assert anterior == classificacao
+    assert len(por_sexo_e_faixa) == 12

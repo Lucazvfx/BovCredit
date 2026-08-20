@@ -82,6 +82,25 @@ AGRODEFESA-GO, ADAPEC-TO, ADEPARÁ-PA) nos próprios formulários de declaraçã
 e a classificação é a nomenclatura zootécnica corrente — fêmea bovina acima de
 36 meses é vaca, macho de 25 a 36 meses é garrote.
 
+Isso é verificável, não é opinião: **as 74 linhas são função pura de (sexo,
+faixa)**. Doze pares cobrem a tabela inteira, sem uma única exceção por estado:
+
+```
+FEMEA  0 A 12 / 00 A 04 / 05 A 12  → Bezerra          MACHO → Bezerro
+FEMEA  13 A 24                     → Bezerra Desmama  MACHO → Bezerro Desmama
+FEMEA  25 A 36                     → Novilha          MACHO → Garrote
+FEMEA  ACIMA DE 36                 → Vaca             MACHO → Boi Gordo
+```
+
+O que varia por estado é apenas *quais* faixas o formulário daquele órgão usa —
+cinco em MT, quatro em RO/MS/MA/TO/PA, as duas formas em GO (que emite a
+declaração detalhada e o resumo "Rebanho por Fazenda"). E essas faixas os
+parsers já leem do próprio PDF, onde aparecem literalmente.
+
+As mesmas doze regras já existiam em outros dois pontos do código, sem passar
+pela planilha: `_FEMALE_MAP` / `_MALE_MAP` em `services/importar_excel.py` e
+`_VALOR_POR_CLASSIFICACAO` em `services/fichas_rebanho/consolidator.py`.
+
 Nada mais das planilhas era consumido: nem o VBA, nem a aba LOG, nem a aba
 Etapas do Projeto, nem as imagens.
 
@@ -103,8 +122,10 @@ Romeiro Mendes, citado na fonte — usados como validação, não como treino.
 
 ## 4. O que foi feito (commit `cd2e49b`, 2026-08-20)
 
-1. A tabela MAPEAMENTO foi transcrita para `data/mapeamento_classificacao.csv`,
-   versionada em texto. Os dois carregadores passaram a ler o CSV.
+1. A tabela MAPEAMENTO passou a viver em `data/mapeamento_classificacao.csv`,
+   versionada em texto, e é **gerada** por `scripts/generate_mapeamento.py` a
+   partir da regra descrita em 2 — não transcrita da planilha. A suíte
+   regenera e compara a cada execução. Os dois carregadores leem o CSV.
 2. `scripts/generate_ficha_consolidado.py` passou a gerar
    `static/templates/ficha_consolidado_rebanho.xlsx` — ficha própria, sem VBA,
    com totais em fórmula comum. É ela que `/api/ficha/download` entrega.
@@ -114,7 +135,8 @@ Romeiro Mendes, citado na fonte — usados como validação, não como treino.
    na calibração (passaram a ser `RECRIA_700` e `RECRIA_753`); os valores
    medidos continuam.
 6. `tests/test_ficha_sem_planilha_de_terceiro.py` falha se qualquer `.xlsm`
-   voltar ao repositório, ou se a ficha distribuída passar a conter VBA.
+   voltar ao repositório, se a ficha distribuída passar a conter VBA, se o CSV
+   divergir do gerador, ou se alguma classificação passar a depender do estado.
 
 ## 5. O que o histórico do git atesta — e o que não atesta
 
