@@ -163,9 +163,19 @@ não como fato verificado no repositório:
   relacionados a este projeto.
 - Este projeto não foi vendido à empresa autora nem desenvolvido para ela; não
   há relação comercial entre os dois.
+- O desenvolvimento se deu em equipamento próprio (notebook pessoal), em casa e
+  fora do horário de trabalho — sem recursos, instalações ou tempo do
+  empregador.
 
 Isso é consistente com o `cp:lastModifiedBy` das duas planilhas, que traz o
 nome do mantenedor: acesso ao arquivo, sem documento de cessão.
+
+**O que o repositório não corrobora**: os carimbos de tempo dos commits não
+servem para atestar horário nem local de trabalho. Este repositório foi
+desenvolvido em boa parte por sessões remotas em contêiner, e os commits
+carregam o fuso do contêiner — 53 em `+0000` e 50 em `-0700`, nenhum no fuso
+de Brasília. Quem quiser sustentar "fora do horário" precisa de outra fonte
+(registro de ponto, escala, equipamento), não do `git log`.
 
 Duas consequências, sem conclusão jurídica — que não cabe a este documento:
 
@@ -174,9 +184,12 @@ Duas consequências, sem conclusão jurídica — que não cabe a este documento
    isso ela não depende de como a discussão termine.
 2. **A titularidade do software é questão separada da titularidade das
    planilhas**, e depende do escopo do vínculo — atribuição da função,
-   recursos do empregador, se houve cláusula sobre criações. Software feito
-   fora do escopo da função e sem recursos do empregador tem tratamento
-   próprio em lei. Esclarecer isso é assunto para orientação jurídica, com
+   recursos do empregador, se houve cláusula sobre criações. A Lei 9.609/98
+   (art. 4º) trata das duas pontas: o software feito no desempenho da função
+   ou com recursos do empregador é do empregador; o feito fora disso, sem
+   relação com o contrato e sem uso de recursos da empresa, é do empregado.
+   Encaixar o caso numa ponta ou na outra depende de fatos que este documento
+   não estabelece. Esclarecer isso é assunto para orientação jurídica, com
    este documento e o histórico do repositório em mãos.
 
 ## 7. Pendências
