@@ -1,4 +1,4 @@
-ORKAVYN AGRO INTELLIGENCE — FICHA DE CLASSIFICAÇÃO DE REBANHO (.XLSM)
+ORKAVYN AGRO INTELLIGENCE — FICHA DE CONSOLIDAÇÃO DE REBANHO (.XLSX)
 
 OBJETIVO
 Preencher a composição do rebanho por fazenda e importar o arquivo na Orkavyn Agro Intelligence.
@@ -6,14 +6,12 @@ A ficha é uma fonte de composição do rebanho. Pesos, GMD, custos, dívidas e 
 reprodutivos devem ser confirmados com documentos e informações complementares.
 
 COMO PREENCHER
-1. Abra o arquivo no Microsoft Excel para Desktop.
-2. Se aparecer a barra amarela, clique em “Habilitar Edição” e depois em
-   “Habilitar Conteúdo/Macros”.
-3. Na aba CONSOLIDADO, informe o nome da fazenda e as quantidades nas colunas
+1. Abra o arquivo no Excel, LibreOffice, Google Planilhas ou Excel Online.
+2. Na aba CONSOLIDADO, informe o nome da fazenda e as quantidades nas colunas
    de fêmeas e machos.
-4. Preencha cada fazenda em seu bloco. Não altere os nomes das categorias.
-5. Salve o arquivo como .XLSM, mantendo as macros habilitadas.
-6. Na Orkavyn Agro Intelligence, use “Importar Ficha” e selecione este arquivo.
+3. Preencha cada fazenda em seu bloco. Não altere os nomes das categorias.
+4. Salve o arquivo em .XLSX.
+5. Na Orkavyn Agro Intelligence, use “Importar Ficha” e selecione este arquivo.
 
 CATEGORIAS
 Fêmeas: Bezerra, Bezerra Desmama, Novilha, Vaca.
@@ -24,11 +22,11 @@ A categoria Bezerra/Bezerro da ficha representa 0–12 meses. Como a Orkavyn Agr
 separa 0–5 e 5–13 meses, o sistema distribui essa quantidade em 50%/50% como
 estimativa. Confirme manualmente quando possuir a idade detalhada.
 
-MACROS E CÁLCULOS
-As macros originais estão preservadas neste arquivo. Use o Excel Desktop; Excel
-Online e alguns visualizadores não executam VBA. Se os totais não aparecerem,
-abra o arquivo no Excel, habilite o conteúdo e pressione Ctrl+Alt+F9 para recalcular.
-Não renomeie a aba CONSOLIDADO nem altere as colunas de categorias.
+CÁLCULOS
+A ficha não tem macros: os totais por fazenda e o Total Rebanho são fórmulas
+comuns, recalculadas por qualquer editor de planilha. A leitura de PDFs de
+declaração estadual é feita pelo servidor da Orkavyn, não por macro nesta
+planilha. Não renomeie a aba CONSOLIDADO nem altere as colunas de categorias.
 
 VALIDAÇÃO ANTES DA ANÁLISE
 Confira se:

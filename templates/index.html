@@ -656,7 +656,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <input type="file" id="insr-xlsx-inp" accept=".xlsx,.xlsm" style="display:none" onchange="lerPlanilha(this.files[0]);this.value=''">
         <button class="btn-sm" onclick="document.getElementById('pdf-inp-main').click()" title="Ler saldo de rebanho em PDF">📄 Ler PDF</button>
         <input type="file" id="pdf-inp-main" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files);this.value=''">
-          <button class="btn-sm" onclick="window.location='/api/ficha/download'" title="Baixar ficha XLSM com macros">⬇ Baixar Ficha XLSM</button>
+          <button class="btn-sm" onclick="window.location='/api/ficha/download'" title="Baixar ficha de consolidação (.xlsx)">⬇ Baixar Ficha</button>
           <button class="btn-sm" onclick="window.location='/api/ficha/instrucoes'" title="Baixar instruções de preenchimento">📄 Instruções</button>
         <button class="btn-sm" onclick="document.getElementById('insr-ficha-inp').click()">📋 Importar Ficha</button>
         <input type="file" id="insr-ficha-inp" accept=".xlsx,.xlsm" style="display:none" onchange="lerFichaExcel(this.files[0]);this.value=''">

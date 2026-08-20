@@ -72,7 +72,7 @@ P_MATRIZES_CRIA = 0.18
 #
 # Medido em rebanhos reais e sintéticos (fac_F ÷ f25_F):
 #
-#   Fazenda Vale do Coco (recria de fêmeas)     0,02   ← 209 fêmeas 25–36m, 5 acima
+#   Recria B de fêmeas (753 cab)                0,02   ← 209 fêmeas 25–36m, 5 acima
 #   ficha real de recria, 700 cabeças           1,31
 #   cria do teste de conservação                1,89
 #   cria sintética de 1.705 cabeças             5,00
@@ -724,7 +724,7 @@ def classificar(
     # regras diferentes (`guarda_ciclo_completo` e `descarte_engorda_sem_venda`)
     # escolhiam CRIA por probabilidade e seguiam adiante.
     #
-    # Caso real que motivou isto — Fazenda Vale do Coco, 753 cabeças,
+    # Caso real que motivou isto — Recria B, 753 cabeças,
     # reportado por analista em campo: rebanho quase todo fêmea, com 150 de
     # 0–12m, 374 de 13–24m, 209 de 25–36m e apenas CINCO acima de 36 meses.
     # Saía CRIA, e cinco matrizes não parem 700 cabeças.
@@ -735,7 +735,7 @@ def classificar(
     #   vaca de cria vive de 8 a 10 anos e SE ACUMULA acima dos 36 meses
     #   fêmea de recria é vendida ANTES de parir, e essa faixa fica vazia
     #
-        # Medido (fêmeas >36m ÷ fêmeas 25–36m): Vale do Coco 0,02 · ficha real de
+        # Medido (fêmeas >36m ÷ fêmeas 25–36m): Recria B 0,02 · ficha real de
     # recria 1,31 · cria de teste 1,89 · cria sintética 5,00. Duas ordens de
     # grandeza de separação.
     #

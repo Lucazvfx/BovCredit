@@ -18,8 +18,8 @@ compatibilidade retroativa que virou parâmetro zootécnico.
 Peso médio depende da composição — rebanho com muito animal jovem pesa bem
 menos por cabeça. Medido nas duas fazendas reais do projeto:
 
-    Fazenda 3 Furnas (ADAPEC) .... 9,75 @/cab contra 11,7  → custo −17%
-    Vale do Coco ................. 9,87 @/cab contra 11,7  → custo −16%
+    Recria A (ADAPEC-TO, 700 cab)  9,75 @/cab contra 11,7  → custo −17%
+    Recria B (ADAPEC-TO, 753 cab)  9,87 @/cab contra 11,7  → custo −16%
 
 Dividir por um número maior que o real infla o denominador e REDUZ o custo por
 arroba: menos custo, mais caixa, DSCR maior. O erro corria a favor de aprovar,
@@ -48,23 +48,23 @@ def _arrobas_por_cab(v):
     return a / sum(v)
 
 
-FURNAS = [22, 219, 0, 0, 105, 234, 45, 16, 59, 0]        # ADAPEC-TO, real
-VALE_DO_COCO = [0, 0, 150, 15, 374, 0, 209, 0, 5, 0]     # ADAPEC-TO, real
+RECRIA_700 = [22, 219, 0, 0, 105, 234, 45, 16, 59, 0]    # ADAPEC-TO, real
+RECRIA_753 = [0, 0, 150, 15, 374, 0, 209, 0, 5, 0]       # ADAPEC-TO, real
 CICLO = [80, 80, 50, 50, 60, 60, 90, 40, 220, 60]
 
 
 # ── A conversão ─────────────────────────────────────────────────────────────
-@pytest.mark.parametrize('nome,v', [('3 Furnas', FURNAS), ('Vale do Coco', VALE_DO_COCO)])
+@pytest.mark.parametrize('nome,v', [('recria 700', RECRIA_700), ('recria 753', RECRIA_753)])
 def test_rebanho_jovem_pesa_menos_que_a_constante(nome, v):
     """O caso que a constante subestimava — e são os dois rebanhos reais."""
     assert _arrobas_por_cab(v) < ARROBAS_POR_CABECA_FALLBACK
 
 
 def test_peso_real_encarece_rebanho_jovem():
-    real = custo_arroba_padrao('RECRIA', arrobas_por_cabeca=_arrobas_por_cab(FURNAS))
+    real = custo_arroba_padrao('RECRIA', arrobas_por_cabeca=_arrobas_por_cab(RECRIA_700))
     fixo = custo_arroba_padrao('RECRIA', arrobas_por_cabeca=ARROBAS_POR_CABECA_FALLBACK)
     assert real > fixo
-    assert real / fixo == pytest.approx(ARROBAS_POR_CABECA_FALLBACK / _arrobas_por_cab(FURNAS), rel=1e-3)
+    assert real / fixo == pytest.approx(ARROBAS_POR_CABECA_FALLBACK / _arrobas_por_cab(RECRIA_700), rel=1e-3)
 
 
 def test_peso_real_barateia_rebanho_pesado():
@@ -84,7 +84,7 @@ def test_os_dois_caminhos_concordam():
     Com o mesmo desembolso e o mesmo rebanho, o caminho com componentes e o
     caminho padrão têm de dar o mesmo R$/@. Eram duas bases diferentes.
     """
-    v = FURNAS
+    v = RECRIA_700
     a = arrobas_categorias(
         matrizes=float(v[6] + v[8]), bois=float(v[7] + v[9]),
         jovens_f=float(v[0] + v[2] + v[4]), jovens_m=float(v[1] + v[3] + v[5]))
@@ -139,7 +139,7 @@ def test_a_rota_usa_o_peso_do_rebanho():
     with c.session_transaction() as s:
         s['_user_id'] = str(u['id'])
     d = c.post('/api/classificar', json={
-        'valores': FURNAS, 'preco': 320, 'credito_valor': 840_000,
+        'valores': RECRIA_700, 'preco': 320, 'credito_valor': 840_000,
         'prazo_meses': 36, 'juros_aa': 0.125}).get_json()
     coe = d['parecer']['fluxo_gep'].get('coe_por_arroba') or 0
     # A asserção é RELATIVA de propósito. A versão anterior exigia COE > 400,
@@ -152,10 +152,10 @@ def test_a_rota_usa_o_peso_do_rebanho():
     # na razão 11,7/9,75 = 1,2. É isso que se afere, em qualquer nível de custo.
     from services.custos_desembolso import ARROBAS_POR_CABECA_FALLBACK
     a = arrobas_categorias(
-        matrizes=float(FURNAS[6] + FURNAS[8]), bois=float(FURNAS[7] + FURNAS[9]),
-        jovens_f=float(FURNAS[0] + FURNAS[2] + FURNAS[4]),
-        jovens_m=float(FURNAS[1] + FURNAS[3] + FURNAS[5]))
-    peso_real = a / sum(FURNAS)
+        matrizes=float(RECRIA_700[6] + RECRIA_700[8]), bois=float(RECRIA_700[7] + RECRIA_700[9]),
+        jovens_f=float(RECRIA_700[0] + RECRIA_700[2] + RECRIA_700[4]),
+        jovens_m=float(RECRIA_700[1] + RECRIA_700[3] + RECRIA_700[5]))
+    peso_real = a / sum(RECRIA_700)
     assert peso_real < ARROBAS_POR_CABECA_FALLBACK, 'a premissa do caso mudou'
     razao = ARROBAS_POR_CABECA_FALLBACK / peso_real
     coe_com_fallback = coe / razao

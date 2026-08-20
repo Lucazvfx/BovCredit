@@ -9,7 +9,7 @@ Expõe:
   parsear_declaracao_idaron(text)     -> dict   RO declaração eletrônica
   parsear_generico(text)              -> dict   MS / MA / TO / PA + fallback
 
-Estados suportados via MAPEAMENTO (Classificação de Rebanho - Fichas.xlsm):
+Estados suportados via MAPEAMENTO (data/mapeamento_classificacao.csv):
   MT_DECLARACAO  → INDEA    (5 faixas: 0-4m / 5-12m / 13-24m / 25-36m / 36m+)
   GO_DECLARACAO  → INDEA    (mesmo padrão MT)
   GO_IR          → INDEA

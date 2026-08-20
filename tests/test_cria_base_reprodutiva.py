@@ -26,7 +26,7 @@ que distingue os dois sistemas:
     vaca de cria vive de 8 a 10 anos e SE ACUMULA acima dos 36 meses
     fêmea de recria é vendida ANTES de parir, e essa faixa fica vazia
 
-No Vale do Coco a soma dá 28,4% do rebanho — acima do limiar de 18% — e mesmo
+Na Recria B a soma dá 28,4% do rebanho — acima do limiar de 18% — e mesmo
 assim não é cria. A razão fêmeas>36m ÷ fêmeas 25–36m dá 0,02 contra 1,31 a
 5,00 nos rebanhos de cria observados: duas ordens de grandeza.
 
@@ -51,7 +51,7 @@ def _modelo():
 
 
 # [f00F, f00M, f05F, f05M, f13F, f13M, f25F, f25M, facF, facM]
-VALE_DO_COCO = [0, 0, 150, 15, 374, 0, 209, 0, 5, 0]
+RECRIA_753 = [0, 0, 150, 15, 374, 0, 209, 0, 5, 0]
 
 CRIAS_LEGITIMAS = {
     'cria 504 cabeças':   [60, 60, 30, 15, 45, 20, 90, 6, 170, 8],
@@ -60,7 +60,7 @@ CRIAS_LEGITIMAS = {
 
 
 def test_o_caso_relatado_deixa_de_ser_cria():
-    r = classificar(VALE_DO_COCO)
+    r = classificar(RECRIA_753)
     assert r['tipo'] != 'CRIA', (
         'rebanho com 5 matrizes para 753 cabeças voltou a ser classificado '
         'como cria'
@@ -73,7 +73,7 @@ def test_a_recusa_e_explicada_ao_analista():
     Um parecer que muda de ciclo sem dizer por quê é pior que um errado: o
     analista não tem como concordar nem discordar.
     """
-    r = classificar(VALE_DO_COCO)
+    r = classificar(RECRIA_753)
     assert r.get('regra_aplicada') == 'cria_sem_base_reprodutiva'
     texto = ' '.join(r.get('explicacao') or [])
     assert 'recria de fêmeas' in texto
@@ -86,12 +86,12 @@ def test_a_soma_de_matrizes_sozinha_nao_pegaria_o_caso():
     rebanho passa. Se alguém remover a razão achando que é redundante, este
     teste mostra que não é.
     """
-    total = sum(VALE_DO_COCO)
-    matrizes = VALE_DO_COCO[6] + VALE_DO_COCO[8]
+    total = sum(RECRIA_753)
+    matrizes = RECRIA_753[6] + RECRIA_753[8]
     assert matrizes / total > P_MATRIZES_CRIA, (
         'o caso deixou de ser aquele em que a contagem de matrizes engana'
     )
-    razao = VALE_DO_COCO[8] / VALE_DO_COCO[6]
+    razao = RECRIA_753[8] / RECRIA_753[6]
     assert razao < RAZAO_MATRIZ_MADURA_CRIA
 
 

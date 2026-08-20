@@ -1,6 +1,7 @@
 """Importação de ficha de rebanho a partir do CONSOLIDADO (xlsx/xlsm).
 
-Formato esperado: aba CONSOLIDADO da planilha 'Classificação de Rebanho - Fichas'.
+Formato esperado: aba CONSOLIDADO da ficha de consolidação de rebanho
+(static/templates/ficha_consolidado_rebanho.xlsx).
   - Col B: label feminino ('Bezerra', 'Bezerra Desmama', 'Novilha', 'Vaca')
            ou 'Fazenda' (nome da fazenda está em col C)
   - Col C: quantidade feminina (int) digitada pelo usuário, ou nome da fazenda
@@ -19,7 +20,7 @@ Mapeia para o array v[] de 10 posições (ordem do motor):
   Garrote (25-36m M)      → f25_M
   Boi Gordo (36m+ M)      → fac_M
 
-Fonte do mapeamento: MAPEAMENTO (aba da mesma planilha), estados MT/GO/MS/MA/TO/RO/PA.
+Fonte do mapeamento: data/mapeamento_classificacao.csv, estados MT/GO/MS/MA/TO/RO/PA.
 """
 from __future__ import annotations
 import io

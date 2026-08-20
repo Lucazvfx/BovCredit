@@ -1,7 +1,14 @@
+"""Tabela de-para (estado, sexo, faixa etária) → classificação do rebanho.
+
+A tabela vive em data/mapeamento_classificacao.csv: as faixas são as
+publicadas pelos próprios órgãos estaduais (INDEA, IDARON, IAGRO, AGED,
+AGRODEFESA, ADAPEC, ADEPARÁ) e a classificação é a nomenclatura zootécnica
+correspondente. CSV em vez de planilha porque é o formato que o git versiona
+linha a linha — uma mudança de regra aparece no diff.
+"""
 from __future__ import annotations
 
-import base64
-import io
+import csv
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,25 +35,9 @@ def _normalizar(value: str) -> str:
     return ''.join(c for c in text if not unicodedata.combining(c)).upper()
 
 
-def _bytes_xlsm(source=None) -> bytes:
-    if source is None:
-        source = Path(__file__).resolve().parents[2] / 'static' / 'classificacao_rebanho_fichas.xlsm'
-    if hasattr(source, '__fspath__'):
-        raw = Path(source).read_bytes()
-    elif isinstance(source, bytes):
-        raw = source
-    else:
-        raw = source.read()
-
-    if raw[:2] != b'PK':
-        try:
-            decoded = base64.b64decode(raw, validate=True)
-        except Exception as exc:
-            raise ValueError('Fonte do MAPEAMENTO não é um XLSM válido.') from exc
-        if decoded[:2] != b'PK':
-            raise ValueError('Fonte do MAPEAMENTO não contém um XLSM válido.')
-        raw = decoded
-    return raw
+ARQUIVO_MAPEAMENTO = (
+    Path(__file__).resolve().parents[2] / 'data' / 'mapeamento_classificacao.csv'
+)
 
 
 class MappingCatalog:
@@ -81,35 +72,24 @@ class MappingCatalog:
 
 
 def load_mapping(source=None) -> MappingCatalog:
-    import openpyxl
+    caminho = Path(source) if source else ARQUIVO_MAPEAMENTO
+    with open(caminho, newline='', encoding='utf-8') as arquivo:
+        linhas = list(csv.DictReader(arquivo))
 
-    workbook = openpyxl.load_workbook(
-        io.BytesIO(_bytes_xlsm(source)),
-        read_only=True,
-        data_only=True,
-        keep_vba=False,
-    )
-    if 'MAPEAMENTO' not in workbook.sheetnames:
-        raise ValueError('Aba MAPEAMENTO não encontrada no XLSM.')
-
-    ws = workbook['MAPEAMENTO']
-    rows = ws.iter_rows(values_only=True)
-    header = next((row for row in rows if any(value is not None for value in row)), None)
-    if not header:
-        raise ValueError('Aba MAPEAMENTO vazia.')
-    columns = {_normalizar(value): index for index, value in enumerate(header)}
+    if not linhas:
+        raise ValueError('Tabela de mapeamento vazia.')
+    colunas = {_normalizar(nome) for nome in (linhas[0].keys())}
     required = {
         'ORDEM', 'ESPECIE', 'ESTRATIFICACAO', 'SEXO',
         'ESTADO', 'CLASSIFICACAO', 'CHAVE', 'ATIVO',
     }
-    missing = required - columns.keys()
+    missing = required - colunas
     if missing:
         raise ValueError(f'Colunas ausentes no MAPEAMENTO: {sorted(missing)}')
 
     rules = []
-    for row in rows:
-        values = list(row)
-        get = lambda name: values[columns[name]] if columns[name] < len(values) else ''
+    for linha in linhas:
+        get = linha.get
         ativo = _normalizar(get('ATIVO')) in {'SIM', 'S', 'TRUE', '1'}
         rules.append(MappingRule(
             ordem=int(get('ORDEM') or 0),
