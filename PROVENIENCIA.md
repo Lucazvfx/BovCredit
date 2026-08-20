@@ -149,13 +149,46 @@ nem que o `pdf_parsers.py` precedeu as planilhas, nem o contrário. Os metadados
 OOXML datam as planilhas de 2026-07-09. Qualquer cronologia anterior ao commit
 raiz precisa vir de fora do repositório.
 
-## 6. Pendências
+## 6. Origem declarada dos arquivos
+
+O repositório não contém documento que estabeleça a origem das planilhas. O
+que segue é a declaração do mantenedor do projeto, registrada aqui em
+2026-08-20 por ser a única fonte disponível — e identificada como declaração,
+não como fato verificado no repositório:
+
+- O acesso às planilhas se deu no contexto do vínculo empregatício com a
+  empresa autora, em função que não é de desenvolvimento de software
+  (estoquista).
+- Não houve contrato, prestação de serviço, cessão de direitos ou pagamento
+  relacionados a este projeto.
+- Este projeto não foi vendido à empresa autora nem desenvolvido para ela; não
+  há relação comercial entre os dois.
+
+Isso é consistente com o `cp:lastModifiedBy` das duas planilhas, que traz o
+nome do mantenedor: acesso ao arquivo, sem documento de cessão.
+
+Duas consequências, sem conclusão jurídica — que não cabe a este documento:
+
+1. **Nada aqui autorizava redistribuir as planilhas.** Acesso no trabalho não
+   é licença. É exatamente o que a remoção no commit `cd2e49b` trata, e por
+   isso ela não depende de como a discussão termine.
+2. **A titularidade do software é questão separada da titularidade das
+   planilhas**, e depende do escopo do vínculo — atribuição da função,
+   recursos do empregador, se houve cláusula sobre criações. Software feito
+   fora do escopo da função e sem recursos do empregador tem tratamento
+   próprio em lei. Esclarecer isso é assunto para orientação jurídica, com
+   este documento e o histórico do repositório em mãos.
+
+## 7. Pendências
 
 - **Histórico**: remover do working tree não removeu do histórico. As duas
   `.xlsm` — e o dado do produtor `51000170455` — seguem acessíveis via
   `git show 43368d7:static/...`. Limpar exige reescrita de histórico
   (`git filter-repo`) e force-push, com reclone por todos e mudança dos hashes
-  que o deploy fixa. Decisão pendente.
-- **Origem do arquivo**: como as planilhas chegaram ao projeto — contrato,
-  prestação de serviço, cessão ou nenhum documento — não está registrado aqui
-  porque não consta do repositório. É o primeiro documento a levantar.
+  que o deploy fixa. Decisão pendente, e não puramente técnica: a remoção do
+  histórico depois de a empresa ter questionado é decisão a tomar com
+  orientação, não por conveniência de repositório.
+- **Dado de terceiro**: a exposição do rebanho da propriedade `51000170455`
+  independe da discussão sobre as planilhas. Marcos registrados: entrada no
+  repositório em 2026-08-11 (`43368d7`), contenção em 2026-08-20 (`cd2e49b`),
+  histórico ainda contém. Se há notificação a fazer, é decisão pendente.
