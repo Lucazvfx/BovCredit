@@ -1559,8 +1559,8 @@ def api_classificar():
     # Peso médio depende da composição, e rebanho com muito animal jovem pesa
     # bem menos. Medido nas duas fazendas reais que temos:
     #
-    #     Fazenda 3 Furnas (ADAPEC) .... 9,75 @/cab contra 11,7  → custo −17%
-    #     Vale do Coco ................. 9,87 @/cab contra 11,7  → custo −16%
+    #     Recria A (ADAPEC-TO, 700 cab)  9,75 @/cab contra 11,7  → custo −17%
+    #     Recria B (ADAPEC-TO, 753 cab)  9,87 @/cab contra 11,7  → custo −16%
     #
     # Dividir por um número maior que o real infla o denominador e REDUZ o
     # custo por arroba — menos custo, mais caixa, DSCR maior. O erro corria a
@@ -3352,12 +3352,12 @@ def api_importar_fichas():
 @app.route('/api/ficha/download', methods=['GET'])
 @login_required
 def api_ficha_download():
-    """Baixa a ficha XLSM oficial de classificação do rebanho."""
+    """Baixa a ficha de consolidação de rebanho (.xlsx, sem macros)."""
     return send_file(
-        os.path.join(app.static_folder, 'classificacao_rebanho_fichas.xlsm'),
-        mimetype='application/vnd.ms-excel.sheet.macroEnabled.12',
+        os.path.join(app.static_folder, 'templates', 'ficha_consolidado_rebanho.xlsx'),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name='classificacao_rebanho_fichas.xlsm',
+        download_name='ficha_consolidado_rebanho.xlsx',
     )
 
 

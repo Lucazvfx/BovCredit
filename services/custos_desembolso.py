@@ -326,8 +326,8 @@ def custo_arroba_padrao(tipo: str, arrobas_por_cabeca: float = None,
 
     Medido nas duas fazendas reais do projeto:
 
-        Fazenda 3 Furnas (ADAPEC) .... 9,75 @/cab contra 11,7  → custo −17%
-        Vale do Coco ................. 9,87 @/cab contra 11,7  → custo −16%
+        Recria A (ADAPEC-TO, 700 cab)  9,75 @/cab contra 11,7  → custo −17%
+        Recria B (ADAPEC-TO, 753 cab)  9,87 @/cab contra 11,7  → custo −16%
 
     Dividir por um número maior que o real infla o denominador e REDUZ o custo
     por arroba — menos custo, mais caixa, DSCR maior. O erro corria a favor de

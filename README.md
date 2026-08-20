@@ -91,7 +91,7 @@ As imagens em `docs/screenshots/` devem ser regeneradas após alterações visua
 9. **Confirmação** — o analista confirma ou corrige a modalidade, e isso vira dado de treino.
 10. **Qualidade dos dados** — separa dados observados, informados, estimados e ausentes.
 11. **Documentação** — checklist de GTA/inventário, CAR, propriedade, custos, pesagens e endividamento.
-12. **Importação XLSM** — ficha de classificação de rebanho com múltiplas fazendas e macros preservadas.
+12. **Importação de ficha** — planilha de consolidação de rebanho com múltiplas fazendas, sem macros.
 13. **Fluxo mensal** — demonstração estimada de receita, custos, dívida, fluxo livre e mês crítico.
 
 ---
@@ -250,9 +250,9 @@ O resultado matemático da capacidade de pagamento é separado da condição doc
 
 Cada análise informa se o dado veio da ficha, foi informado pelo analista ou foi estimado por benchmark. Uma ficha sanitária contém contagens por sexo e idade, mas não comprova sozinha peso, GMD, natalidade, custos ou capacidade de pagamento. Estimativas são identificadas e reduzem a confiança da análise.
 
-### Importação da ficha XLSM
+### Importação da ficha de consolidação
 
-O arquivo `static/classificacao_rebanho_fichas.xlsm` é disponibilizado pelo endpoint `/api/ficha/download` e pelo botão **Baixar Ficha XLSM**. O manual está em `/api/ficha/instrucoes`. A ficha preserva o projeto VBA original; macros devem ser habilitadas no Excel Desktop. O importador lê a aba `CONSOLIDADO`, reconhece múltiplas fazendas, valida totais e mapeia as categorias para as 10 posições do motor. A categoria 0–12 meses é dividida 50/50 entre as duas faixas jovens quando não existe idade mais detalhada.
+O arquivo `static/templates/ficha_consolidado_rebanho.xlsx` é disponibilizado pelo endpoint `/api/ficha/download` e pelo botão **Baixar Ficha**. O manual está em `/api/ficha/instrucoes`. A ficha é gerada por `scripts/generate_ficha_consolidado.py` e não tem macros: os totais são fórmulas comuns e a leitura de PDFs é feita pelo servidor. O importador lê a aba `CONSOLIDADO`, reconhece múltiplas fazendas, valida totais e mapeia as categorias para as 10 posições do motor. A categoria 0–12 meses é dividida 50/50 entre as duas faixas jovens quando não existe idade mais detalhada.
 
 ### Pesos e rendimentos por categoria
 
@@ -548,7 +548,7 @@ tests/                        # pytest — 56 arquivos, 417 casos
 | POST | `/api/cenario` · GET `/api/cenarios` | Projeção de cenários |
 | POST | `/api/reconciliacao` | Reconciliar documentos de garantia |
 | POST | `/api/ler-pdf` · `/api/ler-planilha` · `/api/parse-text` | Importação |
-| GET | `/api/template/download` · `/api/ficha/download` · `/api/ficha/instrucoes` | Templates e manual XLSM |
+| GET | `/api/template/download` · `/api/ficha/download` · `/api/ficha/instrucoes` | Templates e manual da ficha |
 | POST | `/api/importar-ficha-excel` | Importar e validar `.xlsx`/`.xlsm` com múltiplas fazendas |
 | GET | `/api/precos/live` | Cotações do dia |
 | GET | `/api/noticias` | Notícias do setor |
@@ -751,13 +751,13 @@ O ativo que ainda falta construir e que composto vira fosso: **série histórica
 
 ## Leitura centralizada de fichas estaduais
 
-A camada services/fichas_rebanho reproduz o fluxo do XLSM:
+A camada services/fichas_rebanho encadeia:
 
 PDF -> leitor estadual -> MAPEAMENTO -> registros/LOG -> validação -> consolidação
 
-O catálogo de regras é carregado da aba MAPEAMENTO de
-static/classificacao_rebanho_fichas.xlsm. O carregador aceita tanto o XLSM
-normal quanto a cópia Base64 distribuída no projeto.
+O catálogo de regras é carregado de data/mapeamento_classificacao.csv: as
+faixas etárias são as publicadas pelos órgãos estaduais e a classificação é a
+nomenclatura zootécnica correspondente.
 
 O endpoint de lote é POST /api/fichas/importar.
 

@@ -1,13 +1,14 @@
-"""Fonte única das regras da aba MAPEAMENTO do XLSM de fichas."""
+"""Fonte única das regras de classificação (data/mapeamento_classificacao.csv)."""
 from __future__ import annotations
 
+import csv
 from functools import lru_cache
 from pathlib import Path
 import unicodedata
 
 
-_ARQUIVO_PADRAO = Path(__file__).resolve().parents[1] / 'static' / 'ficha_consolidado_exemplo.xlsm'
-_COLUNAS = ('ORDEM', 'ESPÉCIE', 'ESTRATIFICAÇÃO', 'SEXO', 'ESTADO', 'CLASSIFICAÇÃO', 'CHAVE', 'ATIVO')
+_ARQUIVO_PADRAO = Path(__file__).resolve().parents[1] / 'data' / 'mapeamento_classificacao.csv'
+_COLUNAS = ('ORDEM', 'ESPECIE', 'ESTRATIFICACAO', 'SEXO', 'ESTADO', 'CLASSIFICACAO', 'CHAVE', 'ATIVO')
 
 
 def _normalizar(valor) -> str:
@@ -34,42 +35,33 @@ def _estado_mapeamento(estado: str) -> str:
 
 @lru_cache(maxsize=4)
 def load_mapeamento(source: str | Path | None = None) -> dict[str, dict]:
-    """Carrega as regras ativas da aba MAPEAMENTO do XLSM do projeto."""
-    import openpyxl
-
+    """Carrega as regras ativas da tabela de classificação do projeto."""
     caminho = Path(source) if source else _ARQUIVO_PADRAO
-    wb = openpyxl.load_workbook(caminho, read_only=True, data_only=True, keep_vba=True)
-    if 'MAPEAMENTO' not in wb.sheetnames:
-        raise ValueError('Aba MAPEAMENTO não encontrada no XLSM')
-    ws = wb['MAPEAMENTO']
+    with open(caminho, newline='', encoding='utf-8') as arquivo:
+        linhas = list(csv.DictReader(arquivo))
 
-    cabecalho = None
-    for linha in ws.iter_rows(min_row=1, max_row=min(ws.max_row, 10), values_only=True):
-        normalizada = tuple(_normalizar(c) for c in linha[:len(_COLUNAS)])
-        if normalizada == tuple(_normalizar(c) for c in _COLUNAS):
-            cabecalho = linha
-            break
-    if cabecalho is None:
-        raise ValueError('Cabeçalho esperado não encontrado na aba MAPEAMENTO')
+    if not linhas:
+        raise ValueError('Tabela de mapeamento vazia')
+    faltando = [c for c in _COLUNAS if c not in linhas[0]]
+    if faltando:
+        raise ValueError(f'Colunas ausentes no mapeamento: {faltando}')
 
     regras = {}
-    for linha in ws.iter_rows(min_row=ws.min_row + 1, values_only=True):
-        valores = list(linha[:len(_COLUNAS)])
-        if len(valores) < len(_COLUNAS) or _normalizar(valores[7]) != 'SIM':
+    for regra in linhas:
+        if _normalizar(regra['ATIVO']) != 'SIM':
             continue
-        regra = dict(zip(_COLUNAS, valores))
-        chave = str(regra['CHAVE']).strip()
-        if chave in {'', 'None'}:
-            chave = f"{regra['ESTADO']}|{regra['SEXO']}|{regra['ESTRATIFICAÇÃO']}"
+        chave = regra['CHAVE'].strip()
+        if not chave:
+            chave = f"{regra['ESTADO']}|{regra['SEXO']}|{regra['ESTRATIFICACAO']}"
         regras[chave] = {
             'ordem': int(regra['ORDEM']),
-            'especie': str(regra['ESPÉCIE']).strip(),
-            'estratificacao': str(regra['ESTRATIFICAÇÃO']).strip(),
-            'sexo': str(regra['SEXO']).strip(),
-            'estado': str(regra['ESTADO']).strip(),
-            'classificacao': str(regra['CLASSIFICAÇÃO']).strip(),
+            'especie': regra['ESPECIE'].strip(),
+            'estratificacao': regra['ESTRATIFICACAO'].strip(),
+            'sexo': regra['SEXO'].strip(),
+            'estado': regra['ESTADO'].strip(),
+            'classificacao': regra['CLASSIFICACAO'].strip(),
             'chave': chave,
-            'ativo': str(regra['ATIVO']).strip(),
+            'ativo': regra['ATIVO'].strip(),
         }
     return regras
 
@@ -91,7 +83,7 @@ def buscar_mapeamento(estado: str, sexo: str, estratificacao: str) -> dict:
 
 
 def mapear_animais(animais: dict, estado: str) -> list[dict]:
-    """Distribui o rebanho nas classificações definidas no XLSM."""
+    """Distribui o rebanho nas classificações definidas no mapeamento."""
     resultado = []
     estado_excel = _estado_mapeamento(estado)
     origem = _normalizar(estado).replace('-', '_').replace(' ', '_')
