@@ -57,6 +57,7 @@ from services.parecer_credito import (
     montar_parecer, cronograma_divida,
     SISTEMAS as _SISTEMAS_AMORT, PERIODICIDADES as _PERIODICIDADES)
 from services.parecer_pdf import gerar_pdf_parecer
+from services.parecer_pdf_perene import gerar_pdf_parecer_perene
 from services.pesos_rebanho import arrobas_categorias
 from services.parametros_zootecnicos import (
     natalidade_de_prenhez, avaliar_reposicao as _avaliar_reposicao)
@@ -3483,6 +3484,36 @@ def api_perene_importar_ficha():
         return jsonify({'erro': f'Ficha fora do padrão: {erro}'}), 400
 
     return jsonify(resultado)
+
+
+@app.route('/api/perene/parecer/pdf', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
+@login_required
+def api_perene_parecer_pdf():
+    """Gera o PDF do parecer de lavoura perene a partir do payload da análise."""
+    data = request.get_json(silent=True) or {}
+    analise = data.get('analise')
+    if not analise:
+        if not data.get('talhoes'):
+            return jsonify({'erro': 'Envie a análise ou o payload da lavoura.'}), 400
+        try:
+            analise = analisar_lavoura_perene(data)
+        except (TypeError, ValueError) as erro:
+            return jsonify({'erro': str(erro)}), 400
+
+    empresa_id = _resolver_empresa_ativa()
+    empresa = db.buscar_empresa(empresa_id) if empresa_id else None
+    branding = {'nome_consultoria': empresa.get('nome') or '',
+                'logo_base64': empresa.get('logo_base64') or ''} if empresa else None
+
+    identificacao = data.get('identificacao') or {}
+    pdf_bytes = gerar_pdf_parecer_perene(
+        analise, identificacao=identificacao, branding=branding)
+    _auditar(_aud.PARECER_PDF, recurso='fazenda',
+             recurso_id=identificacao.get('fazenda') or None,
+             detalhe='parecer perene')
+    return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
+                     as_attachment=True, download_name='parecer_perene.pdf')
 
 
 @app.route('/api/perene/analisar', methods=['POST'])

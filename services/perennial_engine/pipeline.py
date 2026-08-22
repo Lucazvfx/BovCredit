@@ -133,11 +133,23 @@ def analisar_lavoura_perene(payload: Mapping[str, Any]) -> dict[str, Any]:
     fluxo_mensal = projetar_fluxo_mensal(projecao_anos)
 
     analise = credito.get('analysis') or {}
+    # O cenário precisa do serviço da dívida DE CADA ANO, não de um valor médio:
+    # com carência, o ano 1 não paga nada e os seguintes pagam parcelas
+    # diferentes no SAC. Passando só o agregado, o motor caía no serviço do
+    # ano 1 — zero durante a carência — e devolvia DSCR nulo em todo cenário.
+    servico_por_ano = {
+        _int(periodo.get('ano')): periodo.get('servico_divida_anual', 0.0)
+        for periodo in (credito.get('periods') or [])
+    }
+    linhas_stress = [
+        dict(linha, servico_divida_anual=servico_por_ano.get(linha['ano'], 0.0))
+        for linha in projecao_anos
+    ]
     stress = run_stress_tests(
         {
-            'projecao_anos': projecao_anos,
+            'projecao_anos': linhas_stress,
             'conclusao': analise.get('conclusao', {}),
-            'servico_divida_anual': analise.get('servico_divida_anual', 0.0),
+            'servico_divida_anual': analise.get('servico_divida_media_anual', 0.0),
             'geracao_caixa_anual': analise.get('geracao_caixa_anual', 0.0),
         },
         payload.get('stress_scenarios') or cenarios_perene_padrao(),
@@ -153,6 +165,18 @@ def analisar_lavoura_perene(payload: Mapping[str, Any]) -> dict[str, Any]:
 
     return {
         'valido': bool(economico['valido']),
+        # As curvas voltam com a análise para o parecer poder citar a fonte de
+        # cada uma — ou dizer que não há, o que muda o peso do documento.
+        'curvas': {
+            nome: {
+                'produtividade_plena': curva.produtividade_plena,
+                'unidade': curva.unidade,
+                'bienalidade': curva.bienalidade,
+                'ciclo_anos': curva.ciclo_anos,
+                'fonte': curva.fonte,
+            }
+            for nome, curva in curvas.items()
+        },
         'producao': producao,
         'economico': economico,
         'credito': credito,
