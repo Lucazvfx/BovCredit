@@ -20,6 +20,7 @@ from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services.payment_capacity_engine import calculate_payment_capacity
 from services.stress_engine import run_stress_tests
 
+from .dicas import gerar_dicas
 from .economics import resultado_economico
 from .models import CurvaProdutividade, PerennialState, Talhao
 from .projector import project_perennial_production
@@ -163,7 +164,7 @@ def analisar_lavoura_perene(payload: Mapping[str, Any]) -> dict[str, Any]:
             'primeiro. Avaliar a operação pelo ano 1 aprovaria crédito que '
             'não se paga no ano crítico.')
 
-    return {
+    resultado = {
         'valido': bool(economico['valido']),
         # As curvas voltam com a análise para o parecer poder citar a fonte de
         # cada uma — ou dizer que não há, o que muda o peso do documento.
@@ -185,3 +186,5 @@ def analisar_lavoura_perene(payload: Mapping[str, Any]) -> dict[str, Any]:
         'projecao_anos': projecao_anos,
         'avisos': avisos,
     }
+    resultado['dicas'] = gerar_dicas(resultado, credito_pedido)
+    return resultado

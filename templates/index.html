@@ -1063,8 +1063,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="ch"><div class="ct"><div class="cd"></div>Ficha de Talhões</div></div>
     <div class="cb">
       <div class="fgrid">
-        <div class="field"><label>Safra de referência</label><input type="number" id="pr-ano-base" min="2000" max="2100" placeholder="Ex: 2026"></div>
-        <div class="field"><label>Anos projetados</label><input type="number" id="pr-anos" min="1" max="20" value="6"></div>
+        <div class="field"><label title="O ano-base da análise. A idade de cada talhão é contada a partir dele, e é a idade que decide quanto o talhão produz.">Safra de referência ℹ</label><input type="number" id="pr-ano-base" min="2000" max="2100" placeholder="Ex: 2026"></div>
+        <div class="field"><label title="Projete pelo menos o prazo do contrato. Numa perene o ano apertado costuma estar no meio, não no começo — encurtar a projeção esconde justamente ele.">Anos projetados ℹ</label><input type="number" id="pr-anos" min="1" max="20" value="6"></div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
         <button class="btn-sm" onclick="window.location='/api/perene/ficha/download'" title="Planilha em branco, sem macros">⬇ Baixar Ficha de Talhões</button>
@@ -1079,12 +1079,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Solicitação de Crédito</div></div>
     <div class="cb">
       <div class="fgrid">
-        <div class="field"><label>Valor solicitado (R$)</label><input type="number" id="pr-valor" min="0" step="1000" placeholder="Ex: 1500000"></div>
-        <div class="field"><label>Prazo (meses)</label><input type="number" id="pr-prazo" min="1" placeholder="Ex: 72"></div>
+        <div class="field"><label title="O valor pedido. A análise devolve também a capacidade máxima estimada, calculada a partir da geração de caixa da lavoura.">Valor solicitado (R$) ℹ</label><input type="number" id="pr-valor" min="0" step="1000" placeholder="Ex: 1500000"></div>
+        <div class="field"><label title="Prazo total, carência inclusa. Em café e cana o contrato costuma atravessar mais de um ciclo de carga ou de corte.">Prazo (meses) ℹ</label><input type="number" id="pr-prazo" min="1" placeholder="Ex: 72"></div>
         <div class="field"><label title="Na perene a carência cobre a formação da lavoura, que consome caixa antes de produzir.">Carência (meses) ℹ</label><input type="number" id="pr-carencia" min="0" value="0"></div>
-        <div class="field"><label>Juros (% a.a.)</label><input type="number" id="pr-juros" min="0" step="0.1" placeholder="Ex: 10,5"></div>
-        <div class="field"><label>Amortização</label><select id="pr-sistema"><option value="sac">SAC — parcela decrescente</option><option value="price">Price — parcela fixa</option></select></div>
-        <div class="field"><label>Periodicidade</label><select id="pr-periodicidade"><option value="12">Anual (safra)</option><option value="6">Semestral</option><option value="3">Trimestral</option><option value="1">Mensal</option></select></div>
+        <div class="field"><label title="Taxa nominal ao ano, em porcentagem. Plano Safra 2026/27: custeio empresarial 12,5% · Pronamp custeio 9,0% · investimento 8,0–11,5%.">Juros (% a.a.) ℹ</label><input type="number" id="pr-juros" min="0" step="0.1" placeholder="Ex: 10,5"></div>
+        <div class="field"><label title="SAC: parcela começa alta e cai — padrão do crédito rural. Price: parcela fixa. Em lavoura em formação o SAC concentra o peso justamente quando ainda não há receita.">Amortização ℹ</label><select id="pr-sistema"><option value="sac">SAC — parcela decrescente</option><option value="price">Price — parcela fixa</option></select></div>
+        <div class="field"><label title="Perene tem receita concentrada na colheita. Parcela anual alinhada à safra é o caso comum; mensal dilui o desembolso e esconde o mês em que ele aperta.">Periodicidade ℹ</label><select id="pr-periodicidade"><option value="12">Anual (safra)</option><option value="6">Semestral</option><option value="3">Trimestral</option><option value="1">Mensal</option></select></div>
       </div>
       <div class="fgrid" style="margin-top:4px">
         <div class="field"><label>Fazenda</label><input type="text" id="pr-fazenda" placeholder="Nome da propriedade"></div>
@@ -4579,7 +4579,21 @@ function _prRenderResultado(d){
 
   const avisos=(d.avisos||[]).map(a=>`<li>${escapeHtml(a)}</li>`).join('');
 
+  const dicas=(d.dicas||[]).map(x=>{
+    const atencao=x.tipo==='atencao';
+    const borda=atencao?'rgba(234,179,8,.35)':'var(--b2)';
+    const fundo=atencao?'rgba(234,179,8,.07)':'transparent';
+    return `<div style="padding:11px 13px;border:1px solid ${borda};border-radius:8px;background:${fundo};margin-bottom:9px">
+      <div style="font-weight:700;font-size:.79rem;margin-bottom:4px">${atencao?'⚠ ':''}${escapeHtml(x.titulo)}</div>
+      <div style="font-size:.76rem;line-height:1.6;color:var(--mu)">${escapeHtml(x.texto)}</div></div>`;
+  }).join('');
+
   document.getElementById('pr-resultado').innerHTML=`
+    ${dicas?`<div class="card" style="margin-bottom:16px">
+      <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Leitura da Análise</div></div>
+      <div class="cb">${dicas}</div>
+    </div>`:''}
+
     ${d.valido?'':`<div style="margin-bottom:14px;padding:11px 13px;border:1px solid rgba(248,113,113,.4);border-radius:8px;background:rgba(248,113,113,.08);font-size:.76rem;line-height:1.6">
       <b>Análise incompleta.</b> Faltam dados declarados na ficha — os números abaixo cobrem apenas as culturas com curva, preço e custo informados.</div>`}
 

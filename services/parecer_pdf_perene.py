@@ -227,6 +227,20 @@ def _cenarios(story, ss, analise: dict) -> None:
     _tabela(story, dados, [4.0 * cm, 7.6 * cm, 4.0 * cm])
 
 
+def _leitura(story, ss, analise: dict) -> None:
+    """As dicas calculadas — as mesmas que a tela mostra, do mesmo lugar."""
+    dicas = analise.get('dicas') or []
+    if not dicas:
+        return
+    _secao(story, ss, 'Leitura da análise')
+    for dica in dicas:
+        marca = '<b>Atenção —</b> ' if dica.get('tipo') == 'atencao' else ''
+        story.append(Paragraph(
+            f"{marca}<b>{dica.get('titulo', '')}</b>", ss['Corpo']))
+        story.append(Paragraph(dica.get('texto', ''), ss['Corpo']))
+        story.append(Spacer(1, 7))
+
+
 def _ressalvas(story, ss, analise: dict) -> None:
     avisos = list(analise.get('avisos') or [])
     producao = analise.get('producao') or {}
@@ -270,6 +284,7 @@ def gerar_pdf_parecer_perene(analise: dict, identificacao: dict | None = None,
     _projecao(story, ss, analise)
     _capacidade(story, ss, analise)
     _cenarios(story, ss, analise)
+    _leitura(story, ss, analise)
     _ressalvas(story, ss, analise)
 
     doc.build(story)

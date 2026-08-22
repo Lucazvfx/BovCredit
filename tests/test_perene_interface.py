@@ -78,6 +78,25 @@ def test_a_tela_avisa_quando_a_analise_esta_incompleta():
     assert 'Análise incompleta' in INDEX
 
 
+def test_a_secao_do_menu_e_agricola():
+    """"Agrícola" é a casa; lavoura perene é o primeiro morador dela."""
+    assert '<span class="ork-nav__label">Agrícola</span>' in SIDEBAR
+    assert '<span>Lavoura perene</span>' in SIDEBAR
+
+
+def test_os_campos_de_credito_tem_dica_curta():
+    """Tooltip explica o campo; a leitura do resultado é que sai do dado."""
+    painel = INDEX[INDEX.index('id="panel-perene"'):INDEX.index('id="panel-ajuda"')]
+    for campo in ('pr-prazo', 'pr-juros', 'pr-sistema', 'pr-periodicidade'):
+        trecho = painel[:painel.index(f'id="{campo}"')]
+        assert 'title="' in trecho.rsplit('<div class="field">', 1)[1]
+
+
+def test_a_leitura_da_analise_aparece_na_tela():
+    assert 'Leitura da Análise' in INDEX
+    assert 'd.dicas' in INDEX
+
+
 def test_a_tela_explica_o_ano_critico():
     """O número sozinho não diz por que o aperto não cai no ano 1."""
     assert 'ano mais apertado do contrato' in INDEX
