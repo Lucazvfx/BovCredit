@@ -175,6 +175,15 @@ def _projecao(story, ss, analise: dict) -> None:
             ss['Corpo']))
 
 
+def _ano_base_texto(analise: dict) -> str:
+    """Qual ano dimensiona o crédito máximo — o pior entre os que pagam."""
+    base = analise.get('base_de_pagamento') or {}
+    if not base.get('ano'):
+        return '—'
+    return (f"Ano {base['ano']} ({base.get('ano_calendario', '—')}) · "
+            f"{_fmt_moeda(base.get('resultado'))}")
+
+
 def _capacidade(story, ss, analise: dict) -> None:
     credito = (analise.get('credito') or {}).get('analysis') or {}
     if not credito:
@@ -188,6 +197,7 @@ def _capacidade(story, ss, analise: dict) -> None:
         ['Ano mais apertado', str(pior.get('ano') or '—')],
         ['Serviço da dívida no ano crítico', _fmt_moeda(pior.get('servico_divida_anual'))],
         ['Capacidade máxima estimada', _fmt_moeda(credito.get('capacidade_maxima_estimativa'))],
+        ['Ano que sustenta a capacidade', _ano_base_texto(analise)],
     ]
     tabela = Table(resumo, colWidths=[7.0 * cm, 8.6 * cm])
     tabela.setStyle(TableStyle([

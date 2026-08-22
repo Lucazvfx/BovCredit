@@ -131,3 +131,53 @@ def test_o_pdf_traz_as_mesmas_dicas_da_analise():
 
 def test_analise_sem_nada_a_dizer_nao_inventa_dica():
     assert gerar_dicas({'valido': True}, {}) == []
+
+
+# ── A base do crédito máximo ────────────────────────────────────────────────
+
+def test_a_base_do_credito_e_o_pior_ano_que_paga_nao_o_ano_1():
+    """Na perene o ano 1 não é representativo, e era ele que dimensionava.
+
+    Lavoura em formação tem ano 1 negativo: o crédito máximo saía R$ 0 para
+    uma operação que gera milhões a partir da primeira colheita. E num cafezal
+    maduro o ano 1 pode ser de carga alta — dimensionar por ele aprova o que
+    não se paga no ano de carga baixa.
+    """
+    analise = _analisar(LAVOURA_NOVA, carencia=24)
+    base = analise['base_de_pagamento']
+
+    # Ano 1 e 2 são de formação; o primeiro que paga é o 3.
+    assert base['ano'] == 3
+    assert base['resultado'] > 0
+    assert analise['credito']['analysis']['capacidade_maxima_estimativa'] > 0
+
+
+def test_a_carencia_desloca_a_base_e_muda_a_capacidade():
+    curta = _analisar(LAVOURA_NOVA, carencia=12)
+    suficiente = _analisar(LAVOURA_NOVA, carencia=24)
+
+    assert curta['base_de_pagamento']['ano'] == 2       # ainda em formação
+    assert curta['credito']['analysis']['capacidade_maxima_estimativa'] == 0
+    assert suficiente['credito']['analysis']['capacidade_maxima_estimativa'] > 0
+
+
+def test_num_cafezal_maduro_a_base_cai_num_ano_de_carga_baixa():
+    """Pior e não médio: o contrato precisa atravessar o ano ruim."""
+    analise = _analisar(LAVOURA_MADURA, carencia=24)
+    ano_base = analise['base_de_pagamento']['ano']
+
+    talhao = analise['producao']['anos'][ano_base - 1]['talhoes'][0]
+    assert talhao['fase_bienal'] == 'baixa'
+    primeiro = analise['economico']['anos'][0]['resultado']
+    assert analise['base_de_pagamento']['resultado'] < primeiro
+
+
+def test_anos_fora_do_prazo_nao_entram_na_base():
+    """Projetar 6 anos com contrato de 3 não pode puxar a base do ano 5."""
+    analise = _analisar(LAVOURA_MADURA, carencia=0,
+                        credito={'credito_valor': 500_000, 'prazo_meses': 36,
+                                 'juros_aa': 0.105, 'carencia_meses': 0,
+                                 'sistema_amortizacao': 'sac',
+                                 'periodicidade_meses': 12})
+
+    assert analise['base_de_pagamento']['ano'] <= 3

@@ -4558,6 +4558,7 @@ async function pereneAnalisar(){
 
 function _prRenderResultado(d){
   const cred=(d.credito&&d.credito.analysis)||{};
+  const base=d.base_de_pagamento||{};
   const pior=cred.pior_periodo||{};
   const anos=(d.economico&&d.economico.anos)||[];
   const cenarios=(d.stress&&d.stress.scenarios)||[];
@@ -4604,7 +4605,7 @@ function _prRenderResultado(d){
           <div class="field"><label>DSCR médio do prazo</label><div style="font-family:var(--fm);font-size:1.4rem">${_prNum(cred.dscr_medio,2)}</div></div>
           <div class="field"><label>DSCR mínimo</label><div style="font-family:var(--fm);font-size:1.4rem">${_prNum(cred.dscr_minimo,2)}</div></div>
           <div class="field"><label>Ano mais apertado</label><div style="font-family:var(--fm);font-size:1.4rem">${pior.ano||'—'}</div></div>
-          <div class="field"><label>Capacidade máxima estimada</label><div style="font-family:var(--fm);font-size:1.05rem">${_prMoeda(cred.capacidade_maxima_estimativa)}</div></div>
+          <div class="field"><label title="Calculada sobre o pior ano que efetivamente paga — depois da carência, dentro do prazo. Numa perene o ano 1 não serve de base: em formação ele é negativo, e num cafezal de carga alta ele é otimista.">Capacidade máxima estimada ℹ</label><div style="font-family:var(--fm);font-size:1.05rem">${_prMoeda(cred.capacidade_maxima_estimativa)}</div>${base.ano?`<div style="font-size:.66rem;color:var(--mu);margin-top:3px">base: ano ${base.ano} (${base.ano_calendario})</div>`:''}</div>
         </div>
         ${pior.ano>1?`<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--b2);border-radius:8px;font-size:.76rem;line-height:1.6">
           <b>O ano mais apertado do contrato é o ${pior.ano}, não o primeiro.</b> Em lavoura perene o aperto raramente cai no primeiro ano: o café alterna carga alta e baixa, e a soqueira da cana decai a cada corte até a reforma.</div>`:''}
