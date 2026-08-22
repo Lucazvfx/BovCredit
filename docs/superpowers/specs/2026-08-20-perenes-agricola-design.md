@@ -38,8 +38,9 @@ esses anos.
 pecuário os parsers funcionam porque a ficha estadual tem layout fixo por órgão
 — IDARON não muda de forma entre duas fazendas. Na lavoura perene:
 
-- O **CAR** tem extrato padronizado (SICAR) e dá área, módulos fiscais,
-  reserva legal, APP, sobreposição. Útil, e parseável.
+- O **CAR** tem documento padronizado — o *Demonstrativo do CAR*, emitido em
+  PDF pela consulta pública do SICAR — e dá área, reserva legal, APP, áreas de
+  uso restrito e consolidadas. Útil, e parseável.
 - O CAR **não diz a idade do talhão** — que é exatamente o dado que decide a
   receita dos próximos cinco anos.
 - Quem diz é o **laudo agronômico** ou o croqui do produtor, e esses não têm
@@ -81,9 +82,10 @@ endividamento, garantia, parecer PDF, qualidade de dados, proveniência,
 auditoria, multiempresa, LGPD, autenticação.
 
 `services/ibge_sidra.py` é genérico (`baixar(tabela, variavel, periodo)`) e hoje
-puxa abate e efetivo. As mesmas funções puxam a **PAM (tabela 5457)** — área
-colhida, quantidade produzida e rendimento médio por município e cultura, café e
-cana inclusos. É benchmark de produtividade municipal quase de graça, e é o que
+puxa abate e efetivo. As mesmas funções puxam a **PAM (tabela 5457** —
+"Área plantada ou destinada à colheita, área colhida, quantidade produzida,
+rendimento médio e valor da produção das lavouras temporárias e permanentes"**)**
+— por município e cultura, com café (permanente) e cana (temporária) inclusos. É benchmark de produtividade municipal quase de graça, e é o que
 permite dizer "a produtividade declarada está 40% acima da média do município".
 
 ## O que é específico de boi e precisa de par agrícola
@@ -115,7 +117,11 @@ já consome hoje. Nada a jusante muda.
 - **Formação**: sem receita nos primeiros anos; primeira colheita comercial
   parcial, produção plena depois.
 - **Produção**: vida útil longa, com **bienalidade** — carga alta e carga baixa
-  alternadas. A amplitude varia com manejo, adubação e clima.
+  alternadas, fenômeno próprio do *Coffea arabica*: depois de um ano de carga
+  cheia a planta emite menos ramos produtivos enquanto se recompõe. A amplitude
+  NÃO é fixa: adubação equilibrada, poda programada e irrigação a reduzem, e ela
+  é mais acentuada em lavoura de sequeiro e manejo menos intensivo. Por isso a
+  amplitude é parâmetro declarado, não constante do sistema.
 - **Renovação**: recepa/esqueletamento zera a produção do talhão por um ou dois
   anos e reinicia o ciclo. Um plano de recepa dentro do prazo do contrato é
   material para o DSCR e precisa ser declarado.
@@ -124,11 +130,17 @@ já consome hoje. Nada a jusante muda.
 ### Cana
 
 - **Cana planta**: intervalo entre plantio e primeiro corte.
-- **Soqueiras**: cortes sucessivos com produtividade decrescente a cada corte,
-  até a reforma do talhão.
-- Unidade: tonelada, remunerada por **ATR** (açúcar total recuperável) em contrato
-  com usina — o preço não é do produto, é do teor. Modelar como preço/ton com
-  qualidade declarada, e registrar que o dado veio do contrato de fornecimento.
+- **Soqueiras**: cortes sucessivos com produtividade decrescente a cada rebrota,
+  até a reforma. O ciclo de referência do setor é de cerca de **seis anos com
+  cinco cortes** — cana-planta mais quatro socas —, com queda relatada de até
+  8,5 t de cana por hectare a cada rebrota; no quinto corte a produtividade
+  costuma não cobrir o custo, e é o momento da reforma. Fertilidade do solo e
+  manejo antecipam ou adiam esse ponto, então o ciclo é declarado por talhão.
+- Unidade: tonelada, remunerada por **ATR** (açúcares totais recuperáveis) no
+  sistema **CONSECANA** — o preço não é do produto, é do teor: kg de ATR por
+  tonelada multiplicado pelo preço do kg de ATR. Modelar como preço/tonelada
+  com a qualidade declarada, e registrar que o dado veio do contrato de
+  fornecimento.
 
 **Todos os parâmetros numéricos acima ficam de fora deste documento de
 propósito.** No lado pecuário, cada constante tem origem declarada
@@ -143,7 +155,7 @@ aviso de qualidade de dado.
 | Documento | O que dá | Layout | Fase |
 |---|---|---|---|
 | Composição de talhões (.xlsx nosso) | área, ano de plantio, cultura, variedade | nosso | 1 |
-| CAR / extrato SICAR | área total, reserva legal, APP, sobreposição | padronizado | 2 |
+| Demonstrativo do CAR (SICAR) | área total, reserva legal, APP, sobreposição | padronizado | 2 |
 | NF-e de venda | produtividade realizada, preço praticado | padronizado | 2 |
 | Laudo agronômico | idade e estado do talhão | sem padrão | 3, se houver demanda |
 
@@ -175,7 +187,7 @@ formato de bloco, sem macro.
    ressalva de proxy que o desfrute já carrega
 
 6. CAR e NF-e (parsing)
-   verificar: extrato SICAR devolve área e regularidade; NF-e devolve
+   verificar: Demonstrativo do CAR devolve área e regularidade; NF-e devolve
    quantidade e preço, com a origem registrada na proveniência
 ```
 
@@ -186,3 +198,39 @@ formato de bloco, sem macro.
 - Parsing de laudo agronômico.
 - Seguro agrícola, Proagro e zoneamento agrícola de risco climático.
 - Qualquer parâmetro agronômico sem fonte citável.
+
+## Fontes consultadas
+
+Verificadas em 2026-08-22. Cobrem os fatos de mercado e de nomenclatura citados
+neste documento; **não** cobrem parâmetro agronômico de produtividade, que
+continua sendo entrada declarada por talhão.
+
+- **PAM / tabela 5457** — descritor da tabela no SIDRA/IBGE:
+  https://sidra.ibge.gov.br/tabela/5457 · https://sidra.ibge.gov.br/Tabela/Descricao/5457
+- **Bienalidade do café** — Embrapa, "Crescimento, produtividade e bienalidade
+  do cafeeiro em função do espaçamento de cultivo"
+  (https://ainfo.cnptia.embrapa.br/digital/bitstream/item/168657/1/Crescimento-produtividade-e-bienalidade-do-cafeeiro.pdf);
+  SciELO/PAB (https://www.scielo.br/j/pab/a/ZQKR8BRGQTJL6qGsGZ7fr3r/)
+- **Ciclo e reforma do canavial** — BASF Agro, "Longevidade do canavial"
+  (https://agriculture.basf.com/br/pt/conteudos/cultivos-e-sementes/cana-de-acucar/longevidade-do-canavial-estrategias-de-manejo-definem-o-sucesso-da-cana-de-acucar);
+  Aegro, "Renovação do canavial" (https://aegro.com.br/blog/renovacao-de-canavial-2025/)
+- **ATR e CONSECANA** — regulamento CONSECANA-SP
+  (https://www.consecana.com.br/regulamento.asp); Sistema FAEP
+  (https://www.sistemafaep.org.br/consecana/)
+- **Demonstrativo do CAR** — SICAR, sistema nacional (http://www.car.gov.br/);
+  IBAM, caderno de estudo do SICAR
+  (https://www.fundoamazonia.gov.br/pt/.galleries/documentos/acervo-projetos-cartilhas-outros/IBAM-SICAR-caderno-estudos.pdf)
+- **Plano Safra 2026/27** — Ministério da Fazenda
+  (https://www.gov.br/fazenda/pt-br/assuntos/noticias/2026/julho/plano-safra-2026-2027-supera-r-610-bilhoes-com-participacao-da-fazenda-na-reducao-de-juros-e-equilibrio-nas-contas-publicas);
+  FAEMG (https://www.sistemafaemg.org.br/Content/uploads/noticias/henb1782935083414.pdf)
+
+### O que a verificação corrigiu
+
+- O tooltip de juros da tela perene dizia "investimento 8,0–11,5%". A faixa
+  anunciada vai **de 8% a 12,5%** (Moderfrota empresarial 12,5%; Moderfrota
+  Pronamp 11,5%). Corrigido.
+- "extrato SICAR" era nome inventado por aproximação. O documento se chama
+  **Demonstrativo do CAR**.
+- A amplitude da bienalidade estava descrita como característica fixa da
+  cultura. É sensível a manejo, adubação e irrigação — o que reforça mantê-la
+  como parâmetro declarado por lavoura, e não como constante do sistema.
