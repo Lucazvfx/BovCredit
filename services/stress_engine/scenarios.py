@@ -78,6 +78,7 @@ def _scenario_changes(scenario: dict) -> list[str]:
     changes: list[str] = []
     for key in (
         "price_pct",
+        "revenue_pct",
         "cost_pct",
         "natality_pct",
         "mortality_pct",
@@ -101,6 +102,10 @@ def _stress_multiplier(scenario: dict) -> tuple[float, float]:
     cost_multiplier = 1.0
 
     price_pct = scenario.get("price_pct")
+    # Choque de QUANTIDADE, independente de preço: quebra de safra na lavoura,
+    # perda de produção. Na pecuária o mesmo efeito chega por natalidade e
+    # mortalidade; a lavoura não tem esses caminhos e precisava de um direto.
+    revenue_pct = scenario.get("revenue_pct")
     natality_pct = scenario.get("natality_pct")
     mortality_pct = scenario.get("mortality_pct")
     gmd_pct = scenario.get("gmd_pct")
@@ -108,6 +113,7 @@ def _stress_multiplier(scenario: dict) -> tuple[float, float]:
     cost_pct = scenario.get("cost_pct")
 
     revenue_multiplier = _apply_multiplier(revenue_multiplier, price_pct)
+    revenue_multiplier = _apply_multiplier(revenue_multiplier, revenue_pct)
     revenue_multiplier = _apply_multiplier(revenue_multiplier, natality_pct)
     if mortality_pct is not None:
         revenue_multiplier *= max(1 - (_coerce_float(mortality_pct) / 100.0), 0.0)

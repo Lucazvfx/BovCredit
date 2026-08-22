@@ -83,6 +83,7 @@ from services.origem_rebanho import origem_rebanho, normalizar as normalizar_ori
 from services import login_social as _social
 from authlib.integrations.flask_client import OAuth
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
+from services.perennial_engine import analisar_lavoura_perene
 from services.rating_credito import calcular_rating
 from services.precos_regionais import aplicar as aplicar_preco_regional
 from services.analysis_pipeline import run_full_analysis
@@ -3443,6 +3444,43 @@ def api_ler_planilha():
             os.unlink(tmp_path)
         except OSError:
             pass
+
+
+@app.route('/api/perene/analisar', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_perene_analisar():
+    """Parecer de lavoura perene: produção, resultado, DSCR, fluxo e cenários.
+
+    Não duplica fórmula: encadeia o motor de perenes com os mesmos motores de
+    crédito, fluxo e stress que a análise pecuária usa.
+    """
+    data = request.get_json(silent=True) or {}
+
+    if not data.get('talhoes'):
+        return jsonify({'erro': 'Informe ao menos um talhão.'}), 400
+    if not data.get('curvas'):
+        return jsonify({
+            'erro': 'Informe a curva de produtividade de cada cultura. Sem '
+                    'curva declarada a produção não é estimada.'}), 400
+
+    # juros_aa é FRAÇÃO (0,105 = 10,5% a.a.), como no restante da API. Quem
+    # manda 10.5 querendo 10,5% recebe hoje um serviço de dívida de bilhões
+    # sem nenhum aviso — recusar é melhor que devolver o absurdo calculado.
+    juros = (data.get('credito') or {}).get('juros_aa')
+    try:
+        if juros is not None and float(juros) >= 1:
+            return jsonify({
+                'erro': 'juros_aa é fração ao ano: use 0.105 para 10,5% a.a.'}), 400
+    except (TypeError, ValueError):
+        return jsonify({'erro': 'juros_aa inválido.'}), 400
+
+    try:
+        resultado = analisar_lavoura_perene(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+
+    return jsonify(resultado)
 
 
 @app.route('/api/reconciliacao', methods=['POST'])
