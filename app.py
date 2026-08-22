@@ -83,7 +83,9 @@ from services.origem_rebanho import origem_rebanho, normalizar as normalizar_ori
 from services import login_social as _social
 from authlib.integrations.flask_client import OAuth
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
-from services.perennial_engine import analisar_lavoura_perene
+from services.perennial_engine import (
+    analisar_lavoura_perene, parsear_ficha_talhoes,
+)
 from services.rating_credito import calcular_rating
 from services.precos_regionais import aplicar as aplicar_preco_regional
 from services.analysis_pipeline import run_full_analysis
@@ -3444,6 +3446,43 @@ def api_ler_planilha():
             os.unlink(tmp_path)
         except OSError:
             pass
+
+
+@app.route('/api/perene/ficha/download', methods=['GET'])
+@login_required
+def api_perene_ficha_download():
+    """Baixa a ficha de talhões de lavoura perene (.xlsx, sem macros)."""
+    return send_file(
+        os.path.join(app.static_folder, 'templates', 'ficha_talhoes_perene.xlsx'),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='ficha_talhoes_perene.xlsx',
+    )
+
+
+@app.route('/api/perene/importar-ficha', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
+@login_required
+def api_perene_importar_ficha():
+    """Lê a ficha de talhões e devolve o payload da análise.
+
+    Ficha meio preenchida é o caso comum, não erro: a resposta traz o que
+    falta em `faltando` para o analista completar, com 200.
+    """
+    arquivo = request.files.get('ficha') or request.files.get('arquivo')
+    if not arquivo or not arquivo.filename:
+        return jsonify({'erro': 'Envie a ficha de talhões (.xlsx).'}), 400
+    if not arquivo.filename.lower().endswith(('.xlsx', '.xlsm')) or not _validar_xlsx(arquivo):
+        return jsonify({'erro': 'Apenas .xlsx ou .xlsm são aceitos'}), 400
+
+    ano_base = request.form.get('ano_base')
+    try:
+        resultado = parsear_ficha_talhoes(
+            arquivo.read(), ano_base=int(ano_base) if ano_base else None)
+    except (KeyError, ValueError) as erro:
+        return jsonify({'erro': f'Ficha fora do padrão: {erro}'}), 400
+
+    return jsonify(resultado)
 
 
 @app.route('/api/perene/analisar', methods=['POST'])
