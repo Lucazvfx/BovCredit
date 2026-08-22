@@ -20,9 +20,38 @@ from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services.payment_capacity_engine import calculate_payment_capacity
 from services.stress_engine import run_stress_tests
 
+from .dicas import gerar_dicas
 from .economics import resultado_economico
 from .models import CurvaProdutividade, PerennialState, Talhao
 from .projector import project_perennial_production
+
+
+def base_de_pagamento(projecao_anos: list[dict], credito: Mapping[str, Any]) -> dict:
+    """O ano que decide a capacidade de crédito da lavoura.
+
+    O motor de crédito toma a geração de caixa do PRIMEIRO ano como base do
+    crédito máximo. Na pecuária o ano 1 é representativo. Numa perene não é:
+    lavoura em formação tem ano 1 negativo, e o crédito máximo saía R$ 0 para
+    uma operação que gera milhões a partir da primeira colheita.
+
+    A base passa a ser o PIOR ano entre os que efetivamente pagam — depois da
+    carência, dentro do prazo. Pior e não médio porque a alternância do café e
+    o decaimento da cana não são acidente de um ano: o contrato precisa
+    atravessar o ano ruim, e dimensionar pelo bom aprova o que não se paga.
+    """
+    if not projecao_anos:
+        return {}
+    carencia_meses = _int(credito.get('carencia_meses'))
+    prazo_meses = _int(credito.get('prazo_meses'))
+    # Anos INTEIRAMENTE cobertos pela carência não pagam nada.
+    anos_carencia = carencia_meses // 12
+    ultimo_ano = -(-prazo_meses // 12) if prazo_meses > 0 else len(projecao_anos)
+
+    pagantes = [linha for linha in projecao_anos
+                if anos_carencia < linha['ano'] <= ultimo_ano]
+    if not pagantes:
+        return projecao_anos[0]
+    return min(pagantes, key=lambda linha: linha['resultado'])
 
 
 def cenarios_perene_padrao() -> list[dict]:
@@ -121,8 +150,9 @@ def analisar_lavoura_perene(payload: Mapping[str, Any]) -> dict[str, Any]:
     ]
 
     credito_pedido = dict(payload.get('credito') or {})
+    base = base_de_pagamento(projecao_anos, credito_pedido)
     cashflow = {
-        'geracao_caixa_anual': projecao_anos[0]['resultado'] if projecao_anos else 0.0,
+        'geracao_caixa_anual': base.get('resultado', 0.0),
         'projecao_anos': projecao_anos,
     }
     divida_existente = {
@@ -163,7 +193,7 @@ def analisar_lavoura_perene(payload: Mapping[str, Any]) -> dict[str, Any]:
             'primeiro. Avaliar a operação pelo ano 1 aprovaria crédito que '
             'não se paga no ano crítico.')
 
-    return {
+    resultado = {
         'valido': bool(economico['valido']),
         # As curvas voltam com a análise para o parecer poder citar a fonte de
         # cada uma — ou dizer que não há, o que muda o peso do documento.
@@ -185,3 +215,10 @@ def analisar_lavoura_perene(payload: Mapping[str, Any]) -> dict[str, Any]:
         'projecao_anos': projecao_anos,
         'avisos': avisos,
     }
+    resultado['base_de_pagamento'] = {
+        'ano': base.get('ano'),
+        'ano_calendario': base.get('ano_calendario'),
+        'resultado': base.get('resultado'),
+    }
+    resultado['dicas'] = gerar_dicas(resultado, credito_pedido)
+    return resultado
