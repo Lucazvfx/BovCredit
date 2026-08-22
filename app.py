@@ -57,6 +57,7 @@ from services.parecer_credito import (
     montar_parecer, cronograma_divida,
     SISTEMAS as _SISTEMAS_AMORT, PERIODICIDADES as _PERIODICIDADES)
 from services.parecer_pdf import gerar_pdf_parecer
+from services.parecer_pdf_perene import gerar_pdf_parecer_perene
 from services.pesos_rebanho import arrobas_categorias
 from services.parametros_zootecnicos import (
     natalidade_de_prenhez, avaliar_reposicao as _avaliar_reposicao)
@@ -83,6 +84,9 @@ from services.origem_rebanho import origem_rebanho, normalizar as normalizar_ori
 from services import login_social as _social
 from authlib.integrations.flask_client import OAuth
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
+from services.perennial_engine import (
+    analisar_lavoura_perene, parsear_ficha_talhoes,
+)
 from services.rating_credito import calcular_rating
 from services.precos_regionais import aplicar as aplicar_preco_regional
 from services.analysis_pipeline import run_full_analysis
@@ -3443,6 +3447,110 @@ def api_ler_planilha():
             os.unlink(tmp_path)
         except OSError:
             pass
+
+
+@app.route('/api/perene/ficha/download', methods=['GET'])
+@login_required
+def api_perene_ficha_download():
+    """Baixa a ficha de talhões de lavoura perene (.xlsx, sem macros)."""
+    return send_file(
+        os.path.join(app.static_folder, 'templates', 'ficha_talhoes_perene.xlsx'),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='ficha_talhoes_perene.xlsx',
+    )
+
+
+@app.route('/api/perene/importar-ficha', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
+@login_required
+def api_perene_importar_ficha():
+    """Lê a ficha de talhões e devolve o payload da análise.
+
+    Ficha meio preenchida é o caso comum, não erro: a resposta traz o que
+    falta em `faltando` para o analista completar, com 200.
+    """
+    arquivo = request.files.get('ficha') or request.files.get('arquivo')
+    if not arquivo or not arquivo.filename:
+        return jsonify({'erro': 'Envie a ficha de talhões (.xlsx).'}), 400
+    if not arquivo.filename.lower().endswith(('.xlsx', '.xlsm')) or not _validar_xlsx(arquivo):
+        return jsonify({'erro': 'Apenas .xlsx ou .xlsm são aceitos'}), 400
+
+    ano_base = request.form.get('ano_base')
+    try:
+        resultado = parsear_ficha_talhoes(
+            arquivo.read(), ano_base=int(ano_base) if ano_base else None)
+    except (KeyError, ValueError) as erro:
+        return jsonify({'erro': f'Ficha fora do padrão: {erro}'}), 400
+
+    return jsonify(resultado)
+
+
+@app.route('/api/perene/parecer/pdf', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
+@login_required
+def api_perene_parecer_pdf():
+    """Gera o PDF do parecer de lavoura perene a partir do payload da análise."""
+    data = request.get_json(silent=True) or {}
+    analise = data.get('analise')
+    if not analise:
+        if not data.get('talhoes'):
+            return jsonify({'erro': 'Envie a análise ou o payload da lavoura.'}), 400
+        try:
+            analise = analisar_lavoura_perene(data)
+        except (TypeError, ValueError) as erro:
+            return jsonify({'erro': str(erro)}), 400
+
+    empresa_id = _resolver_empresa_ativa()
+    empresa = db.buscar_empresa(empresa_id) if empresa_id else None
+    branding = {'nome_consultoria': empresa.get('nome') or '',
+                'logo_base64': empresa.get('logo_base64') or ''} if empresa else None
+
+    identificacao = data.get('identificacao') or {}
+    pdf_bytes = gerar_pdf_parecer_perene(
+        analise, identificacao=identificacao, branding=branding)
+    _auditar(_aud.PARECER_PDF, recurso='fazenda',
+             recurso_id=identificacao.get('fazenda') or None,
+             detalhe='parecer perene')
+    return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
+                     as_attachment=True, download_name='parecer_perene.pdf')
+
+
+@app.route('/api/perene/analisar', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_perene_analisar():
+    """Parecer de lavoura perene: produção, resultado, DSCR, fluxo e cenários.
+
+    Não duplica fórmula: encadeia o motor de perenes com os mesmos motores de
+    crédito, fluxo e stress que a análise pecuária usa.
+    """
+    data = request.get_json(silent=True) or {}
+
+    if not data.get('talhoes'):
+        return jsonify({'erro': 'Informe ao menos um talhão.'}), 400
+    if not data.get('curvas'):
+        return jsonify({
+            'erro': 'Informe a curva de produtividade de cada cultura. Sem '
+                    'curva declarada a produção não é estimada.'}), 400
+
+    # juros_aa é FRAÇÃO (0,105 = 10,5% a.a.), como no restante da API. Quem
+    # manda 10.5 querendo 10,5% recebe hoje um serviço de dívida de bilhões
+    # sem nenhum aviso — recusar é melhor que devolver o absurdo calculado.
+    juros = (data.get('credito') or {}).get('juros_aa')
+    try:
+        if juros is not None and float(juros) >= 1:
+            return jsonify({
+                'erro': 'juros_aa é fração ao ano: use 0.105 para 10,5% a.a.'}), 400
+    except (TypeError, ValueError):
+        return jsonify({'erro': 'juros_aa inválido.'}), 400
+
+    try:
+        resultado = analisar_lavoura_perene(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+
+    return jsonify(resultado)
 
 
 @app.route('/api/reconciliacao', methods=['POST'])

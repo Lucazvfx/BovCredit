@@ -48,10 +48,12 @@ def test_light_sidebar_preserves_destinations_and_moves_account_to_footer():
     html = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
 
     assert "Análise econômico-produtiva" in sidebar
-    for destination in ("entrada", "resultado", "cenarios", "historico", "ajuda"):
+    destinos = ("entrada", "resultado", "cenarios", "historico", "perene", "ajuda")
+    for destination in destinos:
         assert f'data-ork-nav="{destination}"' in sidebar
         assert f"showTab('{destination}', this)" in sidebar
-    assert sidebar.count("<svg") == 5
+    # Um ícone por item: item sem ícone quebra o alinhamento da coluna.
+    assert sidebar.count("<svg") == len(destinos)
     assert 'class="ork-sidebar__account"' in sidebar
     assert "usuario.nome" in sidebar
     assert "usuario.email" in sidebar
