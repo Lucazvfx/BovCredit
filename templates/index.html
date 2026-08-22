@@ -546,6 +546,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
        dependem de classificação já dizem o que falta. -->
   <button class="tab-btn" id="tab-cen" aria-controls="panel-cenarios" aria-selected="false" role="tab" onclick="showTab('cenarios',this)">Simular Cenários</button>
   <button class="tab-btn" aria-controls="panel-historico" aria-selected="false" role="tab" onclick="showTab('historico',this)">Histórico</button>
+  <button class="tab-btn" aria-controls="panel-perene" aria-selected="false" role="tab" onclick="showTab('perene',this)">Lavoura Perene</button>
   <button class="tab-btn" aria-controls="panel-ajuda" aria-selected="false" role="tab" onclick="showTab('ajuda',this)">Ajuda</button>
 </div>
 
@@ -1047,6 +1048,59 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 </div>
 
 <!-- ═══ AJUDA ═══ -->
+<!-- ═══ LAVOURA PERENE ═══ -->
+<div class="panel" id="panel-perene">
+
+  <div class="analysis-flow ork-panel ork-import-panel">
+    <div class="analysis-flow-copy">
+      <span class="analysis-flow-kicker">Lavoura Perene</span>
+      <div class="analysis-flow-title">Análise de Café e Cana</div>
+      <p class="analysis-flow-sub">Perene não tem safra, tem curva: o que cada talhão produz depende da idade dele. Preencha a ficha de talhões e o sistema projeta produção, resultado e capacidade de pagamento ano a ano.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="ch"><div class="ct"><div class="cd"></div>Ficha de Talhões</div></div>
+    <div class="cb">
+      <div class="fgrid">
+        <div class="field"><label>Safra de referência</label><input type="number" id="pr-ano-base" min="2000" max="2100" placeholder="Ex: 2026"></div>
+        <div class="field"><label>Anos projetados</label><input type="number" id="pr-anos" min="1" max="20" value="6"></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn-sm" onclick="window.location='/api/perene/ficha/download'" title="Planilha em branco, sem macros">⬇ Baixar Ficha de Talhões</button>
+        <button class="btn-sm" onclick="document.getElementById('pr-ficha-inp').click()">⬆ Importar Ficha Preenchida</button>
+        <input type="file" id="pr-ficha-inp" accept=".xlsx,.xlsm" style="display:none" onchange="pereneImportar(this.files[0]);this.value=''">
+      </div>
+      <div id="pr-import-resumo" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+  <div class="card ork-section-credit" style="margin-bottom:16px">
+    <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Solicitação de Crédito</div></div>
+    <div class="cb">
+      <div class="fgrid">
+        <div class="field"><label>Valor solicitado (R$)</label><input type="number" id="pr-valor" min="0" step="1000" placeholder="Ex: 1500000"></div>
+        <div class="field"><label>Prazo (meses)</label><input type="number" id="pr-prazo" min="1" placeholder="Ex: 72"></div>
+        <div class="field"><label title="Na perene a carência cobre a formação da lavoura, que consome caixa antes de produzir.">Carência (meses) ℹ</label><input type="number" id="pr-carencia" min="0" value="0"></div>
+        <div class="field"><label>Juros (% a.a.)</label><input type="number" id="pr-juros" min="0" step="0.1" placeholder="Ex: 10,5"></div>
+        <div class="field"><label>Amortização</label><select id="pr-sistema"><option value="sac">SAC — parcela decrescente</option><option value="price">Price — parcela fixa</option></select></div>
+        <div class="field"><label>Periodicidade</label><select id="pr-periodicidade"><option value="12">Anual (safra)</option><option value="6">Semestral</option><option value="3">Trimestral</option><option value="1">Mensal</option></select></div>
+      </div>
+      <div class="fgrid" style="margin-top:4px">
+        <div class="field"><label>Fazenda</label><input type="text" id="pr-fazenda" placeholder="Nome da propriedade"></div>
+        <div class="field"><label>Município / UF</label><input type="text" id="pr-municipio" placeholder="Ex: Patrocínio / MG"></div>
+        <div class="field"><label>Proprietário</label><input type="text" id="pr-proprietario" placeholder="Nome do produtor"></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn-p" onclick="pereneAnalisar()">Analisar Lavoura</button>
+        <button class="btn-sm" id="pr-btn-pdf" onclick="perenePDF()" disabled>⬇ Baixar Parecer (PDF)</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pr-resultado"></div>
+</div>
+
 <div class="panel" id="panel-ajuda">
   <div class="ptitle">Central de <em>Ajuda</em></div>
   <p class="psub">Referências técnicas, benchmarks e guia de uso da plataforma.</p>
@@ -4328,7 +4382,7 @@ function showTab(id,btn){
   if(!panel)return;
   const legacyTab=document.querySelector(`.tab-btn[aria-controls="${panel.id}"]`);
   if(btn?.hasAttribute?.('data-ork-nav') && legacyTab?.classList.contains('tab-locked'))return;
-  const idx={entrada:0,resultado:1,cenarios:2,historico:3,ajuda:4};
+  const idx={entrada:0,resultado:1,cenarios:2,historico:3,perene:4,ajuda:5};
   document.querySelectorAll('.panel').forEach(p=>{
     const active=p===panel;
     p.classList.toggle('active',active);
@@ -4391,6 +4445,195 @@ function hideLoading(){
 }
 function toast(msg,err=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(err?' err':'')+' show';setTimeout(()=>t.classList.remove('show'),3500)}
 
+
+// ================== LAVOURA PERENE ==================
+// A ficha traz talhões, curvas, preços e custos; o crédito vem do formulário.
+// O payload guardado aqui é o mesmo que /api/perene/analisar recebe.
+let perenePayload=null, pereneAnalise=null;
+
+const PR_ESTAGIO={formacao:'Formação',producao:'Produção',reforma:'Reforma',nao_plantado:'Não plantado'};
+
+function _prNum(v,c=0){
+  if(v===null||v===undefined||v==='')return '—';
+  return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:c,maximumFractionDigits:c});
+}
+function _prMoeda(v){
+  if(v===null||v===undefined||v==='')return '—';
+  return Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+}
+
+async function pereneImportar(file){
+  if(!file)return;
+  showLoading('Lendo ficha de talhões...');
+  try{
+    const fd=new FormData();
+    fd.append('ficha',file);
+    const ano=document.getElementById('pr-ano-base').value;
+    if(ano)fd.append('ano_base',ano);
+    const res=await fetch('/api/perene/importar-ficha',{method:'POST',body:fd});
+    const data=await res.json();
+    if(!res.ok||data.erro){showToast(data.erro||'Falha ao ler a ficha',true);return;}
+
+    perenePayload=data.payload;
+    if(!document.getElementById('pr-ano-base').value && data.payload.ano_base)
+      document.getElementById('pr-ano-base').value=data.payload.ano_base;
+    _prRenderImport(data);
+    // Ficha incompleta não bloqueia: o analista vê o que falta e completa na
+    // planilha. Bloquear aqui esconderia metade dos problemas de uma vez.
+    showToast(data.completo
+      ? `Ficha lida: ${data.payload.talhoes.length} talhão(ões), ${_prNum(data.area_total_ha,2)} ha.`
+      : 'Ficha lida com pendências — veja a lista abaixo.', !data.completo);
+  }catch(e){showToast('Erro ao importar a ficha',true);}
+  finally{hideLoading();}
+}
+
+function _prRenderImport(data){
+  const alvo=document.getElementById('pr-import-resumo');
+  const t=data.payload.talhoes||[];
+  if(!t.length && !data.faltando.length){alvo.innerHTML='';return;}
+
+  const linhas=t.map(x=>`<tr>
+      <td>${escapeHtml(x.identificacao||'—')}</td>
+      <td>${escapeHtml(x.cultura)}</td>
+      <td class="r">${_prNum(x.area_ha,2)}</td>
+      <td class="r">${x.ano_plantio}</td>
+      <td>${x.fase_bienal?escapeHtml(x.fase_bienal):'—'}</td>
+    </tr>`).join('');
+
+  const pend=(data.faltando||[]).map(f=>`<li>${escapeHtml(f)}</li>`).join('');
+  const avisos=(data.avisos||[]).map(a=>`<li>${escapeHtml(a)}</li>`).join('');
+
+  alvo.innerHTML=`
+    ${t.length?`<div style="overflow-x:auto"><table class="ytbl">
+      <thead><tr><th>Talhão</th><th>Cultura</th><th class="r">Área (ha)</th><th class="r">Plantio</th><th>Carga</th></tr></thead>
+      <tbody>${linhas}</tbody></table></div>
+      <div style="margin-top:8px;font-size:.72rem;color:var(--mu)">Área total: <b>${_prNum(data.area_total_ha,2)} ha</b> · Culturas: ${data.culturas.map(escapeHtml).join(', ')}</div>`:''}
+    ${pend?`<div style="margin-top:12px;padding:10px 12px;border:1px solid rgba(248,113,113,.4);border-radius:8px;background:rgba(248,113,113,.08);font-size:.74rem;line-height:1.6">
+      <b>Falta preencher na ficha:</b><ul style="margin:6px 0 0 16px">${pend}</ul></div>`:''}
+    ${avisos?`<div style="margin-top:10px;padding:10px 12px;border:1px solid rgba(234,179,8,.35);border-radius:8px;background:rgba(234,179,8,.08);font-size:.74rem;line-height:1.6">
+      <ul style="margin:0 0 0 16px">${avisos}</ul></div>`:''}`;
+}
+
+function _prMontarPayload(){
+  if(!perenePayload)return null;
+  return Object.assign({},perenePayload,{
+    ano_base:+document.getElementById('pr-ano-base').value||perenePayload.ano_base,
+    anos:+document.getElementById('pr-anos').value||6,
+    credito:{
+      credito_valor:+document.getElementById('pr-valor').value||0,
+      prazo_meses:+document.getElementById('pr-prazo').value||0,
+      carencia_meses:+document.getElementById('pr-carencia').value||0,
+      // A API recebe FRAÇÃO; a tela pede porcentagem, como no formulário
+      // pecuário. Mandar 10,5 daqui produziria um serviço de dívida absurdo.
+      juros_aa:(+document.getElementById('pr-juros').value||0)/100,
+      sistema_amortizacao:document.getElementById('pr-sistema').value,
+      periodicidade_meses:+document.getElementById('pr-periodicidade').value||12,
+    },
+    identificacao:{
+      fazenda:document.getElementById('pr-fazenda').value.trim(),
+      municipio:document.getElementById('pr-municipio').value.trim(),
+      proprietario:document.getElementById('pr-proprietario').value.trim(),
+    },
+  });
+}
+
+async function pereneAnalisar(){
+  const body=_prMontarPayload();
+  if(!body){showToast('Importe a ficha de talhões antes de analisar.',true);return;}
+  if(!body.ano_base){showToast('Informe a safra de referência.',true);return;}
+
+  showLoading('Projetando a lavoura...');
+  try{
+    const res=await fetch('/api/perene/analisar',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await res.json();
+    if(!res.ok||data.erro){showToast(data.erro||'Falha na análise',true);return;}
+    pereneAnalise=data;
+    document.getElementById('pr-btn-pdf').disabled=false;
+    _prRenderResultado(data);
+    document.getElementById('pr-resultado').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){showToast('Erro ao analisar a lavoura',true);}
+  finally{hideLoading();}
+}
+
+function _prRenderResultado(d){
+  const cred=(d.credito&&d.credito.analysis)||{};
+  const pior=cred.pior_periodo||{};
+  const anos=(d.economico&&d.economico.anos)||[];
+  const cenarios=(d.stress&&d.stress.scenarios)||[];
+
+  const linhasAno=anos.map(a=>`<tr>
+      <td class="r">${a.ano}</td><td class="r">${a.ano_calendario}</td>
+      <td class="r">${_prNum(a.producao_total)}</td>
+      <td class="r">${_prMoeda(a.receita)}</td>
+      <td class="r">${_prMoeda(a.custo)}</td>
+      <td class="r" style="color:${a.resultado<0?'var(--sb)':'inherit'}">${_prMoeda(a.resultado)}</td>
+    </tr>`).join('');
+
+  const linhasCen=cenarios.map(c=>`<tr>
+      <td>${escapeHtml(String(c.nome||'').replace(/_/g,' '))}</td>
+      <td style="font-size:.68rem;color:var(--mu)">${escapeHtml((c.applied_changes||[]).join(', '))}</td>
+      <td class="r" style="${c.uncovered?'color:var(--sb);font-weight:700':''}">${_prNum(c.dscr_minimo,2)}</td>
+      <td>${c.uncovered?'Descoberto':'Coberto'}</td>
+    </tr>`).join('');
+
+  const avisos=(d.avisos||[]).map(a=>`<li>${escapeHtml(a)}</li>`).join('');
+
+  document.getElementById('pr-resultado').innerHTML=`
+    ${d.valido?'':`<div style="margin-bottom:14px;padding:11px 13px;border:1px solid rgba(248,113,113,.4);border-radius:8px;background:rgba(248,113,113,.08);font-size:.76rem;line-height:1.6">
+      <b>Análise incompleta.</b> Faltam dados declarados na ficha — os números abaixo cobrem apenas as culturas com curva, preço e custo informados.</div>`}
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Capacidade de Pagamento</div></div>
+      <div class="cb">
+        <div class="fgrid">
+          <div class="field"><label>DSCR médio do prazo</label><div style="font-family:var(--fm);font-size:1.4rem">${_prNum(cred.dscr_medio,2)}</div></div>
+          <div class="field"><label>DSCR mínimo</label><div style="font-family:var(--fm);font-size:1.4rem">${_prNum(cred.dscr_minimo,2)}</div></div>
+          <div class="field"><label>Ano mais apertado</label><div style="font-family:var(--fm);font-size:1.4rem">${pior.ano||'—'}</div></div>
+          <div class="field"><label>Capacidade máxima estimada</label><div style="font-family:var(--fm);font-size:1.05rem">${_prMoeda(cred.capacidade_maxima_estimativa)}</div></div>
+        </div>
+        ${pior.ano>1?`<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--b2);border-radius:8px;font-size:.76rem;line-height:1.6">
+          <b>O ano mais apertado do contrato é o ${pior.ano}, não o primeiro.</b> Em lavoura perene o aperto raramente cai no primeiro ano: o café alterna carga alta e baixa, e a soqueira da cana decai a cada corte até a reforma.</div>`:''}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="ch"><div class="ct"><div class="cd"></div>Produção e Resultado Projetados</div></div>
+      <div style="overflow-x:auto"><table class="ytbl">
+        <thead><tr><th class="r">Ano</th><th class="r">Safra</th><th class="r">Produção</th><th class="r">Receita</th><th class="r">Custo</th><th class="r">Resultado</th></tr></thead>
+        <tbody>${linhasAno}</tbody></table></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="ch"><div class="ct"><div class="cd"></div>Cenários de Estresse</div></div>
+      <div style="overflow-x:auto"><table class="ytbl">
+        <thead><tr><th>Cenário</th><th>Choque aplicado</th><th class="r">DSCR mínimo</th><th>Situação</th></tr></thead>
+        <tbody>${linhasCen}</tbody></table></div>
+    </div>
+
+    ${avisos?`<div class="card" style="margin-bottom:16px">
+      <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Ressalvas</div></div>
+      <div class="cb"><ul style="margin:0 0 0 16px;font-size:.78rem;line-height:1.7">${avisos}</ul></div>
+    </div>`:''}`;
+}
+
+async function perenePDF(){
+  const body=_prMontarPayload();
+  if(!body||!pereneAnalise){showToast('Rode a análise antes de baixar o parecer.',true);return;}
+  showLoading('Gerando o parecer...');
+  try{
+    const res=await fetch('/api/perene/parecer/pdf',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(Object.assign({},body,{analise:pereneAnalise}))});
+    if(!res.ok){const e=await res.json().catch(()=>({}));showToast(e.erro||'Falha ao gerar o PDF',true);return;}
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download='parecer_perene.pdf';a.click();
+    URL.revokeObjectURL(url);
+  }catch(e){showToast('Erro ao gerar o parecer',true);}
+  finally{hideLoading();}
+}
 
 function logout() {
   window.location.href = '/logout';
