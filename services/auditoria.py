@@ -53,6 +53,9 @@ CONSULTA_CADASTRAL      = 'consulta_cadastral'
 # Conta criada sem um admin ter clicado em nada — é o que o login social por
 # domínio liberado faz. Justamente por ser automático precisa deixar rastro.
 CONTA_CRIADA            = 'conta_criada'
+# Desfecho é dado financeiro de terceiro: quem registrou, e quando,
+# precisa ficar tão rastreável quanto quem consultou um CPF.
+DESFECHO_REGISTRADO     = 'desfecho_registrado'
 
 EVENTOS = {
     LOGIN:             'Entrou no sistema',
@@ -70,6 +73,7 @@ EVENTOS = {
     LGPD_EXPORTACAO:   'Exportou dados de um titular (LGPD Art. 18, V)',
     LGPD_ANONIMIZACAO: 'Anonimizou um titular (LGPD Art. 18)',
     LGPD_PURGA:        'Purgou a trilha além do prazo de retenção',
+    DESFECHO_REGISTRADO: 'Registrou o desfecho de um parecer',
     LOGIN_2FA_FALHOU:  'Segundo fator recusado',
     LOGIN_2FA_BACKUP:  'Entrou usando código de recuperação',
     DOIS_FATORES_ATIVADO:    'Ativou o segundo fator',
