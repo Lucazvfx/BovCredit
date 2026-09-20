@@ -1102,6 +1102,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
         <button class="btn-p" onclick="graosAnalisar()">Analisar Safra & Crédito</button>
+        <button class="btn-sm" id="gr-btn-pdf" onclick="graosPDF()" disabled>⬇ Baixar Parecer & CPR (PDF)</button>
       </div>
     </div>
   </div>
@@ -4841,6 +4842,8 @@ async function graosAnalisar(){
       return;
     }
     graosAnalise = data;
+    const btnPdf = document.getElementById('gr-btn-pdf');
+    if(btnPdf) btnPdf.disabled = false;
     _grRenderResultado(data);
     document.getElementById('gr-resultado').scrollIntoView({behavior:'smooth', block:'start'});
   } catch(e) {
@@ -5028,6 +5031,7 @@ async function barterCalcular(){
       return;
     }
     _renderBarterResultado(d);
+    window._ultimoBarter = d;
   } catch(e) {
     showToast('Erro ao processar cálculo de barter', true);
   } finally {
@@ -5112,6 +5116,7 @@ async function barterGerarCPR(){
       showToast(d.erro || 'Falha ao gerar minuta', true);
       return;
     }
+    window._ultimaCPR = d;
     _renderMinutaCPR(d);
   } catch(e) {
     showToast('Erro ao gerar minuta da CPR', true);
@@ -5149,6 +5154,47 @@ function barterCopiarMinuta(){
     document.execCommand('copy');
     showToast('Minuta da CPR copiada!');
   });
+}
+
+async function graosPDF(){
+  if(!graosAnalise){
+    showToast('Execute a análise de safra antes de emitir o parecer em PDF.', true);
+    return;
+  }
+  showLoading('Gerando Parecer Técnico e CPR em PDF...');
+  try {
+    const payload = {
+      analise: graosAnalise,
+      identificacao: {
+        fazenda: document.getElementById('cpr-emitente-nome')?.value?.trim() || 'Fazenda Modelo',
+        municipio: 'Região Produtora',
+        proprietario: document.getElementById('cpr-emitente-nome')?.value?.trim() || 'Produtor Rural'
+      },
+      barter: (window._ultimoBarter || null),
+      cpr: (window._ultimaCPR || null)
+    };
+    const res = await fetch('/api/agricola/graos/parecer/pdf', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      showToast(err.erro || 'Falha ao gerar o PDF', true);
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'parecer_graos_cpr.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    showToast('Erro ao baixar o parecer em PDF', true);
+  } finally {
+    hideLoading();
+  }
 }
 
 function logout() {

@@ -402,5 +402,89 @@ def test_rotas_barter_e_cpr_endpoint():
     assert 'Produtor Teste' in dc_res['texto_minuta']
 
 
+def test_gerar_pdf_parecer_graos():
+    """Valida geração dos bytes válidos do PDF do parecer de grãos e CPR."""
+    from services.annual_engine import analisar_culturas_anuais, calcular_barter, gerar_minuta_cpr
+    from services.parecer_pdf_graos import gerar_pdf_parecer_graos
+
+    payload = {
+        'ano_agricola': '2026/27',
+        'culturas': [
+            {
+                'cultura': 'SOJA',
+                'safra_tipo': '1_SAFRA',
+                'area_ha': 1000,
+                'produtividade_ha': 62,
+                'preco_unitario': 144,
+                'coe_ha': 4200,
+                'cot_ha': 4600,
+            }
+        ],
+        'credito': {
+            'valor': 1_500_000,
+            'prazo_meses': 48,
+            'juros_aa': 0.115,
+        }
+    }
+    analise = analisar_culturas_anuais(payload)
+    barter = calcular_barter({
+        'valor_insumos': 500_000,
+        'praca': 'SOJA_RONDONOPOLIS_MT',
+        'produtividade_esperada_ha': 62,
+        'area_total_ha': 1000,
+    })
+    cpr = gerar_minuta_cpr({
+        'barter': barter,
+        'emitente': {'nome': 'Fazenda Modelo', 'cpf_cnpj': '000'},
+        'credor': {'nome': 'Revenda Insumos', 'cnpj': '111'},
+    })
+
+    identificacao = {'fazenda': 'Fazenda Modelo', 'municipio': 'Rondonópolis / MT', 'proprietario': 'João da Silva'}
+    branding = {'nome_consultoria': 'Orkavyn Agro Intelligence'}
+
+    pdf_bytes = gerar_pdf_parecer_graos(analise, identificacao=identificacao, barter=barter, cpr=cpr, branding=branding)
+
+    assert isinstance(pdf_bytes, bytes)
+    assert pdf_bytes.startswith(b'%PDF')
+    assert len(pdf_bytes) > 2000
+
+
+def test_rota_pdf_parecer_graos_endpoint():
+    """Valida a rota /api/agricola/graos/parecer/pdf devolvendo o arquivo PDF."""
+    import database as db
+    db.init_db()
+    email = 'pdfgraos@example.com'
+    usuario = db.buscar_usuario_email(email)
+    if not usuario:
+        db.criar_usuario(email, 'Produtor PDF', 'senha123')
+        usuario = db.buscar_usuario_email(email)
+    from app import app
+    app.config['TESTING'] = True
+    cliente = app.test_client()
+    with cliente.session_transaction() as sessao:
+        sessao['_user_id'] = str(usuario['id'])
+
+    payload = {
+        'culturas': [
+            {
+                'cultura': 'SOJA',
+                'safra_tipo': '1_SAFRA',
+                'area_ha': 500,
+                'produtividade_ha': 60,
+                'preco_unitario': 144,
+                'coe_ha': 4000,
+            }
+        ],
+        'credito': {'valor': 500_000, 'prazo_meses': 24, 'juros_aa': 0.115},
+        'identificacao': {'fazenda': 'Fazenda Modelo', 'proprietario': 'Carlos'},
+    }
+    resp = cliente.post('/api/agricola/graos/parecer/pdf', json=payload)
+    assert resp.status_code == 200
+    assert resp.mimetype == 'application/pdf'
+    assert resp.data.startswith(b'%PDF')
+
+
+
+
 
 
