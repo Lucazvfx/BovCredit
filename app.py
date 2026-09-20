@@ -87,6 +87,9 @@ from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services.perennial_engine import (
     analisar_lavoura_perene, parsear_ficha_talhoes,
 )
+from services.annual_engine import (
+    analisar_culturas_anuais,
+)
 from services.rating_credito import calcular_rating
 from services.precos_regionais import aplicar as aplicar_preco_regional
 from services.analysis_pipeline import run_full_analysis
@@ -3035,6 +3038,16 @@ def api_cenario():
     if len(v) != 10:
         return jsonify({'erro': 'Valores inválidos'}), 400
     result = simular_cenario(v, cenario, **params)
+    
+    area_ha = float(data.get('area_ha', 1000))
+    if area_ha <= 0: area_ha = 1
+    for ano in result.get('anos', []):
+        ua_estimada = ano.get('total', 0) * 0.8
+        ano['lotacao'] = round(ua_estimada / area_ha, 2)
+        ano['lucro_ha'] = round(ano.get('resultado', 0) / area_ha, 2)
+    if 'acumulado' in result and 'anos' in result and len(result['anos']) > 0:
+        result['acumulado']['lucro_ha_medio'] = round(sum(a.get('lucro_ha', 0) for a in result['anos']) / len(result['anos']), 2)
+        
     return jsonify(result)
 
 @app.route('/api/cenarios', methods=['GET'])
@@ -3547,6 +3560,34 @@ def api_perene_analisar():
 
     try:
         resultado = analisar_lavoura_perene(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+
+    return jsonify(resultado)
+
+
+@app.route('/api/agricola/graos/analisar', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_agricola_graos_analisar():
+    """Parecer de culturas anuais e grãos (Soja, Milho Safrinha, Algodão):
+    Produção física, COE/COT, breakeven em sc/ha e R$/sc, capacidade de pagamento (DSCR) e testes de estresse.
+    """
+    data = request.get_json(silent=True) or {}
+
+    if not data.get('culturas'):
+        return jsonify({'erro': 'Informe ao menos uma cultura na safra planejada.'}), 400
+
+    juros = (data.get('credito') or {}).get('juros_aa')
+    try:
+        if juros is not None and float(juros) >= 1:
+            return jsonify({
+                'erro': 'juros_aa é fração ao ano: use 0.115 para 11,5% a.a.'}), 400
+    except (TypeError, ValueError):
+        return jsonify({'erro': 'juros_aa inválido.'}), 400
+
+    try:
+        resultado = analisar_culturas_anuais(data)
     except (TypeError, ValueError) as erro:
         return jsonify({'erro': str(erro)}), 400
 

@@ -546,6 +546,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
        dependem de classificação já dizem o que falta. -->
   <button class="tab-btn" id="tab-cen" aria-controls="panel-cenarios" aria-selected="false" role="tab" onclick="showTab('cenarios',this)">Simular Cenários</button>
   <button class="tab-btn" aria-controls="panel-historico" aria-selected="false" role="tab" onclick="showTab('historico',this)">Histórico</button>
+  <button class="tab-btn" aria-controls="panel-graos" aria-selected="false" role="tab" onclick="showTab('graos',this)">Grãos & Safra</button>
   <button class="tab-btn" aria-controls="panel-perene" aria-selected="false" role="tab" onclick="showTab('perene',this)">Lavoura Perene</button>
   <button class="tab-btn" aria-controls="panel-ajuda" aria-selected="false" role="tab" onclick="showTab('ajuda',this)">Ajuda</button>
 </div>
@@ -1047,7 +1048,67 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   </div>
 </div>
 
-<!-- ═══ AJUDA ═══ -->
+<!-- ═══ CULTURAS ANUAIS & GRÃOS ═══ -->
+<div class="panel" id="panel-graos">
+
+  <div class="analysis-flow ork-panel ork-import-panel">
+    <div class="analysis-flow-copy">
+      <span class="analysis-flow-kicker">Culturas Anuais & Grãos</span>
+      <div class="analysis-flow-title">Planejamento de Safra & Safrinha</div>
+      <p class="analysis-flow-sub">Simulação de produção de grãos (Soja, Milho, Algodão), custos operacionais (COE/COT), ponto de equilíbrio em sacas/ha e dimensionamento de crédito de custeio e investimento.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="ch"><div class="ct"><div class="cd" style="background:var(--gn)"></div>Plano de Safra (Culturas e Custos)</div></div>
+    <div class="cb">
+      <div class="fgrid" style="margin-bottom:14px">
+        <div class="field"><label title="Ex: 2026/27">Ano-Safra ℹ</label><input type="text" id="gr-ano-safra" value="2026/27"></div>
+        <div class="field"><label title="Despesas gerais da fazenda não alocadas por cultura (administração, impostos fixos, pró-labore)">Despesas Gerais/Fixas Anuais (R$) ℹ</label><input type="number" id="gr-desp-adm" value="100000" min="0" step="5000"></div>
+      </div>
+
+      <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">1ª Safra — Verão (Soja / Safra Principal)</div>
+      <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b);margin-bottom:14px">
+        <div class="field"><label>Cultura</label><input type="text" id="gr-c1-nome" value="SOJA" readonly style="background:var(--c3);color:var(--sb)"></div>
+        <div class="field"><label>Área (ha)</label><input type="number" id="gr-c1-area" value="1000" min="1" step="10"></div>
+        <div class="field"><label>Produtividade (sc/ha)</label><input type="number" id="gr-c1-prod" value="62" min="1" step="0.5"></div>
+        <div class="field"><label>Preço Venda (R$/sc)</label><input type="number" id="gr-c1-preco" value="125" min="1" step="0.5"></div>
+        <div class="field"><label title="Custo Operacional Efetivo (insumos, diesel, mão de obra temporária, sementes, adubo)">COE (R$/ha) ℹ</label><input type="number" id="gr-c1-coe" value="4200" min="100" step="50"></div>
+        <div class="field"><label title="Custo Operacional Total (COE + depreciações e manutenção de máquinas)">COT (R$/ha) ℹ</label><input type="number" id="gr-c1-cot" value="4600" min="100" step="50"></div>
+      </div>
+
+      <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">2ª Safra — Safrinha (Milho / Sucessão)</div>
+      <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b)">
+        <div class="field"><label>Cultura</label><input type="text" id="gr-c2-nome" value="MILHO" readonly style="background:var(--c3);color:var(--sb)"></div>
+        <div class="field"><label>Área (ha)</label><input type="number" id="gr-c2-area" value="750" min="0" step="10"></div>
+        <div class="field"><label>Produtividade (sc/ha)</label><input type="number" id="gr-c2-prod" value="95" min="1" step="0.5"></div>
+        <div class="field"><label>Preço Venda (R$/sc)</label><input type="number" id="gr-c2-preco" value="52" min="1" step="0.5"></div>
+        <div class="field"><label title="Custo Operacional Efetivo da Safrinha">COE (R$/ha) ℹ</label><input type="number" id="gr-c2-coe" value="3100" min="100" step="50"></div>
+        <div class="field"><label title="Custo Operacional Total da Safrinha">COT (R$/ha) ℹ</label><input type="number" id="gr-c2-cot" value="3400" min="100" step="50"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card ork-section-credit" style="margin-bottom:16px">
+    <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Financiamento & Crédito Rural</div></div>
+    <div class="cb">
+      <div class="fgrid">
+        <div class="field"><label title="Valor solicitado de custeio ou investimento">Valor Solicitado (R$) ℹ</label><input type="number" id="gr-valor" min="0" step="10000" value="1500000"></div>
+        <div class="field"><label title="Prazo total em meses">Prazo (meses) ℹ</label><input type="number" id="gr-prazo" min="6" value="48" step="6"></div>
+        <div class="field"><label title="Carência para a primeira amortização">Carência (meses) ℹ</label><input type="number" id="gr-carencia" min="0" value="12" step="6"></div>
+        <div class="field"><label title="Taxa de juros anual (% a.a.)">Juros (% a.a.) ℹ</label><input type="number" id="gr-juros" min="0" step="0.1" value="11.5"></div>
+        <div class="field"><label>Sistema de Amortização ℹ</label><select id="gr-sistema"><option value="sac">SAC — parcela decrescente</option><option value="price">Price — parcela fixa</option></select></div>
+        <div class="field"><label>Periodicidade ℹ</label><select id="gr-periodicidade"><option value="12">Anual (pós-safra)</option><option value="6">Semestral</option><option value="1">Mensal</option></select></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn-p" onclick="graosAnalisar()">Analisar Safra & Crédito</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gr-resultado"></div>
+</div>
+
 <!-- ═══ LAVOURA PERENE ═══ -->
 <div class="panel" id="panel-perene">
 
@@ -4382,7 +4443,7 @@ function showTab(id,btn){
   if(!panel)return;
   const legacyTab=document.querySelector(`.tab-btn[aria-controls="${panel.id}"]`);
   if(btn?.hasAttribute?.('data-ork-nav') && legacyTab?.classList.contains('tab-locked'))return;
-  const idx={entrada:0,resultado:1,cenarios:2,historico:3,perene:4,ajuda:5};
+  const idx={entrada:0,resultado:1,cenarios:2,historico:3,graos:4,perene:5,ajuda:6};
   document.querySelectorAll('.panel').forEach(p=>{
     const active=p===panel;
     p.classList.toggle('active',active);
@@ -4648,6 +4709,223 @@ async function perenePDF(){
     URL.revokeObjectURL(url);
   }catch(e){showToast('Erro ao gerar o parecer',true);}
   finally{hideLoading();}
+}
+
+// ================== CULTURAS ANUAIS & GRÃOS ==================
+let graosAnalise = null;
+
+async function graosAnalisar(){
+  const culturas = [];
+  const area1 = +document.getElementById('gr-c1-area').value || 0;
+  if(area1 > 0){
+    culturas.push({
+      cultura: document.getElementById('gr-c1-nome').value.trim(),
+      safra_tipo: '1_SAFRA',
+      area_ha: area1,
+      produtividade_ha: +document.getElementById('gr-c1-prod').value || 0,
+      preco_unitario: +document.getElementById('gr-c1-preco').value || 0,
+      coe_ha: +document.getElementById('gr-c1-coe').value || 0,
+      cot_ha: +document.getElementById('gr-c1-cot').value || 0,
+      unidade: 'sc'
+    });
+  }
+
+  const area2 = +document.getElementById('gr-c2-area').value || 0;
+  if(area2 > 0){
+    culturas.push({
+      cultura: document.getElementById('gr-c2-nome').value.trim(),
+      safra_tipo: '2_SAFRA',
+      area_ha: area2,
+      produtividade_ha: +document.getElementById('gr-c2-prod').value || 0,
+      preco_unitario: +document.getElementById('gr-c2-preco').value || 0,
+      coe_ha: +document.getElementById('gr-c2-coe').value || 0,
+      cot_ha: +document.getElementById('gr-c2-cot').value || 0,
+      unidade: 'sc'
+    });
+  }
+
+  if(!culturas.length){
+    showToast('Informe ao menos uma cultura com área maior que zero.', true);
+    return;
+  }
+
+  const jurosVal = +document.getElementById('gr-juros').value || 0;
+  const payload = {
+    ano_agricola: document.getElementById('gr-ano-safra').value.trim() || '2026/27',
+    despesas_administrativas: +document.getElementById('gr-desp-adm').value || 0,
+    culturas: culturas,
+    credito: {
+      valor: +document.getElementById('gr-valor').value || 0,
+      prazo_meses: +document.getElementById('gr-prazo').value || 12,
+      carencia_meses: +document.getElementById('gr-carencia').value || 0,
+      juros_aa: jurosVal > 0 ? (jurosVal / 100) : 0.115,
+      sistema: document.getElementById('gr-sistema').value,
+      periodicidade_meses: +document.getElementById('gr-periodicidade').value || 12
+    }
+  };
+
+  showLoading('Simulando safra e capacidade de pagamento...');
+  try {
+    const res = await fetch('/api/agricola/graos/analisar', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(!res.ok || data.erro){
+      showToast(data.erro || 'Falha ao analisar grãos', true);
+      return;
+    }
+    graosAnalise = data;
+    _grRenderResultado(data);
+    document.getElementById('gr-resultado').scrollIntoView({behavior:'smooth', block:'start'});
+  } catch(e) {
+    showToast('Erro ao processar simulação de grãos', true);
+  } finally {
+    hideLoading();
+  }
+}
+
+function _grRenderResultado(d){
+  const eco = d.economico || {};
+  const cred = (d.credito && d.credito.analysis) || {};
+  const cults = eco.culturas || [];
+  const proj = (d.projecao && d.projecao.anos) || [];
+  const cenarios = (d.stress && d.stress.scenarios) || [];
+
+  const linhasCult = cults.map(c => `<tr>
+    <td><b>${escapeHtml(c.identificacao)}</b></td>
+    <td class="r">${_prNum(c.area_ha, 0)} ha</td>
+    <td class="r">${_prNum(c.produtividade_ha, 1)} ${c.unidade}/ha</td>
+    <td class="r">${_prMoeda(c.preco_unitario)}</td>
+    <td class="r"><b>${_prMoeda(c.receita_bruta)}</b></td>
+    <td class="r">${_prMoeda(c.coe_ha)}/ha</td>
+    <td class="r" style="color:var(--am);font-weight:700">${_prNum(c.breakeven_sc_ha, 1)} ${c.unidade}/ha</td>
+    <td class="r" style="color:${c.margem_seguranca_sc_ha < 0 ? 'var(--sb)' : 'var(--gn)'};font-weight:700">
+      ${_prNum(c.margem_seguranca_sc_ha, 1)} ${c.unidade}/ha
+    </td>
+  </tr>`).join('');
+
+  const linhasProj = proj.map(p => `<tr>
+    <td class="r">${p.ano}</td>
+    <td class="r">${escapeHtml(p.ano_safra || p.ano_calendario)}</td>
+    <td class="r">${_prMoeda(p.receita)}</td>
+    <td class="r">${_prMoeda(p.custo)}</td>
+    <td class="r" style="font-weight:700;color:${p.resultado < 0 ? 'var(--sb)' : 'var(--gn)'}">${_prMoeda(p.resultado)}</td>
+  </tr>`).join('');
+
+  const linhasCen = cenarios.map(c => `<tr>
+    <td>${escapeHtml(String(c.nome || '').replace(/_/g, ' '))}</td>
+    <td style="font-size:.7rem;color:var(--mu)">${escapeHtml((c.applied_changes || []).join(', '))}</td>
+    <td class="r" style="${c.uncovered ? 'color:var(--sb);font-weight:700' : ''}">${_prNum(c.dscr_minimo, 2)}x</td>
+    <td><span class="badge ${c.uncovered ? 'badge-danger' : 'badge-success'}" style="padding:2px 8px;border-radius:4px;font-size:.68rem;background:${c.uncovered ? 'rgba(248,113,113,.15)' : 'rgba(34,197,94,.15)'};color:${c.uncovered ? 'var(--sb)' : 'var(--gn)'}">${c.uncovered ? 'Descoberto' : 'Coberto'}</span></td>
+  </tr>`).join('');
+
+  const dicas = (d.dicas || []).map(x => {
+    const atencao = x.tipo === 'atencao';
+    const borda = atencao ? 'rgba(234,179,8,.35)' : 'var(--b2)';
+    const fundo = atencao ? 'rgba(234,179,8,.07)' : 'transparent';
+    return `<div style="padding:11px 13px;border:1px solid ${borda};border-radius:8px;background:${fundo};margin-bottom:9px">
+      <div style="font-weight:700;font-size:.79rem;margin-bottom:4px">${atencao ? '⚠ ' : '✔ '}${escapeHtml(x.titulo)}</div>
+      <div style="font-size:.76rem;line-height:1.6;color:var(--mu)">${escapeHtml(x.texto)}</div>
+    </div>`;
+  }).join('');
+
+  const dscrMin = cred.dscr_minimo !== undefined && cred.dscr_minimo !== null ? `${_prNum(cred.dscr_minimo, 2)}x` : '—';
+  const capMax = cred.capacidade_maxima_estimativa ? _prMoeda(cred.capacidade_maxima_estimativa) : '—';
+
+  document.getElementById('gr-resultado').innerHTML = `
+    ${dicas ? `<div class="card" style="margin-bottom:16px">
+      <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Diagnóstico & Dicas de Crédito</div></div>
+      <div class="cb">${dicas}</div>
+    </div>` : ''}
+
+    <div class="kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px">
+      <div class="kpi-card" style="background:var(--c2);padding:14px;border-radius:var(--rs);border:1px solid var(--b)">
+        <div style="font-size:.68rem;color:var(--mu);text-transform:uppercase">Receita Bruta Total</div>
+        <div style="font-size:1.25rem;font-weight:700;font-family:var(--fm);color:var(--tx);margin-top:4px">${_prMoeda(eco.receita_total)}</div>
+        <div style="font-size:.68rem;color:var(--mu);margin-top:3px">${_prNum(eco.area_plantada_total_ha, 0)} ha plantados</div>
+      </div>
+      <div class="kpi-card" style="background:var(--c2);padding:14px;border-radius:var(--rs);border:1px solid var(--b)">
+        <div style="font-size:.68rem;color:var(--mu);text-transform:uppercase">COE Total (Desembolso)</div>
+        <div style="font-size:1.25rem;font-weight:700;font-family:var(--fm);color:var(--am);margin-top:4px">${_prMoeda(eco.coe_total)}</div>
+        <div style="font-size:.68rem;color:var(--mu);margin-top:3px">${_prMoeda((eco.metricas_ha||{}).coe_ha_plantado)}/ha plantado</div>
+      </div>
+      <div class="kpi-card" style="background:var(--c2);padding:14px;border-radius:var(--rs);border:1px solid var(--b)">
+        <div style="font-size:.68rem;color:var(--mu);text-transform:uppercase">Margem de Contribuição</div>
+        <div style="font-size:1.25rem;font-weight:700;font-family:var(--fm);color:var(--gn);margin-top:4px">${_prMoeda(eco.margem_contribuicao_total)}</div>
+        <div style="font-size:.68rem;color:var(--mu);margin-top:3px">Receita menos desembolso</div>
+      </div>
+      <div class="kpi-card" style="background:var(--c2);padding:14px;border-radius:var(--rs);border:1px solid var(--b)">
+        <div style="font-size:.68rem;color:var(--mu);text-transform:uppercase">Resultado Operacional (Líquido)</div>
+        <div style="font-size:1.25rem;font-weight:700;font-family:var(--fm);color:${eco.resultado_operacional < 0 ? 'var(--sb)' : 'var(--gn)'};margin-top:4px">${_prMoeda(eco.resultado_operacional)}</div>
+        <div style="font-size:.68rem;color:var(--mu);margin-top:3px">Após depreciação e fixos</div>
+      </div>
+      <div class="kpi-card" style="background:var(--c2);padding:14px;border-radius:var(--rs);border:1px solid var(--b)">
+        <div style="font-size:.68rem;color:var(--mu);text-transform:uppercase">DSCR Mínimo do Contrato</div>
+        <div style="font-size:1.25rem;font-weight:700;font-family:var(--fm);color:${(cred.dscr_minimo||0) < 1.0 ? 'var(--sb)' : 'var(--gn)'};margin-top:4px">${dscrMin}</div>
+        <div style="font-size:.68rem;color:var(--mu);margin-top:3px">Capacidade: ${capMax}</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="ch"><div class="ct"><div class="cd"></div>Detalhamento por Cultura & Ponto de Equilíbrio</div></div>
+      <div class="cb" style="overflow-x:auto">
+        <table class="ytbl">
+          <thead>
+            <tr>
+              <th>Cultura / Safra</th>
+              <th class="r">Área</th>
+              <th class="r">Produtividade</th>
+              <th class="r">Preço Venda</th>
+              <th class="r">Receita Bruta</th>
+              <th class="r">COE (Insumos)</th>
+              <th class="r">Breakeven COE</th>
+              <th class="r">Margem Segurança</th>
+            </tr>
+          </thead>
+          <tbody>${linhasCult}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="g2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="card">
+        <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Projeção Plurianual (Horizonte Financiamento)</div></div>
+        <div class="cb" style="overflow-x:auto">
+          <table class="ytbl">
+            <thead>
+              <tr>
+                <th class="r">Ano</th>
+                <th class="r">Safra</th>
+                <th class="r">Receita</th>
+                <th class="r">Custos</th>
+                <th class="r">Resultado</th>
+              </tr>
+            </thead>
+            <tbody>${linhasProj}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ch"><div class="ct"><div class="cd" style="background:var(--sb)"></div>Testes de Estresse na Safra</div></div>
+        <div class="cb" style="overflow-x:auto">
+          <table class="ytbl">
+            <thead>
+              <tr>
+                <th>Cenário</th>
+                <th>Choque Aplicado</th>
+                <th class="r">DSCR</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>${linhasCen}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function logout() {
