@@ -1249,6 +1249,54 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
   </div>
 
+  <!-- MATRIZ DE GARANTIAS & DIMENSIONAMENTO DE LTV -->
+  <div class="card" style="margin-bottom:16px;border:1px solid rgba(59,130,246,.35)">
+    <div class="ch">
+      <div class="ct">
+        <div class="cd" style="background:#3B82F6"></div>Matriz de Garantias & Dimensionamento de LTV (Garantias Reais e Fiduciárias)
+      </div>
+      <span style="font-size:.7rem;color:#3B82F6;font-weight:700">Comitê de Crédito B2B</span>
+    </div>
+    <div class="cb">
+      <p style="font-size:.78rem;color:var(--mu);margin-bottom:14px">
+        Estruture o pacote de garantias da operação (Imóvel Rural/Terra, Penhor de Safra e Avalista). O motor aplica os deságios de liquidação forçada da política institucional e calcula o LTV e Índice de Cobertura (ICG).
+      </p>
+
+      <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">1. Garantia Real — Imóvel Rural / Fazenda</div>
+      <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b);margin-bottom:12px">
+        <div class="field"><label>Denominação da Fazenda</label><input type="text" id="gt-terra-nome" value="Fazenda Esperança"></div>
+        <div class="field"><label>Nº Matrícula e Cartório (CRI)</label><input type="text" id="gt-terra-matricula" value="Matrícula 34.567 - CRI Sorriso/MT"></div>
+        <div class="field"><label>Área Ofertada em Garantia (ha)</label><input type="number" id="gt-terra-area" value="500" min="0" step="10"></div>
+        <div class="field"><label title="Valor venal/mercado por hectare">Valor de Mercado da Terra (R$/ha) ℹ</label><input type="number" id="gt-terra-valor-ha" value="40000" min="1000" step="1000"></div>
+        <div class="field">
+          <label>Modalidade de Gravame ℹ</label>
+          <select id="gt-terra-gravame">
+            <option value="ALIENACAO_FIDUCIARIA">Alienação Fiduciária (Deságio 20% - Execução Extrajudicial)</option>
+            <option value="HIPOTECA_1_GRAU">Hipoteca Cedular 1º Grau (Deságio 30% - Preferencial)</option>
+            <option value="HIPOTECA_2_GRAU">Hipoteca 2º Grau (Deságio 45% - Subordinado)</option>
+          </select>
+        </div>
+        <div class="field"><label title="Dívidas ou hipotecas já averbadas na matrícula">Ônus / Dívidas Prévias na Matrícula (R$) ℹ</label><input type="number" id="gt-terra-dividas" value="0" min="0" step="50000"></div>
+      </div>
+
+      <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">2. Garantia Fiduciária & Pessoal — Penhor de Safra & Aval</div>
+      <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b);margin-bottom:12px">
+        <div class="field"><label>Cultura em Penhor</label><input type="text" id="gt-safra-cultura" value="Soja"></div>
+        <div class="field"><label>Sacas Empenhadas (sc 60kg)</label><input type="number" id="gt-safra-sacas" value="5000" min="0" step="500"></div>
+        <div class="field"><label>Preço Referência (R$/sc)</label><input type="number" id="gt-safra-preco" value="144" min="1" step="0.5"></div>
+        <div class="field"><label>Nome do Avalista / Fiador</label><input type="text" id="gt-aval-nome" value="Carlos Silva (Sócio / Produtor)"></div>
+        <div class="field"><label>CPF / CNPJ do Avalista</label><input type="text" id="gt-aval-doc" value="123.456.789-00"></div>
+        <div class="field"><label title="Patrimônio líquido comprovado em IRPF/Balanço">Patrimônio Líquido Avalista (R$) ℹ</label><input type="number" id="gt-aval-patrimonio" value="2000000" min="0" step="100000"></div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn-p" onclick="garantiasAvaliar()">Dimensionar Matriz de Garantias & LTV</button>
+      </div>
+
+      <div id="gt-resultado" style="margin-top:14px"></div>
+    </div>
+  </div>
+
   <div id="gr-resultado"></div>
 </div>
 
@@ -5250,7 +5298,8 @@ async function graosPDF(){
       },
       barter: (window._ultimoBarter || null),
       cpr: (window._ultimaCPR || null),
-      esg: (window._ultimoESG || null)
+      esg: (window._ultimoESG || null),
+      garantias: (window._ultimasGarantias || null)
     };
     const res = await fetch('/api/agricola/graos/parecer/pdf', {
       method: 'POST',
@@ -5354,6 +5403,123 @@ function _renderComplianceResultado(d){
 
       <div style="font-size:.76rem;line-height:1.5;color:var(--tx);padding:8px 12px;background:rgba(255,255,255,.03);border-radius:6px;border-left:3px solid ${corParecer}">
         <b>Parecer do Comitê ESG:</b> ${escapeHtml(d.recomendacoes_comite)}
+      </div>
+    </div>
+  `;
+}
+
+async function garantiasAvaliar(){
+  const credito = +document.getElementById('gr-valor')?.value || 1500000;
+  const payload = {
+    credito_solicitado: credito,
+    cobertura_minima_pct: 130.0,
+    imovel_rural: {
+      denominacao: document.getElementById('gt-terra-nome')?.value?.trim() || 'Fazenda',
+      matricula: document.getElementById('gt-terra-matricula')?.value?.trim() || 'S/N',
+      cartorio: document.getElementById('gt-terra-matricula')?.value?.trim() || 'CRI',
+      area_ha: +document.getElementById('gt-terra-area')?.value || 0,
+      valor_ha: +document.getElementById('gt-terra-valor-ha')?.value || 0,
+      gravame: document.getElementById('gt-terra-gravame')?.value || 'ALIENACAO_FIDUCIARIA',
+      dividas_previas: +document.getElementById('gt-terra-dividas')?.value || 0
+    },
+    penhor_safra: {
+      cultura: document.getElementById('gt-safra-cultura')?.value?.trim() || 'Soja',
+      sacas: +document.getElementById('gt-safra-sacas')?.value || 0,
+      preco_saca: +document.getElementById('gt-safra-preco')?.value || 0
+    },
+    avalista: {
+      nome: document.getElementById('gt-aval-nome')?.value?.trim() || 'Avalista',
+      cpf_cnpj: document.getElementById('gt-aval-doc')?.value?.trim() || '',
+      patrimonio_liquido: +document.getElementById('gt-aval-patrimonio')?.value || 0
+    }
+  };
+
+  showLoading('Avaliando matriz de garantias, deságios e LTV...');
+  try {
+    const res = await fetch('/api/garantias/matriz/avaliar', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    if(!res.ok || d.erro){
+      showToast(d.erro || 'Falha ao avaliar garantias', true);
+      return;
+    }
+    window._ultimasGarantias = d;
+    _renderGarantiasResultado(d);
+  } catch(e) {
+    showToast('Erro ao avaliar garantias', true);
+  } finally {
+    hideLoading();
+  }
+}
+
+function _renderGarantiasResultado(d){
+  const corRisco = {
+    EXCELENTE: 'var(--gn)',
+    ADEQUADA: 'var(--gn)',
+    AJUSTADA: 'var(--am)',
+    INSUFICIENTE: 'var(--sb)'
+  }[d.classificacao_risco] || 'var(--tx)';
+
+  const linhasItens = (d.itens || []).map(it => `
+    <tr>
+      <td><b>${escapeHtml(it.descricao)}</b><br><span style="font-size:.66rem;color:var(--mu)">${escapeHtml(it.identificador_registro)}</span></td>
+      <td>${escapeHtml(it.gravame).replace(/_/g, ' ')}</td>
+      <td class="r">${_prMoeda(it.valor_mercado_bruto)}</td>
+      <td class="r" style="color:var(--am)">-${_prNum(it.desagio_aplicado_pct, 0)}%</td>
+      <td class="r" style="font-weight:700;color:var(--tx)">${_prMoeda(it.valor_liquidacao_forcada)}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('gt-resultado').innerHTML = `
+    <div style="background:var(--c2);padding:14px;border-radius:var(--rs);border:1px solid var(--b)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <span style="font-weight:700;font-size:.85rem;color:var(--tx)">Resultado da Avaliação de Garantias (LTV B2B)</span>
+        <span style="font-weight:700;font-size:.74rem;padding:4px 12px;border-radius:12px;background:rgba(255,255,255,.05);color:${corRisco};border:1px solid ${corRisco}">
+          Risco: ${d.classificacao_risco} · LTV: ${_prNum(d.ltv_pct, 1)}% · Cobertura: ${_prNum(d.indice_cobertura_pct, 0)}%
+        </span>
+      </div>
+
+      <div class="kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px">
+        <div style="background:var(--c3);padding:10px;border-radius:var(--rs)">
+          <div style="font-size:.66rem;color:var(--mu)">Valor Total a Mercado</div>
+          <div style="font-size:1.15rem;font-weight:700;color:var(--tx)">${_prMoeda(d.valor_mercado_total)}</div>
+        </div>
+        <div style="background:var(--c3);padding:10px;border-radius:var(--rs)">
+          <div style="font-size:.66rem;color:var(--mu)">Valor Líquido de Execução</div>
+          <div style="font-size:1.15rem;font-weight:700;color:var(--gn)">${_prMoeda(d.valor_liquidacao_total)}</div>
+        </div>
+        <div style="background:var(--c3);padding:10px;border-radius:var(--rs)">
+          <div style="font-size:.66rem;color:var(--mu)">LTV Consolidado</div>
+          <div style="font-size:1.15rem;font-weight:700;color:${corRisco}">${_prNum(d.ltv_pct, 1)}%</div>
+          <div style="font-size:.66rem;color:var(--mu)">Meta Comitê: máx 75%</div>
+        </div>
+        <div style="background:var(--c3);padding:10px;border-radius:var(--rs)">
+          <div style="font-size:.66rem;color:var(--mu)">Índice de Cobertura (ICG)</div>
+          <div style="font-size:1.15rem;font-weight:700;color:${corRisco}">${_prNum(d.indice_cobertura_pct, 0)}%</div>
+          <div style="font-size:.66rem;color:var(--mu)">Exigido: mín 130%</div>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;margin-bottom:12px">
+        <table class="tabela-base" style="width:100%;font-size:.74rem">
+          <thead>
+            <tr>
+              <th>Garantia Ofertada</th>
+              <th>Gravame</th>
+              <th class="r">Valor Mercado</th>
+              <th class="r">Deságio</th>
+              <th class="r">Valor Líquido</th>
+            </tr>
+          </thead>
+          <tbody>${linhasItens}</tbody>
+        </table>
+      </div>
+
+      <div style="font-size:.76rem;line-height:1.5;color:var(--tx);padding:8px 12px;background:rgba(255,255,255,.03);border-radius:6px;border-left:3px solid ${corRisco}">
+        <b>Parecer do Comitê de Garantias:</b> ${escapeHtml(d.recomendacao_comite)}
       </div>
     </div>
   `;

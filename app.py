@@ -64,6 +64,7 @@ from services.esg_engine import (
     calcular_metricas_florestais,
     validar_sintaxe_car,
 )
+from services.collateral_engine import avaliar_matriz_garantias
 from services.pesos_rebanho import arrobas_categorias
 from services.parametros_zootecnicos import (
     natalidade_de_prenhez, avaliar_reposicao as _avaliar_reposicao)
@@ -3652,13 +3653,28 @@ def api_agricola_graos_parecer_pdf():
     barter = data.get('barter')
     cpr = data.get('cpr')
     esg = data.get('esg')
+    garantias = data.get('garantias')
     pdf_bytes = gerar_pdf_parecer_graos(
-        analise, identificacao=identificacao, barter=barter, cpr=cpr, branding=branding, esg=esg)
+        analise, identificacao=identificacao, barter=barter, cpr=cpr,
+        branding=branding, esg=esg, garantias=garantias)
     _auditar(_aud.PARECER_PDF, recurso='fazenda',
              recurso_id=identificacao.get('fazenda') or None,
              detalhe='parecer graos')
     return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
                      as_attachment=True, download_name='parecer_graos_cpr.pdf')
+
+
+@app.route('/api/garantias/matriz/avaliar', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_garantias_matriz_avaliar():
+    """Calcula a Matriz de Garantias, liquidação forçada e LTV consolidado (B2B)."""
+    data = request.get_json(silent=True) or {}
+    try:
+        resultado = avaliar_matriz_garantias(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+    return jsonify(resultado.to_dict())
 
 
 @app.route('/api/compliance/socioambiental/analisar', methods=['POST'])

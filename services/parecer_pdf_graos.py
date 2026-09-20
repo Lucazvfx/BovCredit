@@ -237,6 +237,40 @@ def _compliance_esg(story, ss, esg: dict | None) -> None:
         story.append(Spacer(1, 8))
 
 
+def _matriz_garantias(story, ss, garantias: dict | None) -> None:
+    if not garantias or not garantias.get('itens'):
+        return
+    _secao(story, ss, 'Matriz de Garantias & Dimensionamento de LTV (Garantias Reais e Fiduciárias)')
+
+    itens = garantias.get('itens') or []
+    linhas = [['Garantia Ofertada', 'Modalidade / Gravame', 'Valor Mercado', 'Deságio', 'Valor Líquido']]
+    for it in itens:
+        linhas.append([
+            f"{it.get('descricao') or 'Garantia'}\n({it.get('identificador_registro') or 'S/N'})",
+            str(it.get('gravame') or '').replace('_', ' ').title(),
+            _fmt_moeda(it.get('valor_mercado_bruto')),
+            f"-{it.get('desagio_aplicado_pct', 0):.0f}%",
+            _fmt_moeda(it.get('valor_liquidacao_forcada')),
+        ])
+    _tabela(story, linhas, [6.0 * cm, 4.0 * cm, 2.5 * cm, 1.8 * cm, 2.7 * cm])
+    story.append(Spacer(1, 6))
+
+    kpis = [
+        ['Indicador de Risco da Garantia', 'Métrica Apurada'],
+        ['Valor Total de Mercado das Garantias', _fmt_moeda(garantias.get('valor_mercado_total'))],
+        ['Valor Total de Liquidação Forçada (Pós-Deságio)', _fmt_moeda(garantias.get('valor_liquidacao_total'))],
+        ['Crédito Solicitado no Contrato', _fmt_moeda(garantias.get('credito_solicitado'))],
+        ['LTV Consolidado (Loan-to-Value)', f"{garantias.get('ltv_pct', 0):.1f}%"],
+        ['Índice de Cobertura de Garantias (ICG)', f"{garantias.get('indice_cobertura_pct', 0):.1f}%"],
+        ['Classificação de Risco da Garantia', f"{garantias.get('classificacao_risco') or 'ADEQUADA'}"],
+    ]
+    _tabela(story, kpis, [9.0 * cm, 8.0 * cm])
+    story.append(Spacer(1, 6))
+    if garantias.get('recomendacao_comite'):
+        story.append(Paragraph(f"<b>Parecer do Comitê de Garantias:</b> {garantias.get('recomendacao_comite')}", ss['Corpo']))
+        story.append(Spacer(1, 8))
+
+
 def _dicas_parecer(story, ss, analise: dict) -> None:
     dicas = analise.get('dicas') or []
     if not dicas:
@@ -254,6 +288,7 @@ def gerar_pdf_parecer_graos(
     cpr: dict | None = None,
     branding: dict | None = None,
     esg: dict | None = None,
+    garantias: dict | None = None,
 ) -> bytes:
     """Recebe o resultado de `analisar_culturas_anuais` e devolve os bytes do PDF."""
     ss = _styles()
@@ -280,6 +315,7 @@ def gerar_pdf_parecer_graos(
     _capacidade(story, ss, analise)
     _projecao_estresse(story, ss, analise)
     _compliance_esg(story, ss, esg)
+    _matriz_garantias(story, ss, garantias)
     _barter_cpr(story, ss, barter, cpr)
     _dicas_parecer(story, ss, analise)
 
