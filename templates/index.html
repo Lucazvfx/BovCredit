@@ -1054,250 +1054,325 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <div class="analysis-flow ork-panel ork-import-panel">
     <div class="analysis-flow-copy">
       <span class="analysis-flow-kicker">Culturas Anuais & Grãos</span>
-      <div class="analysis-flow-title">Planejamento de Safra & Safrinha</div>
-      <p class="analysis-flow-sub">Simulação de produção de grãos (Soja, Milho, Algodão), custos operacionais (COE/COT), ponto de equilíbrio em sacas/ha e dimensionamento de crédito de custeio e investimento.</p>
+      <div class="analysis-flow-title">Esteira de Crédito Agrícola B2B</div>
+      <p class="analysis-flow-sub">Fluxo integrado de concessão: planejamento de safra, dimensionamento de crédito e barter, garantias reais com haircuts e auditoria socioambiental Bacen CMN 5.081.</p>
     </div>
   </div>
 
-  <div class="card" style="margin-bottom:16px">
-    <div class="ch"><div class="ct"><div class="cd" style="background:var(--gn)"></div>Plano de Safra (Culturas e Custos)</div></div>
-    <div class="cb">
-      <div class="fgrid" style="margin-bottom:14px">
-        <div class="field"><label title="Ex: 2026/27">Ano-Safra ℹ</label><input type="text" id="gr-ano-safra" value="2026/27"></div>
-        <div class="field"><label title="Despesas gerais da fazenda não alocadas por cultura (administração, impostos fixos, pró-labore)">Despesas Gerais/Fixas Anuais (R$) ℹ</label><input type="number" id="gr-desp-adm" value="100000" min="0" step="5000"></div>
-      </div>
+  <!-- BARRA DE ETAPAS (STEPPER UX) -->
+  <div class="ork-stepper-bar" style="display:flex;gap:6px;margin-bottom:18px;overflow-x:auto;padding:6px;background:var(--c2);border:1px solid var(--b);border-radius:var(--rs)">
+    <button type="button" class="btn-sm ork-step-btn active" id="gr-step-tab-1" onclick="graosMudarEtapa(1)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:var(--gn);color:#fff;border:none;cursor:pointer">1. 🌱 Safra & Custos</button>
+    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-2" onclick="graosMudarEtapa(2)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">2. 💰 Crédito & Barter</button>
+    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-3" onclick="graosMudarEtapa(3)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">3. 🛡️ Garantias & LTV</button>
+    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-4" onclick="graosMudarEtapa(4)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">4. 🛰️ Compliance ESG</button>
+    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-5" onclick="graosMudarEtapa(5)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">5. 📑 Comitê & PDF</button>
+  </div>
 
-      <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">1ª Safra — Verão (Soja / Safra Principal)</div>
-      <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b);margin-bottom:14px">
-        <div class="field"><label>Cultura</label><input type="text" id="gr-c1-nome" value="SOJA" readonly style="background:var(--c3);color:var(--sb)"></div>
-        <div class="field"><label>Área (ha)</label><input type="number" id="gr-c1-area" value="1000" min="1" step="10"></div>
-        <div class="field"><label>Produtividade (sc/ha)</label><input type="number" id="gr-c1-prod" value="62" min="1" step="0.5"></div>
-        <div class="field"><label>Preço Venda (R$/sc)</label><input type="number" id="gr-c1-preco" value="125" min="1" step="0.5"></div>
-        <div class="field"><label title="Custo Operacional Efetivo (insumos, diesel, mão de obra temporária, sementes, adubo)">COE (R$/ha) ℹ</label><input type="number" id="gr-c1-coe" value="4200" min="100" step="50"></div>
-        <div class="field"><label title="Custo Operacional Total (COE + depreciações e manutenção de máquinas)">COT (R$/ha) ℹ</label><input type="number" id="gr-c1-cot" value="4600" min="100" step="50"></div>
-      </div>
+  <!-- ETAPA 1: SAFRA & CUSTOS -->
+  <div id="gr-step-1" class="gr-step-content">
+    <div class="card" style="margin-bottom:16px">
+      <div class="ch"><div class="ct"><div class="cd" style="background:var(--gn)"></div>Plano de Safra (Culturas e Custos)</div></div>
+      <div class="cb">
+        <div class="fgrid" style="margin-bottom:14px">
+          <div class="field"><label title="Ex: 2026/27">Ano-Safra ℹ</label><input type="text" id="gr-ano-safra" value="2026/27"></div>
+          <div class="field"><label title="Despesas gerais da fazenda não alocadas por cultura (administração, impostos fixos, pró-labore)">Despesas Gerais/Fixas Anuais (R$) ℹ</label><input type="number" id="gr-desp-adm" value="100000" min="0" step="5000"></div>
+        </div>
 
-      <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">2ª Safra — Safrinha (Milho / Sucessão)</div>
-      <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b)">
-        <div class="field"><label>Cultura</label><input type="text" id="gr-c2-nome" value="MILHO" readonly style="background:var(--c3);color:var(--sb)"></div>
-        <div class="field"><label>Área (ha)</label><input type="number" id="gr-c2-area" value="750" min="0" step="10"></div>
-        <div class="field"><label>Produtividade (sc/ha)</label><input type="number" id="gr-c2-prod" value="95" min="1" step="0.5"></div>
-        <div class="field"><label>Preço Venda (R$/sc)</label><input type="number" id="gr-c2-preco" value="52" min="1" step="0.5"></div>
-        <div class="field"><label title="Custo Operacional Efetivo da Safrinha">COE (R$/ha) ℹ</label><input type="number" id="gr-c2-coe" value="3100" min="100" step="50"></div>
-        <div class="field"><label title="Custo Operacional Total da Safrinha">COT (R$/ha) ℹ</label><input type="number" id="gr-c2-cot" value="3400" min="100" step="50"></div>
+        <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">1ª Safra — Verão (Soja / Safra Principal)</div>
+        <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b);margin-bottom:14px">
+          <div class="field"><label>Cultura</label><input type="text" id="gr-c1-nome" value="SOJA" readonly style="background:var(--c3);color:var(--sb)"></div>
+          <div class="field"><label>Área (ha)</label><input type="number" id="gr-c1-area" value="1000" min="1" step="10"></div>
+          <div class="field"><label>Produtividade (sc/ha)</label><input type="number" id="gr-c1-prod" value="62" min="1" step="0.5"></div>
+          <div class="field"><label>Preço Venda (R$/sc)</label><input type="number" id="gr-c1-preco" value="125" min="1" step="0.5"></div>
+          <div class="field"><label title="Custo Operacional Efetivo (insumos, diesel, mão de obra temporária, sementes, adubo)">COE (R$/ha) ℹ</label><input type="number" id="gr-c1-coe" value="4200" min="100" step="50"></div>
+          <div class="field"><label title="Custo Operacional Total (COE + depreciações e manutenção de máquinas)">COT (R$/ha) ℹ</label><input type="number" id="gr-c1-cot" value="4600" min="100" step="50"></div>
+        </div>
+
+        <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">2ª Safra — Safrinha (Milho / Sucessão)</div>
+        <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b)">
+          <div class="field"><label>Cultura</label><input type="text" id="gr-c2-nome" value="MILHO" readonly style="background:var(--c3);color:var(--sb)"></div>
+          <div class="field"><label>Área (ha)</label><input type="number" id="gr-c2-area" value="750" min="0" step="10"></div>
+          <div class="field"><label>Produtividade (sc/ha)</label><input type="number" id="gr-c2-prod" value="95" min="1" step="0.5"></div>
+          <div class="field"><label>Preço Venda (R$/sc)</label><input type="number" id="gr-c2-preco" value="52" min="1" step="0.5"></div>
+          <div class="field"><label title="Custo Operacional Efetivo da Safrinha">COE (R$/ha) ℹ</label><input type="number" id="gr-c2-coe" value="3100" min="100" step="50"></div>
+          <div class="field"><label title="Custo Operacional Total da Safrinha">COT (R$/ha) ℹ</label><input type="number" id="gr-c2-cot" value="3400" min="100" step="50"></div>
+        </div>
       </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:14px">
+      <button type="button" class="btn-p" onclick="graosMudarEtapa(2)">Avançar: Crédito & Barter ➔</button>
     </div>
   </div>
 
-  <div class="card ork-section-credit" style="margin-bottom:16px">
-    <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Financiamento & Crédito Rural</div></div>
-    <div class="cb">
-      <div class="fgrid">
-        <div class="field"><label title="Valor solicitado de custeio ou investimento">Valor Solicitado (R$) ℹ</label><input type="number" id="gr-valor" min="0" step="10000" value="1500000"></div>
-        <div class="field"><label title="Prazo total em meses">Prazo (meses) ℹ</label><input type="number" id="gr-prazo" min="6" value="48" step="6"></div>
-        <div class="field"><label title="Carência para a primeira amortização">Carência (meses) ℹ</label><input type="number" id="gr-carencia" min="0" value="12" step="6"></div>
-        <div class="field"><label title="Taxa de juros anual (% a.a.)">Juros (% a.a.) ℹ</label><input type="number" id="gr-juros" min="0" step="0.1" value="11.5"></div>
-        <div class="field"><label>Sistema de Amortização ℹ</label><select id="gr-sistema"><option value="sac">SAC — parcela decrescente</option><option value="price">Price — parcela fixa</option></select></div>
-        <div class="field"><label>Periodicidade ℹ</label><select id="gr-periodicidade"><option value="12">Anual (pós-safra)</option><option value="6">Semestral</option><option value="1">Mensal</option></select></div>
+  <!-- ETAPA 2: CRÉDITO & BARTER -->
+  <div id="gr-step-2" class="gr-step-content" style="display:none">
+    <div class="card ork-section-credit" style="margin-bottom:16px">
+      <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Financiamento & Crédito Rural</div></div>
+      <div class="cb">
+        <div class="fgrid">
+          <div class="field"><label title="Valor solicitado de custeio ou investimento">Valor Solicitado (R$) ℹ</label><input type="number" id="gr-valor" min="0" step="10000" value="1500000"></div>
+          <div class="field"><label title="Prazo total em meses">Prazo (meses) ℹ</label><input type="number" id="gr-prazo" min="6" value="48" step="6"></div>
+          <div class="field"><label title="Carência para a primeira amortização">Carência (meses) ℹ</label><input type="number" id="gr-carencia" min="0" value="12" step="6"></div>
+          <div class="field"><label title="Taxa de juros anual (% a.a.)">Juros (% a.a.) ℹ</label><input type="number" id="gr-juros" min="0" step="0.1" value="11.5"></div>
+          <div class="field"><label>Sistema de Amortização ℹ</label><select id="gr-sistema"><option value="sac">SAC — parcela decrescente</option><option value="price">Price — parcela fixa</option></select></div>
+          <div class="field"><label>Periodicidade ℹ</label><select id="gr-periodicidade"><option value="12">Anual (pós-safra)</option><option value="6">Semestral</option><option value="1">Mensal</option></select></div>
+        </div>
       </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
-        <button class="btn-p" onclick="graosAnalisar()">Analisar Safra & Crédito</button>
-        <button class="btn-sm" id="gr-btn-pdf" onclick="graosPDF()" disabled>⬇ Baixar Parecer & CPR (PDF)</button>
+    </div>
+
+    <!-- MESA DE BARTER & CPR DIGITAL -->
+    <div class="card" style="margin-bottom:16px;border:1px solid rgba(34,197,94,.3)">
+      <div class="ch">
+        <div class="ct">
+          <div class="cd" style="background:var(--gn)"></div>Mesa de Barter & Minuta de CPR Digital (Cédula de Produto Rural)
+        </div>
+        <span style="font-size:.7rem;color:var(--gn);font-weight:700">Mesa de Operações B2B</span>
       </div>
+      <div class="cb">
+        <p style="font-size:.78rem;color:var(--mu);margin-bottom:14px">
+          Simule a troca de insumos agrícolas por grãos futuros, analise o termômetro de risco de penhor da safra e emita a minuta jurídica da CPR Física em conformidade com a Lei nº 8.929/94 e Leis do Agro (13.986/20 e 14.421/22).
+        </p>
+        <div class="fgrid">
+          <div class="field">
+            <label title="Cotações reais Cepea/B3/Agrural atualizadas">Praça de Referência (Cotações Reais) ℹ</label>
+            <select id="bt-praca" onchange="barterAtualizarPreco()">
+              <option value="SOJA_RONDONOPOLIS_MT">Soja — Rondonópolis/MT (R$ 144,00/sc)</option>
+              <option value="SOJA_PARANAGUA_PR">Soja — Porto de Paranaguá/PR (R$ 162,00/sc)</option>
+              <option value="SOJA_CEPEA_PR">Soja — Indicador Cepea/Esalq PR (R$ 155,18/sc)</option>
+              <option value="MILHO_CEPEA_B3">Milho — Indicador Cepea/B3 Campinas (R$ 69,29/sc)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label title="Preço de liquidação da saca">Preço Travado da Saca (R$/sc) ℹ</label>
+            <input type="number" id="bt-preco-saca" value="144" min="1" step="0.5">
+          </div>
+          <div class="field">
+            <label title="Valor total do pacote de sementes, fertilizantes e defensivos">Valor do Pacote de Insumos (R$) ℹ</label>
+            <input type="number" id="bt-valor-insumos" value="720000" min="1000" step="10000">
+          </div>
+          <div class="field">
+            <label title="Produtividade média esperada na fazenda">Produtividade Esperada (sc/ha) ℹ</label>
+            <input type="number" id="bt-prod-esperada" value="62" min="1" step="0.5">
+          </div>
+          <div class="field">
+            <label title="Área total plantada da cultura">Área Total Plantada (ha) ℹ</label>
+            <input type="number" id="bt-area-total" value="1000" min="1" step="10">
+          </div>
+        </div>
+
+        <!-- DADOS PARA EMISSÃO DA CPR -->
+        <details style="margin-top:12px;background:var(--c2);padding:10px 14px;border-radius:var(--rs);border:1px solid var(--b)">
+          <summary style="font-size:.78rem;font-weight:700;cursor:pointer;color:var(--tx)">
+            📋 Dados Opcionais para Emissão da Minuta da CPR (Emitente, Credor e Local)
+          </summary>
+          <div class="fgrid" style="margin-top:12px">
+            <div class="field"><label>Nome do Produtor / Emitente</label><input type="text" id="cpr-emitente-nome" value="Fazenda Esperança Agropecuária Ltda"></div>
+            <div class="field"><label>CPF / CNPJ do Emitente</label><input type="text" id="cpr-emitente-doc" value="00.000.000/0001-99"></div>
+            <div class="field"><label>CAR (Cadastro Ambiental Rural)</label><input type="text" id="cpr-emitente-car" value="MT-5107909-00000000000000000000000000000000"></div>
+            <div class="field"><label>Razão Social do Credor (Revenda/Fundo)</label><input type="text" id="cpr-credor-nome" value="Agro Insumos & Distribuição S/A"></div>
+            <div class="field"><label>CNPJ do Credor</label><input type="text" id="cpr-credor-cnpj" value="12.345.678/0001-90"></div>
+            <div class="field"><label>Data Limite para Entrega dos Grãos</label><input type="text" id="cpr-data-entrega" value="30 de abril de 2027"></div>
+          </div>
+        </details>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+          <button class="btn-p" onclick="barterCalcular()">Calcular Barter & Penhor</button>
+          <button class="btn-sm" onclick="barterGerarCPR()">Gerar Minuta da CPR Digital</button>
+        </div>
+
+        <div id="bt-resultado" style="margin-top:14px"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;margin-top:14px">
+      <button type="button" class="btn-sm" onclick="graosMudarEtapa(1)">⬅ Voltar: Safra & Custos</button>
+      <button type="button" class="btn-p" onclick="graosMudarEtapa(3)">Avançar: Garantias & LTV ➔</button>
     </div>
   </div>
 
-  <!-- MESA DE BARTER & CPR DIGITAL -->
-  <div class="card" style="margin-bottom:16px;border:1px solid rgba(34,197,94,.3)">
-    <div class="ch">
-      <div class="ct">
-        <div class="cd" style="background:var(--gn)"></div>Mesa de Barter & Minuta de CPR Digital (Cédula de Produto Rural)
+  <!-- ETAPA 3: MATRIZ DE GARANTIAS & LTV -->
+  <div id="gr-step-3" class="gr-step-content" style="display:none">
+    <div class="card" style="margin-bottom:16px;border:1px solid rgba(59,130,246,.35)">
+      <div class="ch">
+        <div class="ct">
+          <div class="cd" style="background:#3B82F6"></div>Matriz de Garantias & Dimensionamento de LTV (Garantias Reais e Fiduciárias)
+        </div>
+        <span style="font-size:.7rem;color:#3B82F6;font-weight:700">Comitê de Crédito B2B</span>
       </div>
-      <span style="font-size:.7rem;color:var(--gn);font-weight:700">Mesa de Operações B2B</span>
+      <div class="cb">
+        <p style="font-size:.78rem;color:var(--mu);margin-bottom:14px">
+          Estruture o pacote de garantias da operação (Imóvel Rural/Terra, Penhor de Safra e Avalista). O motor aplica os deságios de liquidação forçada da política institucional e calcula o LTV e Índice de Cobertura (ICG).
+        </p>
+
+        <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">1. Garantia Real — Imóvel Rural / Fazenda</div>
+        <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b);margin-bottom:12px">
+          <div class="field"><label>Denominação da Fazenda</label><input type="text" id="gt-terra-nome" value="Fazenda Esperança"></div>
+          <div class="field"><label>Nº Matrícula e Cartório (CRI)</label><input type="text" id="gt-terra-matricula" value="Matrícula 34.567 - CRI Sorriso/MT"></div>
+          <div class="field"><label>Área Ofertada em Garantia (ha)</label><input type="number" id="gt-terra-area" value="500" min="0" step="10"></div>
+          <div class="field"><label title="Valor venal/mercado por hectare">Valor de Mercado da Terra (R$/ha) ℹ</label><input type="number" id="gt-terra-valor-ha" value="40000" min="1000" step="1000"></div>
+          <div class="field">
+            <label>Modalidade de Gravame ℹ</label>
+            <select id="gt-terra-gravame">
+              <option value="ALIENACAO_FIDUCIARIA">Alienação Fiduciária (Deságio 20% - Execução Extrajudicial)</option>
+              <option value="HIPOTECA_1_GRAU">Hipoteca Cedular 1º Grau (Deságio 30% - Preferencial)</option>
+              <option value="HIPOTECA_2_GRAU">Hipoteca 2º Grau (Deságio 45% - Subordinado)</option>
+            </select>
+          </div>
+          <div class="field"><label title="Dívidas ou hipotecas já averbadas na matrícula">Ônus / Dívidas Prévias na Matrícula (R$) ℹ</label><input type="number" id="gt-terra-dividas" value="0" min="0" step="50000"></div>
+        </div>
+
+        <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">2. Garantia Fiduciária & Pessoal — Penhor de Safra & Aval</div>
+        <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b);margin-bottom:12px">
+          <div class="field"><label>Cultura em Penhor</label><input type="text" id="gt-safra-cultura" value="Soja"></div>
+          <div class="field"><label>Sacas Empenhadas (sc 60kg)</label><input type="number" id="gt-safra-sacas" value="5000" min="0" step="500"></div>
+          <div class="field"><label>Preço Referência (R$/sc)</label><input type="number" id="gt-safra-preco" value="144" min="1" step="0.5"></div>
+          <div class="field"><label>Nome do Avalista / Fiador</label><input type="text" id="gt-aval-nome" value="Carlos Silva (Sócio / Produtor)"></div>
+          <div class="field"><label>CPF / CNPJ do Avalista</label><input type="text" id="gt-aval-doc" value="123.456.789-00"></div>
+          <div class="field"><label title="Patrimônio líquido comprovado em IRPF/Balanço">Patrimônio Líquido Avalista (R$) ℹ</label><input type="number" id="gt-aval-patrimonio" value="2000000" min="0" step="100000"></div>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+          <button class="btn-p" onclick="garantiasAvaliar()">Dimensionar Matriz de Garantias & LTV</button>
+        </div>
+
+        <div id="gt-resultado" style="margin-top:14px"></div>
+      </div>
     </div>
-    <div class="cb">
-      <p style="font-size:.78rem;color:var(--mu);margin-bottom:14px">
-        Simule a troca de insumos agrícolas por grãos futuros, analise o termômetro de risco de penhor da safra e emita a minuta jurídica da CPR Física em conformidade com a Lei nº 8.929/94 e Leis do Agro (13.986/20 e 14.421/22).
-      </p>
-      <div class="fgrid">
-        <div class="field">
-          <label title="Cotações reais Cepea/B3/Agrural atualizadas">Praça de Referência (Cotações Reais) ℹ</label>
-          <select id="bt-praca" onchange="barterAtualizarPreco()">
-            <option value="SOJA_RONDONOPOLIS_MT">Soja — Rondonópolis/MT (R$ 144,00/sc)</option>
-            <option value="SOJA_PARANAGUA_PR">Soja — Porto de Paranaguá/PR (R$ 162,00/sc)</option>
-            <option value="SOJA_CEPEA_PR">Soja — Indicador Cepea/Esalq PR (R$ 155,18/sc)</option>
-            <option value="MILHO_CEPEA_B3">Milho — Indicador Cepea/B3 Campinas (R$ 69,29/sc)</option>
-          </select>
-        </div>
-        <div class="field">
-          <label title="Preço de liquidação da saca">Preço Travado da Saca (R$/sc) ℹ</label>
-          <input type="number" id="bt-preco-saca" value="144" min="1" step="0.5">
-        </div>
-        <div class="field">
-          <label title="Valor total do pacote de sementes, fertilizantes e defensivos">Valor do Pacote de Insumos (R$) ℹ</label>
-          <input type="number" id="bt-valor-insumos" value="720000" min="1000" step="10000">
-        </div>
-        <div class="field">
-          <label title="Produtividade média esperada na fazenda">Produtividade Esperada (sc/ha) ℹ</label>
-          <input type="number" id="bt-prod-esperada" value="62" min="1" step="0.5">
-        </div>
-        <div class="field">
-          <label title="Área total plantada da cultura">Área Total Plantada (ha) ℹ</label>
-          <input type="number" id="bt-area-total" value="1000" min="1" step="10">
-        </div>
-      </div>
 
-      <!-- DADOS PARA EMISSÃO DA CPR -->
-      <details style="margin-top:12px;background:var(--c2);padding:10px 14px;border-radius:var(--rs);border:1px solid var(--b)">
-        <summary style="font-size:.78rem;font-weight:700;cursor:pointer;color:var(--tx)">
-          📋 Dados Opcionais para Emissão da Minuta da CPR (Emitente, Credor e Local)
-        </summary>
-        <div class="fgrid" style="margin-top:12px">
-          <div class="field"><label>Nome do Produtor / Emitente</label><input type="text" id="cpr-emitente-nome" value="Fazenda Esperança Agropecuária Ltda"></div>
-          <div class="field"><label>CPF / CNPJ do Emitente</label><input type="text" id="cpr-emitente-doc" value="00.000.000/0001-99"></div>
-          <div class="field"><label>CAR (Cadastro Ambiental Rural)</label><input type="text" id="cpr-emitente-car" value="MT-5107909-00000000000000000000000000000000"></div>
-          <div class="field"><label>Razão Social do Credor (Revenda/Fundo)</label><input type="text" id="cpr-credor-nome" value="Agro Insumos & Distribuição S/A"></div>
-          <div class="field"><label>CNPJ do Credor</label><input type="text" id="cpr-credor-cnpj" value="12.345.678/0001-90"></div>
-          <div class="field"><label>Data Limite para Entrega dos Grãos</label><input type="text" id="cpr-data-entrega" value="30 de abril de 2027"></div>
-        </div>
-      </details>
-
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
-        <button class="btn-p" onclick="barterCalcular()">Calcular Barter & Penhor</button>
-        <button class="btn-sm" onclick="barterGerarCPR()">Gerar Minuta da CPR Digital</button>
-      </div>
-
-      <div id="bt-resultado" style="margin-top:14px"></div>
+    <div style="display:flex;justify-content:space-between;margin-top:14px">
+      <button type="button" class="btn-sm" onclick="graosMudarEtapa(2)">⬅ Voltar: Crédito & Barter</button>
+      <button type="button" class="btn-p" onclick="graosMudarEtapa(4)">Avançar: Compliance ESG ➔</button>
     </div>
   </div>
 
-  <!-- COMPLIANCE SOCIOAMBIENTAL & CAR (ESG BACEN CMN 5.081) -->
-  <div class="card" style="margin-bottom:16px;border:1px solid rgba(16,185,129,.35)">
-    <div class="ch">
-      <div class="ct">
-        <div class="cd" style="background:#10B981"></div>Compliance Socioambiental & CAR (Bacen CMN 5.081)
+  <!-- ETAPA 4: COMPLIANCE SOCIOAMBIENTAL & CAR -->
+  <div id="gr-step-4" class="gr-step-content" style="display:none">
+    <div class="card" style="margin-bottom:16px;border:1px solid rgba(16,185,129,.35)">
+      <div class="ch">
+        <div class="ct">
+          <div class="cd" style="background:#10B981"></div>Compliance Socioambiental & CAR (Bacen CMN 5.081)
+        </div>
+        <span style="font-size:.7rem;color:#10B981;font-weight:700">MCR 2-1 / Resoluções CMN 4.945 e 5.081</span>
       </div>
-      <span style="font-size:.7rem;color:#10B981;font-weight:700">MCR 2-1 / Resoluções CMN 4.945 e 5.081</span>
+      <div class="cb">
+        <p style="font-size:.78rem;color:var(--mu);margin-bottom:14px">
+          Validação regulatória obrigatória do Banco Central para concessão de crédito rural e emissão de CPR. Verifica status do CAR, reserva legal por bioma, embargos IBAMA/ICMBio, Lista Suja do MTE e sobreposição de terras públicas.
+        </p>
+        <div class="fgrid">
+          <div class="field">
+            <label title="Número no Sistema Nacional de Cadastro Ambiental Rural">Número do CAR (SICAR) ℹ</label>
+            <input type="text" id="esg-numero-car" value="MT-5107602-C75A20B7631E44AA8BF0D382A13894E2" placeholder="UF-MUNICÍPIO-CÓDIGO">
+          </div>
+          <div class="field">
+            <label>Status Cadastral do CAR ℹ</label>
+            <select id="esg-status-car">
+              <option value="ATIVO">ATIVO — Regularizado no Órgão Estadual</option>
+              <option value="PENDENTE">PENDENTE — Em Análise pelo Órgão</option>
+              <option value="SUSPENSO">SUSPENSO — Impeditivo Bacen</option>
+              <option value="CANCELADO">CANCELADO — Impeditivo Bacen</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Bioma da Fazenda (Exigência Florestal) ℹ</label>
+            <select id="esg-bioma">
+              <option value="AMAZONIA_CERRADO">Cerrado na Amazônia Legal (Exige 35% de RL)</option>
+              <option value="AMAZONIA_FLORESTA">Amazônia Bioma Floresta (Exige 80% de RL)</option>
+              <option value="CERRADO">Cerrado (Exige 20% de RL)</option>
+              <option value="MATA_ATLANTICA">Mata Atlântica (Exige 20% de RL)</option>
+              <option value="CAATINGA">Caatinga (Exige 20% de RL)</option>
+              <option value="PAMPA">Pampa (Exige 20% de RL)</option>
+              <option value="PANTANAL">Pantanal (Exige 20% de RL)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Área Total Declarada (ha)</label>
+            <input type="number" id="esg-area-total" value="1000" min="0" step="10">
+          </div>
+          <div class="field">
+            <label>Reserva Legal Declarada (ha)</label>
+            <input type="number" id="esg-area-rl" value="380" min="0" step="10">
+          </div>
+          <div class="field">
+            <label>Área de Preservação Permanente (APP ha)</label>
+            <input type="number" id="esg-area-app" value="45" min="0" step="5">
+          </div>
+        </div>
+
+        <div style="margin-top:12px;background:var(--c2);padding:10px 14px;border-radius:var(--rs);border:1px solid var(--b)">
+          <div style="font-size:.76rem;font-weight:700;margin-bottom:8px;color:var(--tx)">Consultas e Certidões Públicas do Proponente e Propriedade</div>
+          <div style="display:flex;gap:18px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--tx);cursor:pointer">
+              <input type="checkbox" id="esg-chk-ibama"> Possui Embargo Ativo no IBAMA
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--tx);cursor:pointer">
+              <input type="checkbox" id="esg-chk-icmbio"> Possui Embargo Ativo no ICMBio
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--tx);cursor:pointer">
+              <input type="checkbox" id="esg-chk-mte"> Consta na Lista Suja MTE (Trabalho Escravo)
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--tx);cursor:pointer">
+              <input type="checkbox" id="esg-chk-ti"> Incide em Terra Indígena / UC Integral
+            </label>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+          <button class="btn-p" onclick="complianceAnalisar()">Verificar Compliance Socioambiental</button>
+        </div>
+
+        <div id="esg-resultado" style="margin-top:14px"></div>
+      </div>
     </div>
-    <div class="cb">
-      <p style="font-size:.78rem;color:var(--mu);margin-bottom:14px">
-        Validação regulatória obrigatória do Banco Central para concessão de crédito rural e emissão de CPR. Verifica status do CAR, reserva legal por bioma, embargos IBAMA/ICMBio, Lista Suja do MTE e sobreposição de terras públicas.
-      </p>
-      <div class="fgrid">
-        <div class="field">
-          <label title="Número no Sistema Nacional de Cadastro Ambiental Rural">Número do CAR (SICAR) ℹ</label>
-          <input type="text" id="esg-numero-car" value="MT-5107602-C75A20B7631E44AA8BF0D382A13894E2" placeholder="UF-MUNICÍPIO-CÓDIGO">
-        </div>
-        <div class="field">
-          <label>Status Cadastral do CAR ℹ</label>
-          <select id="esg-status-car">
-            <option value="ATIVO">ATIVO — Regularizado no Órgão Estadual</option>
-            <option value="PENDENTE">PENDENTE — Em Análise pelo Órgão</option>
-            <option value="SUSPENSO">SUSPENSO — Impeditivo Bacen</option>
-            <option value="CANCELADO">CANCELADO — Impeditivo Bacen</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Bioma da Fazenda (Exigência Florestal) ℹ</label>
-          <select id="esg-bioma">
-            <option value="AMAZONIA_CERRADO">Cerrado na Amazônia Legal (Exige 35% de RL)</option>
-            <option value="AMAZONIA_FLORESTA">Amazônia Bioma Floresta (Exige 80% de RL)</option>
-            <option value="CERRADO">Cerrado (Exige 20% de RL)</option>
-            <option value="MATA_ATLANTICA">Mata Atlântica (Exige 20% de RL)</option>
-            <option value="CAATINGA">Caatinga (Exige 20% de RL)</option>
-            <option value="PAMPA">Pampa (Exige 20% de RL)</option>
-            <option value="PANTANAL">Pantanal (Exige 20% de RL)</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Área Total Declarada (ha)</label>
-          <input type="number" id="esg-area-total" value="1000" min="0" step="10">
-        </div>
-        <div class="field">
-          <label>Reserva Legal Declarada (ha)</label>
-          <input type="number" id="esg-area-rl" value="380" min="0" step="10">
-        </div>
-        <div class="field">
-          <label>Área de Preservação Permanente (APP ha)</label>
-          <input type="number" id="esg-area-app" value="45" min="0" step="5">
-        </div>
-      </div>
 
-      <div style="margin-top:12px;background:var(--c2);padding:10px 14px;border-radius:var(--rs);border:1px solid var(--b)">
-        <div style="font-size:.76rem;font-weight:700;margin-bottom:8px;color:var(--tx)">Consultas e Certidões Públicas do Proponente e Propriedade</div>
-        <div style="display:flex;gap:18px;flex-wrap:wrap">
-          <label style="display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--tx);cursor:pointer">
-            <input type="checkbox" id="esg-chk-ibama"> Possui Embargo Ativo no IBAMA
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--tx);cursor:pointer">
-            <input type="checkbox" id="esg-chk-icmbio"> Possui Embargo Ativo no ICMBio
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--tx);cursor:pointer">
-            <input type="checkbox" id="esg-chk-mte"> Consta na Lista Suja MTE (Trabalho Escravo)
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--tx);cursor:pointer">
-            <input type="checkbox" id="esg-chk-ti"> Incide em Terra Indígena / UC Integral
-          </label>
-        </div>
-      </div>
-
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
-        <button class="btn-p" onclick="complianceAnalisar()">Verificar Compliance Socioambiental</button>
-      </div>
-
-      <div id="esg-resultado" style="margin-top:14px"></div>
-    </div>
-  </div>
-
-  <!-- MATRIZ DE GARANTIAS & DIMENSIONAMENTO DE LTV -->
-  <div class="card" style="margin-bottom:16px;border:1px solid rgba(59,130,246,.35)">
-    <div class="ch">
-      <div class="ct">
-        <div class="cd" style="background:#3B82F6"></div>Matriz de Garantias & Dimensionamento de LTV (Garantias Reais e Fiduciárias)
-      </div>
-      <span style="font-size:.7rem;color:#3B82F6;font-weight:700">Comitê de Crédito B2B</span>
-    </div>
-    <div class="cb">
-      <p style="font-size:.78rem;color:var(--mu);margin-bottom:14px">
-        Estruture o pacote de garantias da operação (Imóvel Rural/Terra, Penhor de Safra e Avalista). O motor aplica os deságios de liquidação forçada da política institucional e calcula o LTV e Índice de Cobertura (ICG).
-      </p>
-
-      <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">1. Garantia Real — Imóvel Rural / Fazenda</div>
-      <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b);margin-bottom:12px">
-        <div class="field"><label>Denominação da Fazenda</label><input type="text" id="gt-terra-nome" value="Fazenda Esperança"></div>
-        <div class="field"><label>Nº Matrícula e Cartório (CRI)</label><input type="text" id="gt-terra-matricula" value="Matrícula 34.567 - CRI Sorriso/MT"></div>
-        <div class="field"><label>Área Ofertada em Garantia (ha)</label><input type="number" id="gt-terra-area" value="500" min="0" step="10"></div>
-        <div class="field"><label title="Valor venal/mercado por hectare">Valor de Mercado da Terra (R$/ha) ℹ</label><input type="number" id="gt-terra-valor-ha" value="40000" min="1000" step="1000"></div>
-        <div class="field">
-          <label>Modalidade de Gravame ℹ</label>
-          <select id="gt-terra-gravame">
-            <option value="ALIENACAO_FIDUCIARIA">Alienação Fiduciária (Deságio 20% - Execução Extrajudicial)</option>
-            <option value="HIPOTECA_1_GRAU">Hipoteca Cedular 1º Grau (Deságio 30% - Preferencial)</option>
-            <option value="HIPOTECA_2_GRAU">Hipoteca 2º Grau (Deságio 45% - Subordinado)</option>
-          </select>
-        </div>
-        <div class="field"><label title="Dívidas ou hipotecas já averbadas na matrícula">Ônus / Dívidas Prévias na Matrícula (R$) ℹ</label><input type="number" id="gt-terra-dividas" value="0" min="0" step="50000"></div>
-      </div>
-
-      <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">2. Garantia Fiduciária & Pessoal — Penhor de Safra & Aval</div>
-      <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b);margin-bottom:12px">
-        <div class="field"><label>Cultura em Penhor</label><input type="text" id="gt-safra-cultura" value="Soja"></div>
-        <div class="field"><label>Sacas Empenhadas (sc 60kg)</label><input type="number" id="gt-safra-sacas" value="5000" min="0" step="500"></div>
-        <div class="field"><label>Preço Referência (R$/sc)</label><input type="number" id="gt-safra-preco" value="144" min="1" step="0.5"></div>
-        <div class="field"><label>Nome do Avalista / Fiador</label><input type="text" id="gt-aval-nome" value="Carlos Silva (Sócio / Produtor)"></div>
-        <div class="field"><label>CPF / CNPJ do Avalista</label><input type="text" id="gt-aval-doc" value="123.456.789-00"></div>
-        <div class="field"><label title="Patrimônio líquido comprovado em IRPF/Balanço">Patrimônio Líquido Avalista (R$) ℹ</label><input type="number" id="gt-aval-patrimonio" value="2000000" min="0" step="100000"></div>
-      </div>
-
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
-        <button class="btn-p" onclick="garantiasAvaliar()">Dimensionar Matriz de Garantias & LTV</button>
-      </div>
-
-      <div id="gt-resultado" style="margin-top:14px"></div>
+    <div style="display:flex;justify-content:space-between;margin-top:14px">
+      <button type="button" class="btn-sm" onclick="graosMudarEtapa(3)">⬅ Voltar: Garantias & LTV</button>
+      <button type="button" class="btn-p" onclick="graosMudarEtapa(5)">Avançar: Comitê & PDF ➔</button>
     </div>
   </div>
 
-  <div id="gr-resultado"></div>
+  <!-- ETAPA 5: COMITÊ & PDF -->
+  <div id="gr-step-5" class="gr-step-content" style="display:none">
+    <div class="card" style="margin-bottom:16px;border:1px solid rgba(16,185,129,.35)">
+      <div class="ch">
+        <div class="ct"><div class="cd" style="background:var(--gn)"></div>Homologação do Comitê de Crédito B2B</div>
+        <span style="font-size:.7rem;color:var(--gn);font-weight:700">Dossiê & Parecer Executivo</span>
+      </div>
+      <div class="cb">
+        <p style="font-size:.78rem;color:var(--mu);margin-bottom:14px">
+          Consolidação técnica da esteira de crédito: capacidade de pagamento das safras (DSCR), índice de cobertura das garantias (LTV B2B) e conformidade socioambiental Bacen CMN 5.081.
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:14px">
+          <div style="background:var(--c2);padding:10px;border-radius:var(--rs);border:1px solid var(--b)">
+            <div style="font-size:.7rem;color:var(--mu)">1. Safra & Custos</div>
+            <div style="font-weight:700;font-size:.82rem;color:var(--tx);margin-top:2px">Soja Verão + Milho Safrinha</div>
+          </div>
+          <div style="background:var(--c2);padding:10px;border-radius:var(--rs);border:1px solid var(--b)">
+            <div style="font-size:.7rem;color:var(--mu)">2. Crédito Rural & Barter</div>
+            <div style="font-weight:700;font-size:.82rem;color:var(--tx);margin-top:2px">Custeio / CPR Física</div>
+          </div>
+          <div style="background:var(--c2);padding:10px;border-radius:var(--rs);border:1px solid var(--b)">
+            <div style="font-size:.7rem;color:var(--mu)">3. Matriz de Garantias</div>
+            <div style="font-weight:700;font-size:.82rem;color:var(--tx);margin-top:2px">Alienação Fiduciária & Penhor</div>
+          </div>
+          <div style="background:var(--c2);padding:10px;border-radius:var(--rs);border:1px solid var(--b)">
+            <div style="font-size:.7rem;color:var(--mu)">4. Compliance ESG</div>
+            <div style="font-weight:700;font-size:.82rem;color:var(--tx);margin-top:2px">Bacen CMN 5.081 & SICAR</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+          <button type="button" class="btn-p" onclick="graosAnalisarCompleto()" style="padding:10px 20px;font-weight:700">⚡ Julgar Safra & Emitir Parecer</button>
+          <button type="button" class="btn-sm" id="gr-btn-pdf" onclick="graosPDF()" disabled style="padding:10px 20px;font-weight:700">⬇ Baixar Parecer Técnico & CPR (PDF)</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="gr-resultado"></div>
+
+    <div style="display:flex;justify-content:flex-start;margin-top:14px">
+      <button type="button" class="btn-sm" onclick="graosMudarEtapa(4)">⬅ Voltar: Compliance ESG</button>
+    </div>
+  </div>
+
 </div>
 
 <!-- ═══ LAVOURA PERENE ═══ -->
@@ -4904,6 +4979,41 @@ async function perenePDF(){
 
 // ================== CULTURAS ANUAIS & GRÃOS ==================
 let graosAnalise = null;
+
+function graosMudarEtapa(etapa){
+  for(let i=1; i<=5; i++){
+    const el = document.getElementById('gr-step-' + i);
+    const tab = document.getElementById('gr-step-tab-' + i);
+    if(el){
+      el.style.display = (i === etapa) ? 'block' : 'none';
+    }
+    if(tab){
+      if(i === etapa){
+        tab.classList.add('active');
+        tab.style.background = 'var(--gn)';
+        tab.style.color = '#ffffff';
+        tab.style.opacity = '1';
+      } else {
+        tab.classList.remove('active');
+        tab.style.background = 'transparent';
+        tab.style.color = 'var(--tx)';
+        tab.style.opacity = '0.75';
+      }
+    }
+  }
+  const panel = document.getElementById('panel-graos');
+  if(panel) panel.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+async function graosAnalisarCompleto(){
+  if(!window._ultimasGarantias){
+    try { await garantiasAvaliar(); } catch(e){}
+  }
+  if(!window._ultimoESG){
+    try { await complianceAnalisar(); } catch(e){}
+  }
+  await graosAnalisar();
+}
 
 async function graosAnalisar(){
   const culturas = [];
