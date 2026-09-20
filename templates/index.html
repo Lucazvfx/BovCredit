@@ -1106,6 +1106,70 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
   </div>
 
+  <!-- MESA DE BARTER & CPR DIGITAL -->
+  <div class="card" style="margin-bottom:16px;border:1px solid rgba(34,197,94,.3)">
+    <div class="ch">
+      <div class="ct">
+        <div class="cd" style="background:var(--gn)"></div>Mesa de Barter & Minuta de CPR Digital (Cédula de Produto Rural)
+      </div>
+      <span style="font-size:.7rem;color:var(--gn);font-weight:700">Modelo Agfintech / Tarken</span>
+    </div>
+    <div class="cb">
+      <p style="font-size:.78rem;color:var(--mu);margin-bottom:14px">
+        Simule a troca de insumos agrícolas por grãos futuros, analise o termômetro de risco de penhor da safra e emita a minuta jurídica da CPR Física em conformidade com a Lei nº 8.929/94 e Leis do Agro (13.986/20 e 14.421/22).
+      </p>
+      <div class="fgrid">
+        <div class="field">
+          <label title="Cotações reais Cepea/B3/Agrural atualizadas">Praça de Referência (Cotações Reais) ℹ</label>
+          <select id="bt-praca" onchange="barterAtualizarPreco()">
+            <option value="SOJA_RONDONOPOLIS_MT">Soja — Rondonópolis/MT (R$ 144,00/sc)</option>
+            <option value="SOJA_PARANAGUA_PR">Soja — Porto de Paranaguá/PR (R$ 162,00/sc)</option>
+            <option value="SOJA_CEPEA_PR">Soja — Indicador Cepea/Esalq PR (R$ 155,18/sc)</option>
+            <option value="MILHO_CEPEA_B3">Milho — Indicador Cepea/B3 Campinas (R$ 69,29/sc)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label title="Preço de liquidação da saca">Preço Travado da Saca (R$/sc) ℹ</label>
+          <input type="number" id="bt-preco-saca" value="144" min="1" step="0.5">
+        </div>
+        <div class="field">
+          <label title="Valor total do pacote de sementes, fertilizantes e defensivos">Valor do Pacote de Insumos (R$) ℹ</label>
+          <input type="number" id="bt-valor-insumos" value="720000" min="1000" step="10000">
+        </div>
+        <div class="field">
+          <label title="Produtividade média esperada na fazenda">Produtividade Esperada (sc/ha) ℹ</label>
+          <input type="number" id="bt-prod-esperada" value="62" min="1" step="0.5">
+        </div>
+        <div class="field">
+          <label title="Área total plantada da cultura">Área Total Plantada (ha) ℹ</label>
+          <input type="number" id="bt-area-total" value="1000" min="1" step="10">
+        </div>
+      </div>
+
+      <!-- DADOS PARA EMISSÃO DA CPR -->
+      <details style="margin-top:12px;background:var(--c2);padding:10px 14px;border-radius:var(--rs);border:1px solid var(--b)">
+        <summary style="font-size:.78rem;font-weight:700;cursor:pointer;color:var(--tx)">
+          📋 Dados Opcionais para Emissão da Minuta da CPR (Emitente, Credor e Local)
+        </summary>
+        <div class="fgrid" style="margin-top:12px">
+          <div class="field"><label>Nome do Produtor / Emitente</label><input type="text" id="cpr-emitente-nome" value="Fazenda Esperança Agropecuária Ltda"></div>
+          <div class="field"><label>CPF / CNPJ do Emitente</label><input type="text" id="cpr-emitente-doc" value="00.000.000/0001-99"></div>
+          <div class="field"><label>CAR (Cadastro Ambiental Rural)</label><input type="text" id="cpr-emitente-car" value="MT-5107909-00000000000000000000000000000000"></div>
+          <div class="field"><label>Razão Social do Credor (Revenda/Fundo)</label><input type="text" id="cpr-credor-nome" value="Agro Insumos & Distribuição S/A"></div>
+          <div class="field"><label>CNPJ do Credor</label><input type="text" id="cpr-credor-cnpj" value="12.345.678/0001-90"></div>
+          <div class="field"><label>Data Limite para Entrega dos Grãos</label><input type="text" id="cpr-data-entrega" value="30 de abril de 2027"></div>
+        </div>
+      </details>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn-p" onclick="barterCalcular()">Calcular Barter & Penhor</button>
+        <button class="btn-sm" onclick="barterGerarCPR()">Gerar Minuta da CPR Digital</button>
+      </div>
+
+      <div id="bt-resultado" style="margin-top:14px"></div>
+    </div>
+  </div>
+
   <div id="gr-resultado"></div>
 </div>
 
@@ -4926,6 +4990,165 @@ function _grRenderResultado(d){
       </div>
     </div>
   `;
+}
+
+// ================== BARTER & CPR DIGITAL ==================
+const PRACAS_COTACAO = {
+  SOJA_RONDONOPOLIS_MT: 144.00,
+  SOJA_PARANAGUA_PR: 162.00,
+  SOJA_CEPEA_PR: 155.18,
+  MILHO_CEPEA_B3: 69.29
+};
+
+function barterAtualizarPreco(){
+  const praca = document.getElementById('bt-praca').value;
+  const preco = PRACAS_COTACAO[praca] || 144.00;
+  document.getElementById('bt-preco-saca').value = preco;
+}
+
+async function barterCalcular(){
+  const payload = {
+    praca: document.getElementById('bt-praca').value,
+    preco_saca: +document.getElementById('bt-preco-saca').value || 144,
+    valor_insumos: +document.getElementById('bt-valor-insumos').value || 0,
+    produtividade_esperada_ha: +document.getElementById('bt-prod-esperada').value || 60,
+    area_total_ha: +document.getElementById('bt-area-total').value || 1000
+  };
+
+  showLoading('Calculando operação de Barter...');
+  try {
+    const res = await fetch('/api/agricola/barter/calcular', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    if(!res.ok || d.erro){
+      showToast(d.erro || 'Falha ao calcular barter', true);
+      return;
+    }
+    _renderBarterResultado(d);
+  } catch(e) {
+    showToast('Erro ao processar cálculo de barter', true);
+  } finally {
+    hideLoading();
+  }
+}
+
+function _renderBarterResultado(d){
+  const corRisco = {
+    BAIXO: 'var(--gn)',
+    MODERADO: 'var(--am)',
+    ALERTA: 'orange',
+    CRITICO: 'var(--sb)'
+  }[d.classificacao_risco] || 'var(--tx)';
+
+  document.getElementById('bt-resultado').innerHTML = `
+    <div style="background:var(--c2);padding:14px;border-radius:var(--rs);border:1px solid var(--b);margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <span style="font-weight:700;font-size:.85rem;color:var(--tx)">Resultado da Operação de Barter</span>
+        <span style="font-weight:700;font-size:.74rem;padding:3px 10px;border-radius:12px;background:rgba(255,255,255,.05);color:${corRisco};border:1px solid ${corRisco}">
+          Risco de Penhor: ${d.classificacao_risco} (${_prNum(d.comprometimento_safra_pct, 1)}% da safra)
+        </span>
+      </div>
+
+      <div class="kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px">
+        <div style="background:var(--c3);padding:10px;border-radius:var(--rs)">
+          <div style="font-size:.66rem;color:var(--mu)">Sacas a Entregar</div>
+          <div style="font-size:1.15rem;font-weight:700;color:var(--tx)">${_prNum(d.sacas_a_entregar, 1)} sc</div>
+          <div style="font-size:.66rem;color:var(--mu)">${_prNum(d.toneladas_a_entregar, 1)} toneladas</div>
+        </div>
+        <div style="background:var(--c3);padding:10px;border-radius:var(--rs)">
+          <div style="font-size:.66rem;color:var(--mu)">Área Travada / Penhor</div>
+          <div style="font-size:1.15rem;font-weight:700;color:var(--am)">${_prNum(d.area_travada_ha, 1)} ha</div>
+          <div style="font-size:.66rem;color:var(--mu)">de ${_prNum(d.area_total_ha, 0)} ha totais</div>
+        </div>
+        <div style="background:var(--c3);padding:10px;border-radius:var(--rs)">
+          <div style="font-size:.66rem;color:var(--mu)">Preço Referência</div>
+          <div style="font-size:1.15rem;font-weight:700;color:var(--gn)">${_prMoeda(d.preco_saca_referencia)}</div>
+          <div style="font-size:.66rem;color:var(--mu)">${escapeHtml(d.praca_nome)}</div>
+        </div>
+      </div>
+
+      <div style="font-size:.76rem;line-height:1.5;color:var(--tx);padding:8px 12px;background:rgba(255,255,255,.03);border-radius:6px;border-left:3px solid ${corRisco}">
+        <b>Recomendação Comitê:</b> ${escapeHtml(d.recomendacao_comite)}
+      </div>
+    </div>
+  `;
+}
+
+async function barterGerarCPR(){
+  const payload = {
+    barter: {
+      praca: document.getElementById('bt-praca').value,
+      preco_saca: +document.getElementById('bt-preco-saca').value || 144,
+      valor_insumos: +document.getElementById('bt-valor-insumos').value || 0,
+      produtividade_esperada_ha: +document.getElementById('bt-prod-esperada').value || 60,
+      area_total_ha: +document.getElementById('bt-area-total').value || 1000
+    },
+    emitente: {
+      nome: document.getElementById('cpr-emitente-nome').value.trim() || 'Produtor Rural Emitente',
+      cpf_cnpj: document.getElementById('cpr-emitente-doc').value.trim() || '00.000.000/0001-99',
+      car: document.getElementById('cpr-emitente-car').value.trim() || 'CAR Não Informado'
+    },
+    credor: {
+      nome: document.getElementById('cpr-credor-nome').value.trim() || 'Credor Distribuidor de Insumos',
+      cnpj: document.getElementById('cpr-credor-cnpj').value.trim() || '00.000.000/0001-00'
+    },
+    condicoes: {
+      data_entrega: document.getElementById('cpr-data-entrega').value.trim() || '30 de abril de 2027'
+    }
+  };
+
+  showLoading('Gerando minuta legal da CPR...');
+  try {
+    const res = await fetch('/api/agricola/cpr/minuta', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    if(!res.ok || d.erro){
+      showToast(d.erro || 'Falha ao gerar minuta', true);
+      return;
+    }
+    _renderMinutaCPR(d);
+  } catch(e) {
+    showToast('Erro ao gerar minuta da CPR', true);
+  } finally {
+    hideLoading();
+  }
+}
+
+function _renderMinutaCPR(d){
+  _renderBarterResultado(d.barter);
+  const container = document.getElementById('bt-resultado');
+  const divMinuta = document.createElement('div');
+  divMinuta.innerHTML = `
+    <div class="card" style="margin-top:14px;border:1px solid rgba(234,179,8,.3)">
+      <div class="ch">
+        <div class="ct"><div class="cd" style="background:var(--am)"></div>Minuta da Cédula de Produto Rural (Lei 8.929/94)</div>
+        <button class="btn-sm" onclick="barterCopiarMinuta()">📋 Copiar Minuta</button>
+      </div>
+      <div class="cb">
+        <textarea id="cpr-minuta-texto" readonly style="width:100%;height:320px;font-family:var(--fm);font-size:.72rem;background:var(--c3);color:var(--tx);border:1px solid var(--b);border-radius:var(--rs);padding:10px;line-height:1.5">${escapeHtml(d.texto_minuta)}</textarea>
+      </div>
+    </div>
+  `;
+  container.appendChild(divMinuta);
+  divMinuta.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function barterCopiarMinuta(){
+  const tx = document.getElementById('cpr-minuta-texto');
+  if(!tx) return;
+  navigator.clipboard.writeText(tx.value).then(()=>{
+    showToast('Minuta da CPR copiada com sucesso!');
+  }).catch(()=>{
+    tx.select();
+    document.execCommand('copy');
+    showToast('Minuta da CPR copiada!');
+  });
 }
 
 function logout() {

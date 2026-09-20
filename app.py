@@ -89,6 +89,8 @@ from services.perennial_engine import (
 )
 from services.annual_engine import (
     analisar_culturas_anuais,
+    calcular_barter,
+    gerar_minuta_cpr,
 )
 from services.rating_credito import calcular_rating
 from services.precos_regionais import aplicar as aplicar_preco_regional
@@ -3592,6 +3594,32 @@ def api_agricola_graos_analisar():
         return jsonify({'erro': str(erro)}), 400
 
     return jsonify(resultado)
+
+
+@app.route('/api/agricola/barter/calcular', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_agricola_barter_calcular():
+    """Simulação de Barter: troca de insumos por grãos físicos e análise de risco de penhor."""
+    data = request.get_json(silent=True) or {}
+    try:
+        resultado = calcular_barter(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+    return jsonify(resultado)
+
+
+@app.route('/api/agricola/cpr/minuta', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_agricola_cpr_minuta():
+    """Gera a minuta formal e legal da Cédula de Produto Rural (CPR Física/Barter)."""
+    data = request.get_json(silent=True) or {}
+    try:
+        minuta = gerar_minuta_cpr(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+    return jsonify(minuta)
 
 
 @app.route('/api/reconciliacao', methods=['POST'])

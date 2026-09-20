@@ -285,3 +285,122 @@ def test_rota_agricola_graos_analisar_sucesso_e_validacoes():
     assert 'fração' in resp_juros.get_json()['erro']
 
 
+def test_barter_calculo_matematica_e_risco():
+    """Valida cálculo de troca (barter) e termômetro de penhor de safra."""
+    from services.annual_engine import calcular_barter, gerar_minuta_cpr
+
+    # Caso Real: R$ 720.000 em insumos com Soja a R$ 144/sc em Rondonópolis
+    payload = {
+        'valor_insumos': 720_000.0,
+        'praca': 'SOJA_RONDONOPOLIS_MT',
+        'produtividade_esperada_ha': 60.0,
+        'area_total_ha': 1000.0,
+    }
+    resultado = calcular_barter(payload)
+
+    assert resultado['valido'] is True
+    assert resultado['preco_saca_referencia'] == 144.0
+    # 720.000 / 144 = 5.000 sacas
+    assert resultado['sacas_a_entregar'] == 5000.0
+    assert resultado['toneladas_a_entregar'] == 300.0
+    # 5.000 / 60 = 83.33 ha
+    assert resultado['area_travada_ha'] == 83.33
+    # 5.000 / 60.000 = 8.3%
+    assert resultado['comprometimento_safra_pct'] == 8.3
+    assert resultado['classificacao_risco'] == 'BAIXO'
+
+    # Caso de Alto Risco: Penhor excessivo
+    payload_alto = {
+        'valor_insumos': 4_320_000.0,  # 30.000 sacas em área de 40.000 sacas = 75%
+        'preco_saca': 144.0,
+        'produtividade_esperada_ha': 50.0,
+        'area_total_ha': 800.0,
+    }
+    res_alto = calcular_barter(payload_alto)
+    assert res_alto['comprometimento_safra_pct'] == 75.0
+    assert res_alto['classificacao_risco'] == 'CRITICO'
+    assert 'não recomendado' in res_alto['recomendacao_comite'].lower()
+
+
+def test_minuta_cpr_conformidade_legal():
+    """Valida presença dos requisitos obrigatórios da Lei nº 8.929/94 na minuta."""
+    from services.annual_engine import gerar_minuta_cpr
+
+    payload = {
+        'barter': {
+            'valor_insumos': 500_000,
+            'praca': 'SOJA_RONDONOPOLIS_MT',
+            'produtividade_esperada_ha': 62,
+            'area_total_ha': 1000,
+        },
+        'emitente': {
+            'nome': 'João da Silva Agro',
+            'cpf_cnpj': '123.456.789-00',
+            'fazenda': 'Fazenda Esperança',
+            'municipio_uf': 'Sorriso / MT',
+            'car': 'MT-5107909-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        },
+        'credor': {
+            'nome': 'Agro Insumos e Distribuição S/A',
+            'cnpj': '11.222.333/0001-44',
+        },
+    }
+
+    cpr = gerar_minuta_cpr(payload)
+
+    assert cpr['modalidade'] == 'CPR_FISICA'
+    texto = cpr['texto_minuta']
+    assert 'CÉDULA DE PRODUTO RURAL' in texto
+    assert 'Lei nº 8.929/94' in texto
+    assert 'João da Silva Agro' in texto
+    assert 'Agro Insumos e Distribuição S/A' in texto
+    assert 'PENHOR CEDULAR' in texto
+    assert 'B3 ou CERC' in texto
+
+
+def test_rotas_barter_e_cpr_endpoint():
+    """Valida as rotas HTTP de barter e minuta de CPR."""
+    import database as db
+    db.init_db()
+    email = 'barter@example.com'
+    usuario = db.buscar_usuario_email(email)
+    if not usuario:
+        db.criar_usuario(email, 'Operador Barter', 'senha123')
+        usuario = db.buscar_usuario_email(email)
+    from app import app
+    app.config['TESTING'] = True
+    cliente = app.test_client()
+    with cliente.session_transaction() as sessao:
+        sessao['_user_id'] = str(usuario['id'])
+
+    # Teste Barter Endpoint
+    resp_b = cliente.post('/api/agricola/barter/calcular', json={
+        'valor_insumos': 288_000,
+        'praca': 'SOJA_RONDONOPOLIS_MT',
+        'produtividade_esperada_ha': 60,
+        'area_total_ha': 500,
+    })
+    assert resp_b.status_code == 200
+    db_res = resp_b.get_json()
+    assert db_res['sacas_a_entregar'] == 2000.0  # 288.000 / 144
+    assert db_res['comprometimento_safra_pct'] == 6.7
+
+    # Teste CPR Minuta Endpoint
+    resp_c = cliente.post('/api/agricola/cpr/minuta', json={
+        'barter': {
+            'valor_insumos': 288_000,
+            'praca': 'SOJA_RONDONOPOLIS_MT',
+            'produtividade_esperada_ha': 60,
+            'area_total_ha': 500,
+        },
+        'emitente': {'nome': 'Produtor Teste', 'cpf_cnpj': '123'},
+        'credor': {'nome': 'Revenda Teste', 'cnpj': '456'},
+    })
+    assert resp_c.status_code == 200
+    dc_res = resp_c.get_json()
+    assert 'CÉDULA DE PRODUTO RURAL' in dc_res['texto_minuta']
+    assert 'Produtor Teste' in dc_res['texto_minuta']
+
+
+
+
