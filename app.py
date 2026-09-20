@@ -59,6 +59,11 @@ from services.parecer_credito import (
 from services.parecer_pdf import gerar_pdf_parecer
 from services.parecer_pdf_perene import gerar_pdf_parecer_perene
 from services.parecer_pdf_graos import gerar_pdf_parecer_graos
+from services.esg_engine import (
+    analisar_compliance_socioambiental,
+    calcular_metricas_florestais,
+    validar_sintaxe_car,
+)
 from services.pesos_rebanho import arrobas_categorias
 from services.parametros_zootecnicos import (
     natalidade_de_prenhez, avaliar_reposicao as _avaliar_reposicao)
@@ -3646,13 +3651,49 @@ def api_agricola_graos_parecer_pdf():
     identificacao = data.get('identificacao') or {}
     barter = data.get('barter')
     cpr = data.get('cpr')
+    esg = data.get('esg')
     pdf_bytes = gerar_pdf_parecer_graos(
-        analise, identificacao=identificacao, barter=barter, cpr=cpr, branding=branding)
+        analise, identificacao=identificacao, barter=barter, cpr=cpr, branding=branding, esg=esg)
     _auditar(_aud.PARECER_PDF, recurso='fazenda',
              recurso_id=identificacao.get('fazenda') or None,
              detalhe='parecer graos')
     return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
                      as_attachment=True, download_name='parecer_graos_cpr.pdf')
+
+
+@app.route('/api/compliance/socioambiental/analisar', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_compliance_socioambiental_analisar():
+    """Analisa a conformidade socioambiental e o CAR do proponente e imóvel rural (CMN 5.081/23)."""
+    data = request.get_json(silent=True) or {}
+    try:
+        dossie = analisar_compliance_socioambiental(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+    return jsonify(dossie.to_dict())
+
+
+@app.route('/api/compliance/car/validar', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_compliance_car_validar():
+    """Valida a estrutura do número SICAR do CAR e calcula as exigências do Código Florestal."""
+    data = request.get_json(silent=True) or {}
+    numero_car = data.get('numero_car', '')
+    valido, msg = validar_sintaxe_car(numero_car)
+    metricas = calcular_metricas_florestais(
+        numero_car=numero_car,
+        status=data.get('status_car', 'ATIVO'),
+        bioma=data.get('bioma', 'CERRADO'),
+        area_total_ha=float(data.get('area_total_ha', 0.0) or 0.0),
+        area_reserva_legal_ha=float(data.get('area_reserva_legal_ha', 0.0) or 0.0),
+        area_app_ha=float(data.get('area_app_ha', 0.0) or 0.0),
+    )
+    resultado = metricas.to_dict()
+    resultado['sintaxe_valida'] = valido
+    resultado['mensagem_sintaxe'] = msg
+    return jsonify(resultado)
 
 
 @app.route('/api/reconciliacao', methods=['POST'])

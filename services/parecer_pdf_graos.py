@@ -205,6 +205,38 @@ def _barter_cpr(story, ss, barter: dict | None, cpr: dict | None) -> None:
         story.append(Paragraph('<i>[Texto integral disponível no sistema para assinatura e registro na B3 / CERC]</i>', ss['Subtitulo']))
 
 
+def _compliance_esg(story, ss, esg: dict | None) -> None:
+    if not esg:
+        return
+    _secao(story, ss, 'Conformidade Socioambiental & ESG (Resoluções CMN 4.945 e 5.081)')
+    car = esg.get('car') or {}
+    checagens = esg.get('checagens') or {}
+    selo = esg.get('selo_conformidade_cmn') or 'Em conformidade'
+
+    rl_decl = float(car.get('percentual_rl_declarado') or 0.0) * 100
+    rl_exig = float(car.get('percentual_rl_exigido') or 0.0) * 100
+    rl_ha = float(car.get('area_reserva_legal_ha') or 0.0)
+    app_ha = float(car.get('area_app_ha') or 0.0)
+
+    tabela_esg = [
+        ['Item de Verificação Socioambiental', 'Situação / Resultado'],
+        ['Número do CAR (SICAR)', str(car.get('numero_car') or 'Não informado')],
+        ['Status Cadastral do CAR', str(car.get('status') or 'ATIVO')],
+        ['Bioma Referencial', str(car.get('bioma') or 'CERRADO').replace('_', ' ')],
+        ['Reserva Legal (Declarada vs Exigida)', f"{rl_decl:.1f}% decl. vs {rl_exig:.0f}% exig. ({rl_ha:.1f} ha)"],
+        ['Área de Preservação Permanente (APP)', f"{app_ha:.1f} ha"],
+        ['Consulta de Embargos Ambientais (IBAMA)', 'EMBARGO ATIVO (IMPEDITIVO)' if checagens.get('embargo_ibama') else 'Nada Consta (Regular)'],
+        ['Consulta Lista Suja Trabalho Escravo (MTE)', 'INSCRIÇÃO ATIVA (IMPEDITIVO)' if checagens.get('trabalho_escravo_mte') else 'Nada Consta (Regular)'],
+        ['Sobreposição Terra Indígena / Unid. Conservação', 'Sobreposição Detectada' if (checagens.get('sobreposicao_terra_indigena') or checagens.get('sobreposicao_unidade_conservacao')) else 'Isento de Sobreposição'],
+        ['Score ESG / Conformidade Bacen', f"{esg.get('score_esg', 100)} / 100 — {selo}"],
+    ]
+    _tabela(story, tabela_esg, [9.0 * cm, 8.0 * cm])
+    story.append(Spacer(1, 6))
+    if esg.get('recomendacoes_comite'):
+        story.append(Paragraph(f"<b>Parecer Técnico ESG:</b> {esg.get('recomendacoes_comite')}", ss['Corpo']))
+        story.append(Spacer(1, 8))
+
+
 def _dicas_parecer(story, ss, analise: dict) -> None:
     dicas = analise.get('dicas') or []
     if not dicas:
@@ -221,6 +253,7 @@ def gerar_pdf_parecer_graos(
     barter: dict | None = None,
     cpr: dict | None = None,
     branding: dict | None = None,
+    esg: dict | None = None,
 ) -> bytes:
     """Recebe o resultado de `analisar_culturas_anuais` e devolve os bytes do PDF."""
     ss = _styles()
@@ -246,6 +279,7 @@ def gerar_pdf_parecer_graos(
     _economico_breakeven(story, ss, analise.get('economico') or {})
     _capacidade(story, ss, analise)
     _projecao_estresse(story, ss, analise)
+    _compliance_esg(story, ss, esg)
     _barter_cpr(story, ss, barter, cpr)
     _dicas_parecer(story, ss, analise)
 

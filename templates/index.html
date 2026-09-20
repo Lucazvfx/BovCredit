@@ -1171,6 +1171,84 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
   </div>
 
+  <!-- COMPLIANCE SOCIOAMBIENTAL & CAR (ESG BACEN CMN 5.081) -->
+  <div class="card" style="margin-bottom:16px;border:1px solid rgba(16,185,129,.35)">
+    <div class="ch">
+      <div class="ct">
+        <div class="cd" style="background:#10B981"></div>Compliance Socioambiental & CAR (Bacen CMN 5.081)
+      </div>
+      <span style="font-size:.7rem;color:#10B981;font-weight:700">MCR 2-1 / Resoluções CMN 4.945 e 5.081</span>
+    </div>
+    <div class="cb">
+      <p style="font-size:.78rem;color:var(--mu);margin-bottom:14px">
+        Validação regulatória obrigatória do Banco Central para concessão de crédito rural e emissão de CPR. Verifica status do CAR, reserva legal por bioma, embargos IBAMA/ICMBio, Lista Suja do MTE e sobreposição de terras públicas.
+      </p>
+      <div class="fgrid">
+        <div class="field">
+          <label title="Número no Sistema Nacional de Cadastro Ambiental Rural">Número do CAR (SICAR) ℹ</label>
+          <input type="text" id="esg-numero-car" value="MT-5107602-C75A20B7631E44AA8BF0D382A13894E2" placeholder="UF-MUNICÍPIO-CÓDIGO">
+        </div>
+        <div class="field">
+          <label>Status Cadastral do CAR ℹ</label>
+          <select id="esg-status-car">
+            <option value="ATIVO">ATIVO — Regularizado no Órgão Estadual</option>
+            <option value="PENDENTE">PENDENTE — Em Análise pelo Órgão</option>
+            <option value="SUSPENSO">SUSPENSO — Impeditivo Bacen</option>
+            <option value="CANCELADO">CANCELADO — Impeditivo Bacen</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Bioma da Fazenda (Exigência Florestal) ℹ</label>
+          <select id="esg-bioma">
+            <option value="AMAZONIA_CERRADO">Cerrado na Amazônia Legal (Exige 35% de RL)</option>
+            <option value="AMAZONIA_FLORESTA">Amazônia Bioma Floresta (Exige 80% de RL)</option>
+            <option value="CERRADO">Cerrado (Exige 20% de RL)</option>
+            <option value="MATA_ATLANTICA">Mata Atlântica (Exige 20% de RL)</option>
+            <option value="CAATINGA">Caatinga (Exige 20% de RL)</option>
+            <option value="PAMPA">Pampa (Exige 20% de RL)</option>
+            <option value="PANTANAL">Pantanal (Exige 20% de RL)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Área Total Declarada (ha)</label>
+          <input type="number" id="esg-area-total" value="1000" min="0" step="10">
+        </div>
+        <div class="field">
+          <label>Reserva Legal Declarada (ha)</label>
+          <input type="number" id="esg-area-rl" value="380" min="0" step="10">
+        </div>
+        <div class="field">
+          <label>Área de Preservação Permanente (APP ha)</label>
+          <input type="number" id="esg-area-app" value="45" min="0" step="5">
+        </div>
+      </div>
+
+      <div style="margin-top:12px;background:var(--c2);padding:10px 14px;border-radius:var(--rs);border:1px solid var(--b)">
+        <div style="font-size:.76rem;font-weight:700;margin-bottom:8px;color:var(--tx)">Consultas e Certidões Públicas do Proponente e Propriedade</div>
+        <div style="display:flex;gap:18px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--tx);cursor:pointer">
+            <input type="checkbox" id="esg-chk-ibama"> Possui Embargo Ativo no IBAMA
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--tx);cursor:pointer">
+            <input type="checkbox" id="esg-chk-icmbio"> Possui Embargo Ativo no ICMBio
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--tx);cursor:pointer">
+            <input type="checkbox" id="esg-chk-mte"> Consta na Lista Suja MTE (Trabalho Escravo)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--tx);cursor:pointer">
+            <input type="checkbox" id="esg-chk-ti"> Incide em Terra Indígena / UC Integral
+          </label>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn-p" onclick="complianceAnalisar()">Verificar Compliance Socioambiental</button>
+      </div>
+
+      <div id="esg-resultado" style="margin-top:14px"></div>
+    </div>
+  </div>
+
   <div id="gr-resultado"></div>
 </div>
 
@@ -5171,7 +5249,8 @@ async function graosPDF(){
         proprietario: document.getElementById('cpr-emitente-nome')?.value?.trim() || 'Produtor Rural'
       },
       barter: (window._ultimoBarter || null),
-      cpr: (window._ultimaCPR || null)
+      cpr: (window._ultimaCPR || null),
+      esg: (window._ultimoESG || null)
     };
     const res = await fetch('/api/agricola/graos/parecer/pdf', {
       method: 'POST',
@@ -5195,6 +5274,89 @@ async function graosPDF(){
   } finally {
     hideLoading();
   }
+}
+
+async function complianceAnalisar(){
+  const payload = {
+    numero_car: document.getElementById('esg-numero-car').value.trim(),
+    status_car: document.getElementById('esg-status-car').value,
+    bioma: document.getElementById('esg-bioma').value,
+    area_total_ha: +document.getElementById('esg-area-total').value || 0,
+    area_reserva_legal_ha: +document.getElementById('esg-area-rl').value || 0,
+    area_app_ha: +document.getElementById('esg-area-app').value || 0,
+    embargo_ibama: document.getElementById('esg-chk-ibama').checked,
+    embargo_icmbio: document.getElementById('esg-chk-icmbio').checked,
+    trabalho_escravo_mte: document.getElementById('esg-chk-mte').checked,
+    sobreposicao_terra_indigena: document.getElementById('esg-chk-ti').checked,
+  };
+
+  showLoading('Verificando conformidade socioambiental e bases do Bacen...');
+  try {
+    const res = await fetch('/api/compliance/socioambiental/analisar', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    if(!res.ok || d.erro){
+      showToast(d.erro || 'Falha ao analisar conformidade', true);
+      return;
+    }
+    window._ultimoESG = d;
+    _renderComplianceResultado(d);
+  } catch(e) {
+    showToast('Erro ao verificar compliance socioambiental', true);
+  } finally {
+    hideLoading();
+  }
+}
+
+function _renderComplianceResultado(d){
+  const corParecer = {
+    APROVADO: 'var(--gn)',
+    ALERTA: 'var(--am)',
+    IMPEDIDO_BACEN: 'var(--sb)'
+  }[d.parecer] || 'var(--tx)';
+
+  const car = d.car || {};
+  const chk = d.checagens || {};
+
+  const itensChecagem = [
+    { label: 'Embargos Ambientais IBAMA', ok: !chk.embargo_ibama, info: chk.embargo_ibama ? 'EMBARGO ATIVO (Veto MCR 2-1)' : 'Nada Consta' },
+    { label: 'Embargos ICMBio', ok: !chk.embargo_icmbio, info: chk.embargo_icmbio ? 'EMBARGO ATIVO' : 'Nada Consta' },
+    { label: 'Lista Suja MTE (Trabalho Escravo)', ok: !chk.trabalho_escravo_mte, info: chk.trabalho_escravo_mte ? 'INSCRIÇÃO ATIVA (Veto Bacen)' : 'Nada Consta' },
+    { label: 'Terras Indígenas / UCs de Proteção Integral', ok: !chk.sobreposicao_terra_indigena && !chk.sobreposicao_unidade_conservacao, info: (chk.sobreposicao_terra_indigena || chk.sobreposicao_unidade_conservacao) ? 'Sobreposição Detectada' : 'Área Isenta' },
+    { label: 'Status e Sintaxe do CAR SICAR', ok: car.status === 'ATIVO' && car.sintaxe_valida, info: `${car.status} (${car.sintaxe_valida ? 'Padrão SICAR Válido' : 'Formato Não Padronizado'})` },
+    { label: 'Reserva Legal (Código Florestal)', ok: car.em_conformidade_florestal, info: `${_prNum(car.percentual_rl_declarado * 100, 1)}% declarado vs ${_prNum(car.percentual_rl_exigido * 100, 0)}% exigido (${_prNum(car.area_reserva_legal_ha, 1)} ha)` },
+  ];
+
+  const htmlItens = itensChecagem.map(i => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--c3);border-radius:6px;font-size:.75rem">
+      <span style="color:var(--tx)">${escapeHtml(i.label)}</span>
+      <span style="font-weight:700;color:${i.ok ? 'var(--gn)' : 'var(--sb)'}">
+        ${i.ok ? '✔' : '✖'} ${escapeHtml(i.info)}
+      </span>
+    </div>
+  `).join('');
+
+  document.getElementById('esg-resultado').innerHTML = `
+    <div style="background:var(--c2);padding:14px;border-radius:var(--rs);border:1px solid var(--b)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <span style="font-weight:700;font-size:.85rem;color:var(--tx)">Dossiê Socioambiental & Conformidade Bacen</span>
+        <span style="font-weight:700;font-size:.74rem;padding:4px 12px;border-radius:12px;background:rgba(255,255,255,.05);color:${corParecer};border:1px solid ${corParecer}">
+          ${escapeHtml(d.selo_conformidade_cmn)} · Score ESG: ${d.score_esg}/100
+        </span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+        ${htmlItens}
+      </div>
+
+      <div style="font-size:.76rem;line-height:1.5;color:var(--tx);padding:8px 12px;background:rgba(255,255,255,.03);border-radius:6px;border-left:3px solid ${corParecer}">
+        <b>Parecer do Comitê ESG:</b> ${escapeHtml(d.recomendacoes_comite)}
+      </div>
+    </div>
+  `;
 }
 
 function logout() {
