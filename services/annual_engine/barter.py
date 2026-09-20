@@ -1,6 +1,6 @@
 """Módulo de Operações de Barter e Emissão de Minuta de CPR (Cédula de Produto Rural).
 
-Implementa a dinâmica padrão de agfintechs (Tarken, Traive):
+Implementa a dinâmica padrão de operações de Barter B2B e estruturação de CPR:
 1. Barter: Troca de insumos agrícolas (adubo, sementes, defensivos) por grãos futuros.
 2. Análise de Risco de Penhor: Percentual da safra comprometido com a entrega.
 3. CPR Digital: Geração da minuta jurídica da Cédula de Produto Rural Física ou Financeira
