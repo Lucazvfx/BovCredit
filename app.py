@@ -65,6 +65,11 @@ from services.esg_engine import (
     validar_sintaxe_car,
 )
 from services.collateral_engine import avaliar_matriz_garantias
+from services.dossie_comite import (
+    montar_dossie_comite,
+    gerar_pdf_dossie_comite,
+    gerar_excel_dossie_comite,
+)
 from services.pesos_rebanho import arrobas_categorias
 from services.parametros_zootecnicos import (
     natalidade_de_prenhez, avaliar_reposicao as _avaliar_reposicao)
@@ -3710,6 +3715,88 @@ def api_compliance_car_validar():
     resultado['sintaxe_valida'] = valido
     resultado['mensagem_sintaxe'] = msg
     return jsonify(resultado)
+
+
+@app.route('/api/comite/dossie/consolidar', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_comite_dossie_consolidar():
+    """Consolida as informações multicritério da operação para deliberação do comitê."""
+    data = request.get_json(silent=True) or {}
+    try:
+        dossie = montar_dossie_comite(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+    except Exception as e:
+        logger.error(f"Erro ao consolidar dossiê: {e}", exc_info=True)
+        return jsonify({'erro': str(e)}), 500
+    return jsonify(dossie.to_dict())
+
+
+@app.route('/api/comite/dossie/pdf', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
+@login_required
+def api_comite_dossie_pdf():
+    """Gera o documento executivo em PDF do Dossiê do Comitê de Crédito."""
+    data = request.get_json(silent=True) or {}
+    try:
+        # Se os dados já vierem consolidados (tem proponente e deliberacao), usa direto; senão consolida
+        if data.get('deliberacao') and data.get('proponente'):
+            dossie_dict = data
+        else:
+            dossie_dict = montar_dossie_comite(data).to_dict()
+
+        empresa_id = _resolver_empresa_ativa()
+        empresa = db.buscar_empresa(empresa_id) if empresa_id else None
+        branding = {'nome_consultoria': empresa.get('nome') or '',
+                    'logo_base64': empresa.get('logo_base64') or ''} if empresa else None
+
+        pdf_bytes = gerar_pdf_dossie_comite(dossie_dict, branding=branding)
+        fazenda = (dossie_dict.get('proponente') or {}).get('fazenda')
+        _auditar(_aud.PARECER_PDF, recurso='fazenda',
+                 recurso_id=fazenda,
+                 detalhe='dossie comite credito pdf')
+
+        cod = (dossie_dict.get('deliberacao') or {}).get('codigo_dossie') or 'dossie_comite'
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"{cod.lower()}_executivo.pdf"
+        )
+    except Exception as e:
+        logger.error(f"Erro ao gerar PDF do Dossiê do Comitê: {e}", exc_info=True)
+        return jsonify({'erro': str(e)}), 500
+
+
+@app.route('/api/comite/dossie/excel', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
+@login_required
+def api_comite_dossie_excel():
+    """Gera a pasta de trabalho em Excel (.xlsx) de modelagem do Dossiê do Comitê."""
+    data = request.get_json(silent=True) or {}
+    try:
+        if data.get('deliberacao') and data.get('proponente'):
+            dossie_dict = data
+        else:
+            dossie_dict = montar_dossie_comite(data).to_dict()
+
+        xlsx_bytes = gerar_excel_dossie_comite(dossie_dict)
+        fazenda = (dossie_dict.get('proponente') or {}).get('fazenda')
+        _auditar(_aud.PARECER_PDF, recurso='fazenda',
+                 recurso_id=fazenda,
+                 detalhe='dossie comite credito excel')
+
+        cod = (dossie_dict.get('deliberacao') or {}).get('codigo_dossie') or 'dossie_comite'
+        return send_file(
+            io.BytesIO(xlsx_bytes),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f"{cod.lower()}_modelagem.xlsx"
+        )
+    except Exception as e:
+        logger.error(f"Erro ao gerar Excel do Dossiê do Comitê: {e}", exc_info=True)
+        return jsonify({'erro': str(e)}), 500
 
 
 @app.route('/api/reconciliacao', methods=['POST'])

@@ -1361,7 +1361,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
           <button type="button" class="btn-p" onclick="graosAnalisarCompleto()" style="padding:10px 20px;font-weight:700">⚡ Julgar Safra & Emitir Parecer</button>
-          <button type="button" class="btn-sm" id="gr-btn-pdf" onclick="graosPDF()" disabled style="padding:10px 20px;font-weight:700">⬇ Baixar Parecer Técnico & CPR (PDF)</button>
+          <button type="button" class="btn-sm" id="gr-btn-pdf" onclick="graosPDF()" disabled style="padding:10px 20px;font-weight:700">⬇ Parecer & CPR (PDF)</button>
+          <button type="button" class="btn-sm" id="comite-btn-pdf" onclick="baixarDossieComitePDF()" disabled style="padding:10px 20px;font-weight:700;border-color:var(--a);color:var(--a)">🏛️ Dossiê Comitê (PDF)</button>
+          <button type="button" class="btn-sm" id="comite-btn-excel" onclick="baixarDossieComiteExcel()" disabled style="padding:10px 20px;font-weight:700;border-color:var(--k);color:var(--tx)">📊 Modelagem (Excel)</button>
         </div>
       </div>
     </div>
@@ -5080,6 +5082,10 @@ async function graosAnalisar(){
     graosAnalise = data;
     const btnPdf = document.getElementById('gr-btn-pdf');
     if(btnPdf) btnPdf.disabled = false;
+    const btnComPdf = document.getElementById('comite-btn-pdf');
+    if(btnComPdf) btnComPdf.disabled = false;
+    const btnComXls = document.getElementById('comite-btn-excel');
+    if(btnComXls) btnComXls.disabled = false;
     _grRenderResultado(data);
     document.getElementById('gr-resultado').scrollIntoView({behavior:'smooth', block:'start'});
   } catch(e) {
@@ -5430,6 +5436,89 @@ async function graosPDF(){
     URL.revokeObjectURL(url);
   } catch(e) {
     showToast('Erro ao baixar o parecer em PDF', true);
+  } finally {
+    hideLoading();
+  }
+}
+
+function _montarPayloadComite(){
+  return {
+    identificacao: {
+      fazenda: document.getElementById('cpr-emitente-nome')?.value?.trim() || 'Fazenda Modelo',
+      proprietario: document.getElementById('cpr-emitente-nome')?.value?.trim() || 'Produtor Rural',
+      cpf_cnpj: document.getElementById('cpr-emitente-cpf')?.value?.trim() || '000.000.000-00',
+      municipio: 'Região Agropecuária',
+      uf: 'BR',
+      area_total_ha: +document.getElementById('esg-area-total')?.value || 1000
+    },
+    operacao: {
+      valor_solicitado: +document.getElementById('gr-credito-valor')?.value || 500000,
+      prazo_meses: +document.getElementById('gr-credito-prazo')?.value || 12,
+      juros_aa: +document.getElementById('gr-credito-juros')?.value || 12.0,
+      carencia_meses: +document.getElementById('gr-credito-carencia')?.value || 0,
+      finalidade: 'Custeio Agrícola / Aquisição de Rebanho / Barter / Investimento B2B'
+    },
+    agricola: graosAnalise || null,
+    esg: window._ultimoESG || null,
+    garantias: window._ultimasGarantias || null,
+    barter: window._ultimoBarter || null,
+    cpr: window._ultimaCPR || null
+  };
+}
+
+async function baixarDossieComitePDF(){
+  showLoading('Gerando Dossiê Executivo do Comitê em PDF...');
+  try {
+    const payload = _montarPayloadComite();
+    const res = await fetch('/api/comite/dossie/pdf', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      showToast(err.erro || 'Falha ao emitir o Dossiê do Comitê', true);
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'dossie_comite_executivo.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Dossiê do Comitê (PDF) gerado com sucesso!');
+  } catch(e) {
+    showToast('Erro ao baixar Dossiê em PDF', true);
+  } finally {
+    hideLoading();
+  }
+}
+
+async function baixarDossieComiteExcel(){
+  showLoading('Gerando Modelagem do Comitê em Excel (.xlsx)...');
+  try {
+    const payload = _montarPayloadComite();
+    const res = await fetch('/api/comite/dossie/excel', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      showToast(err.erro || 'Falha ao gerar planilha Excel do Comitê', true);
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'dossie_comite_modelagem.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Modelagem Excel do Comitê gerada com sucesso!');
+  } catch(e) {
+    showToast('Erro ao baixar Modelagem em Excel', true);
   } finally {
     hideLoading();
   }
