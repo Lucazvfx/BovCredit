@@ -68,7 +68,7 @@ jobs:
           for tentativa in 1 2 3; do
             ssh -i ~/.ssh/deploy_key \
                 -o StrictHostKeyChecking=accept-new \
-                -o ConnectTimeout=20 root@179.198.115.127 "
+                -o ConnectTimeout=20 root@187.41.102.123 "
               set -e
               cd /opt/orkavyn
               git fetch origin main
