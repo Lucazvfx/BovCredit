@@ -638,6 +638,37 @@ def init_db():
         )
     ''', commit=True)
 
+    # Desfecho do parecer: o que aconteceu DEPOIS de ele ser emitido.
+    #
+    # Um parecer tem MUITOS desfechos — a contratação é um registro, cada marco
+    # de adimplência é outro. Histórico e não campo sobrescrito: trocar "em dia"
+    # por "atraso" apagando o anterior perderia justamente a trajetória, que é o
+    # que ensina.
+    #
+    # `snapshot_id` é o que dá valor ao resto: sem ele "essa operação quebrou" é
+    # anedota; com ele é o resultado confrontável com a projeção, os preços e a
+    # versão do motor daquele dia.
+    _exec(f'''
+        CREATE TABLE IF NOT EXISTS desfechos (
+            id                  {_AI},
+            parecer_id          INTEGER NOT NULL,
+            snapshot_id         INTEGER,
+            empresa_id          INTEGER,
+            user_id             INTEGER,
+            etapa               TEXT NOT NULL,
+            situacao            TEXT NOT NULL,
+            competencia         TEXT DEFAULT '',
+            valor_contratado    REAL,
+            prazo_contratado    REAL,
+            juros_contratado    REAL,
+            sistema_contratado  TEXT DEFAULT '',
+            observacao          TEXT DEFAULT '',
+            created_at          TIMESTAMP DEFAULT {_NOW}
+        )
+    ''', commit=True)
+    _exec('CREATE INDEX IF NOT EXISTS idx_desfechos_parecer ON desfechos(parecer_id)',
+          commit=True)
+
     # Empresas (consultorias) e vínculo N:N com usuários
     _exec(f'''
         CREATE TABLE IF NOT EXISTS empresas (
@@ -1072,6 +1103,73 @@ def _validar_caso_real(valores, classificacao, origem='MANUAL') -> list:
     if origem not in _CASOS_ORIGENS:
         raise ValueError(f'Origem inválida: {origem}')
     return normalizados
+
+
+# ── Desfecho do parecer ──────────────────────────────────────────────────────
+
+def registrar_desfecho(parecer_id: int, etapa: str, situacao: str, *,
+                       snapshot_id=None, empresa_id=None, user_id=None,
+                       competencia='', condicoes=None, observacao='') -> int:
+    """Acrescenta um desfecho ao parecer. Nunca substitui o anterior."""
+    from services import desfecho as _d
+
+    etapa, situacao = _d.validar(etapa, situacao)
+    condicoes = _d.validar_condicoes(situacao, condicoes)
+    ph = _PH
+    return int(_exec(
+        f'''INSERT INTO desfechos
+            (parecer_id, snapshot_id, empresa_id, user_id, etapa, situacao,
+             competencia, valor_contratado, prazo_contratado, juros_contratado,
+             sistema_contratado, observacao)
+            VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})''',
+        (parecer_id, snapshot_id, empresa_id, user_id, etapa, situacao,
+         (competencia or '')[:40], condicoes.get('valor_contratado'),
+         condicoes.get('prazo_contratado'), condicoes.get('juros_contratado'),
+         condicoes.get('sistema_contratado', ''), (observacao or '')[:1000]),
+        fetch='lastrow', commit=True))
+
+
+def listar_desfechos(parecer_id: int = None, empresa_id: int = None,
+                     etapa: str = None, limit: int = 200) -> list:
+    ph = _PH
+    sql = 'SELECT * FROM desfechos WHERE 1=1'
+    params = []
+    for coluna, valor in (('parecer_id', parecer_id), ('empresa_id', empresa_id),
+                          ('etapa', etapa)):
+        if valor is not None:
+            sql += f' AND {coluna}={ph}'
+            params.append(valor)
+    sql += f' ORDER BY created_at ASC, id ASC LIMIT {ph}'
+    params.append(max(1, min(int(limit or 200), 2000)))
+    return [dict(row) for row in (_exec(sql, tuple(params), fetch='all') or [])]
+
+
+def desfecho_atual(parecer_id: int, etapa: str) -> dict | None:
+    """O último registro da etapa — ou None quando NINGUÉM respondeu.
+
+    None e um registro com situacao='nao_sei' são coisas diferentes: o primeiro
+    é ausência de resposta, o segundo é o analista dizendo que não sabe. Quem
+    chamar esta função tem de conseguir distinguir os dois.
+    """
+    registros = listar_desfechos(parecer_id=parecer_id, etapa=etapa)
+    return registros[-1] if registros else None
+
+
+def cobertura_desfechos(empresa_id: int = None) -> dict:
+    """Quantos pareceres têm desfecho — e quantos ninguém respondeu."""
+    from services import desfecho as _d
+
+    ph = _PH
+    if empresa_id is not None:
+        total = _exec(
+            f'''SELECT COUNT(*) AS n FROM pareceres p
+                JOIN fazendas f ON f.id = p.fazenda_id
+                WHERE f.empresa_id={ph}''', (empresa_id,), fetch='one')
+    else:
+        total = _exec('SELECT COUNT(*) AS n FROM pareceres', fetch='one')
+    total_pareceres = int(dict(total or {}).get('n') or 0)
+    return _d.cobertura(total_pareceres, listar_desfechos(empresa_id=empresa_id,
+                                                          limit=2000))
 
 
 def criar_caso_real(valores, classificacao_ml, confianca=0, *, origem='MANUAL',
