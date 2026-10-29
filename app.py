@@ -481,7 +481,6 @@ def rotina_diaria_cotacoes():
         precos = obter_precos_arroba()
         if precos.get('boi', 0) > 0 or precos.get('vaca', 0) > 0:
             db.guardar_cotacao_diaria(precos)
-            _invalidar_cache_cotacoes()
             logger.info("✅ [Scraper] Cotações atualizadas no banco de dados.")
         else:
             logger.warning("⚠️ [Scraper] Cotações retornaram zero, não salvas.")
@@ -2865,35 +2864,16 @@ def api_whatsapp_codigo():
     return jsonify({'codigo': codigo, 'validade_min': 15})
 
 
-# ── Cache em memória para cotações (TTL 30 min) ──────────────────────────────
-_cotacoes_cache: dict = {}
-_cotacoes_cache_ts: float = 0.0
-_COTACOES_TTL = 30 * 60  # 30 minutos
-
-
-def _cotacoes_cached() -> dict:
-    global _cotacoes_cache, _cotacoes_cache_ts
-    agora = _time.monotonic()
-    if _cotacoes_cache and (agora - _cotacoes_cache_ts) < _COTACOES_TTL:
-        return _cotacoes_cache
-    fresh = db.obter_cotacoes_atuais() or {}
-    _cotacoes_cache = fresh
-    _cotacoes_cache_ts = agora
-    return fresh
-
-
-def _invalidar_cache_cotacoes():
-    global _cotacoes_cache_ts
-    _cotacoes_cache_ts = 0.0
-
-
+# Sem cache em memória: o scraper grava no master do gunicorn e os workers são
+# forks com memória própria — um cache aqui nunca era invalidado e servia o
+# preço de ontem por até 30 min. A consulta é uma linha por índice.
 @app.route('/api/precos/live', methods=['GET'])
 @login_required
 def api_precos_live():
     """Cotação mais recente por categoria (boi/vaca R$/@, bezerro/bezerra R$/cab)."""
     from services.precos_diarios import BEZERRO_REF, bezerra_de
     try:
-        c = _cotacoes_cached()
+        c = db.obter_cotacoes_atuais() or {}
         tem = c.get('boi', 0) > 0 or c.get('vaca', 0) > 0
         bezerro = c.get('bezerro') or BEZERRO_REF
         return jsonify({
