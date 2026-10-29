@@ -2,7 +2,7 @@
 
 Produz relatório executivo e auditável de 2 a 4 páginas contendo:
 1. Identificação da propriedade e produtor
-2. Plano de Safra (Culturas 1ª Safra Verão e 2ª Safra Safrinha)
+2. Plano de Safra (Culturas 1ª Safra Verão e 2ª Safra Safrinha) e Risco Climático (ZARC)
 3. Estrutura de Custos (COE/COT), DRE da safra e Pontos de Equilíbrio (sc/ha)
 4. Capacidade de Pagamento, DSCR do contrato e amortização (SAC/Price)
 5. Projeção Plurianual e Testes de Estresse
@@ -149,6 +149,40 @@ def _plano_safra(story, ss, economico: dict) -> None:
         f"Área plantada total (safra + safrinha): <b>{_numero(area_plantada, 0)} ha</b> · "
         f"Receita bruta consolidada: <b>{_fmt_moeda(economico.get('receita_total'))}</b>",
         ss['Corpo']))
+    story.append(Spacer(1, 8))
+
+
+_STATUS_ZARC = {'dentro': 'Dentro do zoneamento', 'fora': 'Fora do zoneamento',
+                'nao_avaliado': 'Não avaliado'}
+
+
+def _zarc(story, ss, zarc: dict | None) -> None:
+    if not zarc:
+        return
+    _secao(story, ss, 'Risco Climático (ZARC)')
+    dados = [['Cultura', 'Plantio', 'Situação', 'Risco', 'Melhor janela', 'Portaria']]
+    for c in zarc.get('culturas') or []:
+        janela = c.get('melhor_janela')
+        dados.append([
+            c.get('cultura_zarc') or c.get('cultura') or '—',
+            c.get('data_plantio') or '—',
+            _STATUS_ZARC.get(c.get('status'), '—'),
+            f"{c['risco_pct']}%" if c.get('risco_pct') else '—',
+            f"{janela['inicio']} a {janela['fim']} ({janela['risco_pct']}%)" if janela else '—',
+            c.get('portaria') or '—',
+        ])
+    _tabela(story, dados, [3.2 * cm, 2.0 * cm, 3.0 * cm, 1.4 * cm, 3.6 * cm, 3.8 * cm])
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(
+        f"Local: <b>{zarc.get('municipio') or '—'}/{zarc.get('uf') or '—'}</b> · "
+        f"Solo: <b>{zarc.get('solo') or '—'}</b> · "
+        f"{'Irrigado' if zarc.get('irrigado') else 'Sequeiro'} · Safra {zarc.get('safra')}. "
+        f"Plantio fora do zoneamento não tem Proagro nem seguro rural subvencionado.",
+        ss['Corpo']))
+    for c in zarc.get('culturas') or []:
+        if c.get('status') == 'nao_avaliado' and c.get('motivo'):
+            story.append(Paragraph(f"{c.get('cultura')}: {c['motivo']}", ss['Corpo']))
+    story.append(Paragraph(f"Fonte: {zarc.get('fonte')}.", ss['Corpo']))
     story.append(Spacer(1, 8))
 
 
@@ -390,6 +424,7 @@ def gerar_pdf_parecer_graos(
     _identificacao(story, ss, identificacao or {}, (branding.get('nome_consultoria') or '').strip(), codigo_proposta)
     _fact_sheet_teaser(story, ss, analise, garantias, esg)
     _plano_safra(story, ss, analise.get('economico') or {})
+    _zarc(story, ss, analise.get('zarc'))
     _economico_breakeven(story, ss, analise.get('economico') or {})
     _capacidade(story, ss, analise)
     _projecao_estresse(story, ss, analise)

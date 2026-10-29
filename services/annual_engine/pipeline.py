@@ -12,6 +12,7 @@ from typing import Any, Mapping
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services.payment_capacity_engine import calculate_payment_capacity
 from services.stress_engine import run_stress_tests
+from services.zarc import avaliar_zarc, avisos_zarc
 
 from .dicas import gerar_dicas_graos
 from .economics import calcular_economico_safra
@@ -148,6 +149,10 @@ def analisar_culturas_anuais(payload: Mapping[str, Any]) -> dict[str, Any]:
     # 6. Dicas e Alertas
     dicas = gerar_dicas_graos(economico, credito, stress)
 
+    # 7. Risco climático (ZARC) — só quando o analista informa o local
+    zarc = (avaliar_zarc(payload['zarc'], payload.get('culturas') or [], plano.ano_agricola)
+            if payload.get('zarc') else None)
+
     return {
         'valido': True,
         'tipo': 'CULTURAS_ANUAIS_GRAOS',
@@ -161,5 +166,6 @@ def analisar_culturas_anuais(payload: Mapping[str, Any]) -> dict[str, Any]:
         'fluxo_mensal': fluxo_mensal,
         'stress': stress,
         'dicas': dicas,
-        'avisos': economico.get('avisos') or [],
+        'zarc': zarc,
+        'avisos': (economico.get('avisos') or []) + avisos_zarc(zarc),
     }
