@@ -1097,6 +1097,22 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div class="field"><label title="Custo Operacional Efetivo da Safrinha">COE (R$/ha) ℹ</label><input type="number" id="gr-c2-coe" value="3100" min="100" step="50"></div>
           <div class="field"><label title="Custo Operacional Total da Safrinha">COT (R$/ha) ℹ</label><input type="number" id="gr-c2-cot" value="3400" min="100" step="50"></div>
         </div>
+
+        <div style="font-weight:700;font-size:.82rem;margin:14px 0 8px;color:var(--tx)" title="Zoneamento Agrícola de Risco Climático do MAPA. Fora do ZARC não há Proagro nem seguro subvencionado.">Risco Climático (ZARC) — opcional ℹ</div>
+        <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b)">
+          <div class="field"><label>Município</label><input type="text" id="gr-zarc-mun" placeholder="Ex: Sorriso"></div>
+          <div class="field"><label>UF</label><input type="text" id="gr-zarc-uf" maxlength="2" placeholder="MT"></div>
+          <div class="field"><label title="Classe de água disponível do solo (AD1 = menor retenção, AD6 = maior)">Solo ℹ</label><select id="gr-zarc-solo">
+            <option value="11">AD1</option><option value="12">AD2</option><option value="13" selected>AD3</option>
+            <option value="14">AD4</option><option value="15">AD5</option><option value="16">AD6</option></select></div>
+          <div class="field"><label>Manejo</label><select id="gr-zarc-irrigado"><option value="">Sequeiro</option><option value="1">Irrigado</option></select></div>
+          <div class="field"><label>Plantio 1ª Safra</label><input type="date" id="gr-c1-plantio"></div>
+          <div class="field"><label title="Grupo de ciclo da cultivar">Ciclo 1ª Safra ℹ</label><select id="gr-c1-ciclo">
+            <option value="20">Grupo I</option><option value="21" selected>Grupo II</option><option value="22">Grupo III</option></select></div>
+          <div class="field"><label>Plantio 2ª Safra</label><input type="date" id="gr-c2-plantio"></div>
+          <div class="field"><label title="Grupo de ciclo da cultivar">Ciclo 2ª Safra ℹ</label><select id="gr-c2-ciclo">
+            <option value="20">Grupo I</option><option value="21" selected>Grupo II</option></select></div>
+        </div>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:14px">
@@ -5066,6 +5082,22 @@ async function graosAnalisar(){
       periodicidade_meses: +document.getElementById('gr-periodicidade').value || 12
     }
   };
+  const zarcMun = document.getElementById('gr-zarc-mun').value.trim();
+  if(zarcMun){
+    payload.zarc = {
+      municipio: zarcMun,
+      uf: document.getElementById('gr-zarc-uf').value.trim(),
+      cod_solo: +document.getElementById('gr-zarc-solo').value,
+      irrigado: !!document.getElementById('gr-zarc-irrigado').value
+    };
+    culturas.forEach(c => {
+      const n = c.safra_tipo === '2_SAFRA' ? 'c2' : 'c1';
+      c.zarc = {
+        data_plantio: document.getElementById(`gr-${n}-plantio`).value,
+        cod_ciclo: +document.getElementById(`gr-${n}-ciclo`).value
+      };
+    });
+  }
 
   showLoading('Simulando safra e capacidade de pagamento...');
   try {
@@ -5140,6 +5172,20 @@ function _grRenderResultado(d){
     </div>`;
   }).join('');
 
+  const zarcCor = {dentro: 'var(--gn)', fora: 'var(--sb)', nao_avaliado: 'var(--mu)'};
+  const zarcTxt = {dentro: 'Dentro do ZARC', fora: 'Fora do ZARC', nao_avaliado: 'Não avaliado'};
+  const zarcLinhas = ((d.zarc && d.zarc.culturas) || []).map(z => {
+    const cor = z.status === 'dentro' && z.risco_pct === 40 ? 'var(--am)' : zarcCor[z.status];
+    const j = z.melhor_janela;
+    return `<tr>
+      <td><b>${escapeHtml(z.cultura_zarc || z.cultura)}</b></td>
+      <td>${escapeHtml(z.data_plantio || '—')}</td>
+      <td style="color:${cor};font-weight:700">${zarcTxt[z.status]}${z.risco_pct ? ` · ${z.risco_pct}%` : ''}</td>
+      <td>${j ? `${j.inicio} a ${j.fim} (${j.risco_pct}%)` : '—'}</td>
+      <td style="font-size:.7rem;color:var(--mu)">${escapeHtml(z.motivo || z.portaria || '')}</td>
+    </tr>`;
+  }).join('');
+
   const dscrMin = cred.dscr_minimo !== undefined && cred.dscr_minimo !== null ? `${_prNum(cred.dscr_minimo, 2)}x` : '—';
   const capMax = cred.capacidade_maxima_estimativa ? _prMoeda(cred.capacidade_maxima_estimativa) : '—';
 
@@ -5147,6 +5193,15 @@ function _grRenderResultado(d){
     ${dicas ? `<div class="card" style="margin-bottom:16px">
       <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Diagnóstico & Dicas de Crédito</div></div>
       <div class="cb">${dicas}</div>
+    </div>` : ''}
+
+    ${zarcLinhas ? `<div class="card" style="margin-bottom:16px">
+      <div class="ch"><div class="ct"><div class="cd" style="background:var(--gn)"></div>Risco Climático (ZARC) — ${escapeHtml(d.zarc.municipio || '')}/${escapeHtml(d.zarc.uf || '')}</div></div>
+      <div class="cb" style="overflow-x:auto"><table class="ytbl">
+        <thead><tr><th>Cultura</th><th>Plantio</th><th>Situação</th><th>Melhor janela</th><th>Portaria / motivo</th></tr></thead>
+        <tbody>${zarcLinhas}</tbody></table>
+        <div style="font-size:.68rem;color:var(--mu);margin-top:8px">Fora do zoneamento: sem Proagro nem seguro rural subvencionado. Fonte: ${escapeHtml(d.zarc.fonte || '')}.</div>
+      </div>
     </div>` : ''}
 
     <div class="kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px">
