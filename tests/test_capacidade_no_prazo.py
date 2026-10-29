@@ -104,3 +104,22 @@ def test_sem_credito_nao_avalia():
         geracao_caixa_anual=500000, credito_valor=0, prazo_meses=0, juros_aa=0)
     r = avaliar_capacidade_no_prazo(base, _projecao(1.0, 1.0), 36)
     assert r['recomendacao'] == base['recomendacao']
+
+
+def test_melhora_no_prazo_nao_e_rebaixamento():
+    """Ano 1 apertado e anos seguintes folgados: a recomendação SOBE, e o
+    parecer não pode chamar isso de rebaixamento."""
+    base = _conclusao(caixa_ano1=80000)
+    assert base['recomendacao'] == 'negar'
+
+    r = avaliar_capacidade_no_prazo(base, _projecao(1.5, 1.6, 1.7), 36)
+    assert r['recomendacao'] == 'aprovar'
+    assert r['rebaixado_no_prazo'] is False
+    assert not any(m['passo'] == 'Rebaixamento' for m in r['memoria'])
+
+
+def test_melhora_no_prazo_nao_e_rebaixamento_no_motor():
+    from services.payment_capacity_engine import avaliar_capacidade_no_prazo as no_motor
+    base = _conclusao(caixa_ano1=80000)
+    r = no_motor(base, _projecao(1.5, 1.6, 1.7), 36)
+    assert r['rebaixado_no_prazo'] is False

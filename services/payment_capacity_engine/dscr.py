@@ -774,7 +774,10 @@ def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list, prazo
         )
 
     recomendacao_ano1 = base.get("recomendacao")
-    rebaixado = recomendacao_ano1 is not None and rec != recomendacao_ano1
+    # Só PIORAR é rebaixamento — ver a mesma nota em parecer_credito.
+    _ordem = {"negar": 0, "ressalva": 1, "aprovar": 2}
+    rebaixado = (recomendacao_ano1 in _ordem
+                 and _ordem[rec] < _ordem[recomendacao_ano1])
     memoria.append(
         {
             "passo": "Ano crítico",

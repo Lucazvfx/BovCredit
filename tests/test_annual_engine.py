@@ -488,3 +488,23 @@ def test_rota_pdf_parecer_graos_endpoint():
 
 
 
+
+
+def test_dscr_negativo_gera_alerta_de_inadimplencia():
+    """Safra no prejuízo: DSCR negativo é o pior caso e precisa do alerta."""
+    from services.annual_engine.dicas import gerar_dicas_graos
+    dicas = gerar_dicas_graos({'culturas': []}, {'analysis': {'dscr_minimo': -0.4, 'dscr_medio': -0.4}})
+    assert any('Inadimplência' in d['titulo'] for d in dicas)
+
+
+def test_credito_valor_tambem_estende_a_projecao():
+    """A API aceita `credito_valor` além de `valor`; os dois testam 3 anos."""
+    base = {
+        'culturas': [{'cultura': 'SOJA', 'safra_tipo': SAFRA_VERAO, 'area_ha': 500,
+                      'produtividade_ha': 60, 'preco_unitario': 120, 'coe_ha': 4000}],
+    }
+    por_valor = analisar_culturas_anuais(dict(base, credito={'valor': 500_000, 'prazo_meses': 12}))
+    por_credito_valor = analisar_culturas_anuais(
+        dict(base, credito={'credito_valor': 500_000, 'prazo_meses': 12}))
+    assert len(por_valor['projecao']['anos']) == 3
+    assert len(por_credito_valor['projecao']['anos']) == 3
