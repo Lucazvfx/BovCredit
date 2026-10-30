@@ -84,8 +84,9 @@ def analisar_culturas_anuais(payload: Mapping[str, Any]) -> dict[str, Any]:
     # 2. Projeção Plurianual (dimensionada pelo prazo do financiamento)
     credito_pedido = dict(payload.get('credito') or {})
     prazo_meses = _int(credito_pedido.get('prazo_meses'), 12)
+    credito_valor = _float(credito_pedido.get('credito_valor') or credito_pedido.get('valor'))
     anos_projecao = max(-(-prazo_meses // 12), 1) if prazo_meses > 0 else 5
-    if anos_projecao < 3 and credito_pedido.get('valor', 0) > 0:
+    if anos_projecao < 3 and credito_valor > 0:
         # Se for financiamento, projeta ao menos 3 anos para avaliar consistência
         anos_projecao = max(anos_projecao, 3)
 
@@ -94,7 +95,7 @@ def analisar_culturas_anuais(payload: Mapping[str, Any]) -> dict[str, Any]:
 
     # 3. Capacidade de Pagamento e Crédito
     credito_normalizado = {
-        'credito_valor': _float(credito_pedido.get('credito_valor') or credito_pedido.get('valor')),
+        'credito_valor': credito_valor,
         'prazo_meses': _int(credito_pedido.get('prazo_meses'), 12),
         'carencia_meses': _int(credito_pedido.get('carencia_meses'), 0),
         'juros_aa': _float(credito_pedido.get('juros_aa'), 0.115),

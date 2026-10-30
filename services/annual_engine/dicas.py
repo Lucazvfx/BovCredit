@@ -61,17 +61,19 @@ def gerar_dicas_graos(
     # 2. Análise de Capacidade de Pagamento / DSCR
     if credito:
         analise_cred = credito.get('analysis') or {}
-        dscr_min = float(analise_cred.get('dscr_minimo') or 0.0)
+        dscr_min = analise_cred.get('dscr_minimo')
+        dscr_min = float(dscr_min) if dscr_min is not None else None
         dscr_medio = float(analise_cred.get('dscr_medio') or 0.0)
 
-        if dscr_min > 0 and dscr_min < 1.0:
+        # Sem serviço de dívida o DSCR é None. Negativo é prejuízo: o pior caso.
+        if dscr_min is not None and dscr_min < 1.0:
             dicas.append(_dica(
                 ATENCAO,
                 'DSCR abaixo de 1,0x — Risco de Inadimplência',
                 f'No ano mais apertado o DSCR atinge {dscr_min:.2f}x. A geração de caixa livre da safra '
                 f'não cobre a totalidade do serviço da dívida. Sugere-se alongamento de prazo ou readequação do valor.'
             ))
-        elif dscr_min >= 1.30:
+        elif dscr_min is not None and dscr_min >= 1.30:
             dicas.append(_dica(
                 SUCESSO,
                 'Capacidade de pagamento confortável',
