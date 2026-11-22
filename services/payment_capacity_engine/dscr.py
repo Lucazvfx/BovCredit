@@ -695,7 +695,24 @@ def calculate_payment_capacity(
 
 
 def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list, prazo_meses: int) -> dict:
-    """Reavalia a capacidade de pagamento sobre TODOS os anos do financiamento."""
+    """
+    Reavalia a capacidade de pagamento sobre TODOS os anos do financiamento.
+
+    O DSCR do ano 1 sozinho engana: numa pecuária o primeiro ano liquida o
+    estoque acumulado no rebanho declarado (bois prontos, machos em idade de
+    abate), enquanto os anos seguintes vendem apenas a produção corrente. Um
+    ciclo completo chegou a projetar DSCR 6,08 no ano 1 e −0,53 no ano 2 —
+    e o parecer aprovava, embora a dívida seja paga ao longo de 36 meses.
+
+    Devolve a conclusão revisada com `memoria`: a lista de passos que levaram
+    à recomendação, para o analista conferir o raciocínio em vez de receber
+    só o veredicto.
+
+    Args:
+        conclusao_ano1: saída de avaliar_capacidade_pagamento().
+        projecao_anos: lista por ano com 'ano', 'dscr', 'resultado', 'viavel'.
+        prazo_meses: prazo do crédito, que define quantos anos avaliar.
+    """
     base = dict(conclusao_ano1)
     if not projecao_anos:
         return base
@@ -774,7 +791,8 @@ def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list, prazo
         )
 
     recomendacao_ano1 = base.get("recomendacao")
-    # Só PIORAR é rebaixamento — ver a mesma nota em parecer_credito.
+    # Só PIORAR é rebaixamento. Com carência ou SAC o prazo pode sair melhor
+    # que o ano 1 isolado, e chamar isso de rebaixamento inverte o recado.
     _ordem = {"negar": 0, "ressalva": 1, "aprovar": 2}
     rebaixado = (recomendacao_ano1 in _ordem
                  and _ordem[rec] < _ordem[recomendacao_ano1])
