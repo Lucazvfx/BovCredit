@@ -27,9 +27,8 @@ def parecer():
                              {'conclusao': {'recomendacao': 'aprovar', 'dscr': 2.3}})
 
 
-def _login():
+def _login(email='desfecho@example.com'):
     db.init_db()
-    email = 'desfecho@example.com'
     usuario = db.buscar_usuario_email(email)
     if not usuario:
         db.criar_usuario(email, 'Desfecho', 'senha123')
@@ -39,7 +38,13 @@ def _login():
     cliente = app.test_client()
     with cliente.session_transaction() as sessao:
         sessao['_user_id'] = str(usuario['id'])
+    cliente.empresa_id = db.empresas_do_usuario(usuario['id'])[0]['id']
     return cliente
+
+
+def _parecer_da_empresa(empresa_id):
+    fazenda_id = db.criar_fazenda('Fazenda Rota', empresa_id=empresa_id, criado_por=1)
+    return db.salvar_parecer(1, fazenda_id, {'credito_valor': 1}, {'conclusao': {}})
 
 
 # ── Um parecer, muitos desfechos ────────────────────────────────────────────
@@ -160,8 +165,9 @@ def test_registrar_desfecho_tem_evento_de_auditoria():
 
 # ── As rotas ────────────────────────────────────────────────────────────────
 
-def test_a_rota_registra_e_devolve_o_historico(parecer):
+def test_a_rota_registra_e_devolve_o_historico():
     cliente = _login()
+    parecer = _parecer_da_empresa(cliente.empresa_id)
 
     criado = cliente.post(f'/api/pareceres/{parecer}/desfecho', json={
         'etapa': 'contratacao', 'situacao': 'contratada',
@@ -176,8 +182,10 @@ def test_a_rota_registra_e_devolve_o_historico(parecer):
     assert 'nao_sei' in corpo['vocabulario']['contratacao']
 
 
-def test_a_rota_recusa_situacao_de_outra_etapa(parecer):
-    resposta = _login().post(f'/api/pareceres/{parecer}/desfecho',
+def test_a_rota_recusa_situacao_de_outra_etapa():
+    cliente = _login()
+    parecer = _parecer_da_empresa(cliente.empresa_id)
+    resposta = cliente.post(f'/api/pareceres/{parecer}/desfecho',
                              json={'etapa': 'contratacao', 'situacao': 'em_dia'})
 
     assert resposta.status_code == 400
@@ -189,3 +197,43 @@ def test_a_rota_de_cobertura_responde():
 
     assert {'pareceres', 'respondidos', 'so_nao_sei', 'sem_registro',
             'taxa_resposta_pct'} <= set(corpo)
+
+
+# ── Isolamento multi-tenant ─────────────────────────────────────────────────
+
+def test_parecer_de_outra_empresa_responde_404_na_leitura_e_na_escrita():
+    dono = _login('dono-desfecho@example.com')
+    intruso = _login('intruso-desfecho@example.com')
+    parecer = _parecer_da_empresa(dono.empresa_id)
+
+    assert intruso.get(f'/api/pareceres/{parecer}/desfecho').status_code == 404
+    gravado = intruso.post(f'/api/pareceres/{parecer}/desfecho',
+                           json={'etapa': 'contratacao', 'situacao': 'contratada'})
+    assert gravado.status_code == 404
+    assert db.listar_desfechos(parecer_id=parecer) == []
+
+
+def test_parecer_inexistente_responde_404():
+    assert _login().post('/api/pareceres/999999/desfecho',
+                         json={'etapa': 'contratacao',
+                               'situacao': 'contratada'}).status_code == 404
+
+
+def test_snapshot_de_outra_organizacao_e_recusado():
+    cliente = _login()
+    parecer = _parecer_da_empresa(cliente.empresa_id)
+    resposta = cliente.post(f'/api/pareceres/{parecer}/desfecho',
+                            json={'etapa': 'contratacao', 'situacao': 'contratada',
+                                  'snapshot_id': 999999})
+    assert resposta.status_code == 400
+
+
+def test_excluir_fazenda_leva_os_desfechos_junto():
+    cliente = _login()
+    fazenda_id = db.criar_fazenda('Fazenda Excluir', empresa_id=cliente.empresa_id,
+                                  criado_por=1)
+    parecer = db.salvar_parecer(1, fazenda_id, {'credito_valor': 1}, {'conclusao': {}})
+    db.registrar_desfecho(parecer, d.CONTRATACAO, d.CONTRATADA, user_id=1)
+
+    assert db.excluir_fazenda(fazenda_id, cliente.empresa_id)
+    assert db.listar_desfechos(parecer_id=parecer) == []

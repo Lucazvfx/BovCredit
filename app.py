@@ -3471,6 +3471,11 @@ def api_desfecho_listar(parecer_id):
     `atual` traz o último de cada etapa, e vem `null` quando NINGUÉM respondeu
     — que é estado diferente de alguém ter respondido "não sei".
     """
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    if not db.parecer_da_empresa(parecer_id, empresa_id):
+        return jsonify({'erro': 'Parecer não encontrado'}), 404
     registros = db.listar_desfechos(parecer_id=parecer_id)
     return jsonify({
         'parecer_id': parecer_id,
@@ -3488,14 +3493,24 @@ def api_desfecho_listar(parecer_id):
 @login_required
 def api_desfecho_registrar(parecer_id):
     """Acrescenta um desfecho. Não substitui o anterior — a trajetória importa."""
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    if not db.parecer_da_empresa(parecer_id, empresa_id):
+        return jsonify({'erro': 'Parecer não encontrado'}), 404
     data = request.get_json(silent=True) or {}
+    snapshot_id = data.get('snapshot_id')
+    if snapshot_id is not None:
+        if (not isinstance(snapshot_id, int) or isinstance(snapshot_id, bool)
+                or not db.load_analysis_snapshot(snapshot_id, organization_id=empresa_id)):
+            return jsonify({'erro': 'snapshot_id inválido'}), 400
     try:
         novo_id = db.registrar_desfecho(
             parecer_id,
             data.get('etapa'),
             data.get('situacao'),
-            snapshot_id=data.get('snapshot_id'),
-            empresa_id=_resolver_empresa_ativa(),
+            snapshot_id=snapshot_id,
+            empresa_id=empresa_id,
             user_id=current_user.id,
             competencia=data.get('competencia') or '',
             condicoes=data.get('condicoes'),
@@ -3518,7 +3533,10 @@ def api_desfecho_cobertura():
     É a métrica que diz se o conjunto presta. Número derivado de desfecho sem
     a cobertura ao lado é amostra de conveniência apresentada como medição.
     """
-    return jsonify(db.cobertura_desfechos(empresa_id=_resolver_empresa_ativa()))
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    return jsonify(db.cobertura_desfechos(empresa_id=empresa_id))
 
 
 @app.route('/api/perene/ficha/download', methods=['GET'])

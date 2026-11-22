@@ -1053,6 +1053,9 @@ def excluir_fazenda(fazenda_id: int, empresa_id: int) -> bool:
     if not buscar_fazenda(fazenda_id, empresa_id):
         return False
     _exec(f'DELETE FROM registros WHERE fazenda_id={ph}', (fazenda_id,), commit=True)
+    _exec(f'''DELETE FROM desfechos WHERE parecer_id IN
+              (SELECT id FROM pareceres WHERE fazenda_id={ph})''',
+          (fazenda_id,), commit=True)
     _exec(f'DELETE FROM pareceres WHERE fazenda_id={ph}', (fazenda_id,), commit=True)
     _exec(f'DELETE FROM fazendas WHERE id={ph} AND empresa_id={ph}',
           (fazenda_id, empresa_id), commit=True)
@@ -1106,6 +1109,15 @@ def _validar_caso_real(valores, classificacao, origem='MANUAL') -> list:
 
 
 # ── Desfecho do parecer ──────────────────────────────────────────────────────
+
+def parecer_da_empresa(parecer_id: int, empresa_id: int) -> bool:
+    """True só se o parecer pertence a uma fazenda da empresa (isolamento multi-tenant)."""
+    ph = _PH
+    row = _exec(
+        f'''SELECT p.id FROM pareceres p JOIN fazendas f ON f.id = p.fazenda_id
+            WHERE p.id={ph} AND f.empresa_id={ph}''',
+        (parecer_id, empresa_id), fetch='one')
+    return bool(row)
 
 def registrar_desfecho(parecer_id: int, etapa: str, situacao: str, *,
                        snapshot_id=None, empresa_id=None, user_id=None,
