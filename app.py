@@ -23,6 +23,9 @@ from ml_engine import (
     explicar_shap, TIPOS, PARAMS_POR_CICLO,
 )
 import database as db
+from services.limites_entrada import (
+    JUROS_AA_TETO, MSG_JUROS_TETO, erro_anos, erro_juros_aa,
+)
 from services import assistente as _assistente
 from services.documentos import (
     impressao as doc_impressao, comparar as doc_comparar,
@@ -58,6 +61,18 @@ from services.parecer_credito import (
     SISTEMAS as _SISTEMAS_AMORT, PERIODICIDADES as _PERIODICIDADES)
 from services.parecer_pdf import gerar_pdf_parecer
 from services.parecer_pdf_perene import gerar_pdf_parecer_perene
+from services.parecer_pdf_graos import gerar_pdf_parecer_graos
+from services.esg_engine import (
+    analisar_compliance_socioambiental,
+    calcular_metricas_florestais,
+    validar_sintaxe_car,
+)
+from services.collateral_engine import avaliar_matriz_garantias
+from services.dossie_comite import (
+    montar_dossie_comite,
+    gerar_pdf_dossie_comite,
+    gerar_excel_dossie_comite,
+)
 from services.pesos_rebanho import arrobas_categorias
 from services.parametros_zootecnicos import (
     natalidade_de_prenhez, avaliar_reposicao as _avaliar_reposicao)
@@ -87,6 +102,11 @@ from services.fluxo_mensal_credito import projetar_fluxo_mensal
 from services import desfecho as _desf
 from services.perennial_engine import (
     analisar_lavoura_perene, parsear_ficha_talhoes,
+)
+from services.annual_engine import (
+    analisar_culturas_anuais,
+    calcular_barter,
+    gerar_minuta_cpr,
 )
 from services.rating_credito import calcular_rating
 from services.precos_regionais import aplicar as aplicar_preco_regional
@@ -465,7 +485,6 @@ def rotina_diaria_cotacoes():
         precos = obter_precos_arroba()
         if precos.get('boi', 0) > 0 or precos.get('vaca', 0) > 0:
             db.guardar_cotacao_diaria(precos)
-            _invalidar_cache_cotacoes()
             logger.info("✅ [Scraper] Cotações atualizadas no banco de dados.")
         else:
             logger.warning("⚠️ [Scraper] Cotações retornaram zero, não salvas.")
@@ -1365,6 +1384,8 @@ def api_classificar():
     prazo_credito = int(prazo_raw or 0)
     carencia_credito = int(carencia_raw or 0)
     juros_credito = float(juros_raw or 0)
+    if juros_credito >= JUROS_AA_TETO:
+        return jsonify({'erro': MSG_JUROS_TETO}), 400
     # Price (default) ou SAC. Crédito rural é majoritariamente SAC, mas o
     # default fica em Price para não mudar o resultado de quem já usava a rota
     # sem informar o sistema. Ver services/payment_capacity_engine/dscr.py.
@@ -2849,35 +2870,16 @@ def api_whatsapp_codigo():
     return jsonify({'codigo': codigo, 'validade_min': 15})
 
 
-# ── Cache em memória para cotações (TTL 30 min) ──────────────────────────────
-_cotacoes_cache: dict = {}
-_cotacoes_cache_ts: float = 0.0
-_COTACOES_TTL = 30 * 60  # 30 minutos
-
-
-def _cotacoes_cached() -> dict:
-    global _cotacoes_cache, _cotacoes_cache_ts
-    agora = _time.monotonic()
-    if _cotacoes_cache and (agora - _cotacoes_cache_ts) < _COTACOES_TTL:
-        return _cotacoes_cache
-    fresh = db.obter_cotacoes_atuais() or {}
-    _cotacoes_cache = fresh
-    _cotacoes_cache_ts = agora
-    return fresh
-
-
-def _invalidar_cache_cotacoes():
-    global _cotacoes_cache_ts
-    _cotacoes_cache_ts = 0.0
-
-
+# Sem cache em memória: o scraper grava no master do gunicorn e os workers são
+# forks com memória própria — um cache aqui nunca era invalidado e servia o
+# preço de ontem por até 30 min. A consulta é uma linha por índice.
 @app.route('/api/precos/live', methods=['GET'])
 @login_required
 def api_precos_live():
     """Cotação mais recente por categoria (boi/vaca R$/@, bezerro/bezerra R$/cab)."""
     from services.precos_diarios import BEZERRO_REF, bezerra_de
     try:
-        c = _cotacoes_cached()
+        c = db.obter_cotacoes_atuais() or {}
         tem = c.get('boi', 0) > 0 or c.get('vaca', 0) > 0
         bezerro = c.get('bezerro') or BEZERRO_REF
         return jsonify({
@@ -3036,6 +3038,16 @@ def api_cenario():
     if len(v) != 10:
         return jsonify({'erro': 'Valores inválidos'}), 400
     result = simular_cenario(v, cenario, **params)
+    
+    area_ha = float(data.get('area_ha', 1000))
+    if area_ha <= 0: area_ha = 1
+    for ano in result.get('anos', []):
+        ua_estimada = ano.get('total', 0) * 0.8
+        ano['lotacao'] = round(ua_estimada / area_ha, 2)
+        ano['lucro_ha'] = round(ano.get('resultado', 0) / area_ha, 2)
+    if 'acumulado' in result and 'anos' in result and len(result['anos']) > 0:
+        result['acumulado']['lucro_ha_medio'] = round(sum(a.get('lucro_ha', 0) for a in result['anos']) / len(result['anos']), 2)
+        
     return jsonify(result)
 
 @app.route('/api/cenarios', methods=['GET'])
@@ -3556,6 +3568,10 @@ def api_perene_parecer_pdf():
     if not analise:
         if not data.get('talhoes'):
             return jsonify({'erro': 'Envie a análise ou o payload da lavoura.'}), 400
+        erro = (erro_juros_aa((data.get('credito') or {}).get('juros_aa'))
+                or erro_anos(data.get('anos')))
+        if erro:
+            return jsonify({'erro': erro}), 400
         try:
             analise = analisar_lavoura_perene(data)
         except (TypeError, ValueError) as erro:
@@ -3598,12 +3614,9 @@ def api_perene_analisar():
     # manda 10.5 querendo 10,5% recebe hoje um serviço de dívida de bilhões
     # sem nenhum aviso — recusar é melhor que devolver o absurdo calculado.
     juros = (data.get('credito') or {}).get('juros_aa')
-    try:
-        if juros is not None and float(juros) >= 1:
-            return jsonify({
-                'erro': 'juros_aa é fração ao ano: use 0.105 para 10,5% a.a.'}), 400
-    except (TypeError, ValueError):
-        return jsonify({'erro': 'juros_aa inválido.'}), 400
+    erro = erro_juros_aa(juros) or erro_anos(data.get('anos'))
+    if erro:
+        return jsonify({'erro': erro}), 400
 
     try:
         resultado = analisar_lavoura_perene(data)
@@ -3611,6 +3624,221 @@ def api_perene_analisar():
         return jsonify({'erro': str(erro)}), 400
 
     return jsonify(resultado)
+
+
+@app.route('/api/agricola/graos/analisar', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_agricola_graos_analisar():
+    """Parecer de culturas anuais e grãos (Soja, Milho Safrinha, Algodão):
+    Produção física, COE/COT, breakeven em sc/ha e R$/sc, capacidade de pagamento (DSCR) e testes de estresse.
+    """
+    data = request.get_json(silent=True) or {}
+
+    if not data.get('culturas'):
+        return jsonify({'erro': 'Informe ao menos uma cultura na safra planejada.'}), 400
+
+    erro = erro_juros_aa((data.get('credito') or {}).get('juros_aa'))
+    if erro:
+        return jsonify({'erro': erro}), 400
+
+    try:
+        resultado = analisar_culturas_anuais(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+
+    return jsonify(resultado)
+
+
+@app.route('/api/agricola/barter/calcular', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_agricola_barter_calcular():
+    """Simulação de Barter: troca de insumos por grãos físicos e análise de risco de penhor."""
+    data = request.get_json(silent=True) or {}
+    try:
+        resultado = calcular_barter(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+    return jsonify(resultado)
+
+
+@app.route('/api/agricola/cpr/minuta', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_agricola_cpr_minuta():
+    """Gera a minuta formal e legal da Cédula de Produto Rural (CPR Física/Barter)."""
+    data = request.get_json(silent=True) or {}
+    try:
+        minuta = gerar_minuta_cpr(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+    return jsonify(minuta)
+
+
+@app.route('/api/agricola/graos/parecer/pdf', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
+@login_required
+def api_agricola_graos_parecer_pdf():
+    """Gera o PDF oficial do parecer técnico de culturas anuais, grãos e Barter/CPR."""
+    data = request.get_json(silent=True) or {}
+    analise = data.get('analise')
+    if not analise:
+        if not data.get('culturas'):
+            return jsonify({'erro': 'Envie a análise ou os dados da safra.'}), 400
+        try:
+            analise = analisar_culturas_anuais(data)
+        except (TypeError, ValueError) as erro:
+            return jsonify({'erro': str(erro)}), 400
+
+    empresa_id = _resolver_empresa_ativa()
+    empresa = db.buscar_empresa(empresa_id) if empresa_id else None
+    branding = {'nome_consultoria': empresa.get('nome') or '',
+                'logo_base64': empresa.get('logo_base64') or ''} if empresa else None
+
+    identificacao = data.get('identificacao') or {}
+    barter = data.get('barter')
+    cpr = data.get('cpr')
+    esg = data.get('esg')
+    garantias = data.get('garantias')
+    pdf_bytes = gerar_pdf_parecer_graos(
+        analise, identificacao=identificacao, barter=barter, cpr=cpr,
+        branding=branding, esg=esg, garantias=garantias)
+    _auditar(_aud.PARECER_PDF, recurso='fazenda',
+             recurso_id=identificacao.get('fazenda') or None,
+             detalhe='parecer graos')
+    return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
+                     as_attachment=True, download_name='parecer_graos_cpr.pdf')
+
+
+@app.route('/api/garantias/matriz/avaliar', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_garantias_matriz_avaliar():
+    """Calcula a Matriz de Garantias, liquidação forçada e LTV consolidado (B2B)."""
+    data = request.get_json(silent=True) or {}
+    try:
+        resultado = avaliar_matriz_garantias(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+    return jsonify(resultado.to_dict())
+
+
+@app.route('/api/compliance/socioambiental/analisar', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_compliance_socioambiental_analisar():
+    """Analisa a conformidade socioambiental e o CAR do proponente e imóvel rural (CMN 5.081/23)."""
+    data = request.get_json(silent=True) or {}
+    try:
+        dossie = analisar_compliance_socioambiental(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+    return jsonify(dossie.to_dict())
+
+
+@app.route('/api/compliance/car/validar', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_compliance_car_validar():
+    """Valida a estrutura do número SICAR do CAR e calcula as exigências do Código Florestal."""
+    data = request.get_json(silent=True) or {}
+    numero_car = data.get('numero_car', '')
+    valido, msg = validar_sintaxe_car(numero_car)
+    metricas = calcular_metricas_florestais(
+        numero_car=numero_car,
+        status=data.get('status_car', 'ATIVO'),
+        bioma=data.get('bioma', 'CERRADO'),
+        area_total_ha=float(data.get('area_total_ha', 0.0) or 0.0),
+        area_reserva_legal_ha=float(data.get('area_reserva_legal_ha', 0.0) or 0.0),
+        area_app_ha=float(data.get('area_app_ha', 0.0) or 0.0),
+    )
+    resultado = metricas.to_dict()
+    resultado['sintaxe_valida'] = valido
+    resultado['mensagem_sintaxe'] = msg
+    return jsonify(resultado)
+
+
+@app.route('/api/comite/dossie/consolidar', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_comite_dossie_consolidar():
+    """Consolida as informações multicritério da operação para deliberação do comitê."""
+    data = request.get_json(silent=True) or {}
+    try:
+        dossie = montar_dossie_comite(data)
+    except (TypeError, ValueError) as erro:
+        return jsonify({'erro': str(erro)}), 400
+    except Exception as e:
+        logger.error(f"Erro ao consolidar dossiê: {e}", exc_info=True)
+        return jsonify({'erro': str(e)}), 500
+    return jsonify(dossie.to_dict())
+
+
+@app.route('/api/comite/dossie/pdf', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
+@login_required
+def api_comite_dossie_pdf():
+    """Gera o documento executivo em PDF do Dossiê do Comitê de Crédito."""
+    data = request.get_json(silent=True) or {}
+    try:
+        # Se os dados já vierem consolidados (tem proponente e deliberacao), usa direto; senão consolida
+        if data.get('deliberacao') and data.get('proponente'):
+            dossie_dict = data
+        else:
+            dossie_dict = montar_dossie_comite(data).to_dict()
+
+        empresa_id = _resolver_empresa_ativa()
+        empresa = db.buscar_empresa(empresa_id) if empresa_id else None
+        branding = {'nome_consultoria': empresa.get('nome') or '',
+                    'logo_base64': empresa.get('logo_base64') or ''} if empresa else None
+
+        pdf_bytes = gerar_pdf_dossie_comite(dossie_dict, branding=branding)
+        fazenda = (dossie_dict.get('proponente') or {}).get('fazenda')
+        _auditar(_aud.PARECER_PDF, recurso='fazenda',
+                 recurso_id=fazenda,
+                 detalhe='dossie comite credito pdf')
+
+        cod = (dossie_dict.get('deliberacao') or {}).get('codigo_dossie') or 'dossie_comite'
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"{cod.lower()}_executivo.pdf"
+        )
+    except Exception as e:
+        logger.error(f"Erro ao gerar PDF do Dossiê do Comitê: {e}", exc_info=True)
+        return jsonify({'erro': str(e)}), 500
+
+
+@app.route('/api/comite/dossie/excel', methods=['POST'])
+@limiter.limit(_LIM_ARQUIVO)
+@login_required
+def api_comite_dossie_excel():
+    """Gera a pasta de trabalho em Excel (.xlsx) de modelagem do Dossiê do Comitê."""
+    data = request.get_json(silent=True) or {}
+    try:
+        if data.get('deliberacao') and data.get('proponente'):
+            dossie_dict = data
+        else:
+            dossie_dict = montar_dossie_comite(data).to_dict()
+
+        xlsx_bytes = gerar_excel_dossie_comite(dossie_dict)
+        fazenda = (dossie_dict.get('proponente') or {}).get('fazenda')
+        _auditar(_aud.PARECER_PDF, recurso='fazenda',
+                 recurso_id=fazenda,
+                 detalhe='dossie comite credito excel')
+
+        cod = (dossie_dict.get('deliberacao') or {}).get('codigo_dossie') or 'dossie_comite'
+        return send_file(
+            io.BytesIO(xlsx_bytes),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f"{cod.lower()}_modelagem.xlsx"
+        )
+    except Exception as e:
+        logger.error(f"Erro ao gerar Excel do Dossiê do Comitê: {e}", exc_info=True)
+        return jsonify({'erro': str(e)}), 500
 
 
 @app.route('/api/reconciliacao', methods=['POST'])

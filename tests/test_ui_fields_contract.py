@@ -48,7 +48,7 @@ def test_light_sidebar_preserves_destinations_and_moves_account_to_footer():
     html = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
 
     assert "Análise econômico-produtiva" in sidebar
-    destinos = ("entrada", "resultado", "cenarios", "historico", "perene", "ajuda")
+    destinos = ("entrada", "resultado", "cenarios", "historico", "graos", "perene", "ajuda")
     for destination in destinos:
         assert f'data-ork-nav="{destination}"' in sidebar
         assert f"showTab('{destination}', this)" in sidebar

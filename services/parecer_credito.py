@@ -181,7 +181,11 @@ def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list,
                 f'1,00 — a operação deixa de cobrir a dívida antes do fim do prazo.')
 
     recomendacao_ano1 = base.get('recomendacao')
-    rebaixado = recomendacao_ano1 is not None and rec != recomendacao_ano1
+    # Só PIORAR é rebaixamento. Com carência ou SAC o prazo pode sair melhor
+    # que o ano 1 isolado, e chamar isso de rebaixamento inverte o recado.
+    _ordem = {'negar': 0, 'ressalva': 1, 'aprovar': 2}
+    rebaixado = (recomendacao_ano1 in _ordem
+                 and _ordem[rec] < _ordem[recomendacao_ano1])
     memoria.append({
         'passo':   'Ano crítico',
         'valor':   f'ano {ano_pior} · DSCR {dscr_min:.2f}',

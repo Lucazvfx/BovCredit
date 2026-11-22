@@ -6,6 +6,8 @@ from typing import Any
 
 from flask import request
 
+from services.limites_entrada import ANOS_MAX, erro_anos, erro_juros_aa
+
 from .errors import MalformedRequestError, ValidationError
 
 
@@ -81,6 +83,8 @@ def parse_production_payload(data: dict) -> dict:
     if not system:
         raise ValidationError("Field 'system' is required.")
     years = _coerce_int(payload.get("years", payload.get("anos", 5)), "years", minimum=1)
+    if years > ANOS_MAX:
+        raise ValidationError(f"years deve ser no máximo {ANOS_MAX}.")
     parameters = payload.get("parameters") or {}
     if not isinstance(parameters, dict):
         raise ValidationError("Field 'parameters' must be an object.")
@@ -92,6 +96,12 @@ def parse_production_payload(data: dict) -> dict:
     return payload
 
 
+def _validar_juros_aa(bloco: dict, campo: str) -> None:
+    mensagem = erro_juros_aa(bloco.get("juros_aa"))
+    if mensagem:
+        raise ValidationError(f"{campo}: {mensagem}")
+
+
 def parse_cashflow_payload(data: dict) -> dict:
     payload = deepcopy(data)
     payload["annual_projection"] = _require_dict(
@@ -99,6 +109,7 @@ def parse_cashflow_payload(data: dict) -> dict:
         "annual_projection",
     )
     payload["debt_schedule"] = _require_dict(payload.get("debt_schedule"), "debt_schedule")
+    _validar_juros_aa(payload["debt_schedule"], "debt_schedule")
     payload["horizon_months"] = _coerce_int(payload.get("horizon_months", 12), "horizon_months", minimum=1)
     if payload.get("calendar") is not None and not isinstance(payload["calendar"], dict):
         raise ValidationError("Field 'calendar' must be an object.")
@@ -111,6 +122,7 @@ def parse_payment_capacity_payload(data: dict) -> dict:
     payload = deepcopy(data)
     payload["cashflow"] = _require_dict(payload.get("cashflow"), "cashflow")
     payload["debt_request"] = _require_dict(payload.get("debt_request"), "debt_request")
+    _validar_juros_aa(payload["debt_request"], "debt_request")
     if payload.get("existing_debt") is not None:
         payload["existing_debt"] = _require_dict(payload.get("existing_debt"), "existing_debt")
     else:
@@ -131,4 +143,7 @@ def parse_full_analysis_payload(data: dict) -> dict:
     if payload.get("valores") is None and payload.get("values") is None:
         raise ValidationError("Field 'valores' is required.")
     payload["valores"] = _values_from_payload(payload)
+    mensagem = erro_juros_aa(payload.get("juros_aa")) or erro_anos(payload.get("anos"))
+    if mensagem:
+        raise ValidationError(mensagem)
     return payload

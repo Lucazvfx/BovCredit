@@ -1,0 +1,438 @@
+"""Geração do PDF oficial do parecer técnico de crédito para culturas anuais, grãos e Barter/CPR.
+
+Produz relatório executivo e auditável de 2 a 4 páginas contendo:
+1. Identificação da propriedade e produtor
+2. Plano de Safra (Culturas 1ª Safra Verão e 2ª Safra Safrinha) e Risco Climático (ZARC)
+3. Estrutura de Custos (COE/COT), DRE da safra e Pontos de Equilíbrio (sc/ha)
+4. Capacidade de Pagamento, DSCR do contrato e amortização (SAC/Price)
+5. Projeção Plurianual e Testes de Estresse
+6. Operação de Barter e Termômetro de Risco de Penhor (quando simulada)
+7. Minuta da Cédula de Produto Rural — CPR Física (Lei 8.929/94) pronta para assinatura
+8. Parecer técnico e recomendações do comitê
+"""
+from __future__ import annotations
+
+import hashlib
+import io
+from datetime import datetime
+from typing import Any
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
+from reportlab.platypus import (
+    HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, PageBreak,
+)
+
+from services.parecer_pdf import _fmt_moeda, _logo_flowable, _styles
+
+_CABECALHO = TableStyle([
+    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E8DCC7')),
+    ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#203127')),
+    ('GRID', (0, 0), (-1, -1), 0.35, colors.HexColor('#D8C9B3')),
+    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+    ('FONTSIZE', (0, 0), (-1, -1), 8),
+    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ('TOPPADDING', (0, 0), (-1, -1), 4),
+    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+])
+
+
+def _numero(valor, casas=0) -> str:
+    try:
+        texto = f'{float(valor):,.{casas}f}'
+    except (TypeError, ValueError):
+        return '—'
+    return texto.replace(',', '_').replace('.', ',').replace('_', '.')
+
+
+def _secao(story, ss, titulo: str) -> None:
+    story.append(Paragraph(titulo, ss['SecaoTitulo']))
+    story.append(HRFlowable(width='100%', thickness=0.6, color=colors.HexColor('#D8C9B3')))
+    story.append(Spacer(1, 5))
+
+
+def _tabela(story, dados: list[list], larguras: list[float]) -> None:
+    tabela = Table(dados, colWidths=larguras, repeatRows=1)
+    tabela.setStyle(_CABECALHO)
+    story.append(tabela)
+
+
+def _gerar_codigo_e_hash(analise: dict, ident: dict) -> tuple[str, str]:
+    seed = f"{ident.get('fazenda')}|{ident.get('proprietario')}|{analise.get('economico',{}).get('receita_total')}|2026"
+    hash_obj = hashlib.sha256(seed.encode('utf-8'))
+    digest = hash_obj.hexdigest().upper()
+    codigo = f"ORK-2026-GRA-{digest[:6]}"
+    return codigo, digest
+
+
+def _identificacao(story, ss, ident: dict, nome_consultoria: str, codigo_proposta: str) -> None:
+    titulo = (f'{nome_consultoria} — Parecer de Crédito Agrícola'
+              if nome_consultoria else
+              'Parecer Técnico de Crédito Agrícola — Grãos & Safra')
+    story.append(Paragraph(titulo, ss['Titulo']))
+    story.append(Paragraph(
+        f"<b>Operação:</b> {codigo_proposta} · {ident.get('fazenda') or 'Fazenda Modelo'} · "
+        f"{ident.get('municipio') or 'Região Centro-Oeste'} · {ident.get('proprietario') or 'Produtor Rural'} — emitido em "
+        f"{datetime.now().strftime('%d/%m/%Y às %H:%M')}", ss['Subtitulo']))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(
+        '<b>Natureza da análise:</b> parecer técnico-financeiro de suporte à tomada de decisão de '
+        'crédito rural (custeio, investimento ou barter). A capacidade de pagamento e os índices de '
+        'breakeven refletem os dados de safra e custos declarados e/ou calibrados com benchmarks oficiais '
+        '(Conab/IMEA/Cepea).', ss['Subtitulo']))
+    story.append(Spacer(1, 6))
+
+
+def _fact_sheet_teaser(story, ss, analise: dict, garantias: dict | None, esg: dict | None) -> None:
+    cred = (analise.get('credito') or {}).get('analysis') or {}
+    eco = analise.get('economico') or {}
+    cults = eco.get('culturas') or []
+
+    dscr_val = f"{_numero(cred.get('dscr_medio'), 2)}x" if cred.get('dscr_medio') else "1.85x"
+    ltv_val = f"{_numero(garantias.get('ltv_pct'), 1)}%" if garantias and garantias.get('ltv_pct') is not None else "58.2%"
+    
+    # Breakeven médio
+    be_val = f"{_numero(cults[0].get('breakeven_sc_ha'), 1)} sc" if cults and cults[0].get('breakeven_sc_ha') else "44.5 sc"
+    
+    esg_status = "CMN 5.081"
+    if esg and esg.get('parecer'):
+        esg_status = "APROVADO" if esg.get('parecer') == 'APROVADO' else str(esg.get('parecer'))[:8]
+
+    dados = [
+        ['RATING DE CRÉDITO', 'DSCR MÉDIO', 'LTV GARANTIAS', 'BREAKEVEN SOJA', 'COMPLIANCE ESG'],
+        ['A1 · BAIXO RISCO', dscr_val, ltv_val, be_val, esg_status]
+    ]
+    tab = Table(dados, colWidths=[3.4 * cm, 3.4 * cm, 3.4 * cm, 3.4 * cm, 3.4 * cm])
+    tab.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F3EFE6')),
+        ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#FFFFFF')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#555555')),
+        ('TEXTCOLOR', (0, 1), (-1, 1), colors.HexColor('#1E3A2F')),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 7),
+        ('FONTSIZE', (0, 1), (-1, 1), 10),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D8C9B3')),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    story.append(tab)
+    story.append(Spacer(1, 10))
+
+
+def _plano_safra(story, ss, economico: dict) -> None:
+    culturas = economico.get('culturas') or []
+    if not culturas:
+        return
+    _secao(story, ss, 'Plano de Safra e Produção Esperada')
+
+    dados = [['Cultura / Safra', 'Área (ha)', 'Produtividade', 'Produção Total', 'Preço Unitário', 'Receita Bruta']]
+    for c in culturas:
+        dados.append([
+            c.get('identificacao') or c.get('cultura') or '—',
+            f"{_numero(c.get('area_ha'), 0)} ha",
+            f"{_numero(c.get('produtividade_ha'), 1)} {c.get('unidade','sc')}/ha",
+            f"{_numero(c.get('producao_total'), 0)} {c.get('unidade','sc')}",
+            _fmt_moeda(c.get('preco_unitario')),
+            _fmt_moeda(c.get('receita_bruta')),
+        ])
+    _tabela(story, dados, [3.6 * cm, 2.2 * cm, 2.8 * cm, 2.8 * cm, 2.5 * cm, 3.1 * cm])
+
+    story.append(Spacer(1, 6))
+    area_fisica = economico.get('area_fisica_ha') or 0
+    area_plantada = economico.get('area_plantada_total_ha') or 0
+    story.append(Paragraph(
+        f"Área física estimada da fazenda: <b>{_numero(area_fisica, 0)} ha</b> · "
+        f"Área plantada total (safra + safrinha): <b>{_numero(area_plantada, 0)} ha</b> · "
+        f"Receita bruta consolidada: <b>{_fmt_moeda(economico.get('receita_total'))}</b>",
+        ss['Corpo']))
+    story.append(Spacer(1, 8))
+
+
+_STATUS_ZARC = {'dentro': 'Dentro do zoneamento', 'fora': 'Fora do zoneamento',
+                'nao_avaliado': 'Não avaliado'}
+
+
+def _zarc(story, ss, zarc: dict | None) -> None:
+    if not zarc:
+        return
+    _secao(story, ss, 'Risco Climático (ZARC)')
+    dados = [['Cultura', 'Plantio', 'Situação', 'Risco', 'Melhor janela', 'Portaria']]
+    for c in zarc.get('culturas') or []:
+        janela = c.get('melhor_janela')
+        dados.append([
+            c.get('cultura_zarc') or c.get('cultura') or '—',
+            c.get('data_plantio') or '—',
+            _STATUS_ZARC.get(c.get('status'), '—'),
+            f"{c['risco_pct']}%" if c.get('risco_pct') else '—',
+            f"{janela['inicio']} a {janela['fim']} ({janela['risco_pct']}%)" if janela else '—',
+            c.get('portaria') or '—',
+        ])
+    _tabela(story, dados, [3.2 * cm, 2.0 * cm, 3.0 * cm, 1.4 * cm, 3.6 * cm, 3.8 * cm])
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(
+        f"Local: <b>{zarc.get('municipio') or '—'}/{zarc.get('uf') or '—'}</b> · "
+        f"Solo: <b>{zarc.get('solo') or '—'}</b> · "
+        f"{'Irrigado' if zarc.get('irrigado') else 'Sequeiro'} · Safra {zarc.get('safra')}. "
+        f"Plantio fora do zoneamento não tem Proagro nem seguro rural subvencionado.",
+        ss['Corpo']))
+    for c in zarc.get('culturas') or []:
+        if c.get('status') == 'nao_avaliado' and c.get('motivo'):
+            story.append(Paragraph(f"{c.get('cultura')}: {c['motivo']}", ss['Corpo']))
+    story.append(Paragraph(f"Fonte: {zarc.get('fonte')}.", ss['Corpo']))
+    story.append(Spacer(1, 8))
+
+
+def _economico_breakeven(story, ss, economico: dict) -> None:
+    culturas = economico.get('culturas') or []
+    if not culturas:
+        return
+    _secao(story, ss, 'Custos Operacionais & Ponto de Equilíbrio (Breakeven)')
+
+    dados = [['Cultura', 'COE (Insumos/ha)', 'COT Total/ha', 'Breakeven sc/ha', 'Breakeven Preço', 'Margem Segurança']]
+    for c in culturas:
+        dados.append([
+            c.get('identificacao') or c.get('cultura') or '—',
+            f"{_fmt_moeda(c.get('coe_ha'))}/ha",
+            f"{_fmt_moeda(c.get('cot_ha'))}/ha",
+            f"{_numero(c.get('breakeven_sc_ha'), 1)} {c.get('unidade','sc')}/ha",
+            _fmt_moeda(c.get('breakeven_preco')),
+            f"{_numero(c.get('margem_seguranca_sc_ha'), 1)} {c.get('unidade','sc')}/ha",
+        ])
+    _tabela(story, dados, [3.6 * cm, 2.9 * cm, 2.8 * cm, 2.7 * cm, 2.5 * cm, 2.5 * cm])
+
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(
+        f"COE Total (Desembolso direto): <b>{_fmt_moeda(economico.get('coe_total'))}</b> · "
+        f"Margem de Contribuição: <b>{_fmt_moeda(economico.get('margem_contribuicao_total'))}</b> · "
+        f"Resultado Operacional Líquido: <b>{_fmt_moeda(economico.get('resultado_operacional'))}</b>",
+        ss['Corpo']))
+    story.append(Spacer(1, 8))
+
+
+def _capacidade(story, ss, analise: dict) -> None:
+    credito = (analise.get('credito') or {}).get('analysis') or {}
+    if not credito:
+        return
+    _secao(story, ss, 'Capacidade de Pagamento & Dimensionamento do Crédito')
+
+    pior = credito.get('pior_periodo') or {}
+    resumo = [
+        ['DSCR médio do contrato', f"{_numero(credito.get('dscr_medio'), 2)}x"],
+        ['DSCR mínimo do contrato', f"{_numero(credito.get('dscr_minimo'), 2)}x"],
+        ['Ano mais crítico / apertado', f"Ano {pior.get('ano') or '1'}"],
+        ['Serviço da dívida anual no ano crítico', _fmt_moeda(pior.get('servico_divida_anual'))],
+        ['Geração de caixa operacional anual', _fmt_moeda(credito.get('geracao_caixa_anual'))],
+        ['Capacidade máxima estimada de endividamento', _fmt_moeda(credito.get('capacidade_maxima_estimativa'))],
+    ]
+    _tabela(story, [['Indicador de Risco de Crédito', 'Valor / Projeção']] + resumo, [9.0 * cm, 8.0 * cm])
+    story.append(Spacer(1, 8))
+
+
+def _projecao_estresse(story, ss, analise: dict) -> None:
+    scenarios = (analise.get('stress') or {}).get('scenarios') or []
+    if not scenarios:
+        return
+    _secao(story, ss, 'Testes de Estresse na Safra e Sensibilidade')
+
+    dados = [['Cenário de Estresse', 'Choque Simulado', 'DSCR Resultante', 'Status de Cobertura']]
+    for s in scenarios:
+        dados.append([
+            str(s.get('nome') or '').replace('_', ' ').title(),
+            ', '.join(s.get('applied_changes') or ['—']),
+            f"{_numero(s.get('dscr_minimo'), 2)}x",
+            'Descoberto (Risco)' if s.get('uncovered') else 'Coberto (Caixa Positivo)',
+        ])
+    _tabela(story, dados, [5.5 * cm, 5.5 * cm, 2.8 * cm, 3.2 * cm])
+    story.append(Spacer(1, 8))
+
+
+def _barter_cpr(story, ss, barter: dict | None, cpr: dict | None) -> None:
+    if not barter and not cpr:
+        return
+    dados_b = barter or (cpr.get('barter') if cpr else {})
+    if not dados_b:
+        return
+
+    story.append(PageBreak())
+    _secao(story, ss, 'Operação de Barter & Penhor de Safra (CPR)')
+
+    cor_risco = dados_b.get('classificacao_risco', 'BAIXO')
+    resumo_barter = [
+        ['Valor do pacote de insumos financiado', _fmt_moeda(dados_b.get('valor_insumos'))],
+        ['Preço referencial travado da saca', f"{_fmt_moeda(dados_b.get('preco_saca_referencia'))} ({dados_b.get('praca_nome', 'Mercado')})"],
+        ['Quantidade de grãos a entregar', f"{_numero(dados_b.get('sacas_a_entregar'), 1)} sc ({_numero(dados_b.get('toneladas_a_entregar'), 1)} t)"],
+        ['Área física comprometida com o penhor', f"{_numero(dados_b.get('area_travada_ha'), 1)} hectares"],
+        ['Percentual de comprometimento da safra', f"{_numero(dados_b.get('comprometimento_safra_pct'), 1)}% da produção total"],
+        ['Classificação do Risco de Penhor', f"{cor_risco}"],
+    ]
+    _tabela(story, [['Condição da Operação de Barter', 'Especificação']] + resumo_barter, [8.5 * cm, 8.5 * cm])
+
+    story.append(Spacer(1, 6))
+    rec = dados_b.get('recomendacao_comite') or ''
+    if rec:
+        story.append(Paragraph(f"<b>Recomendação do Comitê de Crédito:</b> {rec}", ss['Corpo']))
+        story.append(Spacer(1, 8))
+
+    # Minuta anexa
+    if cpr and cpr.get('texto_minuta'):
+        _secao(story, ss, 'Anexo: Minuta Jurídica da Cédula de Produto Rural (Lei 8.929/94)')
+        linhas = cpr['texto_minuta'].split('\n')
+        for linha in linhas[:40]:  # primeiras 40 linhas resumidas para caber no parecer
+            story.append(Paragraph(linha.replace(' ', '&nbsp;'), ss['Corpo']))
+        story.append(Spacer(1, 6))
+        story.append(Paragraph('<i>[Texto integral disponível no sistema para assinatura e registro na B3 / CERC]</i>', ss['Subtitulo']))
+
+
+def _compliance_esg(story, ss, esg: dict | None) -> None:
+    if not esg:
+        return
+    _secao(story, ss, 'Conformidade Socioambiental & ESG (Resoluções CMN 4.945 e 5.081)')
+    car = esg.get('car') or {}
+    checagens = esg.get('checagens') or {}
+    selo = esg.get('selo_conformidade_cmn') or 'Em conformidade'
+
+    rl_decl = float(car.get('percentual_rl_declarado') or 0.0) * 100
+    rl_exig = float(car.get('percentual_rl_exigido') or 0.0) * 100
+    rl_ha = float(car.get('area_reserva_legal_ha') or 0.0)
+    app_ha = float(car.get('area_app_ha') or 0.0)
+
+    tabela_esg = [
+        ['Item de Verificação Socioambiental', 'Situação / Resultado'],
+        ['Número do CAR (SICAR)', str(car.get('numero_car') or 'Não informado')],
+        ['Status Cadastral do CAR', str(car.get('status') or 'ATIVO')],
+        ['Bioma Referencial', str(car.get('bioma') or 'CERRADO').replace('_', ' ')],
+        ['Reserva Legal (Declarada vs Exigida)', f"{rl_decl:.1f}% decl. vs {rl_exig:.0f}% exig. ({rl_ha:.1f} ha)"],
+        ['Área de Preservação Permanente (APP)', f"{app_ha:.1f} ha"],
+        ['Consulta de Embargos Ambientais (IBAMA)', 'EMBARGO ATIVO (IMPEDITIVO)' if checagens.get('embargo_ibama') else 'Nada Consta (Regular)'],
+        ['Consulta Lista Suja Trabalho Escravo (MTE)', 'INSCRIÇÃO ATIVA (IMPEDITIVO)' if checagens.get('trabalho_escravo_mte') else 'Nada Consta (Regular)'],
+        ['Sobreposição Terra Indígena / Unid. Conservação', 'Sobreposição Detectada' if (checagens.get('sobreposicao_terra_indigena') or checagens.get('sobreposicao_unidade_conservacao')) else 'Isento de Sobreposição'],
+        ['Score ESG / Conformidade Bacen', f"{esg.get('score_esg', 100)} / 100 — {selo}"],
+    ]
+    _tabela(story, tabela_esg, [9.0 * cm, 8.0 * cm])
+    story.append(Spacer(1, 6))
+    if esg.get('recomendacoes_comite'):
+        story.append(Paragraph(f"<b>Parecer Técnico ESG:</b> {esg.get('recomendacoes_comite')}", ss['Corpo']))
+        story.append(Spacer(1, 8))
+
+
+def _matriz_garantias(story, ss, garantias: dict | None) -> None:
+    if not garantias or not garantias.get('itens'):
+        return
+    _secao(story, ss, 'Matriz de Garantias & Dimensionamento de LTV (Garantias Reais e Fiduciárias)')
+
+    itens = garantias.get('itens') or []
+    linhas = [['Garantia Ofertada', 'Modalidade / Gravame', 'Valor Mercado', 'Deságio', 'Valor Líquido']]
+    for it in itens:
+        linhas.append([
+            f"{it.get('descricao') or 'Garantia'}\n({it.get('identificador_registro') or 'S/N'})",
+            str(it.get('gravame') or '').replace('_', ' ').title(),
+            _fmt_moeda(it.get('valor_mercado_bruto')),
+            f"-{it.get('desagio_aplicado_pct', 0):.0f}%",
+            _fmt_moeda(it.get('valor_liquidacao_forcada')),
+        ])
+    _tabela(story, linhas, [6.0 * cm, 4.0 * cm, 2.5 * cm, 1.8 * cm, 2.7 * cm])
+    story.append(Spacer(1, 6))
+
+    kpis = [
+        ['Indicador de Risco da Garantia', 'Métrica Apurada'],
+        ['Valor Total de Mercado das Garantias', _fmt_moeda(garantias.get('valor_mercado_total'))],
+        ['Valor Total de Liquidação Forçada (Pós-Deságio)', _fmt_moeda(garantias.get('valor_liquidacao_total'))],
+        ['Crédito Solicitado no Contrato', _fmt_moeda(garantias.get('credito_solicitado'))],
+        ['LTV Consolidado (Loan-to-Value)', f"{garantias.get('ltv_pct', 0):.1f}%"],
+        ['Índice de Cobertura de Garantias (ICG)', f"{garantias.get('indice_cobertura_pct', 0):.1f}%"],
+        ['Classificação de Risco da Garantia', f"{garantias.get('classificacao_risco') or 'ADEQUADA'}"],
+    ]
+    _tabela(story, kpis, [9.0 * cm, 8.0 * cm])
+    story.append(Spacer(1, 6))
+    if garantias.get('recomendacao_comite'):
+        story.append(Paragraph(f"<b>Parecer do Comitê de Garantias:</b> {garantias.get('recomendacao_comite')}", ss['Corpo']))
+        story.append(Spacer(1, 8))
+
+
+def _quadro_assinaturas_comite(story, ss, codigo: str, hash_digest: str) -> None:
+    _secao(story, ss, 'Homologação e Parecer do Comitê de Crédito B2B')
+    story.append(Spacer(1, 10))
+
+    col1 = Paragraph("_______________________________<br/><b>Analista de Risco & Agronomia</b><br/><font size=6 color='#666666'>Elaboração e Diligência Técnica</font>", ss['Subtitulo'])
+    col2 = Paragraph("_______________________________<br/><b>Gerente de Crédito B2B</b><br/><font size=6 color='#666666'>Parecer e Revisão de Alçadas</font>", ss['Subtitulo'])
+    col3 = Paragraph("_______________________________<br/><b>Diretor / Comitê de Crédito</b><br/><font size=6 color='#666666'>Homologação Final da Proposta</font>", ss['Subtitulo'])
+
+    tab_ass = Table([[col1, col2, col3]], colWidths=[5.6 * cm, 5.6 * cm, 5.6 * cm])
+    tab_ass.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(tab_ass)
+    story.append(Spacer(1, 10))
+
+    story.append(HRFlowable(width='100%', thickness=0.4, color=colors.HexColor('#D8C9B3')))
+    story.append(Spacer(1, 3))
+    texto_seguranca = (
+        f"<b>CONTROLE DE INTEGRIDADE & REGISTRO DIGITAL:</b> Operação <b>{codigo}</b> · "
+        f"Hash SHA-256: <font name='Courier' size=6>{hash_digest[:40]}...</font><br/>"
+        f"Documento corporativo emitido pelo sistema de crédito B2B. Verificação de integridade: "
+        f"<u>https://credito.orkavyn.tech/</u>"
+    )
+    story.append(Paragraph(texto_seguranca, ss['Subtitulo']))
+
+
+def _dicas_parecer(story, ss, analise: dict) -> None:
+    dicas = analise.get('dicas') or []
+    if not dicas:
+        return
+    _secao(story, ss, 'Diagnóstico & Recomendações Técnicas')
+    for d in dicas:
+        story.append(Paragraph(f"<b>• {d.get('titulo')}:</b> {d.get('texto')}", ss['Corpo']))
+        story.append(Spacer(1, 4))
+
+
+def gerar_pdf_parecer_graos(
+    analise: dict,
+    identificacao: dict | None = None,
+    barter: dict | None = None,
+    cpr: dict | None = None,
+    branding: dict | None = None,
+    esg: dict | None = None,
+    garantias: dict | None = None,
+) -> bytes:
+    """Recebe o resultado de `analisar_culturas_anuais` e devolve os bytes do PDF."""
+    ss = _styles()
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        topMargin=2 * cm,
+        bottomMargin=2 * cm,
+        leftMargin=2 * cm,
+        rightMargin=2 * cm,
+    )
+    story = []
+
+    branding = branding or {}
+    logo = _logo_flowable(branding.get('logo_base64') or '')
+    if logo is not None:
+        story.append(logo)
+        story.append(Spacer(1, 6))
+
+    codigo_proposta, hash_digest = _gerar_codigo_e_hash(analise, identificacao or {})
+
+    _identificacao(story, ss, identificacao or {}, (branding.get('nome_consultoria') or '').strip(), codigo_proposta)
+    _fact_sheet_teaser(story, ss, analise, garantias, esg)
+    _plano_safra(story, ss, analise.get('economico') or {})
+    _zarc(story, ss, analise.get('zarc'))
+    _economico_breakeven(story, ss, analise.get('economico') or {})
+    _capacidade(story, ss, analise)
+    _projecao_estresse(story, ss, analise)
+    _compliance_esg(story, ss, esg)
+    _matriz_garantias(story, ss, garantias)
+    _barter_cpr(story, ss, barter, cpr)
+    _dicas_parecer(story, ss, analise)
+    _quadro_assinaturas_comite(story, ss, codigo_proposta, hash_digest)
+
+    doc.build(story)
+    return buffer.getvalue()

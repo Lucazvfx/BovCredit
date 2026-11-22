@@ -1,8 +1,8 @@
 """
 Assistente de crédito: o que ele responde e o que ele recusa.
 
-A referência é o Tai, da Tarken: um assistente de crédito no WhatsApp sobre
-ChatGPT. A diferença que este módulo implementa está em duas decisões.
+Assistente inteligente de crédito especializado para esteira B2B. A diferença
+que este módulo implementa está em duas decisões:
 
 1. CONCEITO SE RESPONDE DA NOSSA METODOLOGIA, NÃO DO MODELO
 
