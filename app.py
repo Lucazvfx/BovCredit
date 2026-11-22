@@ -23,6 +23,9 @@ from ml_engine import (
     explicar_shap, TIPOS, PARAMS_POR_CICLO,
 )
 import database as db
+from services.limites_entrada import (
+    JUROS_AA_TETO, MSG_JUROS_TETO, erro_anos, erro_juros_aa,
+)
 from services import assistente as _assistente
 from services.documentos import (
     impressao as doc_impressao, comparar as doc_comparar,
@@ -1380,6 +1383,8 @@ def api_classificar():
     prazo_credito = int(prazo_raw or 0)
     carencia_credito = int(carencia_raw or 0)
     juros_credito = float(juros_raw or 0)
+    if juros_credito >= JUROS_AA_TETO:
+        return jsonify({'erro': MSG_JUROS_TETO}), 400
     # Price (default) ou SAC. Crédito rural é majoritariamente SAC, mas o
     # default fica em Price para não mudar o resultado de quem já usava a rota
     # sem informar o sistema. Ver services/payment_capacity_engine/dscr.py.
@@ -3545,12 +3550,9 @@ def api_perene_analisar():
     # manda 10.5 querendo 10,5% recebe hoje um serviço de dívida de bilhões
     # sem nenhum aviso — recusar é melhor que devolver o absurdo calculado.
     juros = (data.get('credito') or {}).get('juros_aa')
-    try:
-        if juros is not None and float(juros) >= 1:
-            return jsonify({
-                'erro': 'juros_aa é fração ao ano: use 0.105 para 10,5% a.a.'}), 400
-    except (TypeError, ValueError):
-        return jsonify({'erro': 'juros_aa inválido.'}), 400
+    erro = erro_juros_aa(juros) or erro_anos(data.get('anos'))
+    if erro:
+        return jsonify({'erro': erro}), 400
 
     try:
         resultado = analisar_lavoura_perene(data)
