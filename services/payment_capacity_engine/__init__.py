@@ -1,3 +1,4 @@
+from .ciclo_pecuario import PERFIS, projetar_fluxo_ciclo
 from .dscr import (
     DSCR_APROVAR,
     DSCR_RESSALVA,
@@ -11,6 +12,8 @@ from .dscr import (
 )
 
 __all__ = [
+    "PERFIS",
+    "projetar_fluxo_ciclo",
     "DSCR_APROVAR",
     "DSCR_RESSALVA",
     "avaliar_capacidade_no_prazo",
