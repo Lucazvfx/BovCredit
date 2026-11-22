@@ -73,6 +73,9 @@ from services.proveniencia import (
 )
 
 
+# Faixas de política de crédito (DSCR) — fonte única; parecer_credito.py as
+# reexporta. Ajustáveis, não são benchmark zootécnico. Marcadas como POLÍTICA
+# na proveniência: em comitê elas se discutem, não se citam.
 DSCR_APROVAR = politica(
     1.30,
     "Política de crédito da instituição",

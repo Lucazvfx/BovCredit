@@ -7,16 +7,7 @@ from __future__ import annotations
 import os
 
 from services.proveniencia import (
-    politica, catalogo, do_modulo, resumo as _resumo_prov)
-
-# Faixas de política de crédito (DSCR) — ajustáveis, não são benchmark
-# zootécnico. Marcadas como POLÍTICA na proveniência: em comitê elas se
-# discutem, não se citam.
-DSCR_APROVAR = politica(
-    1.30, 'Política de crédito da instituição', rotulo='DSCR para aprovar',
-    nota='Cobertura mínima do serviço da dívida no ano crítico do prazo.')
-DSCR_RESSALVA = politica(
-    1.00, 'Política de crédito da instituição', rotulo='DSCR para ressalva')
+    catalogo, do_modulo, resumo as _resumo_prov)
 
 
 _CARENCIA_SEM_CAP = os.environ.get('CARENCIA_SEM_CAPITALIZACAO', '0') == '1'
@@ -33,9 +24,12 @@ _CARENCIA_SEM_CAP = os.environ.get('CARENCIA_SEM_CAPITALIZACAO', '0') == '1'
 # divergem no dia em que nascem, divergem no dia em que alguém corrige uma
 # só. Acrescentar SAC teria criado a quarta e a quinta cópia.
 #
-# O motor é a fonte; aqui ficam só os nomes que já eram importados.
+# O motor é a fonte; aqui ficam só os nomes que já eram importados — inclusive
+# DSCR_APROVAR/DSCR_RESSALVA (assistente e testes importam daqui). Não redefinir.
 # avaliar_capacidade_no_prazo também estava duplicada aqui e seguiu o mesmo caminho.
-from services.payment_capacity_engine.dscr import (  # noqa: E402
+from services.payment_capacity_engine.dscr import (  # noqa: E402,F401
+    DSCR_APROVAR,
+    DSCR_RESSALVA,
     MENSAL,
     PERIODICIDADES,
     PRICE,
