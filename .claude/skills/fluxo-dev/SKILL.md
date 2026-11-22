@@ -7,6 +7,10 @@ Execute a tarefa solicitada ($ARGUMENTS) seguindo estritamente estas 3 fases:
 
 ## Fase 1 — Pesquisa (Haiku)
 Lance um subagente usando o modelo `haiku` apenas para mapear os arquivos, funções e testes relevantes para esta tarefa. Não edite código nesta fase.
+Regras para economizar tokens:
+- Comece sempre com busca por texto (`grep`/ripgrep) antes de abrir qualquer arquivo.
+- Nunca leia arquivos inteiros (especialmente `app.py`); leia apenas os trechos de linhas ao redor das ocorrências.
+- Pare assim que tiver o mapa mínimo necessário (meta: no máximo 10 a 12 chamadas de ferramenta).
 
 ## Fase 2 — Plano e Construção (Sonnet)
 Com base no mapa retornado pelo Haiku:
