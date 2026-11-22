@@ -7,9 +7,10 @@
   /api/perene/analisar e /api/agricola/graos/analisar. Crédito rural fica
   muito abaixo disso; o teto só existe para pegar percentual digitado como
   fração, e qualquer valor >= 1 é isso.
-- ANOS_MAX = 30: horizonte de projeção de lavoura perene. A vida útil das
-  culturas perenes cobertas (café, citros etc.) fica em 25-30 anos, e o
-  projetor percorre ano a ano, sem teto próprio.
+- ANOS_MAX = 30: limite técnico de validação (não é parâmetro agronômico e não
+  entra no parecer). Só existe para impedir horizontes absurdos, já que o
+  projetor percorre ano a ano, sem teto próprio. Escolha de política, sem
+  fonte externa; revisar se surgir cultura perene com horizonte maior.
 """
 from __future__ import annotations
 

@@ -22,12 +22,12 @@ def test_juros_invalidos_sao_recusados(valor):
     assert erro_juros_aa(valor)
 
 
-@pytest.mark.parametrize('valor', [None, 0, 1, 6, 30, '6', 'abc'])
+@pytest.mark.parametrize('valor', [None, 0, 1, 6, 30, 30.9, '6', 'abc'])
 def test_anos_validos_passam(valor):
     assert erro_anos(valor) is None
 
 
-@pytest.mark.parametrize('valor', [31, 1000, -1, float('nan'), float('inf')])
+@pytest.mark.parametrize('valor', [31, 1000, -1, -0.5, float('nan'), float('inf')])
 def test_anos_invalidos_sao_recusados(valor):
     assert erro_anos(valor)
 
@@ -61,11 +61,17 @@ def test_classificar_recusa_juros_em_percentual(juros):
     assert 'fração' in r.get_json()['erro']
 
 
-@pytest.mark.parametrize('juros', [0, 0.105, 0.99])
+@pytest.mark.parametrize('juros', [0, 0.105, 0.99, '', None, '0.12'])
 def test_classificar_aceita_juros_validos(juros):
     r = _login_classificar().post('/api/classificar',
                                   json=_payload_classificar(juros))
     assert r.status_code == 200
+
+
+def test_classificar_sem_credito_com_juros_valido():
+    payload = _payload_classificar(0.105)
+    payload['credito_valor'] = 0
+    assert _login_classificar().post('/api/classificar', json=payload).status_code == 200
 
 
 # ── /api/perene/analisar ────────────────────────────────────────────────────
@@ -79,7 +85,7 @@ def test_perene_recusa_juros_invalido(juros):
     assert 'juros_aa' in r.get_json()['erro']
 
 
-@pytest.mark.parametrize('anos', [ANOS_MAX + 1, 100000, -3])
+@pytest.mark.parametrize('anos', [ANOS_MAX + 1, 100000, -3, float('inf')])
 def test_perene_recusa_anos_fora_do_limite(anos):
     r = _login_perene().post('/api/perene/analisar',
                              json=_payload_perene(anos=anos))
@@ -123,3 +129,11 @@ def test_v1_recusa_juros_invalido(v1, rota, corpo, juros):
     erro = r.get_json()['error']
     assert erro['code'] == 'validation_error'
     assert 'juros_aa' in erro['message']
+
+
+@pytest.mark.parametrize('juros', [0.12, None, '0.12'])
+def test_v1_aceita_juros_validos(v1, juros):
+    cliente, cabecalhos = v1
+    corpo = {'cashflow': {}, 'debt_request': {'credito_valor': 1, 'juros_aa': juros}}
+    r = cliente.post('/api/v1/payment-capacity', json=corpo, headers=cabecalhos)
+    assert r.status_code != 400 or 'juros_aa' not in r.get_json()['error']['message']
