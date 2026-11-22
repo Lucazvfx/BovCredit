@@ -1,11 +1,16 @@
 """
-Os limites de DSCR (aprovar / ressalva) têm UMA definição: o motor
-(services/payment_capacity_engine/dscr.py). parecer_credito.py só reexporta.
+Parecer e motor compartilham UMA definição dos limites de DSCR (aprovar /
+ressalva): a do motor (services/payment_capacity_engine/dscr.py);
+parecer_credito.py só reexporta.
 
 Antes eram dois `politica(...)` independentes com o mesmo valor. Mudar um sem o
 outro faria o parecer e o motor aplicarem regras diferentes, sem nenhum teste
 acusando. Estes testes travam isso: identidade do objeto, catálogo de
-proveniência, texto do assistente e comportamento da recomendação.
+proveniência, texto do assistente e veredito do parecer.
+
+Escopo: só cobre parecer, catálogo e assistente. Há literais 1.30/1.00 fora do
+motor (rating_credito, dossie_comite, parecer_pdf, templates) que NÃO seguem
+esta definição e não são verificados aqui.
 """
 import pytest
 
@@ -57,8 +62,8 @@ def test_catalogo_do_motor_publica_o_limite_do_motor(nome):
 @pytest.mark.parametrize('nome', LIMITES)
 def test_catalogo_do_parecer_publica_o_limite_do_motor(nome):
     """
-    O catálogo deduplica por (rótulo, valor, origem): se os limites divergissem,
-    o parecer listaria DOIS "DSCR para aprovar" com valores diferentes.
+    O parecer publica o limite que o motor aplica, com uma entrada por rótulo.
+    Divergir rótulo ou valor em relação ao motor faz este teste falhar.
     """
     param = getattr(motor, nome)
     achadas = _entradas_do_catalogo(
@@ -76,8 +81,9 @@ def test_texto_do_assistente_usa_os_limites_do_motor():
 
 def test_mudar_o_limite_no_motor_muda_o_veredito_do_parecer(monkeypatch):
     """
-    Com o limite de aprovação real, este caso aprova. Se o motor subir o limite,
-    o parecer tem que acompanhar — prova de que não há segunda cópia decidindo.
+    O veredito do parecer vem do motor: com o limite real este caso aprova; se
+    o motor subir o limite, o parecer acompanha. (A ausência de segunda cópia
+    em parecer_credito.py é garantida pelos testes de identidade acima.)
     """
     args = (200000, 100000, 24, 0.10)
     antes = parecer.avaliar_capacidade_pagamento(*args)

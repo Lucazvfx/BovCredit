@@ -27,7 +27,7 @@ _CARENCIA_SEM_CAP = os.environ.get('CARENCIA_SEM_CAPITALIZACAO', '0') == '1'
 # O motor é a fonte; aqui ficam só os nomes que já eram importados — inclusive
 # DSCR_APROVAR/DSCR_RESSALVA (assistente e testes importam daqui). Não redefinir.
 # avaliar_capacidade_no_prazo também estava duplicada aqui e seguiu o mesmo caminho.
-from services.payment_capacity_engine.dscr import (  # noqa: E402,F401
+from services.payment_capacity_engine.dscr import (  # noqa: E402
     DSCR_APROVAR,
     DSCR_RESSALVA,
     MENSAL,
