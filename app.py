@@ -99,6 +99,7 @@ from services.origem_rebanho import origem_rebanho, normalizar as normalizar_ori
 from services import login_social as _social
 from authlib.integrations.flask_client import OAuth
 from services.fluxo_mensal_credito import projetar_fluxo_mensal
+from services import desfecho as _desf
 from services.perennial_engine import (
     analisar_lavoura_perene, parsear_ficha_talhoes,
 )
@@ -3459,6 +3460,83 @@ def api_ler_planilha():
             os.unlink(tmp_path)
         except OSError:
             pass
+
+
+@app.route('/api/pareceres/<int:parecer_id>/desfecho', methods=['GET'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_desfecho_listar(parecer_id):
+    """Todos os desfechos do parecer, em ordem cronológica.
+
+    `atual` traz o último de cada etapa, e vem `null` quando NINGUÉM respondeu
+    — que é estado diferente de alguém ter respondido "não sei".
+    """
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    if not db.parecer_da_empresa(parecer_id, empresa_id):
+        return jsonify({'erro': 'Parecer não encontrado'}), 404
+    registros = db.listar_desfechos(parecer_id=parecer_id)
+    return jsonify({
+        'parecer_id': parecer_id,
+        'desfechos': registros,
+        'atual': {
+            etapa: db.desfecho_atual(parecer_id, etapa)
+            for etapa in _desf.ETAPAS
+        },
+        'vocabulario': {etapa: list(_desf.SITUACOES[etapa]) for etapa in _desf.ETAPAS},
+    })
+
+
+@app.route('/api/pareceres/<int:parecer_id>/desfecho', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_desfecho_registrar(parecer_id):
+    """Acrescenta um desfecho. Não substitui o anterior — a trajetória importa."""
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    if not db.parecer_da_empresa(parecer_id, empresa_id):
+        return jsonify({'erro': 'Parecer não encontrado'}), 404
+    data = request.get_json(silent=True) or {}
+    snapshot_id = data.get('snapshot_id')
+    if snapshot_id is not None:
+        if (not isinstance(snapshot_id, int) or isinstance(snapshot_id, bool)
+                or not db.load_analysis_snapshot(snapshot_id, organization_id=empresa_id)):
+            return jsonify({'erro': 'snapshot_id inválido'}), 400
+    try:
+        novo_id = db.registrar_desfecho(
+            parecer_id,
+            data.get('etapa'),
+            data.get('situacao'),
+            snapshot_id=snapshot_id,
+            empresa_id=empresa_id,
+            user_id=current_user.id,
+            competencia=data.get('competencia') or '',
+            condicoes=data.get('condicoes'),
+            observacao=data.get('observacao') or '',
+        )
+    except _desf.DesfechoInvalido as erro:
+        return jsonify({'erro': str(erro)}), 400
+
+    _auditar(_aud.DESFECHO_REGISTRADO, recurso='parecer', recurso_id=parecer_id,
+             detalhe=f"{data.get('etapa')}/{data.get('situacao')}")
+    return jsonify({'id': novo_id, 'parecer_id': parecer_id}), 201
+
+
+@app.route('/api/desfechos/cobertura', methods=['GET'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_desfecho_cobertura():
+    """Quantos pareceres têm desfecho — e quantos ninguém respondeu.
+
+    É a métrica que diz se o conjunto presta. Número derivado de desfecho sem
+    a cobertura ao lado é amostra de conveniência apresentada como medição.
+    """
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    return jsonify(db.cobertura_desfechos(empresa_id=empresa_id))
 
 
 @app.route('/api/perene/ficha/download', methods=['GET'])

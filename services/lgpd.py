@@ -74,6 +74,23 @@ INVENTARIO = {
         'finalidade': 'vincular o canal WhatsApp à conta',
         'retencao':  'enquanto o vínculo existir',
     },
+    'desfechos': {
+        # O dado mais sensível que o sistema guarda: a situação de pagamento de
+        # um produtor identificável (via parecer -> fazenda). Não é opinião do
+        # analista sobre ele — é fato financeiro de terceiro.
+        'campos':    ['situacao (pagamento)', 'valor/prazo/juros contratados',
+                      'observacao'],
+        'titular':   'cliente da consultoria (produtor)',
+        'finalidade': 'acompanhar o resultado da recomendação emitida e '
+                       'calibrar o modelo de risco da própria consultoria',
+        'retencao':  'enquanto o parecer existir',
+        # PENDENTE, e é decisão de produto, não detalhe jurídico: usar este dado
+        # ALÉM da consultoria que o coletou — para treinar modelo que serve
+        # outras — é finalidade distinta e precisa de base legal própria. Ver
+        # docs/superpowers/specs/2026-08-22-desfecho-do-parecer-design.md.
+        'observacao': 'Uso restrito à consultoria que coletou até haver decisão '
+                       'sobre base legal para uso agregado.',
+    },
     'fazendas': {
         'campos':    ['nome', 'proprietario', 'municipio'],
         'titular':   'cliente da consultoria (produtor)',
