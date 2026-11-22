@@ -21,6 +21,15 @@ PREMISSAS (declaradas, não escondidas)
   histórico da propriedade quando houver.
 - O DSCR aqui é (receita − custo operacional) / serviço anual da dívida, na
   faixa de aprovação da política (`DSCR_APROVAR`).
+- `custo_operacional_anual` deve incluir a reposição (compra de animais): é
+  ela que forma o pico de saída de recria e engorda.
+- O ano começa em janeiro com `capital_giro_inicial` em caixa. Sem giro, parte
+  do vale é OPERACIONAL (custo antes da venda) e existiria sem dívida; por isso
+  o resultado traz `vale_operacional` e `quebra_caixa_com_dscr_ok` só vale
+  quando a parcela cria meses de déficit que a operação sozinha não criaria.
+- Semestral/anual: se `meses_pagamento` não for informado, assume-se o melhor
+  calendário (meses de pico de entrada). Informe os meses reais do contrato
+  para não subestimar o vale.
 
 MATEMÁTICA. Todo o cálculo é em centavos inteiros. Pesos são inteiros em ‰
 (soma 1000) e o resíduo de cada distribuição vai para os meses de maior resto
@@ -30,7 +39,10 @@ um centavo. Só na saída os valores viram `float` com 2 casas.
 from __future__ import annotations
 
 import math
+import numbers
 from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
+from types import MappingProxyType
 from typing import Any
 
 from services.proveniencia import referencia
@@ -78,10 +90,10 @@ def _perfil(sistema, entradas, saidas, descricao):
 
 
 #             jan feb mar abr mai jun jul ago set out nov dez
-PERFIS: dict = {
+_PERFIS: dict = {
     # Cria: vende bezerro desmamado de abril a julho (pico em maio) e descarta
     # vacas em nov–dez. Saída sobe na seca (suplementação, jun–set) e na
-    # vacinação de maio/novembro.
+    # manejo sanitário de maio/novembro.
     "cria": _perfil(
         "cria",
         entradas=(0, 0, 40, 180, 260, 220, 120, 60, 20, 0, 40, 60),
@@ -96,13 +108,15 @@ PERFIS: dict = {
         saidas=(30, 30, 50, 150, 180, 160, 110, 80, 70, 50, 40, 50),
         descricao="Compra de reposição em abr–jul; venda de recriados em mar–mai.",
     ),
-    # Engorda: compra o magro após as águas (fev–mai) e vende o boi gordo na
-    # entressafra (jul–out), quando a arroba costuma sustentar preço.
+    # Engorda de entressafra (terminação intensiva / semiconfinamento): compra
+    # o magro após as águas (fev–mai), alimenta com dieta na seca (jun–set) e
+    # vende o boi gordo em jul–out, quando a arroba costuma sustentar preço.
+    # Não representa a engorda a pasto que vende na safra (abr–jun).
     "engorda": _perfil(
         "engorda",
         entradas=(20, 20, 30, 40, 60, 110, 150, 170, 170, 120, 60, 50),
-        saidas=(60, 70, 130, 170, 150, 100, 70, 60, 50, 40, 50, 50),
-        descricao="Compra de magro em fev–mai; boi gordo vendido em jul–out.",
+        saidas=(50, 60, 110, 150, 130, 110, 90, 90, 70, 40, 50, 50),
+        descricao="Terminação de entressafra: magro em fev–mai, dieta na seca, gordo em jul–out.",
     ),
     # Ciclo completo: bezerro, recria e terminação sobrepostos na mesma
     # fazenda; as entradas se espalham porque há sempre lote em fase de venda.
@@ -115,7 +129,7 @@ PERFIS: dict = {
 }
 
 # Proveniência: o perfil é premissa estilizada, não medição.
-PROVENIENCIA_PERFIL = {
+_PROVENIENCIA_PERFIL = {
     s: referencia(
         _TOTAL_PERMIL,
         "Calendário típico de pecuária de corte (Brasil Central) — premissa "
@@ -125,6 +139,8 @@ PROVENIENCIA_PERFIL = {
     )
     for s in SISTEMAS
 }
+PERFIS = MappingProxyType(_PERFIS)
+PROVENIENCIA_PERFIL = MappingProxyType(_PROVENIENCIA_PERFIL)
 
 
 # ──────────────────────────── validação ────────────────────────────
@@ -140,15 +156,20 @@ def _texto_valido(valor: Any, nome: str, validos: tuple) -> str:
 
 
 def _centavos(valor: Any, nome: str) -> int:
-    if isinstance(valor, bool) or not isinstance(valor, (int, float)):
+    if isinstance(valor, bool) or not isinstance(valor, numbers.Real):
         raise ValueError(f"{nome} deve ser numérico; recebido {valor!r}.")
-    if not math.isfinite(valor):
+    try:
+        v = float(valor)
+    except OverflowError:
+        raise ValueError(f"{nome} acima do limite de {VALOR_MAXIMO:.0f}.") from None
+    if not math.isfinite(v):
         raise ValueError(f"{nome} deve ser finito; recebido {valor!r}.")
-    if valor < 0:
+    if v < 0:
         raise ValueError(f"{nome} não pode ser negativo; recebido {valor!r}.")
-    if valor > VALOR_MAXIMO:
+    if v > VALOR_MAXIMO:
         raise ValueError(f"{nome} acima do limite de {VALOR_MAXIMO:.0f}; recebido {valor!r}.")
-    return int(round(valor * 100))
+    # Meio-centavo sobe (ROUND_HALF_UP), sem o erro binário de round(v*100).
+    return int((Decimal(repr(v)) * 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
 def _reais(centavos: int) -> float:
@@ -168,13 +189,41 @@ def distribuir_centavos(total: int, pesos_permil: tuple) -> list:
     return base
 
 
-def _meses_de_pagamento(frequencia: str, entradas_permil: tuple) -> list:
-    """Índices (0–11) dos meses de pagamento; parcelas não mensais caem no
-    mês de maior entrada de cada janela (empate → o mais cedo)."""
+def _meses_de_pagamento(frequencia: str, entradas_permil: tuple,
+                        informados=None) -> list:
+    """Índices (0–11) dos meses de pagamento.
+
+    Informados pelo contrato → usados como estão. Senão: anual no mês de maior
+    entrada; semestral no par (m, m+6) de maior entrada somada. Empate → mais cedo.
+    """
     if frequencia == "mensal":
         return list(range(12))
-    janelas = [range(0, 12)] if frequencia == "anual" else [range(0, 6), range(6, 12)]
-    return [max(j, key=lambda i: (entradas_permil[i], -i)) for j in janelas]
+    if informados is not None:
+        return sorted(m - 1 for m in informados)
+    if frequencia == "anual":
+        return [max(range(12), key=lambda i: (entradas_permil[i], -i))]
+    m = max(range(6), key=lambda i: (entradas_permil[i] + entradas_permil[i + 6], -i))
+    return [m, m + 6]
+
+
+def _validar_meses_pagamento(meses, frequencia):
+    if meses is None:
+        return None
+    if frequencia == "mensal":
+        raise ValueError("meses_pagamento não se aplica à frequência mensal.")
+    esperado = _PAGAMENTOS_ANO[frequencia]
+    if (isinstance(meses, (str, bytes)) or not hasattr(meses, "__iter__")):
+        raise ValueError("meses_pagamento deve ser uma lista de meses (1–12).")
+    lista = list(meses)
+    if (len(lista) != esperado or len(set(lista)) != esperado
+            or any(isinstance(m, bool) or not isinstance(m, int) or not 1 <= m <= 12
+                   for m in lista)):
+        raise ValueError(
+            f"meses_pagamento deve ter {esperado} mês(es) distintos entre 1 e 12; "
+            f"recebido {meses!r}.")
+    if frequencia == "semestral" and abs(lista[0] - lista[1]) != 6:
+        raise ValueError("semestral exige meses com 6 meses de distância.")
+    return lista
 
 
 def _servico_mensal(servico_anual: int, meses_pgto: list) -> list:
@@ -238,6 +287,7 @@ def projetar_fluxo_ciclo(
     parcela_divida: float,
     frequencia: str = "mensal",
     capital_giro_inicial: float = 0.0,
+    meses_pagamento=None,
 ) -> dict:
     """Fluxo mensal de 12 meses, vale de caixa e, se couber, recomendação.
 
@@ -251,13 +301,14 @@ def projetar_fluxo_ciclo(
     custo = _centavos(custo_operacional_anual, "custo_operacional_anual")
     parcela = _centavos(parcela_divida, "parcela_divida")
     giro = _centavos(capital_giro_inicial, "capital_giro_inicial")
+    informados = _validar_meses_pagamento(meses_pagamento, frequencia)
 
     perfil = PERFIS[sistema]
     entradas = distribuir_centavos(receita, perfil.entradas_permil)
     saidas = distribuir_centavos(custo, perfil.saidas_permil)
 
     servico_anual = parcela * _PAGAMENTOS_ANO[frequencia]
-    meses_pgto = _meses_de_pagamento(frequencia, perfil.entradas_permil)
+    meses_pgto = _meses_de_pagamento(frequencia, perfil.entradas_permil, informados)
     servico = _servico_mensal(servico_anual, meses_pgto) if servico_anual else [0] * 12
 
     base = _simular(entradas, saidas, servico, giro)
@@ -267,10 +318,13 @@ def projetar_fluxo_ciclo(
     # Sem dívida não há divisão: DSCR indefinido, não infinito nem zero.
     dscr = round(fc_anual / servico_anual, 4) if servico_anual else None
     if servico_anual:
-        dscr_ok = dscr >= float(DSCR_APROVAR)
+        # Compara sem arredondar: 1,29996 não pode virar 1,30.
+        dscr_ok = (Decimal(fc_anual)
+                   >= Decimal(repr(float(DSCR_APROVAR))) * servico_anual)
     else:
         dscr_ok = fc_anual >= 0
-    quebra = bool(servico_anual and dscr_ok and base["meses_deficit"])
+    causados = [m for m in base["meses_deficit"] if m not in sem_divida["meses_deficit"]]
+    quebra = bool(servico_anual and dscr_ok and causados)
 
     recomendacao = None
     if frequencia == "mensal" and servico_anual and base["meses_deficit"]:
@@ -294,7 +348,8 @@ def projetar_fluxo_ciclo(
         "vale_operacional": sem_divida["vale_caixa"],
         "servico_divida_anual": _reais(servico_anual),
         "dscr_anual": dscr,
-        "dscr_anual_suficiente": dscr_ok,
+        "dscr_anual_suficiente": bool(dscr_ok),
+        "meses_deficit_por_divida": causados,
         "quebra_caixa_com_dscr_ok": quebra,
         "recomendacao": recomendacao,
         "justificativa": _justificar(sistema, dscr, dscr_ok, base, sem_divida,
@@ -356,14 +411,19 @@ def _justificar(sistema, dscr, dscr_ok, base, sem_divida, quebra, rec,
     if quebra:
         out.append(
             "ATENÇÃO: DSCR anual suficiente, mas a parcela neste calendário "
-            "gera quebra de caixa sazonal.")
+            "gera quebra de caixa sazonal (meses de déficit que a operação "
+            "sozinha não teria).")
     if rec:
         if rec["melhora_vale"]:
             efeito = "elimina" if rec["elimina_vale"] else "reduz"
             out.append(
                 f"Pagamento {rec['estrutura_recomendada']} nos meses de pico de "
                 f"entrada {efeito} o vale (de {_brl(rec['vale_mensal'])}); "
-                f"mesmo serviço anual, sem custo de repactuação.")
+                f"simulação com o mesmo serviço anual e sem juros adicionais: "
+                f"cotar a nova taxa com o credor.")
+            if not dscr_ok:
+                out.append(
+                    "Reescalonar não cura DSCR abaixo da faixa de aprovação.")
         else:
             out.append(
                 "Nenhuma estrutura semestral/anual melhora o vale; manter "

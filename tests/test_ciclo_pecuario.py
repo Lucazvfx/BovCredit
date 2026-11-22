@@ -132,7 +132,8 @@ def test_recomendacao_chega_ao_piso_operacional_na_cria():
 @pytest.mark.parametrize("sistema", ["cria", "engorda"])
 def test_recomendacao_elimina_vale_com_giro_cobrindo_o_vale_operacional(sistema):
     base = _fluxo(sistema)
-    giro = -base["vale_operacional"] + 10_000.0
+    melhor = max(a["vale_caixa"] for a in base["recomendacao"]["alternativas"])
+    giro = -melhor + 1_000.0  # cobre o melhor calendário, mas não o mensal
     r = _fluxo(sistema, capital_giro_inicial=giro)
     if r["meses_deficit"]:  # mensal ainda quebra com esse giro
         rec = r["recomendacao"]
@@ -166,10 +167,11 @@ def test_pagamentos_alinhados_ao_pico_de_entrada():
     r = _fluxo("cria")
     sem = {a["frequencia"]: a for a in r["recomendacao"]["alternativas"]}
     assert sem["anual"]["meses_pagamento"] == [5]          # maio: pico da desmama
-    assert sem["semestral"]["meses_pagamento"] == [5, 7]    # pico de cada semestre
+    assert sem["semestral"]["meses_pagamento"] == [5, 11]   # par (m, m+6) de maior entrada
     e = _fluxo("engorda")
     sem = {a["frequencia"]: a for a in e["recomendacao"]["alternativas"]}
     assert sem["anual"]["meses_pagamento"] == [8]          # agosto: pico do gordo
+    assert sem["semestral"]["meses_pagamento"] == [3, 9]
 
 
 def test_sem_recomendacao_quando_nao_ha_vale_ou_nao_e_mensal():
@@ -239,3 +241,65 @@ def test_entrada_aceita_caixa_alta_e_espacos():
 def test_entradas_invalidas_levantam_valueerror(kw):
     with pytest.raises(ValueError):
         _fluxo(**kw)
+
+
+# ── correções da revisão ────────────────────────────────────────────
+
+def test_semestral_tem_seis_meses_de_distancia():
+    for sistema in SISTEMAS:
+        alt = {a["frequencia"]: a for a in _fluxo(sistema)["recomendacao"]["alternativas"]}
+        m1, m2 = alt["semestral"]["meses_pagamento"]
+        assert m2 - m1 == 6
+
+
+def test_dscr_nao_arredonda_para_cima_na_decisao():
+    # 1.299.960 / 1.000.000 = 1,29996 → arredonda p/ 1,3000 mas NÃO atinge 1,30
+    r = projetar_fluxo_ciclo(sistema="cria", receita_anual=1_299_960.0,
+                             custo_operacional_anual=0.0, parcela_divida=1_000_000.0,
+                             frequencia="anual")
+    assert r["dscr_anual"] == 1.3
+    assert r["dscr_anual_suficiente"] is False
+
+
+def test_meses_pagamento_do_contrato_sao_respeitados():
+    pico = _fluxo("cria", frequencia="anual", parcela_divida=300_000.0)
+    jan = _fluxo("cria", frequencia="anual", parcela_divida=300_000.0, meses_pagamento=[1])
+    assert jan["meses_pagamento"] == [1]
+    assert jan["vale_caixa"] < pico["vale_caixa"]  # janeiro esconde menos o déficit
+
+
+@pytest.mark.parametrize("freq,meses", [
+    ("mensal", [1]), ("anual", [1, 2]), ("anual", [13]), ("anual", [0]),
+    ("semestral", [1, 3]), ("semestral", [1, 1]), ("anual", "1"), ("anual", [True]),
+])
+def test_meses_pagamento_invalidos(freq, meses):
+    with pytest.raises(ValueError):
+        _fluxo("cria", frequencia=freq, meses_pagamento=meses)
+
+
+def test_quebra_so_conta_deficit_causado_pela_parcela():
+    base = _fluxo("engorda")
+    sem_div = _fluxo("engorda", parcela_divida=0.0)
+    extras = [m for m in base["meses_deficit"] if m not in sem_div["meses_deficit"]]
+    assert base["meses_deficit_por_divida"] == extras and extras
+    # operação já quebra sozinha e a parcela pequena não acrescenta mês: sem alerta de dívida
+    r = _fluxo("engorda", parcela_divida=1.0)
+    assert r["meses_deficit_por_divida"] == [] and r["quebra_caixa_com_dscr_ok"] is False
+
+
+def test_numpy_e_overflow(  ):
+    np = pytest.importorskip("numpy")
+    r = _fluxo("cria", receita_anual=np.float32(1_000_000), parcela_divida=np.int64(25_000))
+    assert r["dscr_anual"] == pytest.approx(1.3333, abs=1e-4)
+    with pytest.raises(ValueError):
+        _fluxo("cria", receita_anual=10 ** 400)
+
+
+def test_arredondamento_meio_centavo_para_cima():
+    r = _fluxo("cria", receita_anual=0.125, custo_operacional_anual=0, parcela_divida=0)
+    assert r["totais"]["entradas"] == 0.13
+
+
+def test_perfis_imutaveis():
+    with pytest.raises(TypeError):
+        PERFIS["cria"] = None
