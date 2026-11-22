@@ -123,3 +123,11 @@ def test_melhora_no_prazo_nao_e_rebaixamento_no_motor():
     base = _conclusao(caixa_ano1=80000)
     r = no_motor(base, _projecao(1.5, 1.6, 1.7), 36)
     assert r['rebaixado_no_prazo'] is False
+
+
+def test_uma_definicao_so():
+    # A função existia duplicada em parecer_credito e no motor. Uma correção
+    # numa cópia não chegava à outra; agora o parecer reexporta a do motor.
+    import services.parecer_credito as parecer
+    from services.payment_capacity_engine import dscr
+    assert parecer.avaliar_capacidade_no_prazo is dscr.avaliar_capacidade_no_prazo

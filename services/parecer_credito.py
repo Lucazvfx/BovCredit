@@ -34,12 +34,14 @@ _CARENCIA_SEM_CAP = os.environ.get('CARENCIA_SEM_CAPITALIZACAO', '0') == '1'
 # só. Acrescentar SAC teria criado a quarta e a quinta cópia.
 #
 # O motor é a fonte; aqui ficam só os nomes que já eram importados.
+# avaliar_capacidade_no_prazo também estava duplicada aqui e seguiu o mesmo caminho.
 from services.payment_capacity_engine.dscr import (  # noqa: E402
     MENSAL,
     PERIODICIDADES,
     PRICE,
     SAC,
     SISTEMAS,
+    avaliar_capacidade_no_prazo,
     cronograma_divida,
     cronograma_price,
     credito_maximo,
@@ -77,149 +79,6 @@ def avaliar_capacidade_pagamento(
         {'parcela_existente_mensal': dividas_mensais},
     )
     return result['legacy']
-
-
-def _fmt_rs(v) -> str:
-    return f'R$ {v:,.0f}'.replace(',', '.')
-
-
-def avaliar_capacidade_no_prazo(conclusao_ano1: dict, projecao_anos: list,
-                                prazo_meses: int) -> dict:
-    """
-    Reavalia a capacidade de pagamento sobre TODOS os anos do financiamento.
-
-    O DSCR do ano 1 sozinho engana: numa pecuária o primeiro ano liquida o
-    estoque acumulado no rebanho declarado (bois prontos, machos em idade de
-    abate), enquanto os anos seguintes vendem apenas a produção corrente. Um
-    ciclo completo chegou a projetar DSCR 6,08 no ano 1 e −0,53 no ano 2 —
-    e o parecer aprovava, embora a dívida seja paga ao longo de 36 meses.
-
-    Devolve a conclusão revisada com `memoria`: a lista de passos que levaram
-    à recomendação, para o analista conferir o raciocínio em vez de receber
-    só o veredicto.
-
-    Args:
-        conclusao_ano1: saída de avaliar_capacidade_pagamento().
-        projecao_anos: lista por ano com 'ano', 'dscr', 'resultado', 'viavel'.
-        prazo_meses: prazo do crédito, que define quantos anos avaliar.
-    """
-    base = dict(conclusao_ano1)
-    if not projecao_anos:
-        return base
-    if not base.get('cronograma_divida') and not base.get('parcela_mensal'):
-        return base
-
-    n_anos = max(1, min(-(-prazo_meses // 12), len(projecao_anos)))  # teto
-    avaliados = projecao_anos[:n_anos]
-    dscrs = [(a['ano'], a['dscr']) for a in avaliados if a.get('dscr') is not None]
-    if not dscrs:
-        return base
-
-    ano_pior, dscr_min = min(dscrs, key=lambda t: t[1])
-    dscr_medio = sum(d for _, d in dscrs) / len(dscrs)
-    n_viaveis = sum(1 for a in avaliados if a.get('viavel'))
-
-    memoria = [{
-        'passo':   'Prazo do crédito',
-        'valor':   f'{prazo_meses} meses',
-        'detalhe': f'A capacidade de pagamento é avaliada sobre {n_anos} '
-                   f'ano(s) de projeção, não apenas o primeiro.',
-    }, {
-        'passo': 'Serviço da dívida',
-        'valor': 'cronograma anual',
-        'detalhe': ('O DSCR usa os vencimentos efetivos de cada ano; não '
-                    'multiplica automaticamente a parcela por doze.'),
-    }]
-    for item in base.get('cronograma_divida') or []:
-        memoria.append({
-            'passo': f'Serviço da nova operação — ano {item["ano"]}',
-            'valor': _fmt_rs(item['servico_nova_operacao']),
-            'detalhe': (f'{item["parcelas_nova_operacao"]} parcela(s) de '
-                        f'{_fmt_rs(base["parcela_mensal"])}; carência e ano '
-                        'parcial respeitados.'),
-        })
-    # A carência não é gratuita, e o parecer precisa dizer isso: o saldo rende
-    # juros durante ela e a parcela seguinte amortiza um principal maior. Sem
-    # esta linha, o analista vê uma parcela mais alta do que a conta ingênua
-    # dele daria e não tem como saber de onde veio a diferença.
-    _cap = base.get('capitalizacao_carencia')
-    if _cap:
-        memoria.append({
-            'passo':   'Carência capitaliza juros',
-            'valor':   f'{_fmt_rs(_cap["principal_liberado"])} → '
-                       f'{_fmt_rs(_cap["principal_amortizado"])}',
-            'detalhe': f'Durante os {_cap["carencia_meses"]} meses de carência o '
-                       f'saldo rende juros e é incorporado ao principal '
-                       f'(+{_cap["acrescimo_pct"]:.1f}%). A amortização recai '
-                       f'sobre o saldo maior, então a parcela sobe na mesma '
-                       f'proporção.',
-        })
-    for ano, d in dscrs:
-        res = next((a.get('resultado') for a in avaliados if a['ano'] == ano), None)
-        nota = ('liquida o estoque de animais prontos declarado na ficha'
-                if ano == 1 else 'vende apenas a produção corrente do rebanho')
-        memoria.append({
-            'passo':   f'DSCR do ano {ano}',
-            'valor':   f'{d:.2f}',
-            'detalhe': (f'Geração de caixa de {_fmt_rs(res)} — {nota}.'
-                        if res is not None else nota),
-        })
-
-    # A recomendação segue o ANO MAIS FRACO do prazo: é nele que a operação
-    # deixa de cobrir a dívida, e a dívida vence de todo jeito.
-    if dscr_min >= DSCR_APROVAR:
-        rec = 'aprovar'
-        just = (f'Cobertura mínima {dscr_min:.2f} no ano {ano_pior} — a operação '
-                f'sustenta o serviço da dívida em todos os {n_anos} anos do prazo.')
-    elif dscr_min >= DSCR_RESSALVA:
-        rec = 'ressalva'
-        just = (f'Cobertura cai para {dscr_min:.2f} no ano {ano_pior}. A operação '
-                f'ainda cobre a dívida, mas sem folga em todo o prazo.')
-    else:
-        rec = 'negar'
-        just = (f'Cobertura cai para {dscr_min:.2f} no ano {ano_pior}, abaixo de '
-                f'1,00 — a operação deixa de cobrir a dívida antes do fim do prazo.')
-
-    recomendacao_ano1 = base.get('recomendacao')
-    # Só PIORAR é rebaixamento. Com carência ou SAC o prazo pode sair melhor
-    # que o ano 1 isolado, e chamar isso de rebaixamento inverte o recado.
-    _ordem = {'negar': 0, 'ressalva': 1, 'aprovar': 2}
-    rebaixado = (recomendacao_ano1 in _ordem
-                 and _ordem[rec] < _ordem[recomendacao_ano1])
-    memoria.append({
-        'passo':   'Ano crítico',
-        'valor':   f'ano {ano_pior} · DSCR {dscr_min:.2f}',
-        'detalhe': 'É o ano mais fraco do prazo, e é ele que define a '
-                   'recomendação — a dívida vence independentemente.',
-    })
-    memoria.append({
-        'passo':   'Anos viáveis',
-        'valor':   f'{n_viaveis} de {n_anos}',
-        'detalhe': 'Ano viável = gera caixa positivo e cobre o serviço da dívida.',
-    })
-    if rebaixado:
-        memoria.append({
-            'passo':   'Rebaixamento',
-            'valor':   f'{recomendacao_ano1.upper()} → {rec.upper()}',
-            'detalhe': f'O ano 1 isolado indicava {recomendacao_ano1} '
-                       f'(DSCR {base["dscr"]:.2f}), mas ele liquida o estoque '
-                       f'acumulado e não se repete.',
-        })
-
-    base.update({
-        'recomendacao':      rec,
-        'faixa':             rec,
-        'justificativa':     just,
-        'dscr_ano1':         next((d for ano, d in dscrs if ano == 1), None),
-        'dscr_minimo':       round(dscr_min, 2),
-        'dscr_medio':        round(dscr_medio, 2),
-        'ano_critico':       ano_pior,
-        'anos_avaliados':    n_anos,
-        'anos_viaveis':      n_viaveis,
-        'rebaixado_no_prazo': rebaixado,
-        'memoria':           memoria,
-    })
-    return base
 
 
 # Divergência do COE frente à referência da praça a partir da qual o parecer
