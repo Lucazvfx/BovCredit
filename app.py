@@ -3508,6 +3508,10 @@ def api_perene_parecer_pdf():
     if not analise:
         if not data.get('talhoes'):
             return jsonify({'erro': 'Envie a análise ou o payload da lavoura.'}), 400
+        erro = (erro_juros_aa((data.get('credito') or {}).get('juros_aa'))
+                or erro_anos(data.get('anos')))
+        if erro:
+            return jsonify({'erro': erro}), 400
         try:
             analise = analisar_lavoura_perene(data)
         except (TypeError, ValueError) as erro:
@@ -3574,13 +3578,9 @@ def api_agricola_graos_analisar():
     if not data.get('culturas'):
         return jsonify({'erro': 'Informe ao menos uma cultura na safra planejada.'}), 400
 
-    juros = (data.get('credito') or {}).get('juros_aa')
-    try:
-        if juros is not None and float(juros) >= 1:
-            return jsonify({
-                'erro': 'juros_aa é fração ao ano: use 0.115 para 11,5% a.a.'}), 400
-    except (TypeError, ValueError):
-        return jsonify({'erro': 'juros_aa inválido.'}), 400
+    erro = erro_juros_aa((data.get('credito') or {}).get('juros_aa'))
+    if erro:
+        return jsonify({'erro': erro}), 400
 
     try:
         resultado = analisar_culturas_anuais(data)

@@ -6,7 +6,7 @@ from typing import Any
 
 from flask import request
 
-from services.limites_entrada import erro_juros_aa
+from services.limites_entrada import ANOS_MAX, erro_anos, erro_juros_aa
 
 from .errors import MalformedRequestError, ValidationError
 
@@ -83,6 +83,8 @@ def parse_production_payload(data: dict) -> dict:
     if not system:
         raise ValidationError("Field 'system' is required.")
     years = _coerce_int(payload.get("years", payload.get("anos", 5)), "years", minimum=1)
+    if years > ANOS_MAX:
+        raise ValidationError(f"years deve ser no máximo {ANOS_MAX}.")
     parameters = payload.get("parameters") or {}
     if not isinstance(parameters, dict):
         raise ValidationError("Field 'parameters' must be an object.")
@@ -141,4 +143,7 @@ def parse_full_analysis_payload(data: dict) -> dict:
     if payload.get("valores") is None and payload.get("values") is None:
         raise ValidationError("Field 'valores' is required.")
     payload["valores"] = _values_from_payload(payload)
+    mensagem = erro_juros_aa(payload.get("juros_aa")) or erro_anos(payload.get("anos"))
+    if mensagem:
+        raise ValidationError(mensagem)
     return payload
