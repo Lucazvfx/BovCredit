@@ -146,11 +146,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 /* RESULT */
 .rhero{border-radius:var(--r);padding:44px;margin-bottom:18px;position:relative;overflow:hidden;border:1px solid}
-.rhero-grid{display:grid;grid-template-columns:1fr auto;gap:40px;align-items:center}
+.rhero-grid{display:grid;grid-template-columns:1fr;gap:40px;align-items:center}
 .rhero-ey{font-family:var(--fm);font-size:.6rem;letter-spacing:3px;text-transform:uppercase;opacity:.6;margin-bottom:10px}
 .rhero-tipo{font-family:var(--fn);font-weight:800;font-size:4.5rem;line-height:.9;letter-spacing:-2px;text-transform:uppercase}
 .rhero-sub{font-family:var(--fm);font-size:.78rem;margin-top:10px;opacity:.6}
-.rhero-em{font-size:7rem;opacity:.15;line-height:1}
 
 .cbar{display:flex;align-items:center;gap:12px;margin-bottom:8px}
 .cbar-l{font-family:var(--fm);font-size:.6rem;letter-spacing:1px;width:120px;flex-shrink:0;text-transform:uppercase}
@@ -177,7 +176,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .mv.g{color:var(--tx)}.mv.a{color:var(--tx)}.mv.r{color:var(--tx)}.mv.c{color:var(--tx)}
 
 .rec-item{background:var(--c2);border:1px solid var(--b);border-radius:var(--rs);padding:14px 18px;display:flex;gap:12px;align-items:flex-start;margin-bottom:8px}
-.rec-ico{font-size:1.3rem;flex-shrink:0;margin-top:1px}
 .rec-txt{font-size:.82rem;color:var(--sb);line-height:1.6}
 .rec-txt strong{color:var(--tx)}
 .rtag{display:inline-block;font-family:var(--fm);font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;padding:2px 8px;border-radius:3px;margin-bottom:4px}
@@ -234,7 +232,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(max-width:600px){.df-grid{grid-template-columns:1fr}.df-hero{font-size:2.5rem}}
 .tc{border-radius:var(--rs);padding:16px;border:1px solid var(--b);background:var(--c2);position:relative}
 .tc-sel{position:absolute;top:10px;right:10px;font-family:var(--fm);font-size:.48rem;letter-spacing:1.5px;text-transform:uppercase;padding:2px 8px;border-radius:3px}
-.tc-ico{font-size:1.7rem;margin-bottom:7px;display:block}
 .tc-name{font-family:var(--fn);font-weight:700;font-size:.8rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
 .tc-desc{font-size:.73rem;color:var(--mu);line-height:1.5}
 
@@ -256,7 +253,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .g2,.g3,.g13,.fgrid,.sstrip,.tc-grid{grid-template-columns:1fr 1fr}
   .proj-strip{grid-template-columns:repeat(2,1fr)}
   main,header{padding-left:20px;padding-right:20px}
-  .rhero-tipo{font-size:3rem}.rhero-em{display:none}
+  .rhero-tipo{font-size:3rem}
   .tstrip{grid-template-columns:repeat(3,1fr)}
 }
 @media(max-width:600px){
@@ -347,7 +344,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   /* typography */
   .ptitle{font-size:1.6rem}.psub{font-size:.8rem}
   .rhero-grid{grid-template-columns:1fr}.rhero{padding:18px}
-  .rhero-tipo{font-size:1.8rem}.rhero-em{display:none}
+  .rhero-tipo{font-size:1.8rem}
   .rhero-sub{font-size:.68rem}
   .sc2-v{font-size:1.1rem}.tsc-v{font-size:1.2rem}.pjc-v{font-size:1.2rem}
 
@@ -623,10 +620,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div class="field"><label>Valor solicitado (R$)</label><input type="number" id="credito_valor" min="0" step="1000" placeholder="Ex: 500000"></div>
         <div class="field"><label>Prazo (meses)</label><input type="number" id="credito_prazo" min="1" max="60" placeholder="Ex: 24" oninput="validarParcelamento()"></div>
         <div class="field"><label>Carência (meses)</label><input type="number" id="credito_carencia" min="0" value="0" oninput="validarParcelamento()"></div>
-        <div class="field"><label title="Plano Safra 2026/27: Custeio empresarial 12,5% · Moderfrota empresarial 12,5% · Pronamp custeio 9,0% · Pronamp Moderfrota 11,5% · RenovAgro/PCA pastagens 8,0–9,5%">Juros (% a.a.) ℹ</label><input type="number" id="credito_juros" min="0" step="0.1" placeholder="Ex: 12,5 (Moderfrota 2026/27)"></div>
+        <div class="field"><label title="Plano Safra 2026/27: Custeio empresarial 12,5% · Moderfrota empresarial 12,5% · Pronamp custeio 9,0% · Pronamp Moderfrota 11,5% · RenovAgro/PCA pastagens 8,0–9,5%">Juros (% a.a.)</label><input type="number" id="credito_juros" min="0" step="0.1" placeholder="Ex: 12,5 (Moderfrota 2026/27)"></div>
         <div class="field"><label>Finalidade</label><select id="credito_finalidade"><option value="custeio">Custeio</option><option value="investimento">Investimento</option></select></div>
-        <div class="field"><label title="SAC: amortização constante, parcela começa alta e cai — padrão do crédito rural (Pronaf, Pronamp, custeio). Price: parcela fixa do início ao fim.">Amortização ℹ</label><select id="credito_sistema"><option value="price">Price — parcela fixa</option><option value="sac">SAC — parcela decrescente</option></select></div>
-        <div class="field"><label title="Crédito rural raramente é mensal: a receita chega na venda do lote. O prazo menos a carência precisa ser múltiplo da periodicidade.">Periodicidade ℹ</label><select id="credito_periodicidade" onchange="validarParcelamento()"><option value="1">Mensal</option><option value="3">Trimestral</option><option value="6">Semestral</option><option value="12">Anual (safra)</option></select></div>
+        <div class="field"><label title="SAC: amortização constante, parcela começa alta e cai — padrão do crédito rural (Pronaf, Pronamp, custeio). Price: parcela fixa do início ao fim.">Amortização</label><select id="credito_sistema"><option value="price">Price — parcela fixa</option><option value="sac">SAC — parcela decrescente</option></select></div>
+        <div class="field"><label title="Crédito rural raramente é mensal: a receita chega na venda do lote. O prazo menos a carência precisa ser múltiplo da periodicidade.">Periodicidade</label><select id="credito_periodicidade" onchange="validarParcelamento()"><option value="1">Mensal</option><option value="3">Trimestral</option><option value="6">Semestral</option><option value="12">Anual (safra)</option></select></div>
       </div>
       <!-- A regra "prazo − carência múltiplo da periodicidade" só falhava no
            servidor, depois de submeter tudo, e voltava como toast que some.
@@ -652,7 +649,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         </div>
         <div class="fgrid" style="margin-top:10px">
           <div class="field">
-            <label title="Use apenas se não souber discriminar por credor. O parecer marcará a origem como não discriminada.">Ou informe só o total mensal (R$/mês) ℹ</label>
+            <label title="Use apenas se não souber discriminar por credor. O parecer marcará a origem como não discriminada.">Ou informe só o total mensal (R$/mês)</label>
             <input type="number" id="dividas_mensais" min="0" value="0" oninput="syncDividasVazio()">
           </div>
         </div>
@@ -676,8 +673,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <button type="button" class="od-sys" data-valor="ciclo_completo" aria-pressed="false"><span class="od-sys__name">Ciclo Completo</span><span class="od-sys__desc">Cria, recria e engorda</span></button>
       </div>
       <div class="od-grid">
-        <div class="field"><label for="frequencia_pagamento" title="Calendário simulado no fluxo sazonal (mesmo serviço anual, sem juros adicionais). Só vale com o sistema produtivo informado.">Frequência de pagamento ℹ</label><select id="frequencia_pagamento"><option value="mensal">Mensal</option><option value="semestral">Semestral</option><option value="anual">Anual</option></select></div>
-        <div class="field"><label for="capital_giro_inicial" title="Caixa disponível no início do ciclo de 12 meses. Em branco, o fluxo parte de zero.">Capital de giro inicial (R$) ℹ</label><input type="number" id="capital_giro_inicial" min="0" step="1000" placeholder="Ex: 50000"></div>
+        <div class="field"><label for="frequencia_pagamento" title="Calendário simulado no fluxo sazonal (mesmo serviço anual, sem juros adicionais). Só vale com o sistema produtivo informado.">Frequência de pagamento</label><select id="frequencia_pagamento"><option value="mensal">Mensal</option><option value="semestral">Semestral</option><option value="anual">Anual</option></select></div>
+        <div class="field"><label for="capital_giro_inicial" title="Caixa disponível no início do ciclo de 12 meses. Em branco, o fluxo parte de zero.">Capital de giro inicial (R$)</label><input type="number" id="capital_giro_inicial" min="0" step="1000" placeholder="Ex: 50000"></div>
       </div>
     </div>
   </section>
@@ -702,11 +699,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="ch">
       <div class="ct"><div class="cd" style="background:var(--cy)"></div>Composição por Faixa Etária <span class="od-req">Mínimo necessário</span></div>
       <div class="od-actions">
-        <button class="btn-sm" onclick="document.getElementById('insr-xlsx-inp').click()">📊 Ler Planilha</button>
+        <button class="btn-sm" onclick="document.getElementById('insr-xlsx-inp').click()">Ler Planilha</button>
         <input type="file" id="insr-xlsx-inp" accept=".xlsx,.xlsm" style="display:none" onchange="lerPlanilha(this.files[0]);this.value=''">
-        <button class="btn-sm" onclick="document.getElementById('pdf-inp-main').click()" title="Ler saldo de rebanho em PDF">📄 Ler PDF</button>
+        <button class="btn-sm" onclick="document.getElementById('pdf-inp-main').click()" title="Ler saldo de rebanho em PDF">Ler PDF</button>
         <input type="file" id="pdf-inp-main" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files);this.value=''">
-        <button class="btn-sm" onclick="document.getElementById('insr-ficha-inp').click()">📋 Importar Ficha</button>
+        <button class="btn-sm" onclick="document.getElementById('insr-ficha-inp').click()">Importar Ficha</button>
         <input type="file" id="insr-ficha-inp" accept=".xlsx,.xlsm" style="display:none" onchange="lerFichaExcel(this.files[0]);this.value=''">
         <button class="btn-sm" onclick="clearAll()">✕ Limpar</button>
         <details class="od-more" id="od-more-faixa">
@@ -718,9 +715,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <button class="od-more__item" onclick="fillEx('recria')">Recria</button>
             <button class="od-more__item" onclick="fillEx('engorda')">Engorda</button>
             <span class="od-more__grp">Arquivos</span>
-            <button class="od-more__item" onclick="window.location='/api/template/download'">⬇ Template</button>
-            <button class="od-more__item" onclick="window.location='/api/ficha/download'" title="Baixar ficha de consolidação (.xlsx)">⬇ Baixar Ficha</button>
-            <button class="od-more__item" onclick="window.location='/api/ficha/instrucoes'" title="Baixar instruções de preenchimento">📄 Instruções</button>
+            <button class="od-more__item" onclick="window.location='/api/template/download'">↓ Template</button>
+            <button class="od-more__item" onclick="window.location='/api/ficha/download'" title="Baixar ficha de consolidação (.xlsx)">↓ Baixar Ficha</button>
+            <button class="od-more__item" onclick="window.location='/api/ficha/instrucoes'" title="Baixar instruções de preenchimento">Instruções</button>
             <button class="od-more__item" onclick="toggleGuiaFicha(this)" title="Como preencher o Excel">? Como preencher o Excel</button>
           </div>
         </details>
@@ -740,7 +737,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
     <!-- Guia de preenchimento do Excel CONSOLIDADO -->
     <div id="guia-ficha-panel" style="display:none;margin:0 16px 12px;background:var(--surface-2);border:.5px solid var(--border-accent);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--text-secondary)">
-      <div style="font-weight:600;color:var(--text-primary);margin-bottom:8px;font-size:13px">📋 Como preencher a planilha CONSOLIDADO antes de importar</div>
+      <div style="font-weight:600;color:var(--text-primary);margin-bottom:8px;font-size:13px">Como preencher a planilha CONSOLIDADO antes de importar</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
         <div>
           <div style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Por fazenda (repetir cada bloco)</div>
@@ -794,7 +791,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div id="consist-panel" style="display:none;margin-top:16px"></div>
         <div id="comparativo-panel" style="display:none;margin-top:16px"></div>
         <div style="margin-top:14px">
-          <button class="btn-sm" onclick="toggleSituacaoCadastral()" id="btn-situacao-cadastral" style="width:100%;justify-content:center">🔍 Situação Cadastral (CNPJ) <span style="font-size:.65rem;opacity:.6">(opcional — consulta gratuita, Receita Federal)</span></button>
+          <button class="btn-sm" onclick="toggleSituacaoCadastral()" id="btn-situacao-cadastral" style="width:100%;justify-content:center">Situação Cadastral (CNPJ) <span style="font-size:.65rem;opacity:.6">(opcional — consulta gratuita, Receita Federal)</span></button>
           <div id="situacao-cadastral-wrap" style="display:none;margin-top:12px;padding:14px;border:1px solid var(--b);border-radius:var(--rs);background:var(--c)">
             <div style="font-size:.72rem;color:var(--mu);margin-bottom:10px;line-height:1.5">
               Consulta pública de situação cadastral na Receita Federal — <strong>não é score de crédito</strong>
@@ -815,7 +812,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           </div>
         </div>
         <div style="margin-top:14px">
-          <button class="btn-sm" onclick="toggleConds()" id="btn-conds" style="width:100%;justify-content:center">⚙ Condições de Classificação <span style="font-size:.65rem;opacity:.6">(opcional)</span></button>
+          <button class="btn-sm" onclick="toggleConds()" id="btn-conds" style="width:100%;justify-content:center">Condições de Classificação <span style="font-size:.65rem;opacity:.6">(opcional)</span></button>
           <div id="conds-wrap" style="display:none;margin-top:12px">
             <!-- Dezenove campos com a mesma cara, e nenhuma pista de quais
                  mudam o veredito. Uns reescrevem a projeção inteira, outros
@@ -829,7 +826,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             </div>
             <div style="font-size:.65rem;color:var(--am);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">1 · Reescrevem a projeção <span style="opacity:.7;text-transform:none;letter-spacing:0">— em branco, o motor usa o próprio cálculo</span></div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
-              <div class="field"><label title="Manda na produção de bezerros, que é a origem da receita da cria e de todo o crescimento do rebanho. É o campo mais decisivo deste painel.">Taxa Natalidade (%) ℹ</label><input type="number" id="c-nat" placeholder="65" min="1" max="100" step="1" oninput="upd()"></div>
+              <div class="field"><label title="Manda na produção de bezerros, que é a origem da receita da cria e de todo o crescimento do rebanho. É o campo mais decisivo deste painel.">Taxa Natalidade (%)</label><input type="number" id="c-nat" placeholder="65" min="1" max="100" step="1" oninput="upd()"></div>
               <div class="field"><label>Bois Vendidos (cab.)</label><input type="number" id="c-boisv" placeholder="Automático" min="0" oninput="upd()"></div>
               <div class="field"><label>Bezerros Vendidos (cab.)</label><input type="number" id="c-bezv" placeholder="Automático" min="0" oninput="upd()"></div>
             </div>
@@ -934,7 +931,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="g2">
       <div>
         <div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Animais Base</div><button class="btn-sm" onclick="syncFromClass()">↺ Sincronizar da classificação</button></div>
-          <div class="cb"><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div class="field"><label title="Fêmeas que já pariram. São as que produzem bezerro neste ano.">Matrizes · 36m+ (cab.) ℹ</label><input type="number" id="s-mat" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label title="Já estão sendo cobertas, por isso contam para a relação touro:fêmea — mas ainda não pariram, então não produzem bezerro neste ano.">Novilhas · 25–36m (cab.) ℹ</label><input type="number" id="s-prestes" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Fêmeas 0–24m (cab.)</label><input type="number" id="s-fem" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Machos 0–24m (cab.)</label><input type="number" id="s-mac" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Bois Adultos (cab.)</label><input type="number" id="s-boi" value="0" min="0" oninput="recalcCiclo()"></div></div></div>
+          <div class="cb"><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div class="field"><label title="Fêmeas que já pariram. São as que produzem bezerro neste ano.">Matrizes · 36m+ (cab.)</label><input type="number" id="s-mat" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label title="Já estão sendo cobertas, por isso contam para a relação touro:fêmea — mas ainda não pariram, então não produzem bezerro neste ano.">Novilhas · 25–36m (cab.)</label><input type="number" id="s-prestes" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Fêmeas 0–24m (cab.)</label><input type="number" id="s-fem" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Machos 0–24m (cab.)</label><input type="number" id="s-mac" value="0" min="0" oninput="recalcCiclo()"></div><div class="field"><label>Bois Adultos (cab.)</label><input type="number" id="s-boi" value="0" min="0" oninput="recalcCiclo()"></div></div></div>
         </div>
         <div class="card"><div class="ch"><div class="ct"><div class="cd" style="background:var(--g)"></div>Parâmetros Zootécnicos</div></div>
           <div class="cb"><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div class="field"><label>Taxa Natalidade (%)</label><input type="number" id="s-nat" value="65" min="1" max="100" oninput="recalcCiclo()"></div><div class="field"><label>Proporção Boi/Matriz (:1)</label><input type="number" id="s-propboi" value="30" min="1" max="100" oninput="recalcCiclo()"></div><div class="field"><label>Renovação de Bois (%)</label><input type="number" id="s-renovboi" value="20" min="0" max="100" oninput="recalcCiclo()"></div><div class="field"><label>Descarte de Matrizes (%)</label><input type="number" id="s-desc" value="30" min="0" max="100" oninput="recalcCiclo()"></div><div class="field"><label>Venda de Bezerras (%)</label><input type="number" id="s-vendbez" value="30" min="0" max="100" oninput="recalcCiclo()"></div></div></div>
@@ -1038,7 +1035,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div class="field"><label>Venda de Bezerras (%)</label><input type="number" id="param-vendbez" step="1" value="30" onchange="marcarParametroAlterado()"></div>
           <div class="field"><label>Taxa de Natalidade (%)</label><input type="number" id="param-nat" step="1" value="65" onchange="marcarParametroAlterado()"></div>
         </div>
-        <div style="display:flex;gap:12px;margin-top:16px"><button class="btn-sm" onclick="salvarParametrosDoCiclo()">💾 Salvar para este ciclo</button><button class="btn-sm" onclick="resetarParametrosDoCiclo()">↺ Restaurar padrões</button></div>
+        <div style="display:flex;gap:12px;margin-top:16px"><button class="btn-sm" onclick="salvarParametrosDoCiclo()">Salvar para este ciclo</button><button class="btn-sm" onclick="resetarParametrosDoCiclo()">↺ Restaurar padrões</button></div>
         <div id="param-status" style="font-family:var(--fm);font-size:.6rem;color:var(--tx);margin-top:8px"></div>
       </div>
     </div>
@@ -1131,11 +1128,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
   <!-- BARRA DE ETAPAS (STEPPER UX) -->
   <div class="ork-stepper-bar" style="display:flex;gap:6px;margin-bottom:18px;overflow-x:auto;padding:6px;background:var(--c2);border:1px solid var(--b);border-radius:var(--rs)">
-    <button type="button" class="btn-sm ork-step-btn active" id="gr-step-tab-1" onclick="graosMudarEtapa(1)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:var(--gn);color:#fff;border:none;cursor:pointer">1. 🌱 Safra & Custos</button>
-    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-2" onclick="graosMudarEtapa(2)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">2. 💰 Crédito & Barter</button>
-    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-3" onclick="graosMudarEtapa(3)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">3. 🛡️ Garantias & LTV</button>
-    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-4" onclick="graosMudarEtapa(4)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">4. 🛰️ Compliance ESG</button>
-    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-5" onclick="graosMudarEtapa(5)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">5. 📑 Comitê & PDF</button>
+    <button type="button" class="btn-sm ork-step-btn active" id="gr-step-tab-1" onclick="graosMudarEtapa(1)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:var(--gn);color:#fff;border:none;cursor:pointer">1. Safra & Custos</button>
+    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-2" onclick="graosMudarEtapa(2)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">2. Crédito & Barter</button>
+    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-3" onclick="graosMudarEtapa(3)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">3. Garantias & LTV</button>
+    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-4" onclick="graosMudarEtapa(4)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">4. Compliance ESG</button>
+    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-5" onclick="graosMudarEtapa(5)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">5. Comitê & PDF</button>
   </div>
 
   <!-- ETAPA 1: SAFRA & CUSTOS -->
@@ -1144,8 +1141,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       <div class="ch"><div class="ct"><div class="cd" style="background:var(--gn)"></div>Plano de Safra (Culturas e Custos)</div></div>
       <div class="cb">
         <div class="fgrid" style="margin-bottom:14px">
-          <div class="field"><label title="Ex: 2026/27">Ano-Safra ℹ</label><input type="text" id="gr-ano-safra" value="2026/27"></div>
-          <div class="field"><label title="Despesas gerais da fazenda não alocadas por cultura (administração, impostos fixos, pró-labore)">Despesas Gerais/Fixas Anuais (R$) ℹ</label><input type="number" id="gr-desp-adm" value="100000" min="0" step="5000"></div>
+          <div class="field"><label title="Ex: 2026/27">Ano-Safra</label><input type="text" id="gr-ano-safra" value="2026/27"></div>
+          <div class="field"><label title="Despesas gerais da fazenda não alocadas por cultura (administração, impostos fixos, pró-labore)">Despesas Gerais/Fixas Anuais (R$)</label><input type="number" id="gr-desp-adm" value="100000" min="0" step="5000"></div>
         </div>
 
         <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">1ª Safra — Verão (Soja / Safra Principal)</div>
@@ -1154,8 +1151,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div class="field"><label>Área (ha)</label><input type="number" id="gr-c1-area" value="1000" min="1" step="10"></div>
           <div class="field"><label>Produtividade (sc/ha)</label><input type="number" id="gr-c1-prod" value="62" min="1" step="0.5"></div>
           <div class="field"><label>Preço Venda (R$/sc)</label><input type="number" id="gr-c1-preco" value="125" min="1" step="0.5"></div>
-          <div class="field"><label title="Custo Operacional Efetivo (insumos, diesel, mão de obra temporária, sementes, adubo)">COE (R$/ha) ℹ</label><input type="number" id="gr-c1-coe" value="4200" min="100" step="50"></div>
-          <div class="field"><label title="Custo Operacional Total (COE + depreciações e manutenção de máquinas)">COT (R$/ha) ℹ</label><input type="number" id="gr-c1-cot" value="4600" min="100" step="50"></div>
+          <div class="field"><label title="Custo Operacional Efetivo (insumos, diesel, mão de obra temporária, sementes, adubo)">COE (R$/ha)</label><input type="number" id="gr-c1-coe" value="4200" min="100" step="50"></div>
+          <div class="field"><label title="Custo Operacional Total (COE + depreciações e manutenção de máquinas)">COT (R$/ha)</label><input type="number" id="gr-c1-cot" value="4600" min="100" step="50"></div>
         </div>
 
         <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">2ª Safra — Safrinha (Milho / Sucessão)</div>
@@ -1164,23 +1161,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div class="field"><label>Área (ha)</label><input type="number" id="gr-c2-area" value="750" min="0" step="10"></div>
           <div class="field"><label>Produtividade (sc/ha)</label><input type="number" id="gr-c2-prod" value="95" min="1" step="0.5"></div>
           <div class="field"><label>Preço Venda (R$/sc)</label><input type="number" id="gr-c2-preco" value="52" min="1" step="0.5"></div>
-          <div class="field"><label title="Custo Operacional Efetivo da Safrinha">COE (R$/ha) ℹ</label><input type="number" id="gr-c2-coe" value="3100" min="100" step="50"></div>
-          <div class="field"><label title="Custo Operacional Total da Safrinha">COT (R$/ha) ℹ</label><input type="number" id="gr-c2-cot" value="3400" min="100" step="50"></div>
+          <div class="field"><label title="Custo Operacional Efetivo da Safrinha">COE (R$/ha)</label><input type="number" id="gr-c2-coe" value="3100" min="100" step="50"></div>
+          <div class="field"><label title="Custo Operacional Total da Safrinha">COT (R$/ha)</label><input type="number" id="gr-c2-cot" value="3400" min="100" step="50"></div>
         </div>
 
-        <div style="font-weight:700;font-size:.82rem;margin:14px 0 8px;color:var(--tx)" title="Zoneamento Agrícola de Risco Climático do MAPA. Fora do ZARC não há Proagro nem seguro subvencionado.">Risco Climático (ZARC) — opcional ℹ</div>
+        <div style="font-weight:700;font-size:.82rem;margin:14px 0 8px;color:var(--tx)" title="Zoneamento Agrícola de Risco Climático do MAPA. Fora do ZARC não há Proagro nem seguro subvencionado.">Risco Climático (ZARC) — opcional</div>
         <div class="fgrid" style="background:var(--c2);padding:12px;border-radius:var(--rs);border:1px solid var(--b)">
           <div class="field"><label>Município</label><input type="text" id="gr-zarc-mun" placeholder="Ex: Sorriso"></div>
           <div class="field"><label>UF</label><input type="text" id="gr-zarc-uf" maxlength="2" placeholder="MT"></div>
-          <div class="field"><label title="Classe de água disponível do solo (AD1 = menor retenção, AD6 = maior)">Solo ℹ</label><select id="gr-zarc-solo">
+          <div class="field"><label title="Classe de água disponível do solo (AD1 = menor retenção, AD6 = maior)">Solo</label><select id="gr-zarc-solo">
             <option value="11">AD1</option><option value="12">AD2</option><option value="13" selected>AD3</option>
             <option value="14">AD4</option><option value="15">AD5</option><option value="16">AD6</option></select></div>
           <div class="field"><label>Manejo</label><select id="gr-zarc-irrigado"><option value="">Sequeiro</option><option value="1">Irrigado</option></select></div>
           <div class="field"><label>Plantio 1ª Safra</label><input type="date" id="gr-c1-plantio"></div>
-          <div class="field"><label title="Grupo de ciclo da cultivar">Ciclo 1ª Safra ℹ</label><select id="gr-c1-ciclo">
+          <div class="field"><label title="Grupo de ciclo da cultivar">Ciclo 1ª Safra</label><select id="gr-c1-ciclo">
             <option value="20">Grupo I</option><option value="21" selected>Grupo II</option><option value="22">Grupo III</option></select></div>
           <div class="field"><label>Plantio 2ª Safra</label><input type="date" id="gr-c2-plantio"></div>
-          <div class="field"><label title="Grupo de ciclo da cultivar">Ciclo 2ª Safra ℹ</label><select id="gr-c2-ciclo">
+          <div class="field"><label title="Grupo de ciclo da cultivar">Ciclo 2ª Safra</label><select id="gr-c2-ciclo">
             <option value="20">Grupo I</option><option value="21" selected>Grupo II</option></select></div>
         </div>
       </div>
@@ -1196,12 +1193,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Financiamento & Crédito Rural</div></div>
       <div class="cb">
         <div class="fgrid">
-          <div class="field"><label title="Valor solicitado de custeio ou investimento">Valor Solicitado (R$) ℹ</label><input type="number" id="gr-valor" min="0" step="10000" value="1500000"></div>
-          <div class="field"><label title="Prazo total em meses">Prazo (meses) ℹ</label><input type="number" id="gr-prazo" min="6" value="48" step="6"></div>
-          <div class="field"><label title="Carência para a primeira amortização">Carência (meses) ℹ</label><input type="number" id="gr-carencia" min="0" value="12" step="6"></div>
-          <div class="field"><label title="Taxa de juros anual (% a.a.)">Juros (% a.a.) ℹ</label><input type="number" id="gr-juros" min="0" step="0.1" value="11.5"></div>
-          <div class="field"><label>Sistema de Amortização ℹ</label><select id="gr-sistema"><option value="sac">SAC — parcela decrescente</option><option value="price">Price — parcela fixa</option></select></div>
-          <div class="field"><label>Periodicidade ℹ</label><select id="gr-periodicidade"><option value="12">Anual (pós-safra)</option><option value="6">Semestral</option><option value="1">Mensal</option></select></div>
+          <div class="field"><label title="Valor solicitado de custeio ou investimento">Valor Solicitado (R$)</label><input type="number" id="gr-valor" min="0" step="10000" value="1500000"></div>
+          <div class="field"><label title="Prazo total em meses">Prazo (meses)</label><input type="number" id="gr-prazo" min="6" value="48" step="6"></div>
+          <div class="field"><label title="Carência para a primeira amortização">Carência (meses)</label><input type="number" id="gr-carencia" min="0" value="12" step="6"></div>
+          <div class="field"><label title="Taxa de juros anual (% a.a.)">Juros (% a.a.)</label><input type="number" id="gr-juros" min="0" step="0.1" value="11.5"></div>
+          <div class="field"><label>Sistema de Amortização</label><select id="gr-sistema"><option value="sac">SAC — parcela decrescente</option><option value="price">Price — parcela fixa</option></select></div>
+          <div class="field"><label>Periodicidade</label><select id="gr-periodicidade"><option value="12">Anual (pós-safra)</option><option value="6">Semestral</option><option value="1">Mensal</option></select></div>
         </div>
       </div>
     </div>
@@ -1220,7 +1217,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         </p>
         <div class="fgrid">
           <div class="field">
-            <label title="Cotações reais Cepea/B3/Agrural atualizadas">Praça de Referência (Cotações Reais) ℹ</label>
+            <label title="Cotações reais Cepea/B3/Agrural atualizadas">Praça de Referência (Cotações Reais)</label>
             <select id="bt-praca" onchange="barterAtualizarPreco()">
               <option value="SOJA_RONDONOPOLIS_MT">Soja — Rondonópolis/MT (R$ 144,00/sc)</option>
               <option value="SOJA_PARANAGUA_PR">Soja — Porto de Paranaguá/PR (R$ 162,00/sc)</option>
@@ -1229,19 +1226,19 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             </select>
           </div>
           <div class="field">
-            <label title="Preço de liquidação da saca">Preço Travado da Saca (R$/sc) ℹ</label>
+            <label title="Preço de liquidação da saca">Preço Travado da Saca (R$/sc)</label>
             <input type="number" id="bt-preco-saca" value="144" min="1" step="0.5">
           </div>
           <div class="field">
-            <label title="Valor total do pacote de sementes, fertilizantes e defensivos">Valor do Pacote de Insumos (R$) ℹ</label>
+            <label title="Valor total do pacote de sementes, fertilizantes e defensivos">Valor do Pacote de Insumos (R$)</label>
             <input type="number" id="bt-valor-insumos" value="720000" min="1000" step="10000">
           </div>
           <div class="field">
-            <label title="Produtividade média esperada na fazenda">Produtividade Esperada (sc/ha) ℹ</label>
+            <label title="Produtividade média esperada na fazenda">Produtividade Esperada (sc/ha)</label>
             <input type="number" id="bt-prod-esperada" value="62" min="1" step="0.5">
           </div>
           <div class="field">
-            <label title="Área total plantada da cultura">Área Total Plantada (ha) ℹ</label>
+            <label title="Área total plantada da cultura">Área Total Plantada (ha)</label>
             <input type="number" id="bt-area-total" value="1000" min="1" step="10">
           </div>
         </div>
@@ -1249,7 +1246,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <!-- DADOS PARA EMISSÃO DA CPR -->
         <details style="margin-top:12px;background:var(--c2);padding:10px 14px;border-radius:var(--rs);border:1px solid var(--b)">
           <summary style="font-size:.78rem;font-weight:700;cursor:pointer;color:var(--tx)">
-            📋 Dados Opcionais para Emissão da Minuta da CPR (Emitente, Credor e Local)
+            Dados Opcionais para Emissão da Minuta da CPR (Emitente, Credor e Local)
           </summary>
           <div class="fgrid" style="margin-top:12px">
             <div class="field"><label>Nome do Produtor / Emitente</label><input type="text" id="cpr-emitente-nome" value="Fazenda Esperança Agropecuária Ltda"></div>
@@ -1271,7 +1268,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
 
     <div style="display:flex;justify-content:space-between;margin-top:14px">
-      <button type="button" class="btn-sm" onclick="graosMudarEtapa(1)">⬅ Voltar: Safra & Custos</button>
+      <button type="button" class="btn-sm" onclick="graosMudarEtapa(1)">← Voltar: Safra & Custos</button>
       <button type="button" class="btn-p" onclick="graosMudarEtapa(3)">Avançar: Garantias & LTV ➔</button>
     </div>
   </div>
@@ -1295,16 +1292,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div class="field"><label>Denominação da Fazenda</label><input type="text" id="gt-terra-nome" value="Fazenda Esperança"></div>
           <div class="field"><label>Nº Matrícula e Cartório (CRI)</label><input type="text" id="gt-terra-matricula" value="Matrícula 34.567 - CRI Sorriso/MT"></div>
           <div class="field"><label>Área Ofertada em Garantia (ha)</label><input type="number" id="gt-terra-area" value="500" min="0" step="10"></div>
-          <div class="field"><label title="Valor venal/mercado por hectare">Valor de Mercado da Terra (R$/ha) ℹ</label><input type="number" id="gt-terra-valor-ha" value="40000" min="1000" step="1000"></div>
+          <div class="field"><label title="Valor venal/mercado por hectare">Valor de Mercado da Terra (R$/ha)</label><input type="number" id="gt-terra-valor-ha" value="40000" min="1000" step="1000"></div>
           <div class="field">
-            <label>Modalidade de Gravame ℹ</label>
+            <label>Modalidade de Gravame</label>
             <select id="gt-terra-gravame">
               <option value="ALIENACAO_FIDUCIARIA">Alienação Fiduciária (Deságio 20% - Execução Extrajudicial)</option>
               <option value="HIPOTECA_1_GRAU">Hipoteca Cedular 1º Grau (Deságio 30% - Preferencial)</option>
               <option value="HIPOTECA_2_GRAU">Hipoteca 2º Grau (Deságio 45% - Subordinado)</option>
             </select>
           </div>
-          <div class="field"><label title="Dívidas ou hipotecas já averbadas na matrícula">Ônus / Dívidas Prévias na Matrícula (R$) ℹ</label><input type="number" id="gt-terra-dividas" value="0" min="0" step="50000"></div>
+          <div class="field"><label title="Dívidas ou hipotecas já averbadas na matrícula">Ônus / Dívidas Prévias na Matrícula (R$)</label><input type="number" id="gt-terra-dividas" value="0" min="0" step="50000"></div>
         </div>
 
         <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;color:var(--tx)">2. Garantia Fiduciária & Pessoal — Penhor de Safra & Aval</div>
@@ -1314,7 +1311,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div class="field"><label>Preço Referência (R$/sc)</label><input type="number" id="gt-safra-preco" value="144" min="1" step="0.5"></div>
           <div class="field"><label>Nome do Avalista / Fiador</label><input type="text" id="gt-aval-nome" value="Carlos Silva (Sócio / Produtor)"></div>
           <div class="field"><label>CPF / CNPJ do Avalista</label><input type="text" id="gt-aval-doc" value="123.456.789-00"></div>
-          <div class="field"><label title="Patrimônio líquido comprovado em IRPF/Balanço">Patrimônio Líquido Avalista (R$) ℹ</label><input type="number" id="gt-aval-patrimonio" value="2000000" min="0" step="100000"></div>
+          <div class="field"><label title="Patrimônio líquido comprovado em IRPF/Balanço">Patrimônio Líquido Avalista (R$)</label><input type="number" id="gt-aval-patrimonio" value="2000000" min="0" step="100000"></div>
         </div>
 
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
@@ -1326,7 +1323,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
 
     <div style="display:flex;justify-content:space-between;margin-top:14px">
-      <button type="button" class="btn-sm" onclick="graosMudarEtapa(2)">⬅ Voltar: Crédito & Barter</button>
+      <button type="button" class="btn-sm" onclick="graosMudarEtapa(2)">← Voltar: Crédito & Barter</button>
       <button type="button" class="btn-p" onclick="graosMudarEtapa(4)">Avançar: Compliance ESG ➔</button>
     </div>
   </div>
@@ -1346,11 +1343,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         </p>
         <div class="fgrid">
           <div class="field">
-            <label title="Número no Sistema Nacional de Cadastro Ambiental Rural">Número do CAR (SICAR) ℹ</label>
+            <label title="Número no Sistema Nacional de Cadastro Ambiental Rural">Número do CAR (SICAR)</label>
             <input type="text" id="esg-numero-car" value="MT-5107602-C75A20B7631E44AA8BF0D382A13894E2" placeholder="UF-MUNICÍPIO-CÓDIGO">
           </div>
           <div class="field">
-            <label>Status Cadastral do CAR ℹ</label>
+            <label>Status Cadastral do CAR</label>
             <select id="esg-status-car">
               <option value="ATIVO">ATIVO — Regularizado no Órgão Estadual</option>
               <option value="PENDENTE">PENDENTE — Em Análise pelo Órgão</option>
@@ -1359,7 +1356,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             </select>
           </div>
           <div class="field">
-            <label>Bioma da Fazenda (Exigência Florestal) ℹ</label>
+            <label>Bioma da Fazenda (Exigência Florestal)</label>
             <select id="esg-bioma">
               <option value="AMAZONIA_CERRADO">Cerrado na Amazônia Legal (Exige 35% de RL)</option>
               <option value="AMAZONIA_FLORESTA">Amazônia Bioma Floresta (Exige 80% de RL)</option>
@@ -1411,7 +1408,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
 
     <div style="display:flex;justify-content:space-between;margin-top:14px">
-      <button type="button" class="btn-sm" onclick="graosMudarEtapa(3)">⬅ Voltar: Garantias & LTV</button>
+      <button type="button" class="btn-sm" onclick="graosMudarEtapa(3)">← Voltar: Garantias & LTV</button>
       <button type="button" class="btn-p" onclick="graosMudarEtapa(5)">Avançar: Comitê & PDF ➔</button>
     </div>
   </div>
@@ -1446,10 +1443,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           </div>
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
-          <button type="button" class="btn-p" onclick="graosAnalisarCompleto()" style="padding:10px 20px;font-weight:700">⚡ Julgar Safra & Emitir Parecer</button>
-          <button type="button" class="btn-sm" id="gr-btn-pdf" onclick="graosPDF()" disabled style="padding:10px 20px;font-weight:700">⬇ Parecer & CPR (PDF)</button>
-          <button type="button" class="btn-sm" id="comite-btn-pdf" onclick="baixarDossieComitePDF()" disabled style="padding:10px 20px;font-weight:700;border-color:var(--a);color:var(--a)">🏛️ Dossiê Comitê (PDF)</button>
-          <button type="button" class="btn-sm" id="comite-btn-excel" onclick="baixarDossieComiteExcel()" disabled style="padding:10px 20px;font-weight:700;border-color:var(--k);color:var(--tx)">📊 Modelagem (Excel)</button>
+          <button type="button" class="btn-p" onclick="graosAnalisarCompleto()" style="padding:10px 20px;font-weight:700">Julgar Safra & Emitir Parecer</button>
+          <button type="button" class="btn-sm" id="gr-btn-pdf" onclick="graosPDF()" disabled style="padding:10px 20px;font-weight:700">↓ Parecer & CPR (PDF)</button>
+          <button type="button" class="btn-sm" id="comite-btn-pdf" onclick="baixarDossieComitePDF()" disabled style="padding:10px 20px;font-weight:700;border-color:var(--a);color:var(--a)">Dossiê Comitê (PDF)</button>
+          <button type="button" class="btn-sm" id="comite-btn-excel" onclick="baixarDossieComiteExcel()" disabled style="padding:10px 20px;font-weight:700;border-color:var(--k);color:var(--tx)">Modelagem (Excel)</button>
         </div>
       </div>
     </div>
@@ -1457,7 +1454,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div id="gr-resultado"></div>
 
     <div style="display:flex;justify-content:flex-start;margin-top:14px">
-      <button type="button" class="btn-sm" onclick="graosMudarEtapa(4)">⬅ Voltar: Compliance ESG</button>
+      <button type="button" class="btn-sm" onclick="graosMudarEtapa(4)">← Voltar: Compliance ESG</button>
     </div>
   </div>
 
@@ -1478,12 +1475,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="ch"><div class="ct"><div class="cd"></div>Ficha de Talhões</div></div>
     <div class="cb">
       <div class="fgrid">
-        <div class="field"><label title="O ano-base da análise. A idade de cada talhão é contada a partir dele, e é a idade que decide quanto o talhão produz.">Safra de referência ℹ</label><input type="number" id="pr-ano-base" min="2000" max="2100" placeholder="Ex: 2026"></div>
-        <div class="field"><label title="Projete pelo menos o prazo do contrato. Numa perene o ano apertado costuma estar no meio, não no começo — encurtar a projeção esconde justamente ele.">Anos projetados ℹ</label><input type="number" id="pr-anos" min="1" max="20" value="6"></div>
+        <div class="field"><label title="O ano-base da análise. A idade de cada talhão é contada a partir dele, e é a idade que decide quanto o talhão produz.">Safra de referência</label><input type="number" id="pr-ano-base" min="2000" max="2100" placeholder="Ex: 2026"></div>
+        <div class="field"><label title="Projete pelo menos o prazo do contrato. Numa perene o ano apertado costuma estar no meio, não no começo — encurtar a projeção esconde justamente ele.">Anos projetados</label><input type="number" id="pr-anos" min="1" max="20" value="6"></div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-        <button class="btn-sm" onclick="window.location='/api/perene/ficha/download'" title="Planilha em branco, sem macros">⬇ Baixar Ficha de Talhões</button>
-        <button class="btn-sm" onclick="document.getElementById('pr-ficha-inp').click()">⬆ Importar Ficha Preenchida</button>
+        <button class="btn-sm" onclick="window.location='/api/perene/ficha/download'" title="Planilha em branco, sem macros">↓ Baixar Ficha de Talhões</button>
+        <button class="btn-sm" onclick="document.getElementById('pr-ficha-inp').click()">↑ Importar Ficha Preenchida</button>
         <input type="file" id="pr-ficha-inp" accept=".xlsx,.xlsm" style="display:none" onchange="pereneImportar(this.files[0]);this.value=''">
       </div>
       <div id="pr-import-resumo" style="margin-top:14px"></div>
@@ -1494,12 +1491,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Solicitação de Crédito</div></div>
     <div class="cb">
       <div class="fgrid">
-        <div class="field"><label title="O valor pedido. A análise devolve também a capacidade máxima estimada, calculada a partir da geração de caixa da lavoura.">Valor solicitado (R$) ℹ</label><input type="number" id="pr-valor" min="0" step="1000" placeholder="Ex: 1500000"></div>
-        <div class="field"><label title="Prazo total, carência inclusa. Em café e cana o contrato costuma atravessar mais de um ciclo de carga ou de corte.">Prazo (meses) ℹ</label><input type="number" id="pr-prazo" min="1" placeholder="Ex: 72"></div>
-        <div class="field"><label title="Na perene a carência cobre a formação da lavoura, que consome caixa antes de produzir.">Carência (meses) ℹ</label><input type="number" id="pr-carencia" min="0" value="0"></div>
-        <div class="field"><label title="Taxa nominal ao ano, em porcentagem. Plano Safra 2026/27: custeio empresarial 12,5% · Pronamp 9,0% · linhas de investimento entre 8,0% e 12,5%.">Juros (% a.a.) ℹ</label><input type="number" id="pr-juros" min="0" step="0.1" placeholder="Ex: 10,5"></div>
-        <div class="field"><label title="SAC: parcela começa alta e cai — padrão do crédito rural. Price: parcela fixa. Em lavoura em formação o SAC concentra o peso justamente quando ainda não há receita.">Amortização ℹ</label><select id="pr-sistema"><option value="sac">SAC — parcela decrescente</option><option value="price">Price — parcela fixa</option></select></div>
-        <div class="field"><label title="Perene tem receita concentrada na colheita. Parcela anual alinhada à safra é o caso comum; mensal dilui o desembolso e esconde o mês em que ele aperta.">Periodicidade ℹ</label><select id="pr-periodicidade"><option value="12">Anual (safra)</option><option value="6">Semestral</option><option value="3">Trimestral</option><option value="1">Mensal</option></select></div>
+        <div class="field"><label title="O valor pedido. A análise devolve também a capacidade máxima estimada, calculada a partir da geração de caixa da lavoura.">Valor solicitado (R$)</label><input type="number" id="pr-valor" min="0" step="1000" placeholder="Ex: 1500000"></div>
+        <div class="field"><label title="Prazo total, carência inclusa. Em café e cana o contrato costuma atravessar mais de um ciclo de carga ou de corte.">Prazo (meses)</label><input type="number" id="pr-prazo" min="1" placeholder="Ex: 72"></div>
+        <div class="field"><label title="Na perene a carência cobre a formação da lavoura, que consome caixa antes de produzir.">Carência (meses)</label><input type="number" id="pr-carencia" min="0" value="0"></div>
+        <div class="field"><label title="Taxa nominal ao ano, em porcentagem. Plano Safra 2026/27: custeio empresarial 12,5% · Pronamp 9,0% · linhas de investimento entre 8,0% e 12,5%.">Juros (% a.a.)</label><input type="number" id="pr-juros" min="0" step="0.1" placeholder="Ex: 10,5"></div>
+        <div class="field"><label title="SAC: parcela começa alta e cai — padrão do crédito rural. Price: parcela fixa. Em lavoura em formação o SAC concentra o peso justamente quando ainda não há receita.">Amortização</label><select id="pr-sistema"><option value="sac">SAC — parcela decrescente</option><option value="price">Price — parcela fixa</option></select></div>
+        <div class="field"><label title="Perene tem receita concentrada na colheita. Parcela anual alinhada à safra é o caso comum; mensal dilui o desembolso e esconde o mês em que ele aperta.">Periodicidade</label><select id="pr-periodicidade"><option value="12">Anual (safra)</option><option value="6">Semestral</option><option value="3">Trimestral</option><option value="1">Mensal</option></select></div>
       </div>
       <div class="fgrid" style="margin-top:4px">
         <div class="field"><label>Fazenda</label><input type="text" id="pr-fazenda" placeholder="Nome da propriedade"></div>
@@ -1508,7 +1505,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
         <button class="btn-p" onclick="pereneAnalisar()">Analisar Lavoura</button>
-        <button class="btn-sm" id="pr-btn-pdf" onclick="perenePDF()" disabled>⬇ Baixar Parecer (PDF)</button>
+        <button class="btn-sm" id="pr-btn-pdf" onclick="perenePDF()" disabled>↓ Baixar Parecer (PDF)</button>
       </div>
     </div>
   </div>
@@ -1526,22 +1523,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="cb">
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px" class="g2-help">
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-size:1.5rem;margin-bottom:8px">📄</div>
           <div style="font-family:var(--fn);font-weight:700;font-size:.78rem;margin-bottom:6px">1. Leia o PDF</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Faça upload da GTA/Inventário do estado (INDEA, IDARON, IAGRO, AGRODEFESA, ADAPEC, ADEPARA). O sistema extrai o rebanho automaticamente.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-size:1.5rem;margin-bottom:8px">🐄</div>
           <div style="font-family:var(--fn);font-weight:700;font-size:.78rem;margin-bottom:6px">2. Confirme o rebanho</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Revise as quantidades por faixa etária e sexo. Use o Template para preencher manualmente se necessário.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-size:1.5rem;margin-bottom:8px">💰</div>
           <div style="font-family:var(--fn);font-weight:700;font-size:.78rem;margin-bottom:6px">3. Informe os custos</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Em "Cenários → Parâmetros", preencha o desembolso mensal por componente ou use os presets GEP. Marque N/A para custos inexistentes.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-size:1.5rem;margin-bottom:8px">📊</div>
           <div style="font-family:var(--fn);font-weight:700;font-size:.78rem;margin-bottom:6px">4. Classifique</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Clique em "Classificar" para gerar o parecer. O resultado compara o produtor com benchmarks nacionais e regionais.</div>
         </div>
@@ -1624,19 +1617,19 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="cb">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">🐮 Cria</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">Cria</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Produção de bezerros do nascimento ao desmame (~7 meses). Foco em matrizes, taxa de natalidade e sobrevivência. <br><strong style="color:var(--tx)">Benchmark GEP 24/25:</strong> R$90,88/cab·mês (média) · R$69,63 (top). <br><strong style="color:var(--tx)">Indicador chave:</strong> Taxa de natalidade (&gt;75% = bom; &gt;85% = excelente).</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">🐂 Recria</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">Recria</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Do desmame até o ponto de transferência para engorda ou abate (7–24 meses). Foco em GMD e eficiência de pastagem. <br><strong style="color:var(--tx)">Benchmark GEP 24/25:</strong> R$100,50/cab·mês (média) · R$77,40 (top). <br><strong style="color:var(--tx)">GMD referência:</strong> 0,4–0,6 kg/dia (pasto) · 0,8–1,2 kg/dia (suplementado).</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">🥩 Engorda (Pasto)</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">Engorda (Pasto)</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Terminação a pasto com suplementação proteico-energética. Ciclo de 90–180 dias até o peso de abate (>450 kg). <br><strong style="color:var(--tx)">Benchmark GEP 24/25:</strong> R$182,60/cab·mês (média) · R$177,30 (top). <br><strong style="color:var(--tx)">Rendimento de carcaça:</strong> 52–56% do peso vivo.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">🏗️ Confinamento</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">Confinamento</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Feedlot com dieta completa (milho + farelo de soja + núcleo mineral). Ração representa ~80% do custo. <br><strong style="color:var(--tx)">Benchmark estimado 24/25:</strong> R$484/cab·mês (média) · R$421 (top). <br><strong style="color:var(--tx)">GMD:</strong> 1,2–1,8 kg/dia · Conversão: 6–8 kg ração/kg ganho.</div>
         </div>
       </div>
@@ -1850,7 +1843,6 @@ function setValsFromApi(v10){
   upd();
 }
 const TC={CRIA:'#8B95A8',RECRIA:'#8B95A8',ENGORDA:'#8B95A8',CICLO_COMPLETO:'#8B95A8',RECRIA_ENGORDA:'#8B95A8',CRIA_RECRIA:'#8B95A8'};
-const TE={CRIA:'🐄',RECRIA:'🐂',ENGORDA:'🥩',CICLO_COMPLETO:'🔄',RECRIA_ENGORDA:'🐂',CRIA_RECRIA:'🐄'};
 const TL={CRIA:'CRIA',RECRIA:'RECRIA',ENGORDA:'ENGORDA',CICLO_COMPLETO:'CICLO COMPLETO',RECRIA_ENGORDA:'RECRIA / ENGORDA',CRIA_RECRIA:'CRIA + RECRIA'};
 const TD={CRIA:'Foco em produção de bezerros. Predomínio de vacas/matrizes adultas, alta taxa de cria.',RECRIA:'Fase de desenvolvimento pós-desmame. Alta concentração 13–24m.',ENGORDA:'Terminação para abate. Machos adultos em peso de corte predominam.',CICLO_COMPLETO:'Todas as fases integradas: cria, recria e terminação na mesma propriedade.',RECRIA_ENGORDA:'Compra magro e termina. Giro alto, retenção muito baixa, receita em boi gordo.',CRIA_RECRIA:'Base de cria com compra de desmama. Produção própria somada a animais adquiridos para recria.'};
 // Ausente/não numérico vira '—' (mesmo padrão do PDF), nunca 'NaN' nem 'R$ 0' fabricado.
@@ -2654,7 +2646,7 @@ async function lerFichaExcel(file){
     const data=await res.json();
     if(!res.ok||data.erro){ showToast(data.erro||'Falha ao ler ficha',true); return; }
     const fazendas=data.fazendas||[];
-    if(!fazendas.length){ showToast('Ficha sem dados. Baixe o exemplo com ⬇ Baixar Ficha, preencha as quantidades e importe novamente.',true); return; }
+    if(!fazendas.length){ showToast('Ficha sem dados. Baixe o exemplo com ↓ Baixar Ficha, preencha as quantidades e importe novamente.',true); return; }
 
     const totalReb=fazendas.find(f=>f.is_total_rebanho);
     const porFazenda=fazendas.filter(f=>!f.is_total_rebanho);
@@ -2903,7 +2895,7 @@ function mostrarPDFPreview(data){
         </table>
       </div>
     </div>
-    <button class="btn-p" style="margin-top:16px" onclick="classificarPDF(window._pdfPreviewData.valores,window._pdfPreviewData)"><span>🧠 Classificar com Machine Learning</span></button>`;
+    <button class="btn-p" style="margin-top:16px" onclick="classificarPDF(window._pdfPreviewData.valores,window._pdfPreviewData)"><span>Classificar com Machine Learning</span></button>`;
   window._pdfPreviewData = data;
   status.scrollIntoView({behavior:'smooth', block:'start'});
   // Aqui o #dz do painel órfão era repintado com "PDF carregado" — num painel
@@ -3182,7 +3174,7 @@ function renderDadosImpeditivos(data){
   const {status, score_completude, impeditivos=[], alertas=[], ok=[], bloqueio_aprovacao, mensagem} = imp;
   const corStatus = bloqueio_aprovacao ? 'var(--ork-danger)' : alertas.length ? 'var(--ork-warning)' : 'var(--ork-success)';
   const bgStatus  = bloqueio_aprovacao ? 'rgba(155,79,66,.09)' : alertas.length ? 'rgba(168,118,49,.09)' : 'rgba(63,104,73,.09)';
-  const iconStatus = bloqueio_aprovacao ? '🔴' : alertas.length ? '🟡' : '✅';
+  const iconStatus = bloqueio_aprovacao ? '✕' : alertas.length ? '!' : '✓';
   const pct = score_completude || 0;
   const circ = 2*Math.PI*18; // raio 18
   const dash = (pct/100)*circ;
@@ -3274,7 +3266,7 @@ function renderRetencao(data){
     </div>` : '';
 
   const alertsHtml = alertas.map(a=>`<div style="padding:8px 11px;border-radius:7px;background:${a.nivel==='impeditivo'?'rgba(155,79,66,.08)':'rgba(168,118,49,.08)'};border:1px solid ${a.nivel==='impeditivo'?'rgba(155,79,66,.2)':'rgba(168,118,49,.2)'};font-size:.72rem;color:${a.nivel==='impeditivo'?'var(--ork-danger)':'var(--ork-warning)'};margin-top:8px">
-    ${a.nivel==='impeditivo'?'⛔':'⚠'} ${a.mensagem}</div>`).join('');
+    ${a.nivel==='impeditivo'?'✕':'!'} ${a.mensagem}</div>`).join('');
 
   return `<div class="card" style="margin-bottom:16px">
     <div class="ch">
@@ -3648,7 +3640,7 @@ function renderParecer(data){
 
   return `<div class="card" style="margin-bottom:24px">
     <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Parecer de Crédito</div>
-      <button class="btn-sm" onclick="baixarPdfParecer(window._lastParecer)">⬇ Baixar PDF</button></div>
+      <button class="btn-sm" onclick="baixarPdfParecer(window._lastParecer)">↓ Baixar PDF</button></div>
     <div class="cb" style="display:grid;gap:0">${renderAnalisesCredito(data,p)}${renderRetencao(data)}${renderFluxoMensal(data,p)}${renderPraca(p.precos_regional)}${concl}${fluxoGep}${sensHtml}${dobravel('Projeção multianual (detalhe)',projecaoHtml)}${dobravel('Sensibilidade de custo (detalhe)',sensCustoHtml)}</div>
   </div>
   ${renderGarantia(p.garantia)}
@@ -3731,7 +3723,6 @@ function renderResult(data){
     const sel=t===tipo;
     return`<div class="tc" style="${sel?`border-color:${TC[t]};background:${TC[t]}12;border-width:2px`:''}">
       ${sel?`<div class="tc-sel" style="background:${TC[t]}25;color:${TC[t]}">← IDENTIFICADO</div>`:''}
-      <span class="tc-ico">${TE[t]}</span>
       <div class="tc-name" style="color:${sel?TC[t]:'var(--sb)'}">${TL[t]}</div>
       <div class="tc-desc">${TD[t]}</div>
     </div>`;
@@ -3752,17 +3743,17 @@ function renderResult(data){
           ${(()=>{
             const chips=[];
             if(data.origem_decisao==='regra'){
-              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--tx);background:rgba(251,191,36,.1)">⚖ regra determinística: ${escapeHtml(data.regra_aplicada||'')}</span>`);
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--tx);background:rgba(251,191,36,.1)">regra determinística: ${escapeHtml(data.regra_aplicada||'')}</span>`);
             } else if(data.origem_decisao==='composicao_modelo'){
-              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--tx);background:rgba(251,191,36,.1)">📋 inferido pela composição da ficha</span>`);
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--tx);background:rgba(251,191,36,.1)">inferido pela composição da ficha</span>`);
             } else {
-              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(74,222,128,.35);color:var(--tx);background:rgba(74,222,128,.1)">🧠 decidido pelo modelo ML</span>`);
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(74,222,128,.35);color:var(--tx);background:rgba(74,222,128,.1)">decidido pelo modelo ML</span>`);
             }
             const at=data.atipicidade;
             if(at && at.nivel!=='tipico'){
               const c = at.nivel==='muito_atipico' ? 'var(--rd)' : 'var(--am)';
               const rgb = at.nivel==='muito_atipico' ? '248,113,113' : '251,191,36';
-              chips.push(`<span title="${escapeHtml(at.mensagem||'')}" style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(${rgb},.35);color:${c};background:rgba(${rgb},.1)">📊 rebanho ${at.nivel==='muito_atipico'?'muito atípico':'atípico'} · revisão recomendada</span>`);
+              chips.push(`<span title="${escapeHtml(at.mensagem||'')}" style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(${rgb},.35);color:${c};background:rgba(${rgb},.1)">rebanho ${at.nivel==='muito_atipico'?'muito atípico':'atípico'} · revisão recomendada</span>`);
             }
             return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${chips.join('')}</div>`;
           })()}
@@ -3775,7 +3766,6 @@ function renderResult(data){
             </div>` : ''}
           <div style="margin-top:22px">${confBars}</div>
         </div>
-        <div class="rhero-em">${TE[tipo]}</div>
       </div>
     </div>
 
@@ -4156,7 +4146,7 @@ function renderMemoria(c, chave='concl'){
   return `<div style="margin-top:12px">
     <div onclick="toggleMemoria('${chave}')" style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border:1px solid var(--b);border-radius:8px;background:var(--c2)">
       <span style="font-family:var(--fn);font-weight:700;font-size:.68rem;letter-spacing:1.2px;text-transform:uppercase;color:var(--sb)">
-        ${rebaixado?'⚠ ':''}Por que este resultado — memória de cálculo
+        ${rebaixado?'Rebaixado no prazo · ':''}Por que este resultado — memória de cálculo
       </span>
       <span id="mem-ico-${chave}" style="font-family:var(--fm);font-size:.62rem;color:var(--mu)">▼ ver</span>
     </div>
@@ -4246,7 +4236,7 @@ function renderDesfrute(data){
         </div>
       </div>
 
-      ${acima&&item.alerta?`<div style="margin-top:12px;font-size:.76rem;line-height:1.6;color:var(--tx);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:11px 14px">⚠ ${escapeHtml(item.alerta)}</div>`:''}
+      ${acima&&item.alerta?`<div style="margin-top:12px;font-size:.76rem;line-height:1.6;color:var(--tx);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:11px 14px">${escapeHtml(item.alerta)}</div>`:''}
     </div>
   </div>`;
 }
@@ -4268,7 +4258,7 @@ function regRow(b){
   if(b.faixa==='acima'){
     const det=`<span style="opacity:.6;font-size:.62rem">(+${b.falta}${b.unidade} sobre o teto)</span>`;
     const linha=mr(b.label, `${b.valor}${b.unidade} · ACIMA DA FAIXA ${det}`, c);
-    return linha + (b.alerta ? `<div style="font-size:.72rem;line-height:1.5;color:var(--tx);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:9px 12px;margin:2px 0 10px">⚠ ${escapeHtml(b.alerta)}</div>` : '');
+    return linha + (b.alerta ? `<div style="font-size:.72rem;line-height:1.5;color:var(--tx);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:9px 12px;margin:2px 0 10px">${escapeHtml(b.alerta)}</div>` : '');
   }
   const prox=b.proximo_nivel?` <span style="opacity:.5;font-size:.62rem">(faltam ${b.falta}${b.unidade} p/ ${b.proximo_nivel.toUpperCase()})</span>`:'';
   return mr(b.label, `${b.valor}${b.unidade} · ${b.faixa.toUpperCase()}${prox}`, c);
@@ -4314,7 +4304,7 @@ function benchUnificado(data){
     if(regByKey['natalidade']) html+=regRow(regByKey['natalidade']);
     if(regByKey['desfrute']) html+=regRow(regByKey['desfrute']);
   }
-  if(!html) html='<div class="mrow"><span class="mk" style="opacity:.55">Preencha os indicadores em "⚙ Condições de Classificação" para comparar com os benchmarks nacionais.</span></div>';
+  if(!html) html='<div class="mrow"><span class="mk" style="opacity:.55">Preencha os indicadores em "Condições de Classificação" para comparar com os benchmarks nacionais.</span></div>';
   return html;
 }
 
@@ -4322,33 +4312,32 @@ function benchUnificado(data){
 function getRecs(tipo,ind){
   const R={
     CRIA:[
-      {ico:'🐄',tag:'Reprodução',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Taxa de Prenhez',d:'Implemente <strong>IATF</strong> para elevar a taxa acima de 80%. Monitore escore corporal das matrizes (mínimo 3,0).'},
-      {ico:'🧬',tag:'Genética',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Seleção de Matrizes',d:'Descarte matrizes falhadas (2+ ciclos). Use <strong>touros EPD</strong> para habilidade materna e produção de leite.'},
-      {ico:'🌿',tag:'Nutrição',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Suplementação Estratégica',d:'Suplemento proteico-energético no período seco. Escore ≥3,0 = <strong>+30% taxa de prenhes</strong>.'},
-      {ico:'📅',tag:'Gestão',tc:'rgba(167,139,250,.15)',tcc:'var(--tx)',t:'Estação de Monta',d:'Adote estação de monta de <strong>60–75 dias</strong> para concentrar partos e facilitar manejo de bezerros.'},
+      {tag:'Reprodução',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Taxa de Prenhez',d:'Implemente <strong>IATF</strong> para elevar a taxa acima de 80%. Monitore escore corporal das matrizes (mínimo 3,0).'},
+      {tag:'Genética',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Seleção de Matrizes',d:'Descarte matrizes falhadas (2+ ciclos). Use <strong>touros EPD</strong> para habilidade materna e produção de leite.'},
+      {tag:'Nutrição',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Suplementação Estratégica',d:'Suplemento proteico-energético no período seco. Escore ≥3,0 = <strong>+30% taxa de prenhes</strong>.'},
+      {tag:'Gestão',tc:'rgba(167,139,250,.15)',tcc:'var(--tx)',t:'Estação de Monta',d:'Adote estação de monta de <strong>60–75 dias</strong> para concentrar partos e facilitar manejo de bezerros.'},
     ],
     RECRIA:[
-      {ico:'🌿',tag:'Nutrição',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Ganho Médio Diário',d:'Meta <strong>≥0,7 kg/dia</strong> em pastagem, ≥1,2 kg/dia em confinamento. Monitore mensalmente.'},
-      {ico:'🐂',tag:'Manejo',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Lotes Homogêneos',d:'Separe machos e fêmeas e estratifique por peso. Lotes uniformes têm <strong>+20% eficiência alimentar</strong>.'},
-      {ico:'💉',tag:'Sanidade',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Protocolo Sanitário',d:'Vacine contra clostridioses, IBR e BVD. Parasite estratégico no início e fim das águas.'},
-      {ico:'📋',tag:'Planejamento',tc:'rgba(248,113,113,.15)',tcc:'var(--tx)',t:'Destino dos Animais',d:'Defina antecipadamente: reposição x venda de novilhas; machos para confinamento ou pastagem.'},
+      {tag:'Nutrição',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Ganho Médio Diário',d:'Meta <strong>≥0,7 kg/dia</strong> em pastagem, ≥1,2 kg/dia em confinamento. Monitore mensalmente.'},
+      {tag:'Manejo',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Lotes Homogêneos',d:'Separe machos e fêmeas e estratifique por peso. Lotes uniformes têm <strong>+20% eficiência alimentar</strong>.'},
+      {tag:'Sanidade',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Protocolo Sanitário',d:'Vacine contra clostridioses, IBR e BVD. Parasite estratégico no início e fim das águas.'},
+      {tag:'Planejamento',tc:'rgba(248,113,113,.15)',tcc:'var(--tx)',t:'Destino dos Animais',d:'Defina antecipadamente: reposição x venda de novilhas; machos para confinamento ou pastagem.'},
     ],
     ENGORDA:[
-      {ico:'🥩',tag:'Terminação',tc:'rgba(248,113,113,.15)',tcc:'var(--tx)',t:'Peso de Abate',d:'Meta <strong>560–600 kg PV (16–18@)</strong>. Acompanhe conversão alimentar (CA ≤7,5).'},
-      {ico:'🌽',tag:'Nutrição',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Dieta de Terminação',d:'70–80% concentrado na fase final. Use <strong>monensina/lasalocida</strong> para eficiência e saúde ruminal.'},
-      {ico:'📈',tag:'Mercado',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Timing de Venda',d:'Monitore mercado futuro. <strong>Venda antecipada</strong> garante preço mínimo. Compare frigoríficos.'},
-      {ico:'🔄',tag:'Giro',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Giro de Confinamento',d:'<strong>3 lotes/ano (120 dias)</strong> é o ideal para amortizar infraestrutura e maximizar retorno.'},
+      {tag:'Terminação',tc:'rgba(248,113,113,.15)',tcc:'var(--tx)',t:'Peso de Abate',d:'Meta <strong>560–600 kg PV (16–18@)</strong>. Acompanhe conversão alimentar (CA ≤7,5).'},
+      {tag:'Nutrição',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Dieta de Terminação',d:'70–80% concentrado na fase final. Use <strong>monensina/lasalocida</strong> para eficiência e saúde ruminal.'},
+      {tag:'Mercado',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Timing de Venda',d:'Monitore mercado futuro. <strong>Venda antecipada</strong> garante preço mínimo. Compare frigoríficos.'},
+      {tag:'Giro',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Giro de Confinamento',d:'<strong>3 lotes/ano (120 dias)</strong> é o ideal para amortizar infraestrutura e maximizar retorno.'},
     ],
     CICLO_COMPLETO:[
-      {ico:'🔄',tag:'Integração',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Fluxo entre Fases',d:'Planeje a transferência entre cria → recria → terminação. <strong>Evite gargalos</strong> de capacidade.'},
-      {ico:'📊',tag:'Gestão',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Centro de Custo',d:'Separe custos por fase para identificar onde está o lucro. Use <strong>software de gestão pecuária</strong>.'},
-      {ico:'🧬',tag:'Genética',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Programa Genético',d:'DEPs balanceados: facilidade de parto + crescimento + acabamento. Considere <strong>cruzamentos F1</strong>.'},
-      {ico:'💰',tag:'Financeiro',tc:'rgba(167,139,250,.15)',tcc:'var(--tx)',t:'Diversificação',d:'Regra <strong>80/20</strong>: 80% terminação própria, 20% venda precoce para liquidez e gestão de risco.'},
+      {tag:'Integração',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Fluxo entre Fases',d:'Planeje a transferência entre cria → recria → terminação. <strong>Evite gargalos</strong> de capacidade.'},
+      {tag:'Gestão',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Centro de Custo',d:'Separe custos por fase para identificar onde está o lucro. Use <strong>software de gestão pecuária</strong>.'},
+      {tag:'Genética',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Programa Genético',d:'DEPs balanceados: facilidade de parto + crescimento + acabamento. Considere <strong>cruzamentos F1</strong>.'},
+      {tag:'Financeiro',tc:'rgba(167,139,250,.15)',tcc:'var(--tx)',t:'Diversificação',d:'Regra <strong>80/20</strong>: 80% terminação própria, 20% venda precoce para liquidez e gestão de risco.'},
     ],
   };
   return(R[tipo]||[]).map(r=>`
     <div class="rec-item">
-      <div class="rec-ico">${r.ico}</div>
       <div class="rec-txt">
         <div class="rtag" style="background:${r.tc};color:${r.tcc}">${r.tag}</div>
         <strong>${r.t}</strong><br>${r.d}
@@ -4783,10 +4772,10 @@ function renderSc(d){
       <div class="pjc"><div class="pjc-l">Rebanho Ano 5</div><div class="pjc-v cg">${fN(anos[4].total)}</div><div class="pjc-d" style="color:var(--tx)">${delta>=0?'▲':'▼'} ${fN(Math.abs(delta))} cab.</div></div>
       <div class="pjc"><div class="pjc-l">Receita 5 Anos</div><div class="pjc-v cc">${fR(acc.receita)}</div><div class="pjc-d" style="color:var(--mu)">acumulado</div></div>
       <div class="pjc"><div class="pjc-l">Custo 5 Anos</div><div class="pjc-v cr">${fR(acc.custo)}</div><div class="pjc-d" style="color:var(--mu)">acumulado</div></div>
-      <div class="pjc"><div class="pjc-l">Resultado Líquido</div><div class="pjc-v ${acc.resultado>=0?'cg':'cr'}">${fR(acc.resultado)}</div><div class="pjc-d" style="color:var(--tx)">${d.emoji} ${d.nome.split('—')[0].trim()}</div></div>
+      <div class="pjc"><div class="pjc-l">Resultado Líquido</div><div class="pjc-v ${acc.resultado>=0?'cg':'cr'}">${fR(acc.resultado)}</div><div class="pjc-d" style="color:var(--tx)">${d.nome.split('—')[0].trim()}</div></div>
     </div>
     <div class="card" style="margin-bottom:16px">
-      <div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Receita Anual Projetada — ${d.emoji} ${d.nome}</div></div>
+      <div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Receita Anual Projetada — ${d.nome}</div></div>
       <div class="cb"><div style="height:120px;display:flex;align-items:flex-end;gap:6px">${chartBars}</div></div>
     </div>
     <div class="card">
@@ -5011,7 +5000,7 @@ function _prRenderResultado(d){
     const borda=atencao?'rgba(234,179,8,.35)':'var(--b2)';
     const fundo=atencao?'rgba(234,179,8,.07)':'transparent';
     return `<div style="padding:11px 13px;border:1px solid ${borda};border-radius:8px;background:${fundo};margin-bottom:9px">
-      <div style="font-weight:700;font-size:.79rem;margin-bottom:4px">${atencao?'⚠ ':''}${escapeHtml(x.titulo)}</div>
+      <div style="font-weight:700;font-size:.79rem;margin-bottom:4px">${escapeHtml(x.titulo)}</div>
       <div style="font-size:.76rem;line-height:1.6;color:var(--mu)">${escapeHtml(x.texto)}</div></div>`;
   }).join('');
 
@@ -5031,7 +5020,7 @@ function _prRenderResultado(d){
           <div class="field"><label>DSCR médio do prazo</label><div style="font-family:var(--fm);font-size:1.4rem">${_prNum(cred.dscr_medio,2)}</div></div>
           <div class="field"><label>DSCR mínimo</label><div style="font-family:var(--fm);font-size:1.4rem">${_prNum(cred.dscr_minimo,2)}</div></div>
           <div class="field"><label>Ano mais apertado</label><div style="font-family:var(--fm);font-size:1.4rem">${pior.ano||'—'}</div></div>
-          <div class="field"><label title="Calculada sobre o pior ano que efetivamente paga — depois da carência, dentro do prazo. Numa perene o ano 1 não serve de base: em formação ele é negativo, e num cafezal de carga alta ele é otimista.">Capacidade máxima estimada ℹ</label><div style="font-family:var(--fm);font-size:1.05rem">${_prMoeda(cred.capacidade_maxima_estimativa)}</div>${base.ano?`<div style="font-size:.66rem;color:var(--mu);margin-top:3px">base: ano ${base.ano} (${base.ano_calendario})</div>`:''}</div>
+          <div class="field"><label title="Calculada sobre o pior ano que efetivamente paga — depois da carência, dentro do prazo. Numa perene o ano 1 não serve de base: em formação ele é negativo, e num cafezal de carga alta ele é otimista.">Capacidade máxima estimada</label><div style="font-family:var(--fm);font-size:1.05rem">${_prMoeda(cred.capacidade_maxima_estimativa)}</div>${base.ano?`<div style="font-size:.66rem;color:var(--mu);margin-top:3px">base: ano ${base.ano} (${base.ano_calendario})</div>`:''}</div>
         </div>
         ${pior.ano>1?`<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--b2);border-radius:8px;font-size:.76rem;line-height:1.6">
           <b>O ano mais apertado do contrato é o ${pior.ano}, não o primeiro.</b> Em lavoura perene o aperto raramente cai no primeiro ano: o café alterna carga alta e baixa, e a soqueira da cana decai a cada corte até a reforma.</div>`:''}
@@ -5248,7 +5237,7 @@ function _grRenderResultado(d){
     const borda = atencao ? 'rgba(234,179,8,.35)' : 'var(--b2)';
     const fundo = atencao ? 'rgba(234,179,8,.07)' : 'transparent';
     return `<div style="padding:11px 13px;border:1px solid ${borda};border-radius:8px;background:${fundo};margin-bottom:9px">
-      <div style="font-weight:700;font-size:.79rem;margin-bottom:4px">${atencao ? '⚠ ' : '✔ '}${escapeHtml(x.titulo)}</div>
+      <div style="font-weight:700;font-size:.79rem;margin-bottom:4px">${atencao ? '! ' : '✔ '}${escapeHtml(x.titulo)}</div>
       <div style="font-size:.76rem;line-height:1.6;color:var(--mu)">${escapeHtml(x.texto)}</div>
     </div>`;
   }).join('');
@@ -5511,7 +5500,7 @@ function _renderMinutaCPR(d){
     <div class="card" style="margin-top:14px;border:1px solid rgba(234,179,8,.3)">
       <div class="ch">
         <div class="ct"><div class="cd" style="background:var(--am)"></div>Minuta da Cédula de Produto Rural (Lei 8.929/94)</div>
-        <button class="btn-sm" onclick="barterCopiarMinuta()">📋 Copiar Minuta</button>
+        <button class="btn-sm" onclick="barterCopiarMinuta()">Copiar Minuta</button>
       </div>
       <div class="cb">
         <textarea id="cpr-minuta-texto" readonly style="width:100%;height:320px;font-family:var(--fm);font-size:.72rem;background:var(--c3);color:var(--tx);border:1px solid var(--b);border-radius:var(--rs);padding:10px;line-height:1.5">${escapeHtml(d.texto_minuta)}</textarea>
@@ -5718,7 +5707,7 @@ function _renderComplianceResultado(d){
     <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--c3);border-radius:6px;font-size:.75rem">
       <span style="color:var(--tx)">${escapeHtml(i.label)}</span>
       <span style="font-weight:700;color:${i.ok ? 'var(--gn)' : 'var(--sb)'}">
-        ${i.ok ? '✔' : '✖'} ${escapeHtml(i.info)}
+        ${i.ok ? '✔' : '✕'} ${escapeHtml(i.info)}
       </span>
     </div>
   `).join('');
@@ -6071,7 +6060,7 @@ async function carregarHistoricoPareceres(){
           <div class="ork-cart-nome"><strong>${escapeHtml(String(it.created_at||'—').slice(0,16))}</strong>
             <span>Crédito: ${escapeHtml(fR(Number(cred)))}</span></div>
           ${_cartRec(it.recomendacao)}
-          <button type="button" class="btn-sm" onclick="baixarPdfParecerHistorico(${i})">⬇ Baixar PDF</button>
+          <button type="button" class="btn-sm" onclick="baixarPdfParecerHistorico(${i})">↓ Baixar PDF</button>
         </div>
         ${carteiraMetricasHtml(it.resumo, it.dscr)}
       </div>`;
@@ -6171,7 +6160,7 @@ function shapCardHtml(shapData, tipo, col){
         </div></div>
         <div class="cb">
           ${porRegra ? `<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.28);border-radius:8px;padding:12px 14px;margin-bottom:16px">
-            <div style="font-family:var(--fn);font-weight:700;font-size:.7rem;letter-spacing:.5px;color:var(--tx);margin-bottom:5px">⚠ DECISÃO POR REGRA DETERMINÍSTICA</div>
+            <div style="font-family:var(--fn);font-weight:700;font-size:.7rem;letter-spacing:.5px;color:var(--tx);margin-bottom:5px">DECISÃO POR REGRA DETERMINÍSTICA</div>
             <div style="font-size:.76rem;line-height:1.6;color:var(--sb)">${escapeHtml(shapData.aviso||'')}</div>
           </div>` : ''}
           <div style="font-family:var(--fm);font-size:.6rem;letter-spacing:.5px;opacity:.5;margin-bottom:16px;text-transform:uppercase">
@@ -6266,7 +6255,7 @@ function initChat() {
       <div class="ch" style="cursor:pointer;user-select:none" onclick="toggleChat()">
         <div class="ct">
           <div class="cd" style="background:#A78BFA"></div>
-          ✨ Perguntar à IA sobre este parecer
+          Perguntar à IA sobre este parecer
         </div>
         <span id="chat-toggle-icon" style="font-family:var(--fm);font-size:.7rem;color:var(--mu)">▼ expandir</span>
       </div>
@@ -6401,7 +6390,7 @@ async function enviarChat() {
     document.getElementById(loadId)?.remove();
 
     if (data.erro) {
-      _chatAppendMsg('assistant', '⚠ ' + data.erro);
+      _chatAppendMsg('assistant', data.erro);
     } else {
       const resposta = data.resposta || '';
       _chatAppendMsg('assistant', resposta);
@@ -6409,7 +6398,7 @@ async function enviarChat() {
     }
   } catch(e) {
     document.getElementById(loadId)?.remove();
-    _chatAppendMsg('assistant', '⚠ Erro de conexão. Tente novamente.');
+    _chatAppendMsg('assistant', 'Erro de conexão. Tente novamente.');
   } finally {
     if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Enviar'; }
     if (msgs) msgs.scrollTop = msgs.scrollHeight;

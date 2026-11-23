@@ -155,7 +155,6 @@
       border: 1px solid rgba(26,58,42,.08); border-top: 4px solid #E53E3E;
       box-shadow: var(--shadow);
     }
-    .dor-icon { font-size: 2rem; margin-bottom: 14px; }
     .dor-card h3 { font-family: var(--fn); font-weight: 800; font-size: 1.3rem; color: var(--forest); margin-bottom: 10px; letter-spacing: -.01em; }
     .dor-card p { font-size: .9rem; color: var(--muted); line-height: 1.65; }
 
@@ -190,7 +189,6 @@
       padding: 32px 28px; transition: background .25s;
     }
     .feat-card:hover { background: rgba(74,222,128,.07); }
-    .feat-ico { font-size: 2rem; margin-bottom: 16px; }
     .feat-card h3 { font-family: var(--fn); font-weight: 800; font-size: 1.2rem; color: #fff; margin-bottom: 10px; }
     .feat-card p { font-size: .87rem; color: rgba(255,255,255,.6); line-height: 1.65; }
 
@@ -376,7 +374,6 @@
     .sv-callouts { position:absolute; bottom:0; left:0; right:0; height:90px; padding:0 clamp(20px,5vw,72px) 20px; display:flex; align-items:flex-end; }
     .sv-callout { position:absolute; bottom:20px; left:clamp(20px,5vw,72px); right:clamp(20px,5vw,72px); background:rgba(26,58,42,.9); border:1px solid rgba(74,222,128,.2); border-radius:10px; padding:14px 20px; display:flex; align-items:center; gap:14px; opacity:0; transform:translateY(12px); transition:opacity .35s, transform .35s; pointer-events:none; }
     .sv-callout.sv-active { opacity:1; transform:none; pointer-events:auto; }
-    .sv-callout-ico { font-size:1.4rem; flex-shrink:0; }
     .sv-callout p { font-size:.85rem; color:rgba(255,255,255,.8); line-height:1.45; margin:0; }
     .sv-callout strong { color:var(--fresh); }
 
@@ -491,17 +488,14 @@
   <p class="section-sub">Cada hora perdida em planilhas é uma hora que poderia estar sendo usada para fechar mais operações.</p>
   <div class="dor-grid">
     <div class="dor-card" data-reveal>
-      <div class="dor-icon">⏱</div>
       <h3>Horas em planilha para cada análise</h3>
       <p>Montar fluxo de caixa, calcular DSCR e projetar receitas manualmente consome tempo de analista que deveria estar fechando negócio.</p>
     </div>
     <div class="dor-card" data-reveal>
-      <div class="dor-icon">📋</div>
       <h3>Parecer sem rastreabilidade</h3>
       <p>Quando o banco questiona a origem de um número, revisar a cadeia de cálculo vira uma investigação interna que compromete a credibilidade.</p>
     </div>
     <div class="dor-card" data-reveal>
-      <div class="dor-icon">❌</div>
       <h3>Erros que custam operações</h3>
       <p>Um dado mal interpretado na ficha do rebanho pode levar a uma análise equivocada — e à perda da operação ou à inadimplência futura.</p>
     </div>
@@ -649,13 +643,13 @@
         <div class="sv-panel" data-phase="3">
           <div class="sv-panel-inner">
             <div class="sv-verdict">
-              <div class="sv-verdict-badge">✅ RECOMENDADO</div>
+              <div class="sv-verdict-badge">RECOMENDADO</div>
               <div class="sv-verdict-title">Parecer favorável à operação</div>
               <div class="sv-verdict-sub">Análise concluída em 3 min 12 s · Todas as premissas registradas e auditáveis</div>
               <div class="sv-export-row">
-                <div class="sv-export-btn">📄 Exportar PDF</div>
-                <div class="sv-export-btn">📊 Excel detalhado</div>
-                <div class="sv-export-btn">🔗 Link compartilhável</div>
+                <div class="sv-export-btn">Exportar PDF</div>
+                <div class="sv-export-btn">Excel detalhado</div>
+                <div class="sv-export-btn">Link compartilhável</div>
               </div>
             </div>
           </div>
@@ -664,10 +658,10 @@
     </div>
     <!-- callouts -->
     <div class="sv-callouts">
-      <div class="sv-callout sv-active" data-c="0"><div class="sv-callout-ico">📋</div><p>Dados inseridos manualmente ou via <strong>importação de PDF</strong> — sem digitação duplicada.</p></div>
-      <div class="sv-callout" data-c="1"><div class="sv-callout-ico">🤖</div><p>Modelo classificou o ciclo com <strong>81% de confiança</strong> baseado em composição zootécnica e estatística.</p></div>
-      <div class="sv-callout" data-c="2"><div class="sv-callout-ico">📊</div><p>DSCR calculado com fluxo de caixa real. <strong>Stress de ±20%</strong> em preço e produtividade já aplicado.</p></div>
-      <div class="sv-callout" data-c="3"><div class="sv-callout-ico">✅</div><p>PDF gerado com <strong>memória de cálculo completa</strong>, fontes de dados e premissas declaradas.</p></div>
+      <div class="sv-callout sv-active" data-c="0"><p>Dados inseridos manualmente ou via <strong>importação de PDF</strong> — sem digitação duplicada.</p></div>
+      <div class="sv-callout" data-c="1"><p>Modelo classificou o ciclo com <strong>81% de confiança</strong> baseado em composição zootécnica e estatística.</p></div>
+      <div class="sv-callout" data-c="2"><p>DSCR calculado com fluxo de caixa real. <strong>Stress de ±20%</strong> em preço e produtividade já aplicado.</p></div>
+      <div class="sv-callout" data-c="3"><p>PDF gerado com <strong>memória de cálculo completa</strong>, fontes de dados e premissas declaradas.</p></div>
     </div>
     <!-- scroll hint -->
     <div class="sv-hint" id="sv-hint"><span>role para avançar</span><div class="sv-hint-arrow"></div></div>
@@ -681,32 +675,26 @@
   <p class="section-sub">Do diagnóstico produtivo ao crédito estruturado — sem ferramentas separadas.</p>
   <div class="feat-grid">
     <div class="feat-card">
-      <div class="feat-ico">🐄</div>
       <h3>Diagnóstico do rebanho</h3>
       <p>Composição, estrutura etária, matrizes, IATF, taxa de prenhez e pirâmide por faixa etária — tudo calculado automaticamente.</p>
     </div>
     <div class="feat-card">
-      <div class="feat-ico">💰</div>
       <h3>Fluxo econômico</h3>
       <p>Receitas por categoria, custos operacionais, resultado, ROI por ciclo e projeção de 5 anos com variação de estoque.</p>
     </div>
     <div class="feat-card">
-      <div class="feat-ico">📊</div>
       <h3>Crédito e DSCR</h3>
       <p>Capacidade de pagamento, serviço da dívida, índice de cobertura e folga financeira para a operação solicitada.</p>
     </div>
     <div class="feat-card">
-      <div class="feat-ico">⚡</div>
       <h3>Análise de stress</h3>
       <p>Sensibilidade a queda de preço, aumento de custo e queda de produtividade — para entender onde a operação quebra.</p>
     </div>
     <div class="feat-card">
-      <div class="feat-ico">📄</div>
       <h3>Parecer em PDF</h3>
       <p>Documento com logo da consultoria, memória de cálculo, fontes de dados, premissas e limitações explícitas.</p>
     </div>
     <div class="feat-card">
-      <div class="feat-ico">📁</div>
       <h3>Histórico e comparativo</h3>
       <p>Análises salvas por propriedade, comparativo entre safras e rastreabilidade de cada número gerado.</p>
     </div>

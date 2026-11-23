@@ -793,7 +793,7 @@ def classificar(
 
     if origem_decisao == 'regra':
         explicacao.append(
-            f"⚠ Decisão tomada por REGRA DETERMINÍSTICA ({regra_aplicada}), "
+            f"Decisão tomada por REGRA DETERMINÍSTICA ({regra_aplicada}), "
             f"não pelo modelo ML. Probabilidade do ML para {tipo}: {confianca_ml}%."
         )
 
@@ -1380,31 +1380,31 @@ CENARIOS = {
     'otimista': {
         'nome': 'Otimista — Melhoria Tecnológica',
         'desc': 'IATF, suplementação, genética melhorada. Alta produtividade.',
-        'emoji': '🚀',
+        'emoji': '',
         'mods': {'nat': 1.08, 'mort': 0.70, 'desc': 0.90, 'preco': 1.05}
     },
     'crescimento': {
         'nome': 'Crescimento Gradual',
         'desc': 'Expansão sustentável com reinvestimento de resultados.',
-        'emoji': '📈',
+        'emoji': '',
         'mods': {'nat': 1.03, 'mort': 0.90, 'desc': 0.95, 'preco': 1.02}
     },
     'provavel': {
         'nome': 'Provável — Premissas neutras',
         'desc': 'Mantém as premissas informadas sem melhora ou piora de cenário.',
-        'emoji': '📊',
+        'emoji': '',
         'mods': {'nat': 1.00, 'mort': 1.00, 'desc': 1.00, 'preco': 1.00}
     },
     'especulativo': {
         'nome': 'Especulativo — Alta Venda',
         'desc': 'Maximiza venda aproveitando preço favorável.',
-        'emoji': '💰',
+        'emoji': '',
         'mods': {'nat': 1.00, 'mort': 1.00, 'desc': 1.20, 'preco': 1.10}
     },
     'conservador': {
         'nome': 'Conservador — Manutenção',
         'desc': 'Estabilidade mínima em cenário de baixa de preços.',
-        'emoji': '🛡️',
+        'emoji': '',
         'mods': {'nat': 0.95, 'mort': 1.10, 'desc': 0.80, 'preco': 0.95}
     },
 }

@@ -136,7 +136,7 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
   font: 600 .68rem/1 var(--od-font); cursor: pointer;
 }
 .od-theme-toggle:hover { background: var(--bg-subtle); }
-@media (max-width: 480px) { .od-theme-toggle__label { display: none; } .od-theme-toggle { padding: 4px 9px; } }
+@media (max-width: 480px) { .od-theme-toggle { padding: 4px 9px; } }
 .od-theme-toggle:focus-visible,
 .od-sys:focus-visible,
 .od-tab:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }

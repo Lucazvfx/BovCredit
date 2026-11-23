@@ -463,7 +463,7 @@ if stats is None:
         'acima de [ML] diz qual. Regenere com `python treinar_ciclos.py` e '
         'commite o artefato — o app não retreina no boot.'
     )
-logger.info(f"✅ Modelo carregado do disco | Acurácia: {stats['accuracy_mean']*100:.1f}% | Amostras: {stats['n_samples']}")
+logger.info(f"Modelo carregado do disco | Acurácia: {stats['accuracy_mean']*100:.1f}% | Amostras: {stats['n_samples']}")
 
 # Em produção o banco é externo (Supabase) e não sobe junto com o app. Uma
 # DATABASE_URL vazia ou malformada faz database.py cair no SQLite em silêncio:
@@ -477,7 +477,7 @@ if os.environ.get('FLASK_ENV') == 'production' and not db._USE_PG:
         '— use a do pooler (porta 6543), com sslmode=require.'
     )
 db.init_db()
-logger.info("🗃️  Banco %s inicializado.", 'PostgreSQL' if db._USE_PG else 'SQLite')
+logger.info("Banco %s inicializado.", 'PostgreSQL' if db._USE_PG else 'SQLite')
 garantir_admins()
 from services.api_v1 import api_v1_bp
 app.register_blueprint(api_v1_bp)
@@ -485,16 +485,16 @@ app.register_blueprint(api_v1_bp)
 # ── Automação: Cotações Diárias (Scraper) ────────────────────────────────────
 def rotina_diaria_cotacoes():
     """Função executada em background para atualizar preços da arroba."""
-    logger.info("📈 [Scraper] A iniciar a busca automática de cotações...")
+    logger.info("[Scraper] A iniciar a busca automática de cotações...")
     try:
         precos = obter_precos_arroba()
         if precos.get('boi', 0) > 0 or precos.get('vaca', 0) > 0:
             db.guardar_cotacao_diaria(precos)
-            logger.info("✅ [Scraper] Cotações atualizadas no banco de dados.")
+            logger.info("[Scraper] Cotações atualizadas no banco de dados.")
         else:
-            logger.warning("⚠️ [Scraper] Cotações retornaram zero, não salvas.")
+            logger.warning("[Scraper] Cotações retornaram zero, não salvas.")
     except Exception as e:
-        logger.error(f"❌ [Scraper] Erro na rotina: {e}", exc_info=True)
+        logger.error(f"[Scraper] Erro na rotina: {e}", exc_info=True)
 
 # ── Scheduler: exatamente UM, no processo inteiro ────────────────────────────
 # Com mais de um worker, cada um iniciaria o seu — e o scraper bateria N vezes
@@ -517,7 +517,7 @@ def iniciar_scheduler():
     scheduler.start()
     threading.Thread(target=rotina_diaria_cotacoes, daemon=True).start()
     _scheduler_iniciado = True
-    logger.info('⏰ Scheduler de cotações iniciado (pid %s)', os.getpid())
+    logger.info('Scheduler de cotações iniciado (pid %s)', os.getpid())
     return scheduler
 
 
@@ -4026,6 +4026,6 @@ def api_parse_text():
 # INÍCIO DA APLICAÇÃO
 # ─────────────────────────────────────────────
 if __name__ == '__main__':
-    logger.info("🚀 Orkavyn Agro Intelligence iniciado em http://localhost:5050")
+    logger.info("Orkavyn Agro Intelligence iniciado em http://localhost:5050")
     app.run(debug=True, port=5050)
 

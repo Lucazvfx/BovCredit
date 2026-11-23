@@ -69,9 +69,8 @@
     const btn = document.getElementById("od-theme-toggle");
     if (btn) {
       btn.setAttribute("aria-pressed", tema === "dark" ? "true" : "false");
-      const [icone, rotulo] = tema === "dark" ? ["☀", "Claro"] : ["☾", "Escuro"];
+      const rotulo = tema === "dark" ? "Claro" : "Escuro";
       btn.replaceChildren(
-        el("span", { text: icone, attrs: { "aria-hidden": "true" } }),
         el("span", { cls: "od-theme-toggle__label", text: rotulo })
       );
     }
