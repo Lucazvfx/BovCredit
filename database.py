@@ -186,10 +186,26 @@ def _migrar_usuarios_para_empresas():
         nome_empresa = (u.get('nome_consultoria') or '').strip() or f"{u['nome']} — Consultoria"
         eid = _exec(f'INSERT INTO empresas (nome, logo_base64) VALUES ({ph},{ph})',
                     (nome_empresa, u.get('logo_base64') or ''), fetch='lastrow', commit=True)
-        _exec(f'INSERT INTO empresa_membros (empresa_id, user_id) VALUES ({ph},{ph})',
+        _exec(f"INSERT INTO empresa_membros (empresa_id, user_id, papel) VALUES ({ph},{ph},'admin')",
               (eid, u['id']), commit=True)
         _exec(f'UPDATE fazendas SET empresa_id={ph} WHERE user_id={ph} AND empresa_id IS NULL',
               (eid, u['id']), commit=True)
+
+
+def _migrar_papeis_membros():
+    """Preenche `papel` dos vínculos antigos (idempotente: só toca em NULL).
+
+    Quem é o único membro da empresa vira admin (é a "Consultoria" criada no
+    cadastro, e alguém precisa administrá-la). Em empresa com vários membros
+    ninguém é promovido por adivinhação: todos viram analista e o admin
+    global (ADMIN_EMAILS) designa quem administra.
+    """
+    _exec('''UPDATE empresa_membros SET papel='admin'
+             WHERE papel IS NULL AND empresa_id IN (
+                 SELECT empresa_id FROM empresa_membros
+                 GROUP BY empresa_id HAVING COUNT(DISTINCT user_id) = 1)''', commit=True)
+    _exec("UPDATE empresa_membros SET papel='analista' WHERE papel IS NULL",
+          commit=True)
 
 
 def _ensure_analysis_tables():
@@ -732,7 +748,29 @@ def init_db():
         )
     ''', commit=True)
 
+    # Propostas comerciais: snapshot da simulação + decisão do aprovador
+    _exec(f'''
+        CREATE TABLE IF NOT EXISTS propostas_comerciais (
+            id              {_AI},
+            empresa_id      INTEGER NOT NULL,
+            referencia      TEXT NOT NULL,
+            valor_pretendido DOUBLE PRECISION NOT NULL,
+            prazo_meses     INTEGER NOT NULL,
+            status_alcada   TEXT NOT NULL,
+            simulacao_json  TEXT NOT NULL,
+            status          TEXT NOT NULL DEFAULT 'em_analise',
+            criado_por      INTEGER,
+            criado_em       TIMESTAMP DEFAULT {_NOW},
+            parecer_decisor TEXT,
+            decidido_por    INTEGER,
+            decidido_em     TIMESTAMP
+        )
+    ''', commit=True)
+    _exec('CREATE INDEX IF NOT EXISTS ix_propostas_empresa '
+          'ON propostas_comerciais (empresa_id, status)', commit=True)
+
     # Colunas adicionadas de forma segura (retrocompatibilidade)
+    _add_column_safe('empresa_membros', 'papel', 'TEXT')
     _add_column_safe('registros', 'user_id',    'INTEGER')
     _add_column_safe('registros', 'fazenda_id', 'INTEGER')
     _add_column_safe('cotacao_arroba', 'preco_boi_china', 'REAL')
@@ -756,6 +794,7 @@ def init_db():
     _add_column_safe('fazendas', 'empresa_id', 'INTEGER')
 
     _migrar_usuarios_para_empresas()
+    _migrar_papeis_membros()
 
 
 # ─────────────────────────────────────────────
@@ -774,7 +813,7 @@ def criar_usuario(email: str, nome: str, senha: str,
     uid = int(rid)
     eid = _exec(f'INSERT INTO empresas (nome) VALUES ({ph})',
                 (f'{nome} — Consultoria',), fetch='lastrow', commit=True)
-    _exec(f'INSERT INTO empresa_membros (empresa_id, user_id) VALUES ({ph},{ph})',
+    _exec(f"INSERT INTO empresa_membros (empresa_id, user_id, papel) VALUES ({ph},{ph},'admin')",
           (eid, uid), commit=True)
     return uid
 
@@ -835,7 +874,7 @@ def criar_usuario_do_provedor(email: str, nome: str, provedor: str,
          provedor, str(provedor_id)),
         fetch='lastrow', commit=True))
     if empresa_id:
-        _exec(f'INSERT INTO empresa_membros (empresa_id, user_id) VALUES ({ph},{ph})',
+        _exec(f"INSERT INTO empresa_membros (empresa_id, user_id, papel) VALUES ({ph},{ph},'analista')",
               (empresa_id, uid), commit=True)
     return uid
 
@@ -852,6 +891,140 @@ def usuario_pertence_a_empresa(user_id: int, empresa_id: int) -> bool:
     ph = _PH
     r = _exec(f'SELECT 1 FROM empresa_membros WHERE user_id={ph} AND empresa_id={ph}',
               (user_id, empresa_id), fetch='one')
+    return bool(r)
+
+
+def papel_do_membro(user_id: int, empresa_id: int) -> str | None:
+    """Papel do usuário na empresa; None se não for membro (vínculo sem papel = analista)."""
+    from services.papeis_empresa import normalizar_papel
+    ph = _PH
+    r = _exec(f'SELECT papel FROM empresa_membros WHERE user_id={ph} AND empresa_id={ph}',
+              (user_id, empresa_id), fetch='one')
+    return normalizar_papel(r['papel']) if r else None
+
+
+def listar_membros_empresa(empresa_id: int) -> list:
+    """Membros da empresa (só dela), com papel normalizado."""
+    from services.papeis_empresa import normalizar_papel
+    ph = _PH
+    rows = _exec(f'''SELECT u.id AS user_id, u.nome, u.email, m.papel
+                     FROM empresa_membros m JOIN usuarios u ON u.id = m.user_id
+                     WHERE m.empresa_id={ph} ORDER BY u.nome, u.id''',
+                 (empresa_id,), fetch='all') or []
+    return [{'user_id': r['user_id'], 'nome': r['nome'], 'email': r['email'],
+             'papel': normalizar_papel(r['papel'])} for r in rows]
+
+
+def definir_papel_membro(empresa_id: int, user_id: int, papel: str,
+                         permitir_sem_admin: bool = False) -> bool:
+    """Grava o papel do vínculo (empresa, usuário). `papel` já validado.
+
+    Por padrão, rebaixar o último admin é recusado dentro do próprio UPDATE:
+    contagem e escrita são uma operação só, sem corrida entre dois admins
+    rebaixando um ao outro. Devolve False se nada foi alterado.
+    """
+    ph = _PH
+    cond, params = '', (papel, empresa_id, user_id)
+    if papel != 'admin' and not permitir_sem_admin:
+        cond = (f" AND (COALESCE(papel,'') <> 'admin' OR (SELECT COUNT(DISTINCT user_id) "
+                f"FROM empresa_membros WHERE empresa_id={ph} AND papel='admin') > 1)")
+        params += (empresa_id,)
+    r = _exec(f'UPDATE empresa_membros SET papel={ph} '
+              f'WHERE empresa_id={ph} AND user_id={ph}{cond} RETURNING user_id',
+              params, fetch='one', commit=True)
+    return bool(r)
+
+
+def contar_admins_empresa(empresa_id: int) -> int:
+    ph = _PH
+    r = _exec(f"SELECT COUNT(DISTINCT user_id) AS n FROM empresa_membros "
+              f"WHERE empresa_id={ph} AND papel='admin'", (empresa_id,), fetch='one')
+    return int(r['n']) if r else 0
+
+
+# ── Propostas comerciais ─────────────────────────────────────────────────────
+_COLS_PROPOSTA = '''p.id, p.empresa_id, p.referencia, p.valor_pretendido,
+    p.prazo_meses, p.status_alcada, p.simulacao_json, p.status, p.criado_por,
+    p.criado_em, p.parecer_decisor, p.decidido_por, p.decidido_em,
+    uc.nome AS criado_por_nome, ud.nome AS decidido_por_nome'''
+_JOIN_PROPOSTA = '''FROM propostas_comerciais p
+    LEFT JOIN usuarios uc ON uc.id = p.criado_por
+    LEFT JOIN usuarios ud ON ud.id = p.decidido_por'''
+
+
+def _proposta_dict(r: dict) -> dict:
+    import json
+    sim = {}
+    try:
+        sim = json.loads(r.get('simulacao_json') or '{}')
+    except ValueError:
+        pass
+    return {
+        'id': r['id'], 'referencia': r['referencia'],
+        'valor_pretendido': float(r['valor_pretendido']),
+        'prazo_meses': int(r['prazo_meses']),
+        'status_alcada': r['status_alcada'], 'status': r['status'],
+        'motivos_texto': sim.get('motivos_texto', []),
+        'criado_por_nome': r.get('criado_por_nome'),
+        'criado_em': str(r.get('criado_em') or ''),
+        'parecer_decisor': r.get('parecer_decisor'),
+        'decidido_por_nome': r.get('decidido_por_nome'),
+        'decidido_em': str(r.get('decidido_em') or '') or None,
+    }
+
+
+def criar_proposta(empresa_id: int, user_id: int, referencia: str,
+                   simulacao: dict) -> int:
+    """Registra proposta em análise. `simulacao` vem de `simular_proposta` (servidor)."""
+    import json
+    ph = _PH
+    return int(_exec(
+        f'''INSERT INTO propostas_comerciais (empresa_id, referencia,
+            valor_pretendido, prazo_meses, status_alcada, simulacao_json,
+            status, criado_por) VALUES ({ph},{ph},{ph},{ph},{ph},{ph},'em_analise',{ph})''',
+        (empresa_id, referencia, simulacao['valor_pretendido'],
+         simulacao['prazo_meses'], simulacao['status'],
+         json.dumps(simulacao, ensure_ascii=False, default=str), user_id),
+        fetch='lastrow', commit=True))
+
+
+def listar_propostas(empresa_id: int, status: str | None = None,
+                     limit: int = 100) -> list:
+    """Propostas da empresa, mais recentes primeiro."""
+    ph = _PH
+    sql = f'SELECT {_COLS_PROPOSTA} {_JOIN_PROPOSTA} WHERE p.empresa_id={ph}'
+    params = [empresa_id]
+    if status:
+        sql += f' AND p.status={ph}'
+        params.append(status)
+    sql += f' ORDER BY p.id DESC LIMIT {int(limit)}'
+    return [_proposta_dict(r) for r in _exec(sql, tuple(params), fetch='all') or []]
+
+
+def buscar_proposta(proposta_id: int, empresa_id: int) -> dict | None:
+    """Só devolve a proposta se ela for da empresa informada."""
+    ph = _PH
+    r = _exec(f'SELECT {_COLS_PROPOSTA} {_JOIN_PROPOSTA} '
+              f'WHERE p.id={ph} AND p.empresa_id={ph}',
+              (proposta_id, empresa_id), fetch='one')
+    return _proposta_dict(r) if r else None
+
+
+def decidir_proposta(proposta_id: int, empresa_id: int, user_id: int,
+                     decisao: str, parecer: str) -> bool:
+    """Grava a decisão de forma atômica: só vale enquanto estiver `em_analise`.
+
+    False se já foi decidida (ou não é da empresa) — evita decisão dupla em
+    requisições concorrentes.
+    """
+    ph = _PH
+    r = _exec(f'''UPDATE propostas_comerciais
+                  SET status={ph}, parecer_decisor={ph}, decidido_por={ph},
+                      decidido_em={_NOW}
+                  WHERE id={ph} AND empresa_id={ph} AND status='em_analise'
+                  RETURNING id''',
+              (decisao, parecer, user_id, proposta_id, empresa_id),
+              fetch='one', commit=True)
     return bool(r)
 
 

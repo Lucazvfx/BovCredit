@@ -1544,9 +1544,25 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div class="field"><label for="sim-div">Dívidas mensais atuais (R$)</label><input type="number" id="sim-div" min="0" step="100" value="0" style="min-width:0"></div>
         <div class="field"><label for="sim-rev">Classificação exige revisão humana</label>
           <select id="sim-rev"><option value="0">Não</option><option value="1">Sim</option></select></div>
+        <div class="field"><label for="sim-ref">Referência da proposta</label><input type="text" id="sim-ref" maxlength="120" placeholder="Código interno, sem CPF/CNPJ" autocomplete="off" style="min-width:0"></div>
       </div>
-      <div style="margin-top:14px"><button type="button" class="btn-sm" id="sim-rodar" onclick="simularProposta()">Simular</button></div>
+      <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px"><button type="button" class="btn-sm" id="sim-rodar" onclick="simularProposta()">Simular</button><button type="button" class="btn-sm" id="sim-registrar" onclick="registrarProposta()">Registrar proposta</button></div>
       <div id="sim-resultado" aria-live="polite" style="margin-top:16px;overflow-wrap:anywhere"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ch"><div class="ct"><div class="cd"></div>Propostas comerciais</div></div>
+    <div class="cb">
+      <div class="field" style="max-width:240px"><label for="prop-filtro">Situação</label>
+        <select id="prop-filtro" onchange="carregarPropostas()"><option value="">Todas</option><option value="em_analise">Em análise</option><option value="aprovado">Aprovada</option><option value="aprovado_com_ressalva">Aprovada com ressalva</option><option value="reprovado">Reprovada</option></select></div>
+      <div id="prop-lista" aria-live="polite" style="margin-top:14px;overflow-wrap:anywhere"></div>
+    </div>
+  </div>
+  <div class="card" id="eq-card" hidden>
+    <div class="ch"><div class="ct"><div class="cd"></div>Equipe e papéis</div></div>
+    <div class="cb">
+      <p class="psub">Administrador define a política e os papéis; aprovador e administrador decidem propostas que exigem comitê ou estão fora da alçada.</p>
+      <div id="eq-lista" style="overflow-wrap:anywhere"></div>
     </div>
   </div>
 </div>
@@ -4876,6 +4892,7 @@ async function carregarAlcada(){
     document.getElementById('alc-salvar').disabled=!d.pode_editar;
     document.getElementById('alc-salvar').title=d.pode_editar?'':'Somente administradores alteram a política.';
   }catch(e){ showToast('Não foi possível carregar a política de alçada.',true); }
+  carregarPropostas(); carregarEquipe();
 }
 async function salvarAlcada(){
   const corpo={
@@ -4916,6 +4933,98 @@ async function simularProposta(){
       +(motivos?'<ul>'+motivos+'</ul>':'');
   }catch(e){ box.textContent='Não foi possível simular.'; }
 }
+// ---- Propostas e papéis (empresa ativa) ----
+const ALC_ROTULO={dentro_alcada:'Dentro da alçada',requer_comite:'Requer comitê',fora_alcada:'Fora da alçada'};
+const PROP_ROTULO={em_analise:'Em análise',aprovado:'Aprovada',aprovado_com_ressalva:'Aprovada com ressalva',reprovado:'Reprovada'};
+function _corpoSimulacao(){
+  const v=id=>document.getElementById(id).value;
+  return {
+    referencia:v('sim-ref'),
+    valor_pretendido:Number(v('sim-valor')),
+    prazo_meses:Number(v('sim-prazo')),
+    carencia_meses:Number(v('sim-carencia')||0),
+    juros_aa:v('sim-juros')===''?null:Number(v('sim-juros'))/100,
+    geracao_caixa_anual:v('sim-caixa')===''?null:Number(v('sim-caixa')),
+    dividas_mensais:Number(v('sim-div')||0),
+    revisao_humana:v('sim-rev')==='1',
+  };
+}
+async function registrarProposta(){
+  try{
+    const r=await fetch('/api/propostas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(_corpoSimulacao())});
+    const d=await r.json();
+    if(!r.ok){ showToast(d.erro||'Não foi possível registrar a proposta.',true); return; }
+    showToast('Proposta registrada: '+(d.status_alcada_rotulo||'')+'.');
+    carregarPropostas();
+  }catch(e){ showToast('Não foi possível registrar a proposta.',true); }
+}
+async function carregarPropostas(){
+  const box=document.getElementById('prop-lista');
+  if(!box) return;
+  const st=document.getElementById('prop-filtro').value;
+  try{
+    const r=await fetch('/api/propostas'+(st?'?status='+encodeURIComponent(st):''));
+    const d=await r.json();
+    if(!r.ok) throw new Error();
+    if(!d.propostas.length){ box.textContent='Nenhuma proposta registrada.'; return; }
+    box.innerHTML=d.propostas.map(p=>{
+      const decidida=p.status!=='em_analise';
+      const motivos=(p.motivos_texto||[]).map(t=>'<li>'+escapeHtml(t)+'</li>').join('');
+      const base='<div style="border-top:1px solid var(--b);padding:12px 0">'
+        +'<strong>'+escapeHtml(p.referencia)+'</strong> · '+fR(p.valor_pretendido)+' · '+Number(p.prazo_meses)+' meses'
+        +'<br>'+escapeHtml(ALC_ROTULO[p.status_alcada]||p.status_alcada)+' · '+escapeHtml(PROP_ROTULO[p.status]||p.status)
+        +'<br><span class="psub">Registrada por '+escapeHtml(p.criado_por_nome||'—')+' em '+escapeHtml(String(p.criado_em).slice(0,16))+'</span>'
+        +(motivos?'<ul>'+motivos+'</ul>':'');
+      if(decidida){
+        return base+'<div>Parecer: '+escapeHtml(p.parecer_decisor||'')+'<br><span class="psub">Decidida por '+escapeHtml(p.decidido_por_nome||'—')+' em '+escapeHtml(String(p.decidido_em||'').slice(0,16))+'</span></div></div>';
+      }
+      if(!p.pode_decidir){
+        return base+'<div class="psub">Esta proposta exige aprovador ou administrador.</div></div>';
+      }
+      return base+'<div class="fgrid" data-prop="'+Number(p.id)+'" style="margin-top:8px">'
+        +'<div class="field"><label>Decisão</label><select data-f="decisao"><option value="aprovado">Aprovar</option><option value="aprovado_com_ressalva">Aprovar com ressalva</option><option value="reprovado">Reprovar</option></select></div>'
+        +'<div class="field" style="grid-column:1/-1"><label>Parecer do aprovador</label><textarea data-f="parecer" maxlength="2000" rows="2" style="min-width:0;width:100%"></textarea></div>'
+        +'<div><button type="button" class="btn-sm" data-act="decidir">Registrar decisão</button></div></div></div>';
+    }).join('');
+  }catch(e){ box.textContent='Não foi possível carregar as propostas.'; }
+}
+document.getElementById('prop-lista')?.addEventListener('click',async ev=>{
+  const b=ev.target.closest('[data-act="decidir"]'); if(!b) return;
+  const f=b.closest('[data-prop]');
+  const corpo={decisao:f.querySelector('[data-f="decisao"]').value,parecer:f.querySelector('[data-f="parecer"]').value};
+  try{
+    const r=await fetch('/api/propostas/'+f.dataset.prop+'/decisao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)});
+    const d=await r.json();
+    if(!r.ok){ showToast(d.erro||'Não foi possível registrar a decisão.',true); return; }
+    showToast('Decisão registrada.');
+    carregarPropostas();
+  }catch(e){ showToast('Não foi possível registrar a decisão.',true); }
+});
+async function carregarEquipe(){
+  const card=document.getElementById('eq-card'); if(!card) return;
+  try{
+    const r=await fetch('/api/empresa/papeis');
+    const d=await r.json();
+    if(!r.ok) throw new Error();
+    card.hidden=d.meu_papel!=='admin';
+    if(card.hidden) return;
+    document.getElementById('eq-lista').innerHTML=d.membros.map(m=>
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px solid var(--b);padding:8px 0">'
+      +'<span style="flex:1 1 200px;min-width:0">'+escapeHtml(m.nome)+'<br><span class="psub">'+escapeHtml(m.email)+'</span></span>'
+      +'<select data-uid="'+Number(m.user_id)+'" aria-label="Papel de '+escapeHtml(m.nome)+'" style="min-width:0">'
+      +d.papeis.map(p=>'<option value="'+escapeHtml(p.id)+'"'+(p.id===m.papel?' selected':'')+'>'+escapeHtml(p.rotulo)+'</option>').join('')
+      +'</select></div>').join('');
+  }catch(e){ card.hidden=true; }
+}
+document.getElementById('eq-lista')?.addEventListener('change',async ev=>{
+  const sel=ev.target.closest('select[data-uid]'); if(!sel) return;
+  try{
+    const r=await fetch('/api/empresa/membros/'+sel.dataset.uid+'/papel',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({papel:sel.value})});
+    const d=await r.json();
+    if(!r.ok) showToast(d.erro||'Não foi possível alterar o papel.',true); else showToast('Papel atualizado.');
+  }catch(e){ showToast('Não foi possível alterar o papel.',true); }
+  carregarEquipe();
+});
 function resetApp(){clearAll();document.getElementById('tab-res').style.display='none';document.getElementById('tab-cen').style.display='none';showTab('entrada',document.querySelectorAll('.tab-btn')[0]);lastVals=null;document.getElementById('result-wrap').innerHTML='';document.getElementById('sc-result').innerHTML=''}
 
 // ================== DRAG & DROP ==================
