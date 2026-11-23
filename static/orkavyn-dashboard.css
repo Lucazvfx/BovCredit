@@ -348,7 +348,18 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
   [data-theme="dark"] .ork-dashboard-surface .od-topbar .ork-brand__mark { width: 104px; }
   .ork-dashboard-surface .od-topbar .hdr-r { gap: 4px; }
   .ork-dashboard-surface .od-pill { padding: 4px 6px; font-size: .58rem; }
+  /* Vaca sai no celular (390px): sem isso logo + Boi + tema + avatar estouram a largura. */
+  .ork-dashboard-surface .od-topbar #hdr-vaca { display: none; }
 }
+
+/* Rodapé fora do <main>: cores vinham inline (#000) e sumiam no dark. */
+.od-footer {
+  text-align: center; padding: 24px 16px 16px; margin-top: 32px;
+  border-top: 1px solid var(--border-strong); font: .7rem/1.5 monospace; color: var(--text-secondary);
+}
+.od-footer strong { color: var(--text-primary); }
+.od-footer a { color: var(--text-primary); text-decoration: none; border-bottom: 1px solid var(--border-strong); }
+.od-footer a:hover { border-bottom-color: var(--brand-primary); }
 
 /* Menu do usuário */
 .od-user { position: relative; flex: 0 0 auto; }
