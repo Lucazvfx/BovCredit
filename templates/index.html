@@ -464,9 +464,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-fields.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-dashboard.css') }}?v=74">
 <script defer src="{{ url_for('static', filename='orkavyn-shell.js') }}"></script>
-<script defer src="{{ url_for('static', filename='orkavyn-dashboard.js') }}"></script>
+<script defer src="{{ url_for('static', filename='orkavyn-dashboard.js') }}?v=74"></script>
 </head>
 <body class="ork-surface ork-dashboard-surface">
 
@@ -6308,8 +6308,8 @@ carregarCotacaoDia();
 carregarEmpresaAtiva();
 carregarFazendasSelect();
 </script>
-<footer style="text-align: center; padding: 24px 16px 16px; border-top: 1px solid #333; margin-top: 32px; font-family: monospace; font-size: 0.7rem; color: #000;">
-  <p>Desenvolvido por <strong style="color: #000;">Lucas Vinicius</strong>. &nbsp;·&nbsp; <a href="/privacidade" target="_blank" style="color:#000;text-decoration:none;border-bottom:1px solid #333">Privacidade</a> &nbsp;·&nbsp; <a href="/termos" target="_blank" style="color:#000;text-decoration:none;border-bottom:1px solid #333">Termos de Uso</a></p>
+<footer class="od-footer">
+  <p>Desenvolvido por <strong>Lucas Vinicius</strong>. &nbsp;·&nbsp; <a href="/privacidade" target="_blank">Privacidade</a> &nbsp;·&nbsp; <a href="/termos" target="_blank">Termos de Uso</a></p>
 </footer>
 {% include 'partials/dashboard_dock.html' %}
 </div>
