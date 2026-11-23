@@ -955,6 +955,50 @@ def parsear_resumo_fazendas(text: str, pdf_path: str = None) -> dict:
     return resultado
 
 
+# Quantidade ao fim da linha. Aceita milhar com ponto ("1.250") e decimal
+# pt-BR sem fração ("250,00"). Antes só `\d{1,6}` casava: "1.250" virava 250 e
+# o rebanho saía 5x menor sem nenhum alerta.
+_QTD_FINAL = re.compile(r'(?<![\d.,])(\d{1,3}(?:\.\d{3}){1,2}|\d{1,6})(?:,0{1,2})?\s*$')
+
+
+def _qtd_ptbr(token: str) -> int:
+    return int(token.replace('.', ''))
+
+
+_TOTAL_DOC = re.compile(
+    r'^\s*TOTAL(?:\s+GERAL)?(?:\s+(?:DE\s+)?(?:BOVINOS|ANIMAIS|REBANHO|CABE[CÇ]AS))?'
+    r'\s*[:\-]?\s*(\d{1,3}(?:\.\d{3}){1,2}|\d{1,7})(?:,0{1,2})?\s*$',
+    re.I | re.M)
+
+
+def avisos_leitura(text: str, dados: dict) -> list:
+    """Alertas para leitura que parece bem-sucedida mas pode estar incompleta.
+
+    Só informa; nunca altera `dados`. O analista decide se confia no parse.
+    """
+    avisos = []
+    total = dados.get('total') or 0
+    if not (text or '').strip():
+        avisos.append(
+            'PDF sem texto extraível (possível documento escaneado sem OCR '
+            'disponível) — nenhum animal foi lido.')
+        return avisos
+    if total == 0:
+        avisos.append(
+            'Nenhuma categoria de animal foi reconhecida — confira o '
+            'documento e informe o rebanho manualmente.')
+        return avisos
+    totais = {_qtd_ptbr(m.group(1)) for m in _TOTAL_DOC.finditer(text)}
+    if len(totais) == 1:
+        declarado = next(iter(totais))
+        if declarado != total:
+            avisos.append(
+                f'O total do documento ({declarado}) difere do total lido '
+                f'({total}) — alguma linha pode ter sido ignorada ou lida '
+                f'errada. Revise antes de classificar.')
+    return avisos
+
+
 def parsear_generico(text: str) -> dict:
     animais = _animais_vazios()
     fazenda = municipio = proprietario = cpf = data_saldo = ''
@@ -998,10 +1042,10 @@ def parsear_generico(text: str) -> dict:
         bruto = line.strip()
         if not bruto:
             continue
-        m_qtd = re.search(r'(\d{1,6})\s*$', bruto)
+        m_qtd = _QTD_FINAL.search(bruto)
         if not m_qtd:
             continue
-        qtd = int(m_qtd.group(1))
+        qtd = _qtd_ptbr(m_qtd.group(1))
         if qtd <= 0 or qtd > 500_000:
             continue
 

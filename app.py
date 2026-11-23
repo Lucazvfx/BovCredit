@@ -44,7 +44,7 @@ from pdf_parsers import (
     parsear_iagro_ms, parsear_aged_ma, parsear_agrodefesa_go,
     parsear_adapec_to, parsear_adepara_pa,
     parsear_go_declaracao_web,
-    ORIGENS_GENERICAS, ORIGENS_INDEA,
+    ORIGENS_GENERICAS, ORIGENS_INDEA, avisos_leitura,
 )
 
 from services.importar_excel import parsear_ficha_excel, validar_fazendas_importadas
@@ -3623,6 +3623,7 @@ def api_ler_pdf():
             if dados['total'] == 0:
                 dados = parsear_indea(text, pdf_path=tmp_path)
         dados['origem'] = orig
+        dados['avisos'] = avisos_leitura(text, dados)
 
         # Guarda o documento e o que o parser extraiu dele. Antes o arquivo era
         # lido e apagado no `finally`, e com ele ia embora a única evidência de
