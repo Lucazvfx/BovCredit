@@ -612,6 +612,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div class="field"><label>Finalidade</label><select id="credito_finalidade"><option value="custeio">Custeio</option><option value="investimento">Investimento</option></select></div>
         <div class="field"><label title="SAC: amortização constante, parcela começa alta e cai — padrão do crédito rural (Pronaf, Pronamp, custeio). Price: parcela fixa do início ao fim.">Amortização ℹ</label><select id="credito_sistema"><option value="price">Price — parcela fixa</option><option value="sac">SAC — parcela decrescente</option></select></div>
         <div class="field"><label title="Crédito rural raramente é mensal: a receita chega na venda do lote. O prazo menos a carência precisa ser múltiplo da periodicidade.">Periodicidade ℹ</label><select id="credito_periodicidade" onchange="validarParcelamento()"><option value="1">Mensal</option><option value="3">Trimestral</option><option value="6">Semestral</option><option value="12">Anual (safra)</option></select></div>
+        <div class="field"><label title="Opcional. Com o sistema produtivo informado, o parecer projeta o caixa mês a mês e avisa quando o DSCR anual fecha mas o caixa quebra na entressafra.">Sistema produtivo ℹ</label><select id="sistema_produtivo"><option value="">Não informar</option><option value="cria">Cria</option><option value="recria">Recria</option><option value="engorda">Engorda</option><option value="ciclo_completo">Ciclo completo</option></select></div>
+        <div class="field"><label title="Calendário simulado no fluxo sazonal (mesmo serviço anual, sem juros adicionais). Só vale com o sistema produtivo informado.">Frequência de pagamento ℹ</label><select id="frequencia_pagamento"><option value="mensal">Mensal</option><option value="semestral">Semestral</option><option value="anual">Anual</option></select></div>
       </div>
       <!-- A regra "prazo − carência múltiplo da periodicidade" só falhava no
            servidor, depois de submeter tudo, e voltava como toast que some.
@@ -2383,6 +2385,9 @@ async function classificar(){
     // começa alta, e é o ano 1 que aperta.
     body.sistema_amortizacao=document.getElementById('credito_sistema').value;
     body.periodicidade_meses=+document.getElementById('credito_periodicidade').value||1;
+    // Opcional: sem sistema produtivo o servidor responde como sempre.
+    const _sp=document.getElementById('sistema_produtivo').value;
+    if(_sp){body.sistema_produtivo=_sp;body.frequencia_pagamento=document.getElementById('frequencia_pagamento').value||'mensal'}
     const natV=document.getElementById('c-nat').value;
     const boisvV=document.getElementById('c-boisv').value;
     const bezvV=document.getElementById('c-bezv').value;
@@ -3225,6 +3230,26 @@ function renderFluxoMensal(data, parecer){
   const c=f.mes_critico;
   return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:#A78BFA"></div>Fluxo mensal para crédito</div></div><div class="cb" style="display:flex;gap:18px;flex-wrap:wrap;font-size:.78rem;color:var(--sb)"><span>Saldo mínimo: <strong style="color:var(--tx)">${fR(f.saldo_minimo)}</strong></span><span>Mês crítico: <strong>${c?`Ano ${c.ano}, mês ${c.mes}`:'—'}</strong></span><span style="color:var(--mu)">Distribuição estimada; informe calendário real para decisão final.</span></div></div>`;
 }
+function renderCicloPecuario(p){
+  const c=p&&p.ciclo_pecuario; if(!c) return '';
+  const card=(corpo)=>`<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:#38BDF8"></div>Fluxo de caixa sazonal (ciclo pecuário)</div></div><div class="cb" style="font-size:.78rem;color:var(--sb)">${corpo}</div></div>`;
+  if(!c.disponivel) return card(`<span style="color:var(--mu)">${escapeHtml(c.motivo||'Fluxo sazonal indisponível.')}</span>`);
+  const n=v=>fR(Number(v)||0);
+  const meses=Array.isArray(c.meses)?c.meses:[];
+  const defMeses=(Array.isArray(c.meses_deficit)?c.meses_deficit:[]).map(m=>{const x=meses.find(r=>r.mes===m);return x?x.rotulo:m});
+  const rec=c.recomendacao;
+  const alerta=c.quebra_caixa_com_dscr_ok?`<div role="alert" style="border:1px solid #F8717166;background:#F8717115;border-radius:10px;padding:12px 14px;margin-bottom:12px;color:var(--tx)"><strong style="color:#F87171">DSCR anual aprovado, mas há risco de quebra de caixa sazonal.</strong> A parcela deste calendário cria meses de déficit que a operação sozinha não teria.${rec?` Cronograma recomendado: <strong>${escapeHtml(rec.estrutura_recomendada)}</strong>${rec.elimina_vale?' (elimina o vale)':rec.melhora_vale?' (reduz o vale)':''}.`:''}</div>`:'';
+  const linhas=meses.map(r=>`<tr><td>${escapeHtml(r.rotulo)}</td><td style="text-align:right">${n(r.entradas)}</td><td style="text-align:right">${n(r.saidas_operacionais)}</td><td style="text-align:right">${n(r.servico_divida)}</td><td style="text-align:right;color:${Number(r.saldo_acumulado)<0?'#F87171':'inherit'}">${n(r.saldo_acumulado)}</td></tr>`).join('');
+  return card(`${alerta}
+    <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px">
+      <span>Sistema: <strong style="color:var(--tx)">${escapeHtml(c.sistema)}</strong> · pagamento ${escapeHtml(c.frequencia)}</span>
+      <span>Pior vale: <strong style="color:var(--tx)">${n(c.vale_caixa)}</strong>${c.mes_vale!=null?' ('+escapeHtml((meses.find(r=>r.mes===c.mes_vale)||{}).rotulo||c.mes_vale)+')':''}</span>
+      <span>Meses em déficit: <strong style="color:var(--tx)">${defMeses.length?defMeses.map(escapeHtml).join(', '):'nenhum'}</strong></span>
+      <span>DSCR ano ${escapeHtml(c.ano_referencia)}: <strong style="color:var(--tx)">${c.dscr_anual!=null?escapeHtml(Number(c.dscr_anual).toFixed(2)):'—'}</strong></span>
+    </div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.72rem"><thead><tr style="color:var(--mu);text-align:left"><th>Mês</th><th style="text-align:right">Entradas</th><th style="text-align:right">Saídas</th><th style="text-align:right">Parcela</th><th style="text-align:right">Saldo acum.</th></tr></thead><tbody>${linhas}</tbody></table></div>
+    <div style="margin-top:8px;color:var(--mu);font-size:.68rem">Perfis sazonais são premissas estilizadas de referência (calendário típico do Brasil Central), não série medida da propriedade. Alternativas semestral/anual mantêm o mesmo serviço anual, sem juros adicionais de repactuação.</div>`);
+}
 function renderParecer(data){
   const p=data.parecer; if(!p) return '';
   window._lastParecer = p;
@@ -3560,7 +3585,7 @@ function renderParecer(data){
   return `<div class="card" style="margin-bottom:24px">
     <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Parecer de Crédito</div>
       <button class="btn-sm" onclick="baixarPdfParecer(window._lastParecer)">⬇ Baixar PDF</button></div>
-    <div class="cb" style="display:grid;gap:0">${renderAnalisesCredito(data,p)}${renderRetencao(data)}${renderFluxoMensal(data,p)}${renderPraca(p.precos_regional)}${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
+    <div class="cb" style="display:grid;gap:0">${renderAnalisesCredito(data,p)}${renderRetencao(data)}${renderFluxoMensal(data,p)}${renderCicloPecuario(p)}${renderPraca(p.precos_regional)}${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
   </div>
   ${renderGarantia(p.garantia)}
   ${renderEndividamento(p.endividamento)}

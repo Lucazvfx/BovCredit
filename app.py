@@ -59,6 +59,9 @@ from services.benchmarks_nacionais import (
 from services.parecer_credito import (
     montar_parecer, cronograma_divida,
     SISTEMAS as _SISTEMAS_AMORT, PERIODICIDADES as _PERIODICIDADES)
+from services.payment_capacity_engine.ciclo_pecuario import (
+    SISTEMAS as _SISTEMAS_CICLO, FREQUENCIAS as _FREQUENCIAS_CICLO,
+    VALOR_MAXIMO as _CAPITAL_GIRO_MAX)
 from services.parecer_pdf import gerar_pdf_parecer
 from services.parecer_pdf_perene import gerar_pdf_parecer_perene
 from services.parecer_pdf_graos import gerar_pdf_parecer_graos
@@ -1414,6 +1417,40 @@ def api_classificar():
         if juros_credito < 0:
             return jsonify({'erro': 'A taxa de juros não pode ser negativa.'}), 400
 
+    # Fluxo sazonal do ciclo pecuário: tudo opcional. Sem `sistema_produtivo`
+    # a rota responde exatamente como antes.
+    sistema_produtivo = data.get('sistema_produtivo')
+    if sistema_produtivo in (None, ''):
+        sistema_produtivo = None
+    elif (not isinstance(sistema_produtivo, str)
+          or sistema_produtivo.strip().lower() not in _SISTEMAS_CICLO):
+        return jsonify({'erro': "sistema_produtivo deve ser um de: "
+                                + ', '.join(_SISTEMAS_CICLO) + '.'}), 400
+    else:
+        sistema_produtivo = sistema_produtivo.strip().lower()
+
+    frequencia_pagamento = data.get('frequencia_pagamento')
+    if frequencia_pagamento in (None, ''):
+        frequencia_pagamento = 'mensal'
+    elif (not isinstance(frequencia_pagamento, str)
+          or frequencia_pagamento.strip().lower() not in _FREQUENCIAS_CICLO):
+        return jsonify({'erro': "frequencia_pagamento deve ser uma de: "
+                                + ', '.join(_FREQUENCIAS_CICLO) + '.'}), 400
+    else:
+        frequencia_pagamento = frequencia_pagamento.strip().lower()
+
+    giro_raw = data.get('capital_giro_inicial')
+    if giro_raw in (None, ''):
+        capital_giro_inicial = 0.0
+    elif (isinstance(giro_raw, bool) or not isinstance(giro_raw, (int, float))
+          # Comparação direta (sem float() antes): int gigante estouraria com
+          # OverflowError, e NaN/inf já falham em 0 <= x <= MAX.
+          or not 0 <= giro_raw <= _CAPITAL_GIRO_MAX):
+        return jsonify({'erro': 'capital_giro_inicial deve ser um número '
+                                f'entre 0 e {_CAPITAL_GIRO_MAX:.0f}.'}), 400
+    else:
+        capital_giro_inicial = float(giro_raw)
+
     kwargs = {}
     if 'taxa_natalidade' in data:
         if not _eh_numero_finito(data['taxa_natalidade']):
@@ -2303,7 +2340,10 @@ def api_classificar():
         projecao_anos=_projecao_anos,
         garantia=garantia,
         endividamento=endividamento,
-        precos_regional=precos_regional)
+        precos_regional=precos_regional,
+        sistema_produtivo=sistema_produtivo,
+        frequencia_pagamento=frequencia_pagamento,
+        capital_giro_inicial=capital_giro_inicial)
 
     # As três perguntas do crédito ficam explícitas e independentes no
     # resultado. Uma operação pode ter caixa suficiente, mas garantia fraca;

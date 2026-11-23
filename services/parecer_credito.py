@@ -43,6 +43,9 @@ from services.payment_capacity_engine.dscr import (  # noqa: E402
     parcelas_sac,
     principal_apos_carencia,
 )
+from services.payment_capacity_engine.ciclo_pecuario import (  # noqa: E402
+    projetar_fluxo_ciclo,
+)
 
 
 def avaliar_capacidade_pagamento(
@@ -82,11 +85,59 @@ def avaliar_capacidade_pagamento(
 COE_DIVERGENCIA_AVISO = 25.0
 
 
+_PAGAMENTOS_ANO = {'mensal': 12, 'semestral': 2, 'anual': 1}
+
+
+def _fluxo_ciclo_do_parecer(*, sistema_produtivo, frequencia_pagamento,
+                            capital_giro_inicial, conclusao, projecao_anos):
+    """Fluxo sazonal do ANO CRÍTICO, com os mesmos números do DSCR do parecer.
+
+    Receita, resultado e serviço da dívida saem da linha de `projecao_anos` do
+    ano crítico — a mesma que sustenta `conclusao['dscr_minimo']`. O custo
+    operacional é `receita − resultado`, de modo que (receita − custo) é
+    exatamente o numerador do DSCR (inclui a reposição de reprodutores). A
+    parcela é o serviço anual daquele ano ÷ pagamentos por ano da frequência:
+    o serviço anual não muda, só o calendário.
+    """
+    base = {'disponivel': False, 'sistema_produtivo': sistema_produtivo,
+            'frequencia_pagamento': frequencia_pagamento}
+    if not projecao_anos:
+        return {**base, 'motivo': 'Sem projeção por ano para derivar receita e custo.'}
+    ano = conclusao.get('ano_critico')
+    linha = next((a for a in projecao_anos if a.get('ano') == ano), None) \
+        or projecao_anos[0]
+    try:
+        receita = float(linha['receita'])
+        resultado = float(linha['resultado'])
+        servico = float(linha.get('servico_divida_anual') or 0.0)
+    except (KeyError, TypeError, ValueError):
+        return {**base, 'motivo': 'Projeção do ano crítico incompleta.'}
+    custo = receita - resultado
+    try:
+        r = projetar_fluxo_ciclo(
+            sistema=sistema_produtivo,
+            receita_anual=receita,
+            custo_operacional_anual=custo,
+            parcela_divida=servico / _PAGAMENTOS_ANO[frequencia_pagamento],
+            frequencia=frequencia_pagamento,
+            capital_giro_inicial=capital_giro_inicial)
+    except ValueError as e:
+        # Resultado maior que a receita (custo negativo) ou valor fora do limite.
+        return {**base, 'motivo': f'Fluxo sazonal indisponível: {e}'}
+    return {**r, 'disponivel': True, 'ano_referencia': linha.get('ano'),
+            'receita_anual': round(receita, 2),
+            'custo_operacional_anual': round(custo, 2),
+            'servico_divida_anual_parecer': round(servico, 2),
+            'capital_giro_inicial': capital_giro_inicial}
+
+
 def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
                    consistencia, financeiro, geracao_caixa_anual, credito,
                    fluxo_gep=None, sensibilidade=None, shap_explicacao=None,
                    projecao_anos=None, garantia=None, endividamento=None,
-                   precos_regional=None) -> dict:
+                   precos_regional=None, sistema_produtivo=None,
+                   frequencia_pagamento='mensal',
+                   capital_giro_inicial=0.0) -> dict:
     def _f(v, default=0.0):
         try: return float(v or default)
         except (TypeError, ValueError): return default
@@ -290,7 +341,16 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
     )
     proveniencia = {'parametros': _cat, 'resumo': _resumo_prov(_cat)}
 
-    return {
+    # Só quando o analista informa o sistema produtivo: sem ele o parecer sai
+    # idêntico ao de antes (mesmas chaves, mesma lista de seções).
+    ciclo_pecuario = (_fluxo_ciclo_do_parecer(
+        sistema_produtivo=sistema_produtivo,
+        frequencia_pagamento=frequencia_pagamento,
+        capital_giro_inicial=capital_giro_inicial,
+        conclusao=conclusao, projecao_anos=projecao_anos)
+        if sistema_produtivo else None)
+
+    resultado = {
         'secoes': ['identificacao', 'composicao', 'indicadores',
                    'consistencia', 'financeiro', 'precos_regional',
                    'fluxo_gep', 'garantia', 'endividamento', 'sensibilidade',
@@ -309,3 +369,6 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
         'shap_explicacao': shap_explicacao or {},
         'conclusao': conclusao,
     }
+    if ciclo_pecuario is not None:
+        resultado['ciclo_pecuario'] = ciclo_pecuario
+    return resultado
