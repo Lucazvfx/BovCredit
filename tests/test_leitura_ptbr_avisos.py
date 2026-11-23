@@ -28,6 +28,43 @@ def test_quantidade_sem_milhar_continua_igual():
     assert d['total'] == 1050
 
 
+def test_milhar_com_espaco_nao_trunca_quantidade():
+    d = parsear_generico(
+        'Fêmeas 0 a 12 meses 1 250\nMachos 0 a 12 meses 12 340\n')
+    assert d['total'] == 13590
+
+
+def test_milhar_com_espaco_nao_cola_intervalo_nem_coluna():
+    # "24 100" é faixa etária + quantidade; "120 850" são duas colunas (M e F).
+    d = parsear_generico('Machos 13 a 24 100\nFêmeas 13 a 24 meses 120 850\n')
+    assert d['total'] == 100 + 850
+
+
+def test_colunas_ambiguas_leem_so_o_ultimo_grupo():
+    # Antes do diff: 120 / 120 / 130. Nunca inflar o rebanho em silêncio.
+    d = parsear_generico('Vacas 45 120 130\n')
+    assert d['total'] == 130
+    d = parsear_generico('Bezerros 0 a 12 meses 10 120 130\n')
+    assert d['total'] == 130
+
+
+def test_milhar_com_espaco_gera_aviso_de_conferencia():
+    texto = 'Fêmeas 0 a 12 meses 1 250\nMachos 0 a 12 meses 100\n'
+    avisos = avisos_leitura(texto, parsear_generico(texto))
+    assert any('espaço' in a for a in avisos)
+
+
+def test_total_com_milhar_por_espaco_confere():
+    texto = 'Fêmeas 0 a 12 meses 1 250\nMachos 0 a 12 meses 1 250\nTOTAL 2 500\n'
+    avisos = avisos_leitura(texto, parsear_generico(texto))
+    assert not any('difere' in a for a in avisos)
+
+
+def test_milhar_com_espaco_nao_atravessa_quebra_de_linha():
+    d = parsear_generico('Fêmeas 13 a 24 meses 1\n250\n')
+    assert d['total'] == 1  # nunca 1250
+
+
 def test_linha_nao_reconhecida_gera_aviso_de_total_divergente():
     texto = (
         'Fêmeas 0 a 12 meses 100\nMachos 0 a 12 meses 100\n'

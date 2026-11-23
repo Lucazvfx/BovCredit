@@ -238,6 +238,24 @@ def test_dados_incompletos_e_atipicos_acumulam_motivos(monkeypatch):
     assert set(r['motivos_revisao']) == {'dados_incompletos', 'muito_atipico'}
 
 
+def test_rebanho_zerado_exige_revisao_humana():
+    r = ml_engine.classificar([0] * 10, bois_vendidos=10)
+    assert r['revisao_humana'] is True
+    assert 'rebanho_zerado' in r['motivos_revisao']
+
+
+@pytest.mark.parametrize('escala', [10_000, 100_000])
+def test_rebanho_fora_de_faixa_exige_revisao_humana(escala):
+    r = ml_engine.classificar([escala] * 10, bois_vendidos=10)
+    assert r['revisao_humana'] is True
+    assert 'rebanho_fora_faixa' in r['motivos_revisao']
+
+
+def test_rebanho_plausivel_nao_ganha_motivo_novo():
+    r = ml_engine.classificar(V_TESTE, bois_vendidos=10)
+    assert not {'rebanho_zerado', 'rebanho_fora_faixa'} & set(r['motivos_revisao'])
+
+
 def test_classificar_continua_sem_shap_inline():
     """Guarda do isolamento: os campos novos não podem puxar o SHAP para o caminho síncrono."""
     r = ml_engine.classificar(V_TESTE, bois_vendidos=10)

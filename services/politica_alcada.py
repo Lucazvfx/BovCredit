@@ -34,7 +34,8 @@ _PADRAO = {
 }
 COMITE_SE_REVISAO_PADRAO = True
 
-MOTIVOS_REVISAO_VALIDOS = ('dados_incompletos', 'muito_atipico')
+MOTIVOS_REVISAO_VALIDOS = ('dados_incompletos', 'muito_atipico',
+                           'rebanho_zerado', 'rebanho_fora_faixa')
 NIVEIS_ATIPICIDADE = ('tipico', 'atipico', 'muito_atipico')
 
 VALOR_MAX = 1e11

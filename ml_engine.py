@@ -59,6 +59,10 @@ _RAZAO_MORT_BEZERRA = MORTALIDADE_BEZERRA_PCT / MORTALIDADE_ADULTO_PCT  # 3.5
 # soltos que alguém pudesse mudar só de um lado.
 P_MATRIZES_CRIA = 0.18
 
+# Total de cabeças acima do qual o rebanho é tratado como implausível e exige
+# revisão humana (o parser aceita até 500 mil por linha; isso pega o excedente).
+REBANHO_MAX_PLAUSIVEL = 50_000
+
 # Razão mínima entre fêmeas ACIMA de 36 meses e fêmeas de 25–36 meses para o
 # rebanho poder ser chamado de cria.
 #
@@ -817,6 +821,12 @@ def classificar(
         motivos_revisao.append('dados_incompletos')
     if muito_atipico:
         motivos_revisao.append('muito_atipico')
+    # Rebanho zerado ou de volume implausível quase sempre é falha de leitura
+    # da ficha (ex.: milhar perdido, coluna trocada), não um rebanho real.
+    if not np.isfinite(va).all() or (va < 0).any() or va.sum() <= 0:
+        motivos_revisao.append('rebanho_zerado')
+    elif va.sum() > REBANHO_MAX_PLAUSIVEL:
+        motivos_revisao.append('rebanho_fora_faixa')
     revisao_humana = bool(motivos_revisao)
     if classificacao_limitada:
         explicacao.append(
@@ -842,7 +852,8 @@ def classificar(
         'classificacao_limitada': classificacao_limitada,
         'dados_faltantes': dados_faltantes,
         'revisao_humana':  revisao_humana,
-        'motivos_revisao': motivos_revisao,  # 'dados_incompletos' | 'muito_atipico'
+        # 'dados_incompletos' | 'muito_atipico' | 'rebanho_zerado' | 'rebanho_fora_faixa'
+        'motivos_revisao': motivos_revisao,
     }
 
 
