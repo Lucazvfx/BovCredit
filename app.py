@@ -2758,10 +2758,13 @@ def api_salvar_politica_alcada():
     empresa_id, erro = _empresa_ativa_ou_400()
     if erro:
         return erro
-    politica, msg = _alcada.validar_politica(request.get_json(silent=True))
+    politica, msg = _alcada.validar_politica(
+        request.get_json(silent=True),
+        base=db.obter_politica_alcada(empresa_id))
     if msg:
         return jsonify({'erro': msg}), 400
     db.salvar_politica_alcada(empresa_id, politica, user_id=current_user.id)
+    _auditar(_aud.ALCADA_ALTERADA, recurso='empresa', recurso_id=empresa_id)
     return jsonify({'ok': True, 'politica': db.obter_politica_alcada(empresa_id)})
 
 

@@ -4898,8 +4898,8 @@ async function simularProposta(){
     valor_pretendido:Number(document.getElementById('sim-valor').value),
     prazo_meses:Number(document.getElementById('sim-prazo').value),
     carencia_meses:Number(document.getElementById('sim-carencia').value||0),
-    juros_aa:Number(document.getElementById('sim-juros').value)/100,
-    geracao_caixa_anual:Number(document.getElementById('sim-caixa').value),
+    juros_aa:document.getElementById('sim-juros').value===''?null:Number(document.getElementById('sim-juros').value)/100,
+    geracao_caixa_anual:document.getElementById('sim-caixa').value===''?null:Number(document.getElementById('sim-caixa').value),
     dividas_mensais:Number(document.getElementById('sim-div').value||0),
     revisao_humana:document.getElementById('sim-rev').value==='1',
   };
@@ -4907,11 +4907,11 @@ async function simularProposta(){
   try{
     const r=await fetch('/api/simulacao-proposta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)});
     const d=await r.json();
-    if(!r.ok){ box.textContent=d.erro||'Não foi possível simular.'; return; }
+    if(!r.ok){ box.textContent=(d.erro||'Não foi possível simular.').replace(/^juros_aa deve.*$/,'Informe os juros em % a.a., entre 0 e 100.'); return; }
     const motivos=(d.motivos_texto||[]).map(t=>'<li>'+escapeHtml(t)+'</li>').join('');
     box.innerHTML='<div class="ptitle" style="font-size:1.1rem">'+escapeHtml(d.status_rotulo)+'</div>'
-      +'<p>Capacidade máxima: '+fR(d.capacidade_maxima)+' · permitida pela política: '+fR(d.capacidade_permitida)
-      +'<br>Uso da capacidade: '+(d.uso_da_capacidade_pct==null?'—':escapeHtml(String(d.uso_da_capacidade_pct))+'%')
+      +'<p>Capacidade máxima de endividamento: '+fR(d.capacidade_maxima)+' · permitida pela política: '+fR(d.capacidade_permitida)
+      +'<br>Uso da capacidade permitida: '+(d.uso_da_capacidade_pct==null?'—':Number(d.uso_da_capacidade_pct).toLocaleString('pt-BR')+'%')
       +' · DSCR do pedido: '+fDscr(d.dscr)+'</p>'
       +(motivos?'<ul>'+motivos+'</ul>':'');
   }catch(e){ box.textContent='Não foi possível simular.'; }

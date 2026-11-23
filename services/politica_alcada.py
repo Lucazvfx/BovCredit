@@ -65,30 +65,29 @@ def politica_padrao() -> dict:
     }
 
 
-def proveniencia_padrao() -> dict:
-    """Metadados de origem dos valores padrão (para exibição)."""
-    return {k: v.para_dict() for k, v in _PADRAO.items()}
-
-
 def _numero(valor):
     """float finito ou None; bool e texto não numérico são rejeitados."""
     if isinstance(valor, bool) or valor is None:
         return None
     try:
         n = float(valor)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
     return n if math.isfinite(n) else None
 
 
-def validar_politica(dados) -> tuple[dict | None, str | None]:
-    """Valida um payload de política. Campos ausentes herdam o padrão.
+def validar_politica(dados, base: dict | None = None) -> tuple[dict | None, str | None]:
+    """Valida um payload de política. Campos ausentes herdam `base`.
 
+    `base` é a política vigente da empresa (padrão se omitida), de modo que um
+    PUT parcial não apaga o que já foi configurado.
     Devolve (politica, None) ou (None, mensagem de erro).
     """
     if not isinstance(dados, dict):
         return None, 'Corpo inválido.'
     atual = politica_padrao()
+    if base:
+        atual.update({k: base[k] for k in atual if k in base})
     for campo in ('alcada_analista', 'alcada_comite'):
         if campo in dados:
             n = _numero(dados[campo])
@@ -130,10 +129,10 @@ def validar_simulacao(dados) -> tuple[dict | None, str | None]:
     juros = _numero(dados.get('juros_aa'))
     if juros is None or not 0 < juros < 1:
         return None, 'juros_aa deve ser fração entre 0 e 1 (0,105 = 10,5% a.a.).'
-    carencia = _numero(dados.get('carencia_meses', 0) or 0)
+    carencia = _numero(dados.get('carencia_meses', 0))
     if carencia is None or carencia != int(carencia) or not 0 <= carencia < prazo:
         return None, 'carencia_meses deve ser inteiro menor que o prazo.'
-    dividas = _numero(dados.get('dividas_mensais', 0) or 0)
+    dividas = _numero(dados.get('dividas_mensais', 0))
     if dividas is None or not 0 <= dividas <= VALOR_MAX:
         return None, 'dividas_mensais deve ser um valor não negativo.'
 
@@ -170,6 +169,9 @@ def simular_proposta(politica: dict, *, valor_pretendido: float, prazo_meses: in
 
     Entradas já validadas (ver `validar_simulacao`). Não grava nada.
     """
+    # O teto de capacidade usa o DSCR de aprovação (1,30) do motor: uma proposta
+    # na faixa de "ressalva" do parecer é, por política, tratada como acima da
+    # capacidade — a alçada comercial é mais conservadora que a recomendação.
     capacidade_max = credito_maximo(
         geracao_caixa_anual, juros_aa, prazo_meses, carencia_meses,
         dividas_mensais)

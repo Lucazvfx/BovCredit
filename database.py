@@ -895,20 +895,19 @@ def salvar_politica_alcada(empresa_id: int, politica: dict, user_id: int = None)
         politica['prazo_max_meses'], politica['margem_capacidade_pct'],
         1 if politica['comite_se_revisao_humana'] else 0, user_id,
     )
-    existe = _exec(f'SELECT 1 FROM politica_alcada WHERE empresa_id={ph}',
-                   (empresa_id,), fetch='one')
-    if existe:
-        _exec(f'''UPDATE politica_alcada SET alcada_analista={ph},
-                  alcada_comite={ph}, prazo_max_meses={ph},
-                  margem_capacidade_pct={ph}, comite_se_revisao_humana={ph},
-                  atualizado_por={ph}, atualizado_em={_NOW}
-                  WHERE empresa_id={ph}''', valores + (empresa_id,), commit=True)
-    else:
-        _exec(f'''INSERT INTO politica_alcada (alcada_analista, alcada_comite,
-                  prazo_max_meses, margem_capacidade_pct,
-                  comite_se_revisao_humana, atualizado_por, empresa_id)
-                  VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph})''',
-              valores + (empresa_id,), commit=True)
+    _exec(f'''INSERT INTO politica_alcada (alcada_analista, alcada_comite,
+              prazo_max_meses, margem_capacidade_pct,
+              comite_se_revisao_humana, atualizado_por, empresa_id)
+              VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph})
+              ON CONFLICT (empresa_id) DO UPDATE SET
+                alcada_analista=excluded.alcada_analista,
+                alcada_comite=excluded.alcada_comite,
+                prazo_max_meses=excluded.prazo_max_meses,
+                margem_capacidade_pct=excluded.margem_capacidade_pct,
+                comite_se_revisao_humana=excluded.comite_se_revisao_humana,
+                atualizado_por=excluded.atualizado_por,
+                atualizado_em={_NOW}''',
+          valores + (empresa_id,), commit=True)
 
 
 def resetar_senha(email: str, nova_senha: str):
