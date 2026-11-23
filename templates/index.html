@@ -493,6 +493,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <label class="od-menu__field" for="empresa-ativa-select">Empresa ativa</label>
         <select id="empresa-ativa-select" class="od-menu__select" onchange="trocarEmpresaAtiva()" title="Empresa ativa"></select>
         {% if eh_admin %}<a class="od-menu__item" href="{{ url_for('admin') }}" title="Gerenciar acessos">Acessos</a>{% endif %}
+        <button type="button" class="od-menu__item" onclick="editarMeuNome()" title="Alterar o nome exibido na saudação">Editar meu nome</button>
         <button type="button" class="od-menu__item" onclick="abrirMarcaModal()" title="Marca da consultoria no PDF">Marca da consultoria</button>
         <a class="od-menu__item" href="/logout">Sair</a>
       </div>
@@ -566,8 +567,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <div class="panel active ork-entry-view" id="panel-entrada">
 
   <section class="od-cover" aria-labelledby="od-cover-title">
-    <h1 class="od-cover__title" id="od-cover-title">{%- set primeiro_nome = ((usuario.nome or '')|trim).split(' ')[0] -%}
-<span id="od-greeting">Olá</span>{% if primeiro_nome and '@' not in primeiro_nome %}, {{ primeiro_nome }}{% endif %}.</h1>
+    <h1 class="od-cover__title" id="od-cover-title"><span id="od-greeting">Olá</span><span id="od-greeting-nome">{% if primeiro_nome %}, {{ primeiro_nome }}{% endif %}</span>.</h1>
     <p class="od-cover__sub">Importe a ficha do rebanho ou preencha os dados abaixo para emitir o parecer de crédito.</p>
   </section>
 
@@ -6076,6 +6076,22 @@ async function trocarEmpresaAtiva(){
     document.getElementById('hist-lista').innerHTML = '';
     showToast('Empresa ativa trocada.');
   }catch(e){ showToast('Erro ao trocar empresa.', true); }
+}
+
+async function editarMeuNome(){
+  const atual = (document.querySelector('#od-user-menu .od-menu__who')||{}).textContent || '';
+  const nome = prompt('Como você quer ser chamado(a)?', atual.includes('@') ? '' : atual);
+  if(nome === null) return;
+  try{
+    const r = await fetch('/api/usuario/nome', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({nome})});
+    const d = await r.json();
+    if(!r.ok){ showToast(d.erro || 'Erro ao salvar o nome.', true); return; }
+    document.querySelector('#od-user-menu .od-menu__who').textContent = d.nome;
+    document.querySelector('.od-user__avatar').textContent = d.nome.charAt(0).toUpperCase();
+    document.getElementById('od-greeting-nome').textContent = d.primeiro_nome ? ', ' + d.primeiro_nome : '';
+    showToast(d.primeiro_nome ? 'Nome atualizado.' : 'Nome salvo, mas a saudação não exibe nomes iguais ao prefixo do e-mail.');
+  }catch(e){ showToast('Erro ao salvar o nome.', true); }
 }
 
 // ================== MARCA DA CONSULTORIA ==================

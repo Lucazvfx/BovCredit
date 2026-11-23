@@ -76,7 +76,9 @@ def _saudacao(usuario):
     depender do /app para controlar o nome)."""
     from jinja2 import Environment
     h1 = re.search(r'<h1 class="od-cover__title".*?</h1>', INDEX, re.S).group(0)
-    return Environment(autoescape=True).from_string(h1).render(usuario=usuario)
+    from app import primeiro_nome_exibicao
+    primeiro = primeiro_nome_exibicao(usuario.get("nome"), usuario.get("email"))
+    return Environment(autoescape=True).from_string(h1).render(usuario=usuario, primeiro_nome=primeiro)
 
 
 def test_saudacao_usa_primeiro_nome_e_nunca_o_email():

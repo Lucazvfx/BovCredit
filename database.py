@@ -1187,6 +1187,10 @@ def consumir_token_reset(token: str):
     _exec(f'UPDATE reset_tokens SET used=1 WHERE token={ph}',
           (_hash_token_reset(token),), commit=True)
 
+def atualizar_nome_usuario(user_id: int, nome: str):
+    ph = _PH
+    _exec(f'UPDATE usuarios SET nome={ph} WHERE id={ph}', (nome, user_id), commit=True)
+
 def atualizar_perfil_consultoria(user_id: int, nome_consultoria: str, logo_base64: str):
     ph = _PH
     _exec(f'UPDATE usuarios SET nome_consultoria={ph}, logo_base64={ph} WHERE id={ph}',
