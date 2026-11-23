@@ -189,7 +189,7 @@ def read_ficha_text(
     arquivo: str = '',
     pdf_path: str | None = None,
 ) -> dict:
-    from pdf_parsers import detectar_origem
+    from pdf_parsers import avisos_leitura, detectar_origem
 
     if not text or not text.strip():
         return {
@@ -240,7 +240,7 @@ def read_ficha_text(
         'modelo': modelo_real,
         'dados_brutos': dados,
         'registros': registros,
-        'avisos': [],
+        'avisos': avisos_leitura(text, dados),
         'erros': [],
     }
 
