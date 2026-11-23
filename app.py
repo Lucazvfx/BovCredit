@@ -113,6 +113,7 @@ from services.annual_engine import (
     gerar_minuta_cpr,
 )
 from services.rating_credito import calcular_rating
+from services.carteira import resumo_parecer as _resumo_parecer
 from services.precos_regionais import aplicar as aplicar_preco_regional
 from services.analysis_pipeline import run_full_analysis
 from services import auditoria as _aud
@@ -1161,9 +1162,38 @@ def api_fazenda_pareceres(fid):
     if not db.buscar_fazenda(fid, empresa_id):
         return jsonify({'erro': 'Fazenda não encontrada'}), 404
     itens = db.listar_pareceres(fazenda_id=fid)
+    for it in itens:
+        it['resumo'] = _resumo_parecer(it.get('parecer'), it.get('solicitacao'))
     _auditar(_aud.PARECERES_LIDOS, recurso='fazenda', recurso_id=fid,
              detalhe=f'{len(itens)} parecer(es)')
     return jsonify({'pareceres': itens})
+
+@app.route('/api/carteira', methods=['GET'])
+@login_required
+@limiter.limit(_LIM_CALCULO)
+def api_carteira():
+    """Uma linha por fazenda da empresa ativa, com o resumo do último parecer."""
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    ultimos = {u['fazenda_id']: u for u in db.ultimos_pareceres_empresa(empresa_id)}
+    itens = []
+    for f in db.listar_fazendas(empresa_id):
+        u = ultimos.get(f['id'])
+        itens.append({
+            'fazenda_id': f['id'], 'nome': f.get('nome'),
+            'proprietario': f.get('proprietario'),
+            'municipio': f.get('municipio'), 'estado': f.get('estado'),
+            'total_analises': f.get('total_analises') or 0,
+            'recomendacao': u.get('recomendacao') if u else None,
+            'dscr': u.get('dscr') if u else None,
+            'parecer_em': u.get('created_at') if u else None,
+            'resumo': (_resumo_parecer(u.get('parecer'), u.get('solicitacao'))
+                       if u else None),
+        })
+    _auditar(_aud.PARECERES_LIDOS, recurso='empresa', recurso_id=empresa_id,
+             detalhe=f'carteira: {len(itens)} fazenda(s)')
+    return jsonify({'carteira': itens})
 
 @app.route('/api/empresa/perfil', methods=['GET', 'POST'])
 @login_required

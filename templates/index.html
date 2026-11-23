@@ -1080,10 +1080,26 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 <!-- ═══ HISTÓRICO DE PARECERES ═══ -->
 <div class="panel ork-history-view" id="panel-historico">
-  <div class="ptitle">Histórico de <em>Pareceres</em></div>
-  <p class="psub">Pareceres salvos por fazenda cliente.</p>
+  <div class="ptitle">Carteira e <em>Histórico</em></div>
+  <p class="psub">Último parecer de cada cliente, com sinais de risco para a revenda.</p>
   <div class="card">
-    <div class="ch"><div class="ct"><div class="cd"></div>Fazenda</div></div>
+    <div class="cb">
+      <div class="ork-cart-sum" id="cart-resumo" aria-live="polite"></div>
+      <div class="ork-cart-tools">
+        <input type="search" id="cart-busca" class="ork-cart-busca" placeholder="Buscar cliente, município ou UF" aria-label="Buscar cliente" maxlength="80" oninput="renderCarteira()">
+        <div class="ork-cart-chips" id="cart-filtros" role="group" aria-label="Filtrar por recomendação">
+          <button type="button" class="ork-chip is-on" data-f="" aria-pressed="true" onclick="filtrarCarteira('')">Todos</button>
+          <button type="button" class="ork-chip" data-f="aprovar" aria-pressed="false" onclick="filtrarCarteira('aprovar')">Aprovar</button>
+          <button type="button" class="ork-chip" data-f="ressalva" aria-pressed="false" onclick="filtrarCarteira('ressalva')">Ressalva</button>
+          <button type="button" class="ork-chip" data-f="negar" aria-pressed="false" onclick="filtrarCarteira('negar')">Negar</button>
+          <button type="button" class="ork-chip" data-f="sem" aria-pressed="false" onclick="filtrarCarteira('sem')">Sem parecer</button>
+        </div>
+      </div>
+      <div id="cart-lista" class="ork-cart-list"></div>
+    </div>
+  </div>
+  <div class="card" id="hist-detalhe">
+    <div class="ch"><div class="ct"><div class="cd"></div>Histórico por fazenda</div></div>
     <div class="cb">
       <div class="field"><label>Selecione a fazenda</label>
         <select id="hist-fazenda-id" onchange="carregarHistoricoPareceres()"><option value="">— selecione —</option></select>
@@ -4799,6 +4815,7 @@ function showTab(id,btn){
   });
   document.getElementById('od-more-btn')?.classList.toggle('is-active',['graos','perene','ajuda'].includes(id));
   if(!btn)document.querySelectorAll('.tab-btn')[idx[id]]?.classList.add('active');
+  if(id==='historico' && typeof carregarCarteira==='function') carregarCarteira();
   // Antes de existir classificação, o Dashboard de cenários é uma tela de
   // zeros. Quem abre a aba nesse momento está atrás dos custos, então cai
   // direto em Parâmetros.
@@ -5936,35 +5953,122 @@ async function novaFazendaPrompt(){
   }catch(e){ showToast('Erro ao criar fazenda.', true); }
 }
 
-// ================== HISTÓRICO DE PARECERES ==================
+// ================== CARTEIRA E HISTÓRICO DE PARECERES ==================
+const _CART_COR = {aprovar:'ok', ressalva:'warn', negar:'bad'};
+let _carteira = [], _carteiraFiltro = '';
+const _fPct = v => (v===null||v===undefined||!Number.isFinite(Number(v))) ? '—' : Number(v).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
+const _fArr = v => (v===null||v===undefined||!Number.isFinite(Number(v))) ? '—' : 'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+function _cartRec(rec){
+  const k = _CART_COR[rec];
+  return k ? `<span class="ork-badge ork-badge--${k}">${escapeHtml(rec)}</span>` : '<span class="ork-badge">—</span>';
+}
+function _cartCel(rotulo, valor, tom){
+  return `<div class="ork-m${tom?' ork-m--'+tom:''}"><span class="ork-m__k">${escapeHtml(rotulo)}</span><span class="ork-m__v">${valor}</span></div>`;
+}
+// Sinais lidos do que já foi salvo; dado ausente (registro antigo) vira '—'.
+function carteiraMetricasHtml(resumo, dscr){
+  const r = resumo || {};
+  const d = (r.dscr_minimo!==null && r.dscr_minimo!==undefined) ? r.dscr_minimo : dscr;
+  const rup = r.ruptura, vale = r.vale_caixa;
+  const rupTxt = !rup ? '—' : (rup.em_ruptura ? 'Em ruptura' : escapeHtml(_fPct(rup.folga_pct))+' · mín. '+escapeHtml(_fArr(rup.preco_minimo))+'/@');
+  const valeTxt = !vale ? '—' : (vale.tem_vale===null ? '—' : (vale.tem_vale ? escapeHtml(_fArr(vale.valor))+(vale.mes?' · '+escapeHtml(vale.mes):'') : 'Sem vale'));
+  const rat = r.rating_faixa ? escapeHtml(r.rating_faixa)+(r.rating_score!=null?' · '+escapeHtml(String(Math.round(r.rating_score))):'') : '—';
+  const prazo = r.prazo_meses ? escapeHtml(String(Math.round(r.prazo_meses)))+' meses' : '—';
+  const ress = r.ressalvas_total ? String(r.ressalvas_total) : ((rup || vale) ? 'Nenhuma' : '—');
+  return '<div class="ork-metrics">'
+    + _cartCel('DSCR', escapeHtml(fDscr(d)))
+    + _cartCel('Rating', rat)
+    + _cartCel('Folga até negar', rupTxt, rup && rup.em_ruptura ? 'bad' : '')
+    + _cartCel('Vale de caixa', valeTxt, vale && vale.tem_vale ? 'warn' : '')
+    + _cartCel('Prazo', prazo)
+    + _cartCel('Ressalvas', ress, r.ressalvas_total ? 'warn' : '')
+    + '</div>'
+    + (r.ressalvas && r.ressalvas.length ? `<div class="ork-ress" title="${escapeHtml(r.ressalvas.join(' | '))}">${escapeHtml(r.ressalvas[0])}</div>` : '');
+}
+async function carregarCarteira(){
+  const el = document.getElementById('cart-lista');
+  if(!el) return;
+  try{
+    const r = await fetch('/api/carteira');
+    if(!r.ok) throw new Error('http');
+    const d = await r.json();
+    _carteira = d.carteira || [];
+  }catch(e){ _carteira = []; el.innerHTML = '<div class="ork-cart-vazio">Não foi possível carregar a carteira.</div>'; return; }
+  renderCarteira();
+}
+function filtrarCarteira(f){
+  _carteiraFiltro = f;
+  document.querySelectorAll('#cart-filtros .ork-chip').forEach(b=>{
+    const on = b.dataset.f===f; b.classList.toggle('is-on',on); b.setAttribute('aria-pressed',on?'true':'false');
+  });
+  renderCarteira();
+}
+function renderCarteira(){
+  const el = document.getElementById('cart-lista');
+  const sum = document.getElementById('cart-resumo');
+  if(!el || !sum) return;
+  const cont = {total:_carteira.length, aprovar:0, ressalva:0, negar:0, sem:0, ruptura:0, vale:0};
+  _carteira.forEach(c=>{
+    if(_CART_COR[c.recomendacao]) cont[c.recomendacao]++; else cont.sem++;
+    const r = c.resumo||{};
+    if(r.ruptura && r.ruptura.em_ruptura) cont.ruptura++;
+    if(r.vale_caixa && r.vale_caixa.tem_vale) cont.vale++;
+  });
+  const t = (k,v,tom)=>`<div class="ork-sum${tom?' ork-sum--'+tom:''}"><span class="ork-sum__v">${v}</span><span class="ork-sum__k">${escapeHtml(k)}</span></div>`;
+  sum.innerHTML = t('Clientes',cont.total) + t('Aprovar',cont.aprovar,'ok') + t('Ressalva',cont.ressalva,'warn') + t('Negar',cont.negar,'bad')
+    + t('Em ruptura',cont.ruptura,cont.ruptura?'bad':'') + t('Com vale de caixa',cont.vale,cont.vale?'warn':'');
+  const q = (document.getElementById('cart-busca').value||'').trim().toLowerCase();
+  const itens = _carteira.filter(c=>{
+    if(_carteiraFiltro==='sem' ? _CART_COR[c.recomendacao] : (_carteiraFiltro && c.recomendacao!==_carteiraFiltro)) return false;
+    return !q || [c.nome,c.proprietario,c.municipio,c.estado].some(x=>String(x||'').toLowerCase().includes(q));
+  });
+  if(!itens.length){
+    el.innerHTML = `<div class="ork-cart-vazio">${_carteira.length ? 'Nenhum cliente corresponde ao filtro.' : 'Nenhuma fazenda cadastrada ainda.'}</div>`;
+    return;
+  }
+  el.innerHTML = itens.map(c=>`<div class="ork-cart-item">
+      <div class="ork-cart-head">
+        <div class="ork-cart-nome"><strong>${escapeHtml(c.nome||'—')}</strong>
+          <span>${escapeHtml([c.municipio,c.estado].filter(Boolean).join(' / ')||'—')} · ${escapeHtml(c.parecer_em ? String(c.parecer_em).slice(0,10) : 'sem parecer')}</span></div>
+        ${_cartRec(c.recomendacao)}
+        <button type="button" class="btn-sm" onclick="abrirHistoricoFazenda(${Number(c.fazenda_id)})">Histórico</button>
+      </div>
+      ${c.resumo ? carteiraMetricasHtml(c.resumo, c.dscr) : '<div class="ork-cart-vazio ork-cart-vazio--linha">Sem parecer salvo para esta fazenda.</div>'}
+    </div>`).join('');
+}
+function abrirHistoricoFazenda(fid){
+  const sel = document.getElementById('hist-fazenda-id');
+  if(!sel) return;
+  sel.value = String(fid);
+  carregarHistoricoPareceres();
+  document.getElementById('hist-detalhe')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
 async function carregarHistoricoPareceres(){
   const fid = document.getElementById('hist-fazenda-id').value;
   const el = document.getElementById('hist-lista');
   if(!el) return;
   if(!fid){ el.innerHTML=''; return; }
-  el.innerHTML = '<div style="color:var(--mu);font-size:.8rem">Carregando...</div>';
+  el.innerHTML = '<div class="ork-cart-vazio">Carregando...</div>';
   try{
     const r = await fetch(`/api/fazendas/${fid}/pareceres`);
     const d = await r.json();
     const itens = d.pareceres || [];
-    if(!itens.length){ el.innerHTML = '<div style="color:var(--mu);font-size:.85rem">Nenhum parecer salvo ainda para esta fazenda.</div>'; return; }
-    const cor = {aprovar:'#4ADE80', ressalva:'#FBBF24', negar:'#F87171'};
+    if(!itens.length){ el.innerHTML = '<div class="ork-cart-vazio">Nenhum parecer salvo ainda para esta fazenda.</div>'; return; }
     el.innerHTML = itens.map((it,i)=>{
-      const c = cor[it.recomendacao]||'#8891A5';
       let solic = {}; try{ solic = JSON.parse(it.solicitacao||'{}'); }catch(e){}
-      return `<div class="card" style="margin-bottom:10px;padding:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-          <div>
-            <span style="font-weight:800;color:${c};text-transform:uppercase">${it.recomendacao||'—'}</span>
-            <span style="font-family:var(--fm);font-size:.7rem;color:var(--mu);margin-left:10px">DSCR ${fDscr(it.dscr)} · ${it.created_at||''}</span>
-            ${solic.credito_valor?`<span style="font-family:var(--fm);font-size:.7rem;color:var(--mu);margin-left:10px">Crédito: ${fR(solic.credito_valor)}</span>`:''}
-          </div>
-          <button class="btn-sm" onclick="baixarPdfParecerHistorico(${i})">⬇ Baixar PDF</button>
+      const cred = (it.resumo && it.resumo.credito_valor) || solic.credito_valor;
+      return `<div class="ork-cart-item">
+        <div class="ork-cart-head">
+          <div class="ork-cart-nome"><strong>${escapeHtml(String(it.created_at||'—').slice(0,16))}</strong>
+            <span>Crédito: ${escapeHtml(fR(Number(cred)))}</span></div>
+          ${_cartRec(it.recomendacao)}
+          <button type="button" class="btn-sm" onclick="baixarPdfParecerHistorico(${i})">⬇ Baixar PDF</button>
         </div>
+        ${carteiraMetricasHtml(it.resumo, it.dscr)}
       </div>`;
     }).join('');
     window._histPareceres = itens;
-  }catch(e){ el.innerHTML = '<div style="color:var(--tx)">Erro ao carregar histórico.</div>'; }
+  }catch(e){ el.innerHTML = '<div class="ork-cart-vazio">Erro ao carregar histórico.</div>'; }
 }
 async function baixarPdfParecer(parecerObj){
   try{

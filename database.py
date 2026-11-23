@@ -1042,6 +1042,25 @@ def listar_pareceres(fazenda_id: int, limit: int = 30) -> list:
         r['created_at'] = str(r.get('created_at', ''))
     return rows
 
+def ultimos_pareceres_empresa(empresa_id: int) -> list:
+    """Último parecer de cada fazenda da empresa (isolado por empresa_id)."""
+    ph = _PH
+    rows = _exec(
+        f'''SELECT p.fazenda_id, p.solicitacao, p.parecer, p.recomendacao,
+                   p.dscr, p.created_at
+            FROM pareceres p JOIN fazendas f ON f.id = p.fazenda_id
+            WHERE f.empresa_id={ph}
+              AND p.id IN (SELECT MAX(p2.id) FROM pareceres p2
+                           JOIN fazendas f2 ON f2.id = p2.fazenda_id
+                           WHERE f2.empresa_id={ph}
+                           GROUP BY p2.fazenda_id)
+            ORDER BY p.created_at DESC, p.id DESC''',
+        (empresa_id, empresa_id), fetch='all'
+    ) or []
+    for r in rows:
+        r['created_at'] = str(r.get('created_at', ''))
+    return rows
+
 def excluir_registro(registro_id: int, user_id: int) -> bool:
     ph = _PH
     _exec(f'DELETE FROM registros WHERE id={ph} AND user_id={ph}',
