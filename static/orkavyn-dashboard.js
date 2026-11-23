@@ -1,0 +1,482 @@
+/* Orkavyn UI — dashboard: tema, formulário do ciclo/estresse e parecer em abas.
+   Regra da skill orkavyn-ui: NENHUM innerHTML com dado vindo da API ou do
+   usuário. Tudo aqui é montado com createElement/textContent. */
+(function () {
+  "use strict";
+
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const CAMPOS_ESTRESSE = [
+    ["preco_arroba_base", "preço da arroba"],
+    ["custo_reposicao_anual", "custo de reposição"],
+    ["custo_suplementacao_anual", "custo de suplementação"],
+  ];
+  const CENARIOS = [
+    ["queda_arroba", "Queda da arroba"],
+    ["alta_reposicao", "Alta da reposição"],
+    ["alta_suplementacao", "Alta da suplementação"],
+    ["seca_severa", "Seca severa"],
+    ["tesoura_margem_moderada", "Tesoura de margem (moderada)"],
+    ["tesoura_margem_severa", "Tesoura de margem (severa)"],
+  ];
+  const VEREDITO = {
+    aprovar: ["APROVAR", "approve"],
+    ressalva: ["APROVAR COM RESSALVA", "warn"],
+    negar: ["NEGAR", "reject"],
+  };
+
+  // ── utilidades ─────────────────────────────────────────────────────────
+  const fmtBRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  const fmtBRL2 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtCompact = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
+  const fmtNum2 = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtNum1 = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  const num = (v) => (v === null || v === undefined || v === "" ? null : (Number.isFinite(Number(v)) ? Number(v) : null));
+  const brl = (v) => (num(v) === null ? "—" : fmtBRL.format(num(v)));
+  const brl2 = (v) => (num(v) === null ? "—" : fmtBRL2.format(num(v)));
+  const dscr = (v) => (num(v) === null ? "—" : fmtNum2.format(num(v)));
+
+  function el(tag, opts, children) {
+    const n = document.createElement(tag);
+    const o = opts || {};
+    if (o.cls) n.className = o.cls;
+    if (o.text !== undefined && o.text !== null) n.textContent = String(o.text);
+    if (o.attrs) Object.keys(o.attrs).forEach((k) => n.setAttribute(k, String(o.attrs[k])));
+    (children || []).forEach((c) => { if (c) n.appendChild(c); });
+    return n;
+  }
+  function svg(tag, attrs, text) {
+    const n = document.createElementNS(SVG_NS, tag);
+    Object.keys(attrs || {}).forEach((k) => n.setAttribute(k, String(attrs[k])));
+    if (text !== undefined) n.textContent = String(text);
+    return n;
+  }
+  function card(titulo, filhos) {
+    return el("section", { cls: "od-card" }, [el("h3", { cls: "od-card__title", text: titulo })].concat(filhos));
+  }
+
+  // ── tema ───────────────────────────────────────────────────────────────
+  const TEMA_CHAVE = "orkavyn_theme";
+  function temaAtual() {
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  }
+  function aplicarTema(tema, persistir) {
+    document.documentElement.setAttribute("data-theme", tema);
+    if (persistir) { try { localStorage.setItem(TEMA_CHAVE, tema); } catch (e) { /* modo privado */ } }
+    document.querySelectorAll("img.ork-brand__mark").forEach((img) => {
+      img.setAttribute("src", tema === "dark" ? "/static/img/logo-dark.svg" : "/static/img/logo-light.svg");
+    });
+    const btn = document.getElementById("od-theme-toggle");
+    if (btn) {
+      btn.setAttribute("aria-pressed", tema === "dark" ? "true" : "false");
+      btn.textContent = tema === "dark" ? "☀ Claro" : "☾ Escuro";
+    }
+  }
+  function iniciarTema() {
+    const hdr = document.querySelector(".ork-context-header .hdr-r");
+    if (hdr && !document.getElementById("od-theme-toggle")) {
+      const btn = el("button", { cls: "od-theme-toggle", attrs: { id: "od-theme-toggle", type: "button", "aria-label": "Alternar tema claro/escuro" } });
+      btn.addEventListener("click", () => aplicarTema(temaAtual() === "dark" ? "light" : "dark", true));
+      hdr.insertBefore(btn, hdr.firstChild);
+    }
+    aplicarTema(temaAtual(), false);
+  }
+
+  // ── formulário: sistema produtivo (4 cards, desmarcável) ───────────────
+  function definirSistema(valor) {
+    const sel = document.getElementById("sistema_produtivo");
+    if (sel) sel.value = valor;
+    document.querySelectorAll(".od-sys").forEach((b) => {
+      b.setAttribute("aria-pressed", b.dataset.valor === valor ? "true" : "false");
+    });
+    const limpar = document.getElementById("od-sys-clear");
+    if (limpar) limpar.hidden = !valor;
+    ["frequencia_pagamento", "capital_giro_inicial"].forEach((id) => {
+      const campo = document.getElementById(id);
+      if (!campo) return;
+      campo.disabled = !valor;
+      const wrap = campo.closest(".field");
+      if (wrap) wrap.classList.toggle("od-field-off", !valor);
+    });
+  }
+  function iniciarSistemas() {
+    document.querySelectorAll(".od-sys").forEach((b) => {
+      b.addEventListener("click", () => {
+        const atual = document.getElementById("sistema_produtivo").value;
+        definirSistema(atual === b.dataset.valor ? "" : b.dataset.valor);
+      });
+    });
+    const limpar = document.getElementById("od-sys-clear");
+    if (limpar) limpar.addEventListener("click", () => definirSistema(""));
+    definirSistema(document.getElementById("sistema_produtivo")
+      ? document.getElementById("sistema_produtivo").value : "");
+  }
+
+  // ── payload: tipagem estrita, vazios omitidos ──────────────────────────
+  // Devolve {campos} para o corpo de /api/classificar ou {erro, campo}.
+  // Número vira Number(); campo vazio não entra no JSON; o trio do estresse
+  // só vai completo (o servidor recusa envio parcial com 400).
+  function lerCamposNovos() {
+    const campos = {};
+    const sistema = (document.getElementById("sistema_produtivo") || {}).value || "";
+    if (sistema) {
+      campos.sistema_produtivo = sistema;
+      campos.frequencia_pagamento = document.getElementById("frequencia_pagamento").value || "mensal";
+      const giroEl = document.getElementById("capital_giro_inicial");
+      if (giroEl && giroEl.validity && giroEl.validity.badInput) {
+        return { erro: "Capital de giro inicial: valor numérico inválido.", campo: "capital_giro_inicial" };
+      }
+      const giroRaw = giroEl ? giroEl.value.trim() : "";
+      if (giroRaw !== "") {
+        const giro = Number(giroRaw);
+        if (!Number.isFinite(giro) || giro < 0) {
+          return { erro: "Capital de giro inicial deve ser um número maior ou igual a zero.", campo: "capital_giro_inicial" };
+        }
+        campos.capital_giro_inicial = giro;
+      }
+    }
+    for (const [id, rotulo] of CAMPOS_ESTRESSE) {
+      const e = document.getElementById(id);
+      if (e && e.validity && e.validity.badInput) {
+        return { erro: "Estresse do boi: " + rotulo + " inválido.", campo: id };
+      }
+    }
+    const brutos = CAMPOS_ESTRESSE.map(([id, rotulo]) => {
+      const e = document.getElementById(id);
+      return { id, rotulo, raw: e ? e.value.trim() : "" };
+    });
+    const preenchidos = brutos.filter((b) => b.raw !== "");
+    if (preenchidos.length && preenchidos.length < brutos.length) {
+      const faltam = brutos.filter((b) => b.raw === "");
+      return {
+        erro: "Estresse do boi: preencha os três campos juntos (faltando " + faltam.map((b) => b.rotulo).join(", ") + ").",
+        campo: faltam[0].id,
+      };
+    }
+    for (const b of preenchidos) {
+      const n = Number(b.raw);
+      const minimoOk = b.id === "preco_arroba_base" ? n > 0 : n >= 0;
+      if (!Number.isFinite(n) || !minimoOk) {
+        return { erro: "Estresse do boi: " + b.rotulo + " inválido.", campo: b.id };
+      }
+      campos[b.id] = n;
+    }
+    return { campos };
+  }
+
+  // ── parecer: hero + banner + abas ──────────────────────────────────────
+  function kpi(label, valor, sub, vazio) {
+    return el("div", { cls: "od-kpi" + (vazio ? " od-kpi--empty" : "") }, [
+      el("div", { cls: "od-kpi__label", text: label }),
+      el("div", { cls: "od-kpi__value", text: valor }),
+      el("div", { cls: "od-kpi__sub", text: sub }),
+    ]);
+  }
+  function rotuloMes(ciclo, mes) {
+    const m = (ciclo.meses || []).find((r) => r.mes === mes);
+    return m && m.rotulo ? String(m.rotulo) : String(mes);
+  }
+
+  function montarHero(parecer, rating) {
+    const c = parecer.conclusao || {};
+    const ciclo = parecer.ciclo_pecuario || null;
+    const est = parecer.estresse_pecuario || null;
+    const v = VEREDITO[c.recomendacao];
+    const dscrMin = c.dscr_minimo !== undefined && c.dscr_minimo !== null ? c.dscr_minimo : c.dscr;
+    const credMax = num(c.capacidade_maxima);
+
+    const badge = el("span", {
+      cls: "od-badge od-badge--" + (v ? v[1] : "neutral"),
+      text: c.nivel_recomendacao_label || (v ? v[0] : "Sem solicitação de crédito"),
+    });
+
+    // Mini-KPI 1 — ponto de ruptura (DSCR 1,00)
+    let k1;
+    const rup = est && est.disponivel && est.ponto_ruptura_arroba ? est.ponto_ruptura_arroba.ressalva : null;
+    if (rup && rup.status === "sem_divida") {
+      k1 = kpi("Ponto de ruptura (@)", "—", "Sem dívida: não se aplica", true);
+    } else if (rup && num(rup.preco_minimo) !== null) {
+      k1 = kpi("Ponto de ruptura (@)", brl2(rup.preco_minimo) + "/@",
+        rup.em_ruptura ? "Já em ruptura na base" : "DSCR 1,00 · base " + brl2(rup.preco_base) + "/@", false);
+    } else {
+      k1 = kpi("Ponto de ruptura (@)", "—", "Informe o estresse do boi", true);
+    }
+    // Mini-KPI 2 — vale de caixa 12m
+    let k2;
+    if (ciclo && ciclo.disponivel && num(ciclo.vale_caixa) !== null) {
+      const vale = num(ciclo.vale_caixa);
+      k2 = kpi("Vale de caixa (12m)", brl(vale),
+        vale < 0 && ciclo.mes_vale !== null && ciclo.mes_vale !== undefined
+          ? "Pior ponto em " + rotuloMes(ciclo, ciclo.mes_vale) : "Sem saldo negativo", false);
+    } else {
+      k2 = kpi("Vale de caixa (12m)", "—", "Informe o sistema produtivo", true);
+    }
+    // Mini-KPI 3 — rating
+    const r = rating || parecer.rating || null;
+    const k3 = r && r.faixa
+      ? kpi("Rating", String(r.faixa), (num(r.score) !== null ? Math.round(num(r.score)) + "/100 · " : "") + (r.rotulo || ""), false)
+      : kpi("Rating", "—", "Indisponível", true);
+
+    return el("section", { cls: "od-hero", attrs: { "aria-label": "Resumo do parecer de crédito" } }, [
+      el("div", { cls: "od-hero__top" }, [el("span", { cls: "od-eyebrow", text: "Parecer de crédito" }), badge]),
+      el("div", { cls: "od-hero__figures" }, [
+        el("div", {}, [
+          el("div", { cls: "od-fig__label", text: "DSCR mínimo" }),
+          el("div", { cls: "od-fig__value", text: dscr(dscrMin) }),
+          el("div", { cls: "od-fig__sub", text: c.ano_critico ? "ano crítico " + c.ano_critico : "ano 1" }),
+        ]),
+        el("div", {}, [
+          el("div", { cls: "od-fig__label", text: "Crédito máximo" }),
+          el("div", { cls: "od-fig__value", text: credMax !== null && credMax > 0 ? brl(credMax) : "—" }),
+          el("div", { cls: "od-fig__sub", text: "capacidade de pagamento" }),
+        ]),
+      ]),
+      el("div", { cls: "od-kpis" }, [k1, k2, k3]),
+    ]);
+  }
+
+  function montarBanners(parecer) {
+    const out = [];
+    const ciclo = parecer.ciclo_pecuario || null;
+    const est = parecer.estresse_pecuario || null;
+    const rup = est && est.disponivel && est.ponto_ruptura_arroba ? est.ponto_ruptura_arroba.ressalva : null;
+
+    if (rup && rup.em_ruptura === true && num(rup.preco_minimo) !== null) {
+      out.push(el("div", { cls: "od-banner od-banner--reject", attrs: { role: "alert" } }, [
+        el("div", { cls: "od-banner__title", text: "Operação já em ruptura na base" }),
+        el("div", {
+          cls: "od-banner__text",
+          text: "Com a arroba a " + brl2(rup.preco_base) + ", o DSCR já está no ou abaixo de " + dscr(rup.dscr_alvo) +
+            " (mínimo de " + brl2(rup.preco_minimo) + "/@). Veja a aba Estresse do Boi.",
+        }),
+      ]));
+    }
+    if (ciclo && ciclo.disponivel && ciclo.quebra_caixa_com_dscr_ok === true) {
+      const rec = ciclo.recomendacao;
+      let texto;
+      if (rec && rec.melhora_vale) {
+        texto = "Pagamento " + rec.estrutura_recomendada + " nos meses de pico de entrada " +
+          (rec.elimina_vale ? "elimina" : "reduz") + " o vale (de " + brl(rec.vale_mensal) +
+          "), com o mesmo serviço anual e sem juros adicionais — cotar a nova taxa com o credor.";
+      } else if (rec) {
+        texto = "Nenhuma estrutura semestral/anual melhora o vale: manter mensal e cobrir o vale com capital de giro.";
+      } else {
+        texto = "A parcela neste calendário gera meses de déficit que a operação sozinha não teria.";
+      }
+      out.push(el("div", { cls: "od-banner od-banner--warn", attrs: { role: "alert" } }, [
+        el("div", { cls: "od-banner__title", text: "DSCR anual aprovado, mas o caixa quebra na entressafra" }),
+        el("div", { cls: "od-banner__text", text: texto }),
+      ]));
+    }
+    return out;
+  }
+
+  // gráfico de barras do saldo acumulado (verde ≥ 0, vermelho < 0)
+  function graficoSaldo(meses) {
+    const W = 720, H = 240, padL = 62, padR = 10, padT = 14, padB = 28;
+    const vals = meses.map((m) => num(m.saldo_acumulado) || 0);
+    const max = Math.max(0, ...vals), min = Math.min(0, ...vals);
+    const span = max - min || 1;
+    const y = (v) => padT + ((max - v) / span) * (H - padT - padB);
+    const slot = (W - padL - padR) / meses.length;
+    const bw = slot * 0.6;
+    const s = svg("svg", { class: "od-chart", viewBox: "0 0 " + W + " " + H, role: "img",
+      "aria-label": "Saldo de caixa acumulado nos 12 meses; meses negativos em vermelho" });
+    [max, 0, min].filter((v, i, a) => a.indexOf(v) === i).forEach((v) => {
+      s.appendChild(svg("line", { class: v === 0 ? "od-axis" : "od-grid-line", x1: padL, x2: W - padR, y1: y(v), y2: y(v) }));
+      s.appendChild(svg("text", { x: padL - 8, y: y(v) + 4, "text-anchor": "end" }, fmtCompact.format(v)));
+    });
+    meses.forEach((m, i) => {
+      const v = vals[i];
+      const x = padL + i * slot + (slot - bw) / 2;
+      const top = Math.min(y(v), y(0));
+      const bar = svg("rect", { class: v < 0 ? "od-bar-neg" : "od-bar-pos", x, y: top, width: bw, height: Math.max(Math.abs(y(v) - y(0)), 1), rx: 2 });
+      bar.appendChild(svg("title", {}, (m.rotulo || m.mes) + ": " + brl(v) + (v < 0 ? " (déficit)" : "")));
+      s.appendChild(bar);
+      s.appendChild(svg("text", { x: x + bw / 2, y: H - 8, "text-anchor": "middle" }, m.rotulo || m.mes));
+    });
+    return s;
+  }
+
+  function tabelaCiclo(meses) {
+    const cab = ["Mês", "Entradas", "Saídas", "Parcela", "Saldo do mês", "Saldo acumulado"];
+    const thead = el("thead", {}, [el("tr", {}, cab.map((t) => el("th", { text: t, attrs: { scope: "col" } })))]);
+    const tbody = el("tbody", {}, meses.map((m) => {
+      const acum = num(m.saldo_acumulado) || 0;
+      const mesSaldo = num(m.saldo_mensal) || 0;
+      return el("tr", {}, [
+        el("td", { text: m.rotulo || m.mes }),
+        el("td", { text: brl(m.entradas) }),
+        el("td", { text: brl(m.saidas_operacionais) }),
+        el("td", { text: brl(m.servico_divida) }),
+        el("td", { text: brl(mesSaldo), cls: mesSaldo < 0 ? "od-neg" : "" }),
+        el("td", { text: brl(acum), cls: acum < 0 ? "od-neg" : "" }),
+      ]);
+    }));
+    return el("div", { cls: "od-table-wrap" }, [el("table", { cls: "od-table" }, [thead, tbody])]);
+  }
+
+  function painelCiclo(parecer) {
+    const c = parecer.ciclo_pecuario;
+    if (!c) {
+      return [el("div", { cls: "od-card od-empty", text: "Ciclo pecuário não informado. Escolha o sistema produtivo no formulário (bloco 2) para projetar o caixa mês a mês." })];
+    }
+    if (!c.disponivel) {
+      return [el("div", { cls: "od-card od-empty", text: c.motivo || "Fluxo sazonal indisponível." })];
+    }
+    const meses = Array.isArray(c.meses) ? c.meses : [];
+    const defMeses = (Array.isArray(c.meses_deficit) ? c.meses_deficit : []).map((m) => rotuloMes(c, m));
+    const chips = el("div", { cls: "od-chips" }, [
+      el("span", {}, [document.createTextNode("Sistema: "), el("strong", { text: c.sistema || "—" }), document.createTextNode(" · pagamento " + (c.frequencia || "—"))]),
+      el("span", {}, [document.createTextNode("Pior vale: "), el("strong", { text: brl(c.vale_caixa) })]),
+      el("span", {}, [document.createTextNode("Meses em déficit: "), el("strong", { text: defMeses.length ? defMeses.join(", ") : "nenhum" })]),
+      el("span", {}, [document.createTextNode("DSCR ano " + (c.ano_referencia || "") + ": "), el("strong", { text: dscr(c.dscr_anual) })]),
+    ]);
+    const justificativa = Array.isArray(c.justificativa) && c.justificativa.length
+      ? el("ul", { cls: "od-list" }, c.justificativa.map((t) => el("li", { text: t }))) : null;
+    return [
+      card("Saldo de caixa acumulado — 12 meses", [chips, graficoSaldo(meses)]),
+      card("Fluxo mensal", [tabelaCiclo(meses)]),
+      justificativa ? card("Leitura do fluxo", [justificativa]) : null,
+      el("p", { cls: "od-muted", text: "Perfis sazonais são premissas estilizadas de referência (calendário típico do Brasil Central), não série medida da propriedade. Alternativas semestral/anual mantêm o mesmo serviço anual, sem juros adicionais de repactuação." }),
+    ];
+  }
+
+  function painelEstresse(parecer) {
+    const e = parecer.estresse_pecuario;
+    if (!e) {
+      return [el("div", { cls: "od-card od-empty", text: "Estresse do boi não informado. Preencha preço da arroba, reposição e suplementação (bloco 3) para comparar os cenários." })];
+    }
+    if (!e.disponivel) {
+      return [el("div", { cls: "od-card od-empty", text: e.motivo || "Estresse pecuário indisponível." })];
+    }
+    const lim = e.limiares_dscr || {};
+    const limA = num(lim.aprovar && lim.aprovar.valor !== undefined ? lim.aprovar.valor : lim.aprovar) || 1.3;
+    const limR = num(lim.ressalva && lim.ressalva.valor !== undefined ? lim.ressalva.valor : lim.ressalva) || 1.0;
+    const cen = e.cenarios || {};
+    const linhas = CENARIOS.filter(([k]) => cen[k]).map(([k, nome]) => ({ k, nome, d: cen[k] }));
+    const maxD = Math.max(2, limA * 1.25, ...linhas.map((l) => num(l.d.dscr) || 0));
+    const pos = (v) => Math.max(0, Math.min(100, (v / maxD) * 100));
+    const CLS = { aprovar: "aprovar", ressalva: "ressalva", negar: "negar" };
+    const CLS_TXT = { aprovar: "aprova", ressalva: "ressalva", negar: "nega" };
+
+    const barras = linhas.map(({ nome, d }) => {
+      const v = num(d.dscr);
+      const cls = CLS[d.classificacao] || "neutro";
+      const bar = el("div", { cls: "od-scn__bar od-scn__bar--" + cls, attrs: { style: "width:" + (v === null ? 0 : pos(Math.max(v, 0))).toFixed(1) + "%" } });
+      const track = el("div", { cls: "od-scn__track" }, [
+        bar,
+        el("span", { cls: "od-scn__mark", attrs: { style: "left:" + pos(limR).toFixed(1) + "%" } }),
+        el("span", { cls: "od-scn__mark", attrs: { style: "left:" + pos(limA).toFixed(1) + "%" } }),
+      ]);
+      const nomeEl = el("div", { cls: "od-scn__name", text: nome });
+      if (d.descricao) nomeEl.setAttribute("title", String(d.descricao));
+      return el("div", {
+        cls: "od-scn__row",
+        attrs: { role: "group", "aria-label": nome + ": DSCR " + dscr(v) + (CLS_TXT[d.classificacao] ? " (" + CLS_TXT[d.classificacao] + ")" : "") },
+      }, [nomeEl, track, el("div", { cls: "od-scn__val", text: dscr(v) })]);
+    });
+    const eixo = el("div", { cls: "od-scn__axis", attrs: { "aria-hidden": "true" } }, [
+      el("span"),
+      el("div", { cls: "od-scn__axis-track" }, [
+        el("span", { text: "0", attrs: { style: "left:0%" } }),
+        el("span", { text: dscr(limR), attrs: { style: "left:" + pos(limR).toFixed(1) + "%" } }),
+        el("span", { text: dscr(limA), attrs: { style: "left:" + pos(limA).toFixed(1) + "%" } }),
+      ]),
+      el("span"),
+    ]);
+    const base = e.base || {};
+    const chips = el("div", { cls: "od-chips" }, [
+      el("span", {}, [document.createTextNode("Base: DSCR "), el("strong", { text: dscr(base.dscr) }), document.createTextNode(" · arroba "), el("strong", { text: brl2(base.preco_arroba) })]),
+      el("span", { text: "Cores: verde ≥ " + dscr(limA) + " · âmbar " + dscr(limR) + " a " + dscr(limA) + " · vermelho < " + dscr(limR) }),
+    ]);
+
+    const itemRup = (r) => {
+      if (!r) return null;
+      if (r.status === "sem_divida" || num(r.preco_minimo) === null) {
+        return el("div", { cls: "od-rupt__item" }, [
+          el("div", { cls: "od-rupt__label", text: "Para DSCR " + dscr(r.dscr_alvo) }),
+          el("div", { cls: "od-rupt__value", text: "—" }),
+          el("div", { cls: "od-rupt__sub", text: r.status === "sem_divida" ? "Sem dívida: a ruptura não se aplica." : "Sem volume de venda: ruptura não calculável." }),
+          el("span", { cls: "od-badge od-badge--neutral", text: r.status === "sem_divida" ? "Não se aplica" : "Indisponível" }),
+        ]);
+      }
+      const queda = num(r.queda_maxima_suportada_pct);
+      const sub = r.em_ruptura
+        ? "Já em ruptura" + (queda !== null ? ": a arroba precisaria subir " + fmtNum1.format(Math.abs(queda)) + "%" : "")
+        : "Folga" + (queda !== null ? ": suporta queda de " + fmtNum1.format(queda) + "%" : "");
+      return el("div", { cls: "od-rupt__item" }, [
+        el("div", { cls: "od-rupt__label", text: "Para DSCR " + dscr(r.dscr_alvo) }),
+        el("div", { cls: "od-rupt__value", text: brl2(r.preco_minimo) + "/@" }),
+        el("div", { cls: "od-rupt__sub", text: sub + " · base " + brl2(r.preco_base) + "/@" }),
+        el("span", { cls: "od-badge od-badge--" + (r.em_ruptura ? "reject" : "approve"), text: r.em_ruptura ? "Em ruptura" : "Com folga" }),
+      ]);
+    };
+    const pr = e.ponto_ruptura_arroba || {};
+    const avisos = Array.isArray(e.avisos) && e.avisos.length
+      ? el("div", { cls: "od-note od-note--warn" }, e.avisos.map((t) => el("div", { text: t }))) : null;
+
+    return [
+      card("DSCR por cenário de estresse", [chips, el("div", { cls: "od-scn" }, barras.concat([eixo])), avisos]),
+      card("Ponto de ruptura da arroba", [el("div", { cls: "od-rupt" }, [itemRup(pr.ressalva), itemRup(pr.aprovar)])]),
+      e.premissas_base ? el("p", { cls: "od-muted", text: e.premissas_base }) : null,
+    ];
+  }
+
+  function montarAbas(resumoNodes, parecer) {
+    const defs = [
+      ["resumo", "Resumo / Base"],
+      ["ciclo", "Ciclo 12m"],
+      ["estresse", "Estresse do Boi"],
+    ];
+    const painelEl = {};
+    painelEl.resumo = el("div", { cls: "od-panel", attrs: { id: "od-panel-resumo", role: "tabpanel", "aria-labelledby": "od-tab-resumo" } }, resumoNodes);
+    painelEl.ciclo = el("div", { cls: "od-panel", attrs: { id: "od-panel-ciclo", role: "tabpanel", "aria-labelledby": "od-tab-ciclo", hidden: "" } }, painelCiclo(parecer));
+    painelEl.estresse = el("div", { cls: "od-panel", attrs: { id: "od-panel-estresse", role: "tabpanel", "aria-labelledby": "od-tab-estresse", hidden: "" } }, painelEstresse(parecer));
+
+    const botoes = defs.map(([id, rotulo], i) => el("button", {
+      cls: "od-tab", text: rotulo,
+      attrs: { id: "od-tab-" + id, type: "button", role: "tab", "aria-controls": "od-panel-" + id, "aria-selected": i === 0 ? "true" : "false", tabindex: i === 0 ? "0" : "-1" },
+    }));
+    const ativar = (idx, foco) => {
+      botoes.forEach((b, i) => {
+        const on = i === idx;
+        b.setAttribute("aria-selected", on ? "true" : "false");
+        b.tabIndex = on ? 0 : -1;
+        painelEl[defs[i][0]].hidden = !on;
+      });
+      if (foco) botoes[idx].focus();
+    };
+    botoes.forEach((b, i) => {
+      b.addEventListener("click", () => ativar(i, false));
+      b.addEventListener("keydown", (ev) => {
+        if (ev.key === "ArrowRight") { ev.preventDefault(); ativar((i + 1) % botoes.length, true); }
+        if (ev.key === "ArrowLeft") { ev.preventDefault(); ativar((i + botoes.length - 1) % botoes.length, true); }
+      });
+    });
+    return [el("div", { cls: "od-tabs", attrs: { role: "tablist", "aria-label": "Seções do parecer" } }, botoes)]
+      .concat(defs.map(([id]) => painelEl[id]));
+  }
+
+  // Reorganiza #result-wrap: hero + banners + abas. O conteúdo legado (resumo,
+  // SHAP assíncrono, proveniência, PDF) é MOVIDO para a aba Resumo, não
+  // recriado — ids e handlers continuam os mesmos.
+  function renderParecer(data) {
+    const wrap = document.getElementById("result-wrap");
+    const parecer = data && data.parecer;
+    if (!wrap || !parecer || !parecer.conclusao) return;
+    const legado = Array.from(wrap.childNodes);
+    const raiz = el("div", { cls: "od-result" });
+    raiz.appendChild(montarHero(parecer, data.rating));
+    montarBanners(parecer).forEach((b) => raiz.appendChild(b));
+    montarAbas(legado, parecer).forEach((n) => raiz.appendChild(n));
+    wrap.appendChild(raiz);
+  }
+
+  window.OrkavynDash = { lerCamposNovos, renderParecer, definirSistema, aplicarTema };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    iniciarTema();
+    iniciarSistemas();
+  });
+})();

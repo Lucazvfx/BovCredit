@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Orkavyn Agro Intelligence</title>
+<script>(function(){try{var t=localStorage.getItem("orkavyn_theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){document.documentElement.setAttribute("data-theme","light")}})()</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="/static/favicon-cow.png">
 <style>
 :root{
@@ -463,7 +464,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-fields.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-dashboard.css') }}">
 <script defer src="{{ url_for('static', filename='orkavyn-shell.js') }}"></script>
+<script defer src="{{ url_for('static', filename='orkavyn-dashboard.js') }}"></script>
 </head>
 <body class="ork-surface ork-dashboard-surface">
 
@@ -602,7 +605,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   </div>
 
   <div class="card ork-section-credit" style="margin-bottom:16px">
-    <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>Solicitação de Crédito <span style="font-size:.65rem;opacity:.6">(opcional)</span></div></div>
+    <div class="ch"><div class="ct"><div class="cd" style="background:var(--am)"></div>1. Operação e Crédito <span style="font-size:.65rem;opacity:.6">(opcional)</span></div></div>
     <div class="cb">
       <div class="fgrid">
         <div class="field"><label>Valor solicitado (R$)</label><input type="number" id="credito_valor" min="0" step="1000" placeholder="Ex: 500000"></div>
@@ -612,8 +615,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div class="field"><label>Finalidade</label><select id="credito_finalidade"><option value="custeio">Custeio</option><option value="investimento">Investimento</option></select></div>
         <div class="field"><label title="SAC: amortização constante, parcela começa alta e cai — padrão do crédito rural (Pronaf, Pronamp, custeio). Price: parcela fixa do início ao fim.">Amortização ℹ</label><select id="credito_sistema"><option value="price">Price — parcela fixa</option><option value="sac">SAC — parcela decrescente</option></select></div>
         <div class="field"><label title="Crédito rural raramente é mensal: a receita chega na venda do lote. O prazo menos a carência precisa ser múltiplo da periodicidade.">Periodicidade ℹ</label><select id="credito_periodicidade" onchange="validarParcelamento()"><option value="1">Mensal</option><option value="3">Trimestral</option><option value="6">Semestral</option><option value="12">Anual (safra)</option></select></div>
-        <div class="field"><label title="Opcional. Com o sistema produtivo informado, o parecer projeta o caixa mês a mês e avisa quando o DSCR anual fecha mas o caixa quebra na entressafra.">Sistema produtivo ℹ</label><select id="sistema_produtivo"><option value="">Não informar</option><option value="cria">Cria</option><option value="recria">Recria</option><option value="engorda">Engorda</option><option value="ciclo_completo">Ciclo completo</option></select></div>
-        <div class="field"><label title="Calendário simulado no fluxo sazonal (mesmo serviço anual, sem juros adicionais). Só vale com o sistema produtivo informado.">Frequência de pagamento ℹ</label><select id="frequencia_pagamento"><option value="mensal">Mensal</option><option value="semestral">Semestral</option><option value="anual">Anual</option></select></div>
       </div>
       <!-- A regra "prazo − carência múltiplo da periodicidade" só falhava no
            servidor, depois de submeter tudo, e voltava como toast que some.
@@ -646,6 +647,43 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       </div>
     </div>
   </div>
+
+  <!-- ═══ BLOCO 2: sistema pecuário e ciclo ═══ -->
+  <section class="od-block" aria-labelledby="od-b2-title">
+    <div class="od-block__head">
+      <h3 class="od-block__title" id="od-b2-title">2. Sistema Pecuário e Ciclo <small>(opcional)</small></h3>
+      <button type="button" class="od-sys-clear" id="od-sys-clear" hidden>Não informar</button>
+    </div>
+    <div class="od-block__body">
+      <p class="od-block__hint">Com o sistema informado, o parecer projeta o caixa mês a mês e avisa quando o DSCR anual fecha mas o caixa quebra na entressafra. Clique de novo no card marcado para desmarcar.</p>
+      <select id="sistema_produtivo" hidden aria-hidden="true" tabindex="-1"><option value="">Não informar</option><option value="cria">Cria</option><option value="recria">Recria</option><option value="engorda">Engorda</option><option value="ciclo_completo">Ciclo completo</option></select>
+      <div class="od-sys-grid" role="group" aria-label="Sistema produtivo">
+        <button type="button" class="od-sys" data-valor="cria" aria-pressed="false"><span class="od-sys__name">Cria</span><span class="od-sys__desc">Venda de bezerros</span></button>
+        <button type="button" class="od-sys" data-valor="recria" aria-pressed="false"><span class="od-sys__name">Recria</span><span class="od-sys__desc">Do desmame ao boi magro</span></button>
+        <button type="button" class="od-sys" data-valor="engorda" aria-pressed="false"><span class="od-sys__name">Engorda</span><span class="od-sys__desc">Terminação para o abate</span></button>
+        <button type="button" class="od-sys" data-valor="ciclo_completo" aria-pressed="false"><span class="od-sys__name">Ciclo Completo</span><span class="od-sys__desc">Cria, recria e engorda</span></button>
+      </div>
+      <div class="od-grid">
+        <div class="field"><label for="frequencia_pagamento" title="Calendário simulado no fluxo sazonal (mesmo serviço anual, sem juros adicionais). Só vale com o sistema produtivo informado.">Frequência de pagamento ℹ</label><select id="frequencia_pagamento"><option value="mensal">Mensal</option><option value="semestral">Semestral</option><option value="anual">Anual</option></select></div>
+        <div class="field"><label for="capital_giro_inicial" title="Caixa disponível no início do ciclo de 12 meses. Em branco, o fluxo parte de zero.">Capital de giro inicial (R$) ℹ</label><input type="number" id="capital_giro_inicial" min="0" step="1000" placeholder="Ex: 50000"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ BLOCO 3: estresse do boi ═══ -->
+  <section class="od-block" aria-labelledby="od-b3-title">
+    <div class="od-block__head">
+      <h3 class="od-block__title" id="od-b3-title">3. Estresse do Boi <small>(opcional)</small></h3>
+    </div>
+    <div class="od-block__body">
+      <div class="od-grid">
+        <div class="field"><label for="preco_arroba_base">Preço da arroba base (R$/@)</label><input type="number" id="preco_arroba_base" min="0" step="0.01" placeholder="Ex: 320"></div>
+        <div class="field"><label for="custo_reposicao_anual">Custo de reposição anual (R$)</label><input type="number" id="custo_reposicao_anual" min="0" step="1000" placeholder="Ex: 180000"></div>
+        <div class="field"><label for="custo_suplementacao_anual">Custo de suplementação anual (R$)</label><input type="number" id="custo_suplementacao_anual" min="0" step="1000" placeholder="Ex: 60000"></div>
+      </div>
+      <p class="od-note">Preencha os três campos juntos ou deixe todos em branco. Com eles, o parecer compara 6 cenários de estresse e calcula o ponto de ruptura da arroba.</p>
+    </div>
+  </section>
 
   <div class="card ork-section-herd" style="margin-bottom:16px">
     <div class="ch">
@@ -2337,6 +2375,15 @@ async function classificar(){
     document.getElementById('credito_prazo').focus();
     return;
   }
+  // Tipagem estrita dos campos do ciclo/estresse: Number(), vazios omitidos e
+  // o trio do estresse completo — o servidor responde 400 a envio parcial.
+  const _novos=OrkavynDash.lerCamposNovos();
+  if(_novos.erro){
+    showToast(_novos.erro,true);
+    const _campoErro=document.getElementById(_novos.campo);
+    if(_campoErro){_campoErro.scrollIntoView({behavior:'smooth',block:'center'});_campoErro.focus()}
+    return;
+  }
   showLoading(['Analisando composição do rebanho...','Calculando indicadores técnicos...','Calculando fluxo GEP...','Gerando parecer de crédito...']);
   try{
     const body={valores:v,fazenda:document.getElementById('f_faz').value,municipio:document.getElementById('f_mun').value,proprietario:document.getElementById('f_prop').value};
@@ -2386,8 +2433,7 @@ async function classificar(){
     body.sistema_amortizacao=document.getElementById('credito_sistema').value;
     body.periodicidade_meses=+document.getElementById('credito_periodicidade').value||1;
     // Opcional: sem sistema produtivo o servidor responde como sempre.
-    const _sp=document.getElementById('sistema_produtivo').value;
-    if(_sp){body.sistema_produtivo=_sp;body.frequencia_pagamento=document.getElementById('frequencia_pagamento').value||'mensal'}
+    Object.assign(body,_novos.campos);
     const natV=document.getElementById('c-nat').value;
     const boisvV=document.getElementById('c-boisv').value;
     const bezvV=document.getElementById('c-bezv').value;
@@ -3230,26 +3276,6 @@ function renderFluxoMensal(data, parecer){
   const c=f.mes_critico;
   return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:#A78BFA"></div>Fluxo mensal para crédito</div></div><div class="cb" style="display:flex;gap:18px;flex-wrap:wrap;font-size:.78rem;color:var(--sb)"><span>Saldo mínimo: <strong style="color:var(--tx)">${fR(f.saldo_minimo)}</strong></span><span>Mês crítico: <strong>${c?`Ano ${c.ano}, mês ${c.mes}`:'—'}</strong></span><span style="color:var(--mu)">Distribuição estimada; informe calendário real para decisão final.</span></div></div>`;
 }
-function renderCicloPecuario(p){
-  const c=p&&p.ciclo_pecuario; if(!c) return '';
-  const card=(corpo)=>`<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:#38BDF8"></div>Fluxo de caixa sazonal (ciclo pecuário)</div></div><div class="cb" style="font-size:.78rem;color:var(--sb)">${corpo}</div></div>`;
-  if(!c.disponivel) return card(`<span style="color:var(--mu)">${escapeHtml(c.motivo||'Fluxo sazonal indisponível.')}</span>`);
-  const n=v=>fR(Number(v)||0);
-  const meses=Array.isArray(c.meses)?c.meses:[];
-  const defMeses=(Array.isArray(c.meses_deficit)?c.meses_deficit:[]).map(m=>{const x=meses.find(r=>r.mes===m);return x?x.rotulo:m});
-  const rec=c.recomendacao;
-  const alerta=c.quebra_caixa_com_dscr_ok?`<div role="alert" style="border:1px solid #F8717166;background:#F8717115;border-radius:10px;padding:12px 14px;margin-bottom:12px;color:var(--tx)"><strong style="color:#F87171">DSCR anual aprovado, mas há risco de quebra de caixa sazonal.</strong> A parcela deste calendário cria meses de déficit que a operação sozinha não teria.${rec?` Cronograma recomendado: <strong>${escapeHtml(rec.estrutura_recomendada)}</strong>${rec.elimina_vale?' (elimina o vale)':rec.melhora_vale?' (reduz o vale)':''}.`:''}</div>`:'';
-  const linhas=meses.map(r=>`<tr><td>${escapeHtml(r.rotulo)}</td><td style="text-align:right">${n(r.entradas)}</td><td style="text-align:right">${n(r.saidas_operacionais)}</td><td style="text-align:right">${n(r.servico_divida)}</td><td style="text-align:right;color:${Number(r.saldo_acumulado)<0?'#F87171':'inherit'}">${n(r.saldo_acumulado)}</td></tr>`).join('');
-  return card(`${alerta}
-    <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px">
-      <span>Sistema: <strong style="color:var(--tx)">${escapeHtml(c.sistema)}</strong> · pagamento ${escapeHtml(c.frequencia)}</span>
-      <span>Pior vale: <strong style="color:var(--tx)">${n(c.vale_caixa)}</strong>${c.mes_vale!=null?' ('+escapeHtml((meses.find(r=>r.mes===c.mes_vale)||{}).rotulo||c.mes_vale)+')':''}</span>
-      <span>Meses em déficit: <strong style="color:var(--tx)">${defMeses.length?defMeses.map(escapeHtml).join(', '):'nenhum'}</strong></span>
-      <span>DSCR ano ${escapeHtml(c.ano_referencia)}: <strong style="color:var(--tx)">${c.dscr_anual!=null?escapeHtml(Number(c.dscr_anual).toFixed(2)):'—'}</strong></span>
-    </div>
-    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.72rem"><thead><tr style="color:var(--mu);text-align:left"><th>Mês</th><th style="text-align:right">Entradas</th><th style="text-align:right">Saídas</th><th style="text-align:right">Parcela</th><th style="text-align:right">Saldo acum.</th></tr></thead><tbody>${linhas}</tbody></table></div>
-    <div style="margin-top:8px;color:var(--mu);font-size:.68rem">Perfis sazonais são premissas estilizadas de referência (calendário típico do Brasil Central), não série medida da propriedade. Alternativas semestral/anual mantêm o mesmo serviço anual, sem juros adicionais de repactuação.</div>`);
-}
 function renderParecer(data){
   const p=data.parecer; if(!p) return '';
   window._lastParecer = p;
@@ -3585,7 +3611,7 @@ function renderParecer(data){
   return `<div class="card" style="margin-bottom:24px">
     <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Parecer de Crédito</div>
       <button class="btn-sm" onclick="baixarPdfParecer(window._lastParecer)">⬇ Baixar PDF</button></div>
-    <div class="cb" style="display:grid;gap:0">${renderAnalisesCredito(data,p)}${renderRetencao(data)}${renderFluxoMensal(data,p)}${renderCicloPecuario(p)}${renderPraca(p.precos_regional)}${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
+    <div class="cb" style="display:grid;gap:0">${renderAnalisesCredito(data,p)}${renderRetencao(data)}${renderFluxoMensal(data,p)}${renderPraca(p.precos_regional)}${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
   </div>
   ${renderGarantia(p.garantia)}
   ${renderEndividamento(p.endividamento)}
@@ -3843,6 +3869,7 @@ function renderResult(data){
   }
 
   animarDesfrute();
+  OrkavynDash.renderParecer(data);
 
   setTimeout(()=>{
     document.querySelectorAll('.cbar-f[data-w]').forEach(el=>el.style.width=el.dataset.w+'%');
