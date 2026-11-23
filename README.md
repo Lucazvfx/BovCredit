@@ -394,7 +394,7 @@ O pseudônimo é **estável** de propósito — trocar por `NULL` destruiria a c
 | `GET /api/admin/lgpd/inventario` | Registro das operações de tratamento (Art. 37) |
 | `GET /api/admin/lgpd/exportar/<id>` | Portabilidade (Art. 18, V) |
 | `POST /api/admin/lgpd/anonimizar/<id>` | Direito de eliminação (Art. 18) |
-| `POST /api/admin/lgpd/purgar-auditoria` | Retenção — default 730 dias |
+| `POST /api/admin/lgpd/purgar-auditoria` | Retenção — default 180 dias |
 
 **Pareceres não são apagados.** São dado do *cliente da consultoria*, com valor probatório e prazo próprio de guarda. Anonimizar um analista não destrói o documento que ele emitiu.
 

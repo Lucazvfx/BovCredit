@@ -66,7 +66,7 @@ INVENTARIO = {
                        'CONSULTA_CADASTRAL, verificar situação cadastral pública '
                        '(Receita Federal, legítimo interesse — LGPD Art. 7 IX) '
                        'antes de prosseguir com a análise',
-        'retencao':  'RETENCAO_AUDITORIA_DIAS (default 730)',
+        'retencao':  'RETENCAO_AUDITORIA_DIAS (default 180)',
     },
     'whatsapp_vinculos': {
         'campos':    ['telefone'],
@@ -128,10 +128,10 @@ INVENTARIO = {
     },
 }
 
-# Retenção da trilha. Dois anos por padrão: prazo suficiente para investigação
-# de incidente sem virar acúmulo indefinido de e-mail e IP. Ajustável, porque
-# a instituição pode ter obrigação de guarda mais longa.
-RETENCAO_AUDITORIA_DIAS = int(os.environ.get('RETENCAO_AUDITORIA_DIAS', '730'))
+# Retenção da trilha. Seis meses por padrão, o prazo declarado na política de
+# privacidade (templates/privacidade.html). Ajustável, porque a instituição
+# pode ter obrigação de guarda mais longa — mas então a política deve mudar junto.
+RETENCAO_AUDITORIA_DIAS = int(os.environ.get('RETENCAO_AUDITORIA_DIAS', '180'))
 
 # Sal do pseudônimo. Sem ele, o hash de um e-mail seria reversível por
 # dicionário — a lista de e-mails plausíveis é curta e pública.
