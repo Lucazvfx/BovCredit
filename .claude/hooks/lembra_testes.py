@@ -29,7 +29,7 @@ def main():
 
     try:
         status = subprocess.run(
-            ["git", "status", "--porcelain"], capture_output=True, text=True, timeout=10
+            ["git", "status", "--porcelain", "-uall"], capture_output=True, text=True, timeout=10
         )
     except Exception:
         return 0

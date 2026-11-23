@@ -18,8 +18,11 @@ def _rodar(script, payload, cwd=None, bruto=None):
     )
 
 
-def _bash(cmd):
-    return _rodar("bloqueia_destrutivo.py", {"tool_name": "Bash", "tool_input": {"command": cmd}})
+def _bash(cmd, cwd=None):
+    payload = {"tool_name": "Bash", "tool_input": {"command": cmd}}
+    if cwd:
+        payload["cwd"] = cwd
+    return _rodar("bloqueia_destrutivo.py", payload)
 
 
 # ── bloqueia_destrutivo ──────────────────────────────────────────────────────
@@ -46,6 +49,40 @@ BLOQUEADOS = [
     "git push --force origin main",
     "git push -f origin main",
     "git push origin +main",
+    "git -C repo push -f origin main",
+    # comentário não pode esconder as linhas seguintes
+    "# limpa cache\nrm -rf ~",
+    "cd /tmp # vai pro tmp\nrm -rf /opt/orkavyn",
+    'ls # lista\npsql -c "DROP TABLE analises"',
+    "ls # lista\ngit push --force origin main",
+    "rm -rf x#y /",
+    # falso início de heredoc / here-string / aritmética
+    'git commit -m "doc <<EOF"\nrm -rf /',
+    "cat <<< hello\nrm -rf /",
+    "echo $((1<<x))\nrm -rf /",
+    # wrappers
+    'bash -c "rm -rf /"',
+    "sh -c 'rm -rf ~'",
+    'eval "rm -rf /"',
+    "{ rm -rf /; }",
+    "if true; then rm -rf /; fi",
+    "timeout 5 rm -rf /",
+    "nice -n 5 rm -rf /",
+    "sudo -u root rm -rf /",
+    "env -i rm -rf /",
+    "echo `rm -rf /`",
+    'echo "$(rm -rf /)"',
+    "ssh vps 'rm -rf /opt/orkavyn'",
+    'docker exec db psql -c "DROP TABLE analises"',
+    'docker compose exec app psql -c "TRUNCATE analises"',
+    'ssh vps psql -c "DROP TABLE x"',
+    # alvos amplos
+    "rm -rf ../..",
+    "rm -rf ./.git",
+    "rm -rf ${HOME}",
+    'rm -rf "$CLAUDE_PROJECT_DIR"',
+    "rm -rf $PWD",
+    'rm -rf "$(pwd)"',
 ]
 
 LIBERADOS = [
@@ -66,6 +103,25 @@ LIBERADOS = [
     "git push --force-with-lease origin minha-branch",
     "python3 -c \"print('DROP TABLE nao executa')\"",
     "ls -la",
+    # SQL/produção só contam no segmento do cliente de banco
+    'sqlite3 gestao.db .tables && git log -p | grep "DROP TABLE"',
+    'sqlite3 gestao.db .schema; echo "TRUNCATE TABLE x"',
+    'psql -c "select 1" # drop table depois',
+    "cat /opt/orkavyn/.env | head; sqlite3 gestao.db .tables",
+    'grep -rn supabase.co . ; psql -c "select 1"',
+    'psql <<SQL\nselect 1;\nSQL\necho "drop table" >> notas.md',
+    # comentários, wrappers, crases e aritmética inofensivos
+    "# rm -rf /\nls",
+    "ls # rm -rf /",
+    "echo 'texto com `rm -rf /` literal'",
+    "bash -c 'echo ola'",
+    "ssh vps 'tail -n 50 /var/log/app.log'",
+    "docker compose exec app pytest -q",
+    "git checkout -f push",
+    "echo $((1<<3))",
+    "rm -rf ../build",
+    # limite documentado: SQL em script Python via heredoc não é bloqueado
+    "python3 - <<'EOF'\nc.execute('DROP TABLE x')\nEOF",
 ]
 
 
@@ -86,6 +142,14 @@ def test_bloqueio_ignora_entrada_invalida_ou_outra_ferramenta():
     assert _rodar("bloqueia_destrutivo.py", None, bruto="não é json").returncode == 0
     assert _rodar("bloqueia_destrutivo.py", {"tool_input": {"command": "rm -rf 'aberta"}}).returncode == 0
     assert _rodar("bloqueia_destrutivo.py", {"tool_input": {"file_path": "x.py"}}).returncode == 0
+
+
+def test_rm_do_proprio_projeto_e_ancestrais_com_cwd():
+    projeto = "/home/user/meu-projeto"
+    for alvo in (projeto, projeto + "/*", projeto + "/", ".", "~/meu-projeto"):
+        assert _bash(f"rm -rf {alvo}", cwd=projeto).returncode == 2, alvo
+    assert _bash("rm -rf build", cwd=projeto).returncode == 0
+    assert _bash(f"rm -rf {projeto}/build", cwd=projeto).returncode == 0
 
 
 # ── checa_sintaxe_py ─────────────────────────────────────────────────────────
