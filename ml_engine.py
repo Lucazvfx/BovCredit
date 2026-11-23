@@ -9,7 +9,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import cross_val_score, cross_validate
+from sklearn.model_selection import cross_validate
 import joblib
 import logging
 import warnings
@@ -439,41 +439,6 @@ def treinar_modelo():
         'f1_macro_std':  round(float(cv_f1.std()),   4),
         'n_samples':     len(X),
         'n_features':    X.shape[1],
-        'n_csv':         len(X_csv),
-    }
-    salvar_modelo(result)
-    return result
-
-def retrain_com_dados(X_extra: list, y_extra: list) -> dict:
-    """
-    Retreina o ensemble combinando o CSV original + dados confirmados.
-    Mantém a mesma arquitetura do pipeline.
-    """
-    global _pipeline
-    X_csv, y_csv = _carregar_dataset_csv()
-    X_base = [extrair_features(v) for v in X_csv]
-    y_base = list(y_csv)
-
-    if X_extra:
-        X_all = np.array(X_base + [extrair_features(v) for v in X_extra])
-        y_all = np.array(y_base + list(y_extra))
-    else:
-        X_all = np.array(X_base)
-        y_all = np.array(y_base)
-
-    if _pipeline is None:
-        _pipeline = _build_model()
-    _pipeline.fit(X_all, y_all)
-
-    n_classes = len(set(y_all))
-    cv = min(5, max(2, len(X_all) // max(n_classes, 1)))
-    scores = cross_val_score(_pipeline, X_all, y_all, cv=cv, scoring='accuracy')
-    result = {
-        'accuracy_mean': round(float(scores.mean()), 4),
-        'accuracy_std':  round(float(scores.std()),  4),
-        'n_samples':     int(len(X_all)),
-        'n_features':    int(X_all.shape[1]),
-        'n_confirmados': int(len(X_extra)),
         'n_csv':         len(X_csv),
     }
     salvar_modelo(result)

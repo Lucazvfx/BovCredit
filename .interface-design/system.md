@@ -9,8 +9,7 @@ O sistema visual combina uma âncora orgânica com composição executiva. Verde
 - Escala de espaçamento: múltiplos de `4px`.
 - Controles: raio de `10px`, altura mínima de toque de `44px`.
 - Painéis: raio de `20px`, borda quente e sombra sutil.
-- Barra lateral no desktop: `280px`, fixa, com superfície clara e item ativo verde floresta.
-- Navegação móvel: barra inferior flutuante, respeitando `safe-area-inset-bottom`.
+- Navegação do dashboard: dock flutuante (`templates/partials/dashboard_dock.html`), respeitando `safe-area-inset-bottom` no celular.
 - Movimento: transições de até `180ms`; o modo de movimento reduzido elimina animações perceptíveis.
 
 ## Hierarquia tipográfica
@@ -48,17 +47,18 @@ O sistema visual combina uma âncora orgânica com composição executiva. Verde
 - Fundo: `rebanho-bg.jpg` estático, opacidade `0.12` no desktop e `0.10` até `480px`.
 - Painéis analíticos: `rgba(251, 247, 239, 0.96)` e `--ork-shadow-dashboard`.
 - Hover: somente cor e borda; nunca deslocamento, escala, revelação ou mudança de profundidade.
-- Exceções de movimento: skip link, toast, drawer/sidebar e feedback de estado, sempre respeitando movimento reduzido.
+- Exceções de movimento: skip link, toast, drawer e feedback de estado, sempre respeitando movimento reduzido.
 - Informação crítica nunca depende de hover.
 
-### Barra lateral desktop
+### Dock de navegação
 
-- Superfície areia clara com borda direita quente e sem sombra forte.
-- Largura de `280px` e padding lateral de `24px`.
-- Marca oficial no topo; seção analítica no centro; usuário e “Sair da conta” no rodapé.
-- Ícones SVG lineares usam `currentColor` e não dependem de bibliotecas externas.
+- Barra flutuante com ícones SVG lineares (`currentColor`), sem bibliotecas externas.
 - Item ativo em verde floresta; itens inativos e hover permanecem claros.
 - Hover altera somente cor, fundo e borda, sem deslocamento, escala ou mudança de profundidade.
+
+### Texto da interface
+
+Interface B2B sóbria: sem emojis em rótulos, botões, estados ou mensagens. Ícones são SVG lineares; o significado vem do texto, nunca de um símbolo isolado.
 
 ### Ação dominante
 
@@ -80,14 +80,14 @@ Controles nativos são preservados, o foco é visível, as navegações possuem 
 
 - `static/orkavyn-fields.css`: fonte única dos tokens e componentes compartilhados.
 - `static/orkavyn-shell.js`: somente comportamento de navegação; não contém regra de negócio.
-- `templates/partials/fields_sidebar.html`: navegação lateral da aplicação.
-- `templates/partials/fields_mobile_nav.html`: navegação inferior móvel.
+- `static/orkavyn-dashboard.css` e `static/orkavyn-dashboard.js`: estilo e comportamento do dashboard.
+- `templates/partials/dashboard_dock.html`: dock de navegação do dashboard.
 - `templates/index.html`: preserva os IDs e renderizadores do fluxo de análise.
 
 ## Breakpoints
 
-- `> 900px`: sidebar fixa de `280px` e workspace deslocado.
-- `≤ 900px`: sidebar recolhível, bottom navigation e espaço inferior seguro.
+- `> 900px`: dock flutuante no dashboard.
+- `≤ 900px`: dock adaptada ao celular, com espaço inferior seguro.
 - `≤ 760px`: grids de importação, decisão, landing e demo são empilhados.
 - `≤ 480px`: painéis usam gutters de `16px` e métricas ficam em uma coluna.
 

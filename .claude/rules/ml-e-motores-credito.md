@@ -16,7 +16,7 @@ Complementa o CLAUDE.md. Só o que evita regressão.
   em `requirements.txt` exige `python treinar_ciclos.py` e commitar o `.pkl` regerado.
   Mudar features, `TIPOS` ou `PARAMS_POR_CICLO` também invalida o pickle atual.
 - **Mudou regra de risco, parecer, caixa ou estresse?** Revalide: rode a suíte inteira
-  (`pytest`), em especial os testes de motores, parecer e casos de treinamento, e confira que
+  (`python -m pytest`), em especial os testes de motores, parecer e casos de treinamento, e confira que
   rating, checklist, DSCR/capacidade de pagamento e cenários de estresse continuam coerentes
   entre si no parecer final. Quando a regra reverter a decisão do modelo, mantenha
   `origem_decisao`/`regra_aplicada` preenchidos (rastreabilidade).

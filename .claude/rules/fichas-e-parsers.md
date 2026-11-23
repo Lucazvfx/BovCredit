@@ -21,6 +21,6 @@ Complementa o CLAUDE.md (que já lista os parsers por UF). Aqui, só o que evita
   acento/caixa antes de comparar. Não troque totais: o consolidador/validador depende deles.
 - **Não altere o dict de saída dos parsers** (chaves/tipos) sem ajustar `base_reader.py`,
   `consolidator.py` e `validator.py` — o ML e o parecer consomem esses campos.
-- **Ao mexer em uma UF, rode os testes de todas**: `pytest tests/test_pdf_parsers.py
+- **Ao mexer em uma UF, rode os testes de todas**: `python -m pytest tests/test_pdf_parsers.py
   tests/test_fichas_rebanho_core.py tests/test_fichas_rebanho_estados.py` (+ `test_ficha*.py`).
   Use as fixtures existentes em `tests/fixtures`; não commite fichas reais com dados pessoais.
