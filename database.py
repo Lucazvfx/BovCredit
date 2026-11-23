@@ -2215,7 +2215,10 @@ def anonimizar_usuario(user_id: int) -> dict:
     probatório para a instituição e prazo próprio de guarda; o vínculo com o
     analista é que deixa de identificar uma pessoa.
 
-    Idempotente: rodar duas vezes não muda nada na segunda.
+    As API keys de análise do usuário são revogadas (não apagadas).
+
+    Idempotente: rodar duas vezes não muda nada na segunda, salvo revogar
+    chaves ainda ativas do usuário.
     """
     import secrets
     from services.lgpd import pseudonimo, e_anonimo
@@ -2224,12 +2227,23 @@ def anonimizar_usuario(user_id: int) -> dict:
     u = buscar_usuario_id(user_id)
     if not u:
         return {'ok': False, 'erro': 'usuário não encontrado'}
+
+    # Credencial não pode sobreviver à conta anonimizada. Revoga (não apaga)
+    # para manter a trilha de emissão; fica antes do retorno de "já anônimo"
+    # para também cobrir contas anonimizadas antes desta revogação existir.
+    _ensure_analysis_tables()
+    _exec(
+        f'UPDATE analysis_api_keys SET revoked_at={_NOW} '
+        f'WHERE user_id={ph} AND revoked_at IS NULL',
+        (user_id,), commit=True,
+    )
+
     if e_anonimo(u.get('email')):
         return {'ok': True, 'ja_anonimo': True, 'user_id': user_id,
                 'tabelas': {}}
 
     pseudo = pseudonimo(u['email'])
-    tocadas = {}
+    tocadas = {'analysis_api_keys': 'revogadas'}
 
     _exec(f'''UPDATE usuarios SET email={ph}, nome={ph}, senha_hash={ph},
                      nome_consultoria={ph}, security_question=NULL,

@@ -252,6 +252,37 @@ def test_remover_usuario_revoga_api_keys_sem_tocar_as_de_outros():
     assert db.load_analysis_api_key(ko_raw), 'key de outro usuário foi afetada'
 
 
+def test_anonimizar_revoga_api_keys_sem_tocar_as_de_outros():
+    alvo, outro = _novo_usuario(), _novo_usuario()
+    ka = db.issue_analysis_api_key(organization_id=1, user_id=alvo['id'], name='alvo')
+    ko = db.issue_analysis_api_key(organization_id=1, user_id=outro['id'], name='outro')
+    ka_raw, ko_raw = ka['raw_key'], ko['raw_key']
+    assert db.load_analysis_api_key(ka_raw)
+
+    db.anonimizar_usuario(alvo['id'])
+
+    assert db.load_analysis_api_key(ka_raw) is None, 'key do anonimizado segue válida'
+    # revogada, não apagada: a trilha de emissão permanece
+    assert db.load_analysis_api_key(ka_raw, include_revoked=True)['revoked_at']
+    assert db.load_analysis_api_key(ko_raw), 'key de outro usuário foi afetada'
+
+
+def test_anonimizar_sem_api_keys_nao_quebra():
+    r = db.anonimizar_usuario(_novo_usuario()['id'])
+    assert r['ok'] and not r['ja_anonimo']
+
+
+def test_anonimizar_de_novo_revoga_key_de_conta_ja_anonimizada():
+    alvo = _novo_usuario()
+    db.anonimizar_usuario(alvo['id'])
+    k = db.issue_analysis_api_key(organization_id=1, user_id=alvo['id'], name='legada')
+
+    r = db.anonimizar_usuario(alvo['id'])
+
+    assert r['ja_anonimo']
+    assert db.load_analysis_api_key(k['raw_key']) is None
+
+
 def test_remover_usuario_apaga_reset_tokens_e_invalida_o_link():
     alvo, outro = _novo_usuario(), _novo_usuario()
     t_alvo = db.criar_token_reset(alvo['email'])
