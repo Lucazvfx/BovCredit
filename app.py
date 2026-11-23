@@ -452,6 +452,30 @@ class User(UserMixin):
         self.nome  = data['nome']
         self.plano = data.get('plano', 'free')
 
+NOME_MIN, NOME_MAX = 2, 80
+
+
+def primeiro_nome_exibicao(nome, email) -> str:
+    """Primeiro nome para a saudação, ou '' quando não há nome "de verdade":
+    vazio, com '@', ou igual ao prefixo do próprio e-mail (handle bruto)."""
+    nome = ' '.join(str(nome or '').split())
+    if not nome or '@' in nome:
+        return ''
+    if nome.lower() == str(email or '').split('@')[0].strip().lower():
+        return ''
+    return nome.split(' ')[0]
+
+
+def _normalizar_nome(valor):
+    """Nome sanitizado ou None se inválido (tipo, tamanho, '@', '<' ou '>')."""
+    if not isinstance(valor, str):
+        return None
+    nome = ' '.join(''.join(c if c.isprintable() else ' ' for c in valor).split())
+    if not (NOME_MIN <= len(nome) <= NOME_MAX) or any(c in nome for c in '@<>'):
+        return None
+    return nome
+
+
 @login_manager.user_loader
 def load_user(user_id):
     u = db.buscar_usuario_id(int(user_id))
@@ -1075,6 +1099,17 @@ def logout():
     return redirect(url_for('login'))
 
 # ── Empresa ativa ────────────────────────────────────────────────────────────
+@app.route('/api/usuario/nome', methods=['POST'])
+@login_required
+@limiter.limit("20 per hour")
+def api_usuario_nome():
+    nome = _normalizar_nome((request.get_json(silent=True) or {}).get('nome'))
+    if nome is None:
+        return jsonify({'erro': f'Nome inválido: use de {NOME_MIN} a {NOME_MAX} caracteres, sem @, < ou >.'}), 400
+    db.atualizar_nome_usuario(current_user.id, nome)
+    return jsonify({'ok': True, 'nome': nome,
+                    'primeiro_nome': primeiro_nome_exibicao(nome, current_user.email)})
+
 @app.route('/api/empresa/ativa', methods=['GET'])
 @login_required
 def api_empresa_ativa_get():
@@ -1392,6 +1427,7 @@ def app_main():
     cotacoes_dia = db.obter_cotacoes_atuais()
     return render_template('index.html', model_stats=stats, cenarios=CENARIOS,
                            usuario=current_user, fazendas=fazendas, cotacoes=cotacoes_dia,
+                           primeiro_nome=primeiro_nome_exibicao(current_user.nome, current_user.email),
                            eh_admin=is_admin(current_user.email))
 
 
