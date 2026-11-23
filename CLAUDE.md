@@ -124,7 +124,9 @@ static/
 | `GROQ_API_KEY` | API Groq para narrativas |
 | `APP_URL` | URL pública sem barra final |
 
-Opcionais: `RATELIMIT_STORAGE_URI` (Redis), `WEB_CONCURRENCY`, `WEB_THREADS`, `WEB_TIMEOUT`, `TOTP_CHAVE`.
+Opcionais: `RATELIMIT_STORAGE_URI` (Redis), `WEB_CONCURRENCY`, `WEB_THREADS`, `WEB_TIMEOUT`, `TOTP_CHAVE`, `DATABASE_SSLMODE`.
+
+**`DATABASE_SSLMODE`** — modo SSL do PostgreSQL, aplicado só quando a `DATABASE_URL` não traz `sslmode` e o host é remoto (fora de localhost/127.0.0.1/::1). Padrão `require`; valor inválido cai em `require`. Um `sslmode` já presente na URL sempre prevalece sobre a variável. Ver `_aplicar_sslmode` em `database.py`.
 
 **`TOTP_CHAVE`** — cifra o segredo 2FA no banco. Sem ela a chave é derivada da `SECRET_KEY`, o que funciona mas amarra as duas: rotacionar a `SECRET_KEY` torna os segredos ilegíveis e todos os usuários precisam entrar por código de backup e reativar o 2FA. Defina antes de qualquer rotação — ver `services/cripto_segredo.py`.
 
