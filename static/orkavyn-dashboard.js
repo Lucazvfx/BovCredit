@@ -137,6 +137,8 @@
     });
     const limpar = document.getElementById("od-sys-clear");
     if (limpar) limpar.hidden = !valor;
+    if (valor) revelarCampo("sistema_produtivo");
+    atualizarBlocos();
     ["frequencia_pagamento", "capital_giro_inicial"].forEach((id) => {
       const campo = document.getElementById(id);
       if (!campo) return;
@@ -156,6 +158,114 @@
     if (limpar) limpar.addEventListener("click", () => definirSistema(""));
     definirSistema(document.getElementById("sistema_produtivo")
       ? document.getElementById("sistema_produtivo").value : "");
+  }
+
+  // ── "Mais opções ▾" da composição por faixa etária ─────────────────────
+  function iniciarMaisOpcoes() {
+    const d = document.getElementById("od-more-faixa");
+    if (!d) return;
+    d.addEventListener("click", (e) => {
+      if (e.target.closest(".od-more__item")) { d.open = false; d.querySelector("summary").focus(); }
+    });
+    d.addEventListener("focusout", (e) => { if (d.open && e.relatedTarget && !d.contains(e.relatedTarget)) d.open = false; });
+    document.addEventListener("click", (e) => { if (d.open && !d.contains(e.target)) d.open = false; });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && d.open && d.contains(document.activeElement)) { d.open = false; d.querySelector("summary").focus(); }
+    });
+  }
+
+  // ── aviso do desembolso padrão (GEP) some quando o produtor já informou ─
+  function iniciarAvisoGep() {
+    const campo = document.getElementById("c-desemb");
+    const aviso = document.getElementById("aviso-gep-padrao");
+    if (!campo || !aviso) return;
+    const atualizar = () => { aviso.hidden = campo.value.trim() !== ""; };
+    campo.addEventListener("input", atualizar);
+    atualizar();
+  }
+
+  // ── blocos opcionais: recolhíveis, com estado na própria barra ─────────
+  // Aberto de saída se já houver dado; recolhido (e anunciado) se vazio.
+  const BLOCOS_OPCIONAIS = {
+    "od-b2": () => {
+      const sis = (document.getElementById("sistema_produtivo") || {}).value || "";
+      return sis ? { n: 1, de: 1, txt: "Informado" } : { n: 0, de: 1, txt: "Não informado" };
+    },
+    "od-b3": () => {
+      const n = CAMPOS_ESTRESSE.filter(([id]) => {
+        const e = document.getElementById(id);
+        return e && e.value.trim() !== "";
+      }).length;
+      const de = CAMPOS_ESTRESSE.length;
+      return { n, de, txt: n === 0 ? "Não informado" : (n === de ? "Completo" : "Incompleto " + n + "/" + de) };
+    },
+  };
+  function definirBloco(bloco, aberto) {
+    const corpo = document.getElementById(bloco.id + "-body");
+    const btn = bloco.querySelector(".od-block__toggle");
+    if (!corpo || !btn) return;
+    corpo.hidden = !aberto;
+    btn.setAttribute("aria-expanded", aberto ? "true" : "false");
+    btn.querySelector(".od-block__caret").textContent = aberto ? "▴" : "▾";
+  }
+  function atualizarEstresse() {
+    const campos = CAMPOS_ESTRESSE.map(([id, rotulo]) => ({ e: document.getElementById(id), rotulo }));
+    const vazios = campos.filter((c) => c.e && c.e.value.trim() === "");
+    const parcial = vazios.length > 0 && vazios.length < campos.length;
+    campos.forEach((c) => {
+      if (!c.e) return;
+      const wrap = c.e.closest(".field");
+      const falta = parcial && c.e.value.trim() === "";
+      const ok = c.e.value.trim() !== "";
+      if (wrap) {
+        wrap.classList.toggle("od-field--missing", falta);
+        wrap.classList.toggle("od-field--ok", ok && parcial);
+      }
+      if (falta) c.e.setAttribute("aria-invalid", "true"); else c.e.removeAttribute("aria-invalid");
+    });
+    const aviso = document.getElementById("od-estresse-status");
+    if (aviso) {
+      aviso.hidden = !parcial;
+      aviso.textContent = parcial ? "Faltam " + vazios.length + " de " + campos.length + ": " + vazios.map((c) => c.rotulo).join(", ") + "." : "";
+    }
+  }
+  function atualizarBlocos() {
+    Object.keys(BLOCOS_OPCIONAIS).forEach((id) => {
+      const bloco = document.getElementById(id);
+      const chip = bloco && bloco.querySelector(".od-block__status");
+      if (!chip) return;
+      const st = BLOCOS_OPCIONAIS[id]();
+      chip.textContent = st.txt;
+      chip.classList.toggle("is-ok", st.n === st.de);
+      chip.classList.toggle("is-warn", st.n > 0 && st.n < st.de);
+    });
+    atualizarEstresse();
+  }
+  function iniciarBlocosOpcionais() {
+    Object.keys(BLOCOS_OPCIONAIS).forEach((id) => {
+      const bloco = document.getElementById(id);
+      const head = bloco && bloco.querySelector(".od-block__head");
+      if (!head || !document.getElementById(id + "-body")) return;
+      const btn = el("button", { cls: "od-block__toggle", attrs: { type: "button", "aria-controls": id + "-body", "aria-expanded": "true", "aria-describedby": id + "-title" } }, [
+        el("span", { cls: "od-block__status" }),
+        el("span", { text: "▴", cls: "od-block__caret", attrs: { "aria-hidden": "true" } }),
+      ]);
+      btn.addEventListener("click", () => definirBloco(bloco, btn.getAttribute("aria-expanded") !== "true"));
+      head.appendChild(btn);
+      bloco.addEventListener("input", atualizarBlocos);
+      bloco.addEventListener("click", () => setTimeout(atualizarBlocos, 0));
+    });
+    atualizarBlocos();
+    Object.keys(BLOCOS_OPCIONAIS).forEach((id) => {
+      const bloco = document.getElementById(id);
+      if (bloco) definirBloco(bloco, BLOCOS_OPCIONAIS[id]().n > 0);
+    });
+  }
+  // Campo com erro dentro de bloco recolhido: abre antes de rolar/focar.
+  function revelarCampo(id) {
+    const campo = document.getElementById(id);
+    const bloco = campo && campo.closest(".od-block--opt");
+    if (bloco) definirBloco(bloco, true);
   }
 
   // ── payload: tipagem estrita, vazios omitidos ──────────────────────────
@@ -551,12 +661,15 @@
     document.querySelectorAll("details.ork-fold[data-pr]").forEach((d) => { d.open = false; delete d.dataset.pr; });
   });
 
-  window.OrkavynDash = { lerCamposNovos, renderParecer, definirSistema, aplicarTema };
+  window.OrkavynDash = { lerCamposNovos, renderParecer, definirSistema, aplicarTema, revelarCampo, atualizarBlocos };
 
   document.addEventListener("DOMContentLoaded", () => {
     iniciarTema();
     iniciarMenus();
     iniciarSaudacao();
     iniciarSistemas();
+    iniciarMaisOpcoes();
+    iniciarAvisoGep();
+    iniciarBlocosOpcionais();
   });
 })();

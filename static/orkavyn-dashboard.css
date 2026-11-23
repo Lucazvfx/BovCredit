@@ -537,3 +537,75 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
 .ork-ress { margin-top: 8px; font-size: .72rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ork-cart-vazio { padding: 12px 4px; font-size: .8rem; color: var(--text-muted); }
 .ork-cart-vazio--linha { padding: 8px 0 0; }
+
+/* ═══ Refino de formulário e navegação (UX) ═════════════════════════════ */
+
+/* Barra de ações da composição: primárias + "Mais opções ▾". */
+.od-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.od-more { position: relative; }
+.od-more > summary { list-style: none; cursor: pointer; user-select: none; }
+.od-more > summary::-webkit-details-marker { display: none; }
+.od-more[open] > summary { border-color: var(--brand-primary); color: var(--brand-primary); }
+.od-more > summary:focus-visible,
+.od-more__item:focus-visible,
+.od-block__toggle:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.od-more__menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 220px; max-width: calc(100vw - 32px);
+  display: flex; flex-direction: column; padding: 6px;
+  background: var(--bg-surface); border: 1px solid var(--border-strong); border-radius: var(--od-r-md);
+  box-shadow: var(--ork-shadow-soft);
+}
+.od-more__grp { padding: 8px 10px 4px; font-size: .64rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.od-more__item {
+  text-align: left; padding: 9px 10px; min-height: 40px; border: 0; border-radius: var(--od-r-sm);
+  background: none; color: var(--text-primary); font: 500 .82rem var(--od-font); cursor: pointer;
+}
+.od-more__item:hover { background: var(--bg-subtle); }
+
+/* Mínimo necessário x opcional. */
+.od-req {
+  margin-left: 8px; padding: 2px 8px; border-radius: 999px; vertical-align: middle;
+  font: 700 .62rem/1.4 var(--od-font); letter-spacing: .04em; text-transform: uppercase;
+  background: var(--brand-tint); color: var(--brand-primary); border: 1px solid var(--brand-primary);
+}
+.od-block--opt { border-style: dashed; }
+.od-block__toggle {
+  display: inline-flex; align-items: center; gap: 8px; margin-left: auto; min-height: 32px; padding: 2px 6px;
+  background: none; border: 0; border-radius: var(--od-r-sm); cursor: pointer; color: var(--text-secondary); font: 600 .74rem var(--od-font);
+}
+.od-sys-clear + .od-block__toggle { margin-left: 8px; }
+.od-block__status { padding: 2px 8px; border-radius: 999px; background: var(--bg-surface); border: 1px solid var(--border-strong); color: var(--text-muted); font-size: .68rem; }
+.od-block__status.is-ok { background: var(--status-approve-bg); color: var(--status-approve-fg); border-color: var(--status-approve-fg); }
+.od-block__status.is-warn { background: var(--status-warn-bg); color: var(--status-warn-fg); border-color: var(--status-warn-fg); }
+.od-block__body[hidden] { display: none; }
+
+/* Feedback imediato do trio do estresse (texto + borda, nunca só cor). */
+.od-field--missing input { border-color: var(--status-warn-fg); box-shadow: 0 0 0 1px var(--status-warn-fg); }
+.od-field--missing label::after { content: " — falta"; color: var(--status-warn-fg); font-weight: 700; }
+.od-field--ok input { border-color: var(--status-approve-fg); }
+.od-field--ok label::after { content: " ✓"; color: var(--status-approve-fg); font-weight: 700; }
+
+/* Folga do dock no mobile: o último campo/ação nunca fica sob a pílula. */
+@media (max-width: 600px) {
+  .ork-dashboard-surface .ork-workspace { padding-bottom: calc(128px + env(safe-area-inset-bottom)); }
+  .od-more__menu { right: auto; left: 0; }
+}
+
+/* Tabela de faixa etária → cards empilhados no mobile (sem overflow). */
+@media (max-width: 600px) {
+  .ork-entry-view .itbl, .ork-entry-view .itbl tbody, .ork-entry-view .itbl tr, .ork-entry-view .itbl td { display: block; width: 100%; }
+  .ork-entry-view .itbl thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .ork-entry-view .itbl tr {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; padding: 12px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .ork-entry-view .itbl tr > td:first-child { grid-column: 1 / -1; }
+  .ork-entry-view .itbl td { padding: 0; border: 0; min-width: 0; text-align: left; }
+  .ork-entry-view .itbl td[data-label]::before {
+    content: attr(data-label); display: block; margin-bottom: 3px;
+    font-size: .64rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted);
+  }
+  .ork-entry-view .itbl td .ni { width: 100%; min-height: 44px; text-align: right; }
+  .ork-entry-view .itbl .col-pct { display: block; }
+  .ork-entry-view .itbl td.tdtot { text-align: left; }
+}

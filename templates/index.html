@@ -464,9 +464,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-fields.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-dashboard.css') }}?v=74">
+<link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-dashboard.css') }}?v=75">
 <script defer src="{{ url_for('static', filename='orkavyn-shell.js') }}"></script>
-<script defer src="{{ url_for('static', filename='orkavyn-dashboard.js') }}?v=74"></script>
+<script defer src="{{ url_for('static', filename='orkavyn-dashboard.js') }}?v=75"></script>
 </head>
 <body class="ork-surface ork-dashboard-surface">
 
@@ -551,17 +551,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 <main class="ork-main" id="ork-main-content">
 <div class="tab-bar ork-legacy-tabs" aria-label="Navegação de compatibilidade">
-  <button class="tab-btn active" aria-controls="panel-entrada" aria-selected="true" role="tab" onclick="showTab('entrada',this)">Inserir Dados</button>
+  <button class="tab-btn active" aria-controls="panel-entrada" aria-selected="true" role="tab" onclick="showTab('entrada',this)">Nova análise</button>
   <button class="tab-btn tab-locked" id="tab-res" aria-controls="panel-resultado" aria-selected="false" aria-disabled="true" role="tab" onclick="showTab('resultado',this)">Resultado</button>
   <!-- Destravada de início de propósito. O desembolso real do produtor mora
        aqui dentro (Parâmetros), e travar a aba obrigava a rodar uma primeira
        análise com os custos padrão só para abrir a porta — análise que ainda
        gravava histórico se houvesse cliente selecionado. Os sub-painéis que
        dependem de classificação já dizem o que falta. -->
-  <button class="tab-btn" id="tab-cen" aria-controls="panel-cenarios" aria-selected="false" role="tab" onclick="showTab('cenarios',this)">Simular Cenários</button>
+  <button class="tab-btn" id="tab-cen" aria-controls="panel-cenarios" aria-selected="false" role="tab" onclick="showTab('cenarios',this)">Cenários</button>
   <button class="tab-btn" aria-controls="panel-historico" aria-selected="false" role="tab" onclick="showTab('historico',this)">Histórico</button>
   <button class="tab-btn" aria-controls="panel-graos" aria-selected="false" role="tab" onclick="showTab('graos',this)">Grãos & Safra</button>
-  <button class="tab-btn" aria-controls="panel-perene" aria-selected="false" role="tab" onclick="showTab('perene',this)">Lavoura Perene</button>
+  <button class="tab-btn" aria-controls="panel-perene" aria-selected="false" role="tab" onclick="showTab('perene',this)">Lavoura perene</button>
   <button class="tab-btn" aria-controls="panel-ajuda" aria-selected="false" role="tab" onclick="showTab('ajuda',this)">Ajuda</button>
 </div>
 
@@ -569,7 +569,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <div class="panel active ork-entry-view" id="panel-entrada">
 
   <section class="od-cover" aria-labelledby="od-cover-title">
-    <h1 class="od-cover__title" id="od-cover-title"><span id="od-greeting">Olá</span>, {{ ((usuario.nome or usuario.email or '')|trim).split(' ')[0].split('@')[0] }}.</h1>
+    <h1 class="od-cover__title" id="od-cover-title">{%- set primeiro_nome = ((usuario.nome or '')|trim).split(' ')[0] -%}
+<span id="od-greeting">Olá</span>{% if primeiro_nome and '@' not in primeiro_nome %}, {{ primeiro_nome }}{% endif %}.</h1>
     <p class="od-cover__sub">Importe a ficha do rebanho ou preencha os dados abaixo para emitir o parecer de crédito.</p>
   </section>
 
@@ -660,12 +661,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   </div>
 
   <!-- ═══ BLOCO 2: sistema pecuário e ciclo ═══ -->
-  <section class="od-block" aria-labelledby="od-b2-title">
+  <section class="od-block od-block--opt" id="od-b2" aria-labelledby="od-b2-title">
     <div class="od-block__head">
       <h3 class="od-block__title" id="od-b2-title">2. Sistema Pecuário e Ciclo <small>(opcional)</small></h3>
       <button type="button" class="od-sys-clear" id="od-sys-clear" hidden>Não informar</button>
     </div>
-    <div class="od-block__body">
+    <div class="od-block__body" id="od-b2-body">
       <p class="od-block__hint">Com o sistema informado, o parecer projeta o caixa mês a mês e avisa quando o DSCR anual fecha mas o caixa quebra na entressafra. Clique de novo no card marcado para desmarcar.</p>
       <select id="sistema_produtivo" hidden aria-hidden="true" tabindex="-1"><option value="">Não informar</option><option value="cria">Cria</option><option value="recria">Recria</option><option value="engorda">Engorda</option><option value="ciclo_completo">Ciclo completo</option></select>
       <div class="od-sys-grid" role="group" aria-label="Sistema produtivo">
@@ -682,39 +683,47 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   </section>
 
   <!-- ═══ BLOCO 3: estresse do boi ═══ -->
-  <section class="od-block" aria-labelledby="od-b3-title">
+  <section class="od-block od-block--opt" id="od-b3" aria-labelledby="od-b3-title">
     <div class="od-block__head">
       <h3 class="od-block__title" id="od-b3-title">3. Estresse do Boi <small>(opcional)</small></h3>
     </div>
-    <div class="od-block__body">
+    <div class="od-block__body" id="od-b3-body">
       <div class="od-grid">
         <div class="field"><label for="preco_arroba_base">Preço da arroba base (R$/@)</label><input type="number" id="preco_arroba_base" min="0" step="0.01" placeholder="Ex: 320"></div>
         <div class="field"><label for="custo_reposicao_anual">Custo de reposição anual (R$)</label><input type="number" id="custo_reposicao_anual" min="0" step="1000" placeholder="Ex: 180000"></div>
         <div class="field"><label for="custo_suplementacao_anual">Custo de suplementação anual (R$)</label><input type="number" id="custo_suplementacao_anual" min="0" step="1000" placeholder="Ex: 60000"></div>
       </div>
       <p class="od-note">Preencha os três campos juntos ou deixe todos em branco. Com eles, o parecer compara 6 cenários de estresse e calcula o ponto de ruptura da arroba.</p>
+      <p class="od-note od-note--warn" id="od-estresse-status" role="status" aria-live="polite" hidden></p>
     </div>
   </section>
 
   <div class="card ork-section-herd" style="margin-bottom:16px">
     <div class="ch">
-      <div class="ct"><div class="cd" style="background:var(--cy)"></div>Composição por Faixa Etária</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-sm" onclick="fillEx('ciclo')">Ciclo Completo</button>
-        <button class="btn-sm" onclick="fillEx('cria')">Cria</button>
-        <button class="btn-sm" onclick="fillEx('recria')">Recria</button>
-        <button class="btn-sm" onclick="fillEx('engorda')">Engorda</button>
-        <button class="btn-sm" onclick="window.location='/api/template/download'">⬇ Template</button>
+      <div class="ct"><div class="cd" style="background:var(--cy)"></div>Composição por Faixa Etária <span class="od-req">Mínimo necessário</span></div>
+      <div class="od-actions">
         <button class="btn-sm" onclick="document.getElementById('insr-xlsx-inp').click()">📊 Ler Planilha</button>
         <input type="file" id="insr-xlsx-inp" accept=".xlsx,.xlsm" style="display:none" onchange="lerPlanilha(this.files[0]);this.value=''">
         <button class="btn-sm" onclick="document.getElementById('pdf-inp-main').click()" title="Ler saldo de rebanho em PDF">📄 Ler PDF</button>
         <input type="file" id="pdf-inp-main" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files);this.value=''">
-          <button class="btn-sm" onclick="window.location='/api/ficha/download'" title="Baixar ficha de consolidação (.xlsx)">⬇ Baixar Ficha</button>
-          <button class="btn-sm" onclick="window.location='/api/ficha/instrucoes'" title="Baixar instruções de preenchimento">📄 Instruções</button>
         <button class="btn-sm" onclick="document.getElementById('insr-ficha-inp').click()">📋 Importar Ficha</button>
         <input type="file" id="insr-ficha-inp" accept=".xlsx,.xlsm" style="display:none" onchange="lerFichaExcel(this.files[0]);this.value=''">
-        <button class="btn-sm" onclick="toggleGuiaFicha(this)" title="Como preencher o Excel">?</button>
         <button class="btn-sm" onclick="clearAll()">✕ Limpar</button>
+        <details class="od-more" id="od-more-faixa">
+          <summary class="btn-sm" aria-label="Mais opções: exemplos, template, ficha e instruções">Mais opções ▾</summary>
+          <div class="od-more__menu">
+            <span class="od-more__grp">Preencher exemplo</span>
+            <button class="od-more__item" onclick="fillEx('ciclo')">Ciclo Completo</button>
+            <button class="od-more__item" onclick="fillEx('cria')">Cria</button>
+            <button class="od-more__item" onclick="fillEx('recria')">Recria</button>
+            <button class="od-more__item" onclick="fillEx('engorda')">Engorda</button>
+            <span class="od-more__grp">Arquivos</span>
+            <button class="od-more__item" onclick="window.location='/api/template/download'">⬇ Template</button>
+            <button class="od-more__item" onclick="window.location='/api/ficha/download'" title="Baixar ficha de consolidação (.xlsx)">⬇ Baixar Ficha</button>
+            <button class="od-more__item" onclick="window.location='/api/ficha/instrucoes'" title="Baixar instruções de preenchimento">📄 Instruções</button>
+            <button class="od-more__item" onclick="toggleGuiaFicha(this)" title="Como preencher o Excel">? Como preencher o Excel</button>
+          </div>
+        </details>
         <select id="insr-uf-ficha" class="btn-sm" title="Estado do PDF (somente se detecção automática falhar)" style="border:1px solid var(--b);background:var(--c);color:var(--tx);cursor:pointer">
           <!-- Só as UFs que o roteador de fato conhece — ver _modelo() em
                services/fichas_rebanho/base_reader.py. MG, BA e SP estavam
@@ -865,9 +874,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <button class="btn-p ork-action ork-submit-analysis" id="btn-class" onclick="classificar()"><span>Executar análise econômico-produtiva</span></button>
   <!-- Sem este aviso, o custo do produtor só é descoberto depois da primeira
        análise — que sai com o desembolso padrão e não vale nada. -->
-  <div style="text-align:center;margin-top:10px;font-size:.72rem;color:var(--mu)">
+  <div id="aviso-gep-padrao" style="text-align:center;margin-top:10px;font-size:.72rem;color:var(--mu)">
     Usa o desembolso padrão (GEP médio) se você não informar o do produtor —
-    <a href="#" onclick="showTab('cenarios',document.getElementById('tab-cen'));return false" style="color:var(--tx)">informe em Simular Cenários → Parâmetros</a>
+    <a href="#" onclick="showTab('cenarios',document.getElementById('tab-cen'));return false" style="color:var(--tx)">informe em Cenários → Parâmetros</a>
     antes de analisar.
   </div>
 </div>
@@ -1529,7 +1538,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
           <div style="font-size:1.5rem;margin-bottom:8px">💰</div>
           <div style="font-family:var(--fn);font-weight:700;font-size:.78rem;margin-bottom:6px">3. Informe os custos</div>
-          <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Em "Simular Cenários → Parâmetros", preencha o desembolso mensal por componente ou use os presets GEP. Marque N/A para custos inexistentes.</div>
+          <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Em "Cenários → Parâmetros", preencha o desembolso mensal por componente ou use os presets GEP. Marque N/A para custos inexistentes.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
           <div style="font-size:1.5rem;margin-bottom:8px">📊</div>
@@ -2199,10 +2208,10 @@ function buildTable(){
         </div>
         <div style="font-size:.57rem;color:var(--mu);margin-top:2px;font-family:var(--fm);letter-spacing:.02em">${f.l}</div>
       </td>
-      <td class="tdc"><span class="sexo-cel" aria-hidden="true">♀</span><input type="number" class="ni nf" id="${f.key}_F" value="0" min="0" oninput="upd()" aria-label="${f.lF} — ${f.l}"></td>
-      <td class="tdc"><span class="sexo-cel" aria-hidden="true">♂</span><input type="number" class="ni nm" id="${f.key}_M" value="0" min="0" oninput="upd()" aria-label="${f.lM} — ${f.l}"></td>
-      <td class="tdc tdtot" id="${f.key}_T">0</td>
-      <td class="tdc tdtot col-pct" id="${f.key}_P" style="color:var(--mu)">0%</td>
+      <td class="tdc" data-label="Fêmeas"><span class="sexo-cel" aria-hidden="true">♀</span><input type="number" class="ni nf" id="${f.key}_F" value="0" min="0" oninput="upd()" aria-label="${f.lF} — ${f.l}"></td>
+      <td class="tdc" data-label="Machos"><span class="sexo-cel" aria-hidden="true">♂</span><input type="number" class="ni nm" id="${f.key}_M" value="0" min="0" oninput="upd()" aria-label="${f.lM} — ${f.l}"></td>
+      <td class="tdc tdtot" data-label="Total faixa" id="${f.key}_T">0</td>
+      <td class="tdc tdtot col-pct" data-label="% Rebanho" id="${f.key}_P" style="color:var(--mu)">0%</td>
     </tr>`;
   });
   upd();
@@ -2410,7 +2419,7 @@ async function classificar(){
   if(_novos.erro){
     showToast(_novos.erro,true);
     const _campoErro=document.getElementById(_novos.campo);
-    if(_campoErro){_campoErro.scrollIntoView({behavior:'smooth',block:'center'});_campoErro.focus()}
+    if(_campoErro){OrkavynDash.revelarCampo(_novos.campo);_campoErro.scrollIntoView({behavior:'smooth',block:'center'});_campoErro.focus()}
     return;
   }
   showLoading(['Analisando composição do rebanho...','Calculando indicadores técnicos...','Calculando fluxo GEP...','Gerando parecer de crédito...']);
@@ -6092,7 +6101,7 @@ let cotacaoDia = null;
 
 function _avisarCotacaoIndisponivel(){
   const fonte = document.getElementById('cot-fonte');
-  const aviso = 'Cotação indisponível agora — informe os preços à mão em Simular Cenários → Parâmetros, senão o valor do rebanho não é calculado.';
+  const aviso = 'Cotação indisponível agora — informe os preços à mão em Cenários → Parâmetros, senão o valor do rebanho não é calculado.';
   if (fonte) fonte.textContent = aviso;
   // #cot-fonte mora em Cenários; na entrada o analista só saberia pela pílula.
   showToast(aviso, true);

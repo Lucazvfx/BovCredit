@@ -115,4 +115,4 @@ def test_abrir_cenarios_sem_classificar_cai_em_parametros():
 def test_a_tela_de_entrada_diz_onde_ficam_os_custos():
     """Destravar não basta: sem o aviso, o analista não sabe que deve ir lá antes."""
     assert "Usa o desembolso padrão (GEP médio) se você não informar o do produtor" in INDEX
-    assert "informe em Simular Cenários → Parâmetros" in INDEX
+    assert "informe em Cenários → Parâmetros" in INDEX
