@@ -52,7 +52,7 @@ def _aplicar_sslmode(url: str) -> str:
     if not url:
         return url
     partes = urlsplit(url)
-    if 'sslmode' in parse_qs(partes.query):
+    if 'sslmode' in parse_qs(partes.query, keep_blank_values=True):
         return url
     host = (partes.hostname or '').lower()
     if not host or host in _HOSTS_LOCAIS:

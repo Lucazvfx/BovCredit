@@ -62,3 +62,18 @@ def test_politica_nao_cita_bcrypt_e_cita_operadores():
     assert 'bcrypt' not in html
     assert 'scrypt' in html and 'sslmode=require' in html
     assert 'Meta (WhatsApp' in html and 'SMTP' in html
+
+
+def test_ipv6_remoto_e_postgres_scheme_recebem_require():
+    assert database._aplicar_sslmode('postgres://u:p@[2001:db8::1]:5432/db').endswith('?sslmode=require')
+
+
+def test_sslmode_vazio_explicito_e_preservado():
+    url = REMOTA + '?sslmode='
+    assert database._aplicar_sslmode(url) == url
+
+
+def test_url_corrompida_do_railway_e_sanitizada_antes_do_sslmode():
+    bruta = 'postgresql://a:b@h1.exemplo.com:5432/db${{X}}postgresql://c:d@h2.exemplo.com/db'
+    url = database._aplicar_sslmode(database._sanitizar_database_url(bruta))
+    assert url.endswith('sslmode=require') and '${' not in url
