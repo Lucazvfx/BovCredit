@@ -144,7 +144,8 @@ def test_bloqueio_ignora_entrada_invalida_ou_outra_ferramenta():
     assert _rodar("bloqueia_destrutivo.py", {"tool_input": {"file_path": "x.py"}}).returncode == 0
 
 
-def test_rm_do_proprio_projeto_e_ancestrais_com_cwd():
+def test_rm_do_proprio_projeto_e_ancestrais_com_cwd(monkeypatch):
+    monkeypatch.setenv("HOME", "/home/user")  # `~` expande conforme o HOME do ambiente (CI usa outro)
     projeto = "/home/user/meu-projeto"
     for alvo in (projeto, projeto + "/*", projeto + "/", ".", "~/meu-projeto"):
         assert _bash(f"rm -rf {alvo}", cwd=projeto).returncode == 2, alvo
