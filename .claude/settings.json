@@ -30,6 +30,21 @@
           {
             "type": "command",
             "command": "python .claude/hooks/trava_testes.py"
+          },
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/lembra_testes.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v python3 >/dev/null 2>&1 || exit 0; python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/checa_sintaxe_py.py\""
           }
         ]
       }
@@ -40,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -c \"import sys, json, re; d = json.load(sys.stdin); cmd = d.get('tool_input', {}).get('command', ''); bad = re.search(r'(git\\s+push\\s+.*--force(?!-with-lease)|rm\\s+-rf\\s+[/\\.]|drop\\s+table)', cmd, re.I); sys.exit(2) if bad else sys.exit(0)\""
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/bloqueia_destrutivo.py\""
           }
         ]
       }
