@@ -45,6 +45,7 @@ _ROTULOS_STATUS = {
     'requer_comite': 'Requer comitê',
     'fora_alcada': 'Fora da alçada',
 }
+ROTULOS_STATUS = _ROTULOS_STATUS
 _TEXTO_MOTIVO = {
     'acima_alcada_comite': 'Valor acima da alçada do comitê.',
     'acima_alcada_analista': 'Valor acima da alçada do analista.',

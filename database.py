@@ -771,6 +771,7 @@ def init_db():
 
     # Colunas adicionadas de forma segura (retrocompatibilidade)
     _add_column_safe('empresa_membros', 'papel', 'TEXT')
+    _add_column_safe('propostas_comerciais', 'parecer_id', 'INTEGER')
     _add_column_safe('registros', 'user_id',    'INTEGER')
     _add_column_safe('registros', 'fazenda_id', 'INTEGER')
     _add_column_safe('cotacao_arroba', 'preco_boi_china', 'REAL')
@@ -945,7 +946,7 @@ def contar_admins_empresa(empresa_id: int) -> int:
 # ── Propostas comerciais ─────────────────────────────────────────────────────
 _COLS_PROPOSTA = '''p.id, p.empresa_id, p.referencia, p.valor_pretendido,
     p.prazo_meses, p.status_alcada, p.simulacao_json, p.status, p.criado_por,
-    p.criado_em, p.parecer_decisor, p.decidido_por, p.decidido_em,
+    p.criado_em, p.parecer_id, p.parecer_decisor, p.decidido_por, p.decidido_em,
     uc.nome AS criado_por_nome, ud.nome AS decidido_por_nome'''
 _JOIN_PROPOSTA = '''FROM propostas_comerciais p
     LEFT JOIN usuarios uc ON uc.id = p.criado_por
@@ -966,6 +967,7 @@ def _proposta_dict(r: dict) -> dict:
         'status_alcada': r['status_alcada'], 'status': r['status'],
         'motivos_texto': sim.get('motivos_texto', []),
         'criado_por_nome': r.get('criado_por_nome'),
+        'parecer_id': int(r['parecer_id']) if r.get('parecer_id') else None,
         'criado_em': str(r.get('criado_em') or ''),
         'parecer_decisor': r.get('parecer_decisor'),
         'decidido_por_nome': r.get('decidido_por_nome'),
@@ -974,17 +976,22 @@ def _proposta_dict(r: dict) -> dict:
 
 
 def criar_proposta(empresa_id: int, user_id: int, referencia: str,
-                   simulacao: dict) -> int:
-    """Registra proposta em análise. `simulacao` vem de `simular_proposta` (servidor)."""
+                   simulacao: dict, parecer_id: int | None = None) -> int:
+    """Registra proposta em análise. `simulacao` vem de `simular_proposta` (servidor).
+
+    `parecer_id` é o parecer salvo de onde os parâmetros técnicos saíram; o
+    chamador já o resolveu por `buscar_parecer_empresa` (isolado por empresa).
+    """
     import json
     ph = _PH
     return int(_exec(
         f'''INSERT INTO propostas_comerciais (empresa_id, referencia,
             valor_pretendido, prazo_meses, status_alcada, simulacao_json,
-            status, criado_por) VALUES ({ph},{ph},{ph},{ph},{ph},{ph},'em_analise',{ph})''',
+            status, criado_por, parecer_id)
+            VALUES ({ph},{ph},{ph},{ph},{ph},{ph},'em_analise',{ph},{ph})''',
         (empresa_id, referencia, simulacao['valor_pretendido'],
          simulacao['prazo_meses'], simulacao['status'],
-         json.dumps(simulacao, ensure_ascii=False, default=str), user_id),
+         json.dumps(simulacao, ensure_ascii=False, default=str), user_id, parecer_id),
         fetch='lastrow', commit=True))
 
 
@@ -1330,6 +1337,57 @@ def ultimos_pareceres_empresa(empresa_id: int) -> list:
     for r in rows:
         r['created_at'] = str(r.get('created_at', ''))
     return rows
+
+def _json_ou_vazio(texto) -> dict:
+    try:
+        v = json.loads(texto) if isinstance(texto, str) else (texto or {})
+    except ValueError:
+        return {}
+    return v if isinstance(v, dict) else {}
+
+def buscar_parecer_empresa(parecer_id: int, empresa_id: int) -> dict | None:
+    """Parecer salvo, só se a fazenda dele pertencer à empresa informada.
+
+    `pareceres` não tem empresa_id: o isolamento é o JOIN com `fazendas`. Parecer
+    sem fazenda, ou de outra empresa, é "não encontrado".
+    """
+    ph = _PH
+    r = _exec(
+        f'''SELECT p.id, p.fazenda_id, p.solicitacao, p.parecer, p.created_at,
+                   f.nome AS fazenda_nome
+            FROM pareceres p JOIN fazendas f ON f.id = p.fazenda_id
+            WHERE p.id={ph} AND f.empresa_id={ph}''',
+        (parecer_id, empresa_id), fetch='one')
+    if not r:
+        return None
+    return {'id': r['id'], 'fazenda_id': r['fazenda_id'],
+            'fazenda_nome': r.get('fazenda_nome'),
+            'solicitacao': _json_ou_vazio(r.get('solicitacao')),
+            'parecer': _json_ou_vazio(r.get('parecer')),
+            'emitido_em': str(r.get('created_at') or '')}
+
+def listar_pareceres_empresa(empresa_id: int, limit: int = 50) -> list:
+    """Pareceres salvos da empresa (mais recentes primeiro), sem o corpo do parecer."""
+    ph = _PH
+    rows = _exec(
+        f'''SELECT p.id, p.fazenda_id, p.solicitacao, p.recomendacao, p.dscr,
+                   p.created_at, f.nome AS fazenda_nome
+            FROM pareceres p JOIN fazendas f ON f.id = p.fazenda_id
+            WHERE f.empresa_id={ph}
+            ORDER BY p.created_at DESC, p.id DESC LIMIT {int(limit)}''',
+        (empresa_id,), fetch='all') or []
+    saida = []
+    for r in rows:
+        sol = _json_ou_vazio(r.get('solicitacao'))
+        saida.append({
+            'id': r['id'], 'fazenda_id': r['fazenda_id'],
+            'fazenda_nome': r.get('fazenda_nome'),
+            'emitido_em': str(r.get('created_at') or ''),
+            'recomendacao': r.get('recomendacao'), 'dscr': r.get('dscr'),
+            'credito_valor': sol.get('credito_valor'),
+            'prazo_meses': sol.get('prazo_meses'),
+        })
+    return saida
 
 def excluir_registro(registro_id: int, user_id: int) -> bool:
     ph = _PH

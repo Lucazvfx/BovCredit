@@ -25,6 +25,12 @@ PAPEIS_ROTULO = {
 STATUS_EM_ANALISE = 'em_analise'
 DECISOES = ('aprovado', 'aprovado_com_ressalva', 'reprovado')
 STATUS_PROPOSTA = (STATUS_EM_ANALISE,) + DECISOES
+PROPOSTA_ROTULO = {
+    STATUS_EM_ANALISE: 'Em análise',
+    'aprovado': 'Aprovada',
+    'aprovado_com_ressalva': 'Aprovada com ressalva',
+    'reprovado': 'Reprovada',
+}
 
 # Classificações de alçada que exigem papel autorizado para decidir.
 ALCADA_EXIGE_AUTORIZADO = ('requer_comite', 'fora_alcada')

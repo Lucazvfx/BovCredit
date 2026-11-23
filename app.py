@@ -11,7 +11,7 @@ import subprocess
 import threading
 from functools import wraps
 
-from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, send_from_directory, send_file, session, abort
+from flask import Response, Flask, request, jsonify, render_template, redirect, url_for, flash, send_from_directory, send_file, session, abort
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -29,6 +29,8 @@ from services.limites_entrada import (
 from services import assistente as _assistente
 from services import politica_alcada as _alcada
 from services import papeis_empresa as _papeis
+from services import propostas_vinculo as _vinculo
+from services import exportacao_csv as _csv_propostas
 from services.documentos import (
     impressao as doc_impressao, comparar as doc_comparar,
 )
@@ -2825,11 +2827,43 @@ def api_simular_proposta():
     empresa_id, erro = _empresa_ativa_ou_400()
     if erro:
         return erro
-    params, msg = _alcada.validar_simulacao(request.get_json(silent=True))
-    if msg:
-        return jsonify({'erro': msg}), 400
+    params, _origem, resp = _params_proposta(request.get_json(silent=True), empresa_id)
+    if resp:
+        return resp
     politica = db.obter_politica_alcada(empresa_id)
     return jsonify(_alcada.simular_proposta(politica, **params))
+
+
+def _params_proposta(dados, empresa_id):
+    """Parâmetros da simulação/proposta: (params, origem_do_parecer, resposta_de_erro).
+
+    Com `parecer_id`, os parâmetros técnicos vêm do parecer salvo da empresa
+    ativa e o que o cliente enviou além do valor pretendido é ignorado. Parecer
+    de outra empresa é indistinguível de inexistente (404).
+    """
+    if not isinstance(dados, dict):
+        return None, None, (jsonify({'erro': 'Corpo inválido.'}), 400)
+    if dados.get('parecer_id') is None:
+        params, msg = _alcada.validar_simulacao(dados)
+        if msg:
+            return None, None, (jsonify({'erro': msg}), 400)
+        return params, None, None
+    pid = dados['parecer_id']
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+        return None, None, (jsonify({'erro': 'parecer_id inválido.'}), 400)
+    parecer = db.buscar_parecer_empresa(pid, empresa_id)
+    if not parecer:
+        return None, None, (jsonify({'erro': 'Parecer não encontrado.'}), 404)
+    valor = dados.get('valor_pretendido')
+    if valor is not None:
+        n = _alcada._numero(valor)
+        if n is None or not 0 < n <= _alcada.VALOR_MAX:
+            return None, None, (jsonify(
+                {'erro': 'valor_pretendido deve ser um valor positivo.'}), 400)
+    params, msg = _vinculo.parametros_do_parecer(parecer, valor)
+    if msg:
+        return None, None, (jsonify({'erro': msg}), 422)
+    return params, _vinculo.origem_do_parecer(parecer), None
 
 
 # ── Papéis por empresa ───────────────────────────────────────────────────────
@@ -2910,18 +2944,57 @@ def api_registrar_proposta():
     referencia, msg = _papeis.validar_proposta(dados)
     if msg:
         return jsonify({'erro': msg}), 400
-    params, msg = _alcada.validar_simulacao(dados)
-    if msg:
-        return jsonify({'erro': msg}), 400
+    params, origem, resp = _params_proposta(dados, empresa_id)
+    if resp:
+        return resp
     # A classificação de alçada é sempre recalculada aqui, com a política da
     # empresa ativa: o cliente nunca informa o status.
     simulacao = _alcada.simular_proposta(db.obter_politica_alcada(empresa_id), **params)
-    pid = db.criar_proposta(empresa_id, current_user.id, referencia, simulacao)
+    if origem:
+        simulacao['parecer_origem'] = origem
+    pid = db.criar_proposta(empresa_id, current_user.id, referencia, simulacao,
+                            parecer_id=origem['parecer_id'] if origem else None)
     _auditar(_aud.PROPOSTA_REGISTRADA, recurso='proposta', recurso_id=pid,
-             detalhe=f"alcada={simulacao['status']}")
+             detalhe=f"alcada={simulacao['status']}"
+                     + (f"; parecer={origem['parecer_id']}" if origem else ''))
     return jsonify({'ok': True, 'id': pid, 'status': _papeis.STATUS_EM_ANALISE,
                     'status_alcada': simulacao['status'],
                     'status_alcada_rotulo': simulacao['status_rotulo']}), 201
+
+
+@app.route('/api/propostas/exportar.csv', methods=['GET'])
+@limiter.limit("10 per minute; 60 per hour")
+@login_required
+def api_exportar_propostas_csv():
+    """Carteira de propostas da empresa ativa em CSV (colunas fixas, sem e-mail)."""
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    propostas = db.listar_propostas(empresa_id, limit=5000)
+    _auditar(_aud.PROPOSTAS_EXPORTADAS, recurso='empresa', recurso_id=empresa_id,
+             detalhe=f'{len(propostas)} propostas')
+    resposta = Response(_csv_propostas.propostas_para_csv(propostas),
+                        mimetype='text/csv')
+    resposta.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    resposta.headers['Content-Disposition'] = (
+        'attachment; filename="propostas-comerciais-'
+        + _time.strftime('%Y%m%d') + '.csv"')
+    resposta.headers['Cache-Control'] = 'no-store'
+    return resposta
+
+
+@app.route('/api/pareceres-salvos', methods=['GET'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_pareceres_salvos():
+    """Pareceres salvos da empresa ativa, para iniciar uma proposta vinculada."""
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    pareceres = db.listar_pareceres_empresa(empresa_id)
+    _auditar(_aud.PARECERES_LIDOS, recurso='empresa', recurso_id=empresa_id,
+             detalhe=f'pareceres-salvos: {len(pareceres)}')
+    return jsonify({'pareceres': pareceres})
 
 
 @app.route('/api/propostas/<int:pid>/decisao', methods=['POST'])

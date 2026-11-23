@@ -63,6 +63,8 @@ PAPEL_ALTERADO          = 'papel_alterado'
 PROPOSTA_REGISTRADA     = 'proposta_registrada'
 PROPOSTA_DECIDIDA       = 'proposta_decidida'
 PROPOSTA_DECISAO_NEGADA = 'proposta_decisao_negada'
+# Carteira de propostas exportada: dado de crédito de terceiros sai do sistema.
+PROPOSTAS_EXPORTADAS    = 'propostas_exportadas'
 
 EVENTOS = {
     LOGIN:             'Entrou no sistema',
@@ -92,6 +94,7 @@ EVENTOS = {
     PROPOSTA_REGISTRADA:     'Registrou proposta comercial',
     PROPOSTA_DECIDIDA:       'Decidiu proposta comercial',
     PROPOSTA_DECISAO_NEGADA: 'Decisão de proposta recusada por alçada',
+    PROPOSTAS_EXPORTADAS:    'Exportou a carteira de propostas (CSV)',
 }
 
 # Eventos que tocam dado de crédito de um cliente identificado. É esta lista
@@ -99,6 +102,7 @@ EVENTOS = {
 SENSIVEIS = frozenset({
     PARECER_GERADO, PARECER_PDF, HISTORICO_LIDO, PARECERES_LIDOS,
     DOC_LIDO, WHATSAPP_CONSULTA, LGPD_EXPORTACAO, CONSULTA_CADASTRAL,
+    PROPOSTAS_EXPORTADAS,
 })
 
 
