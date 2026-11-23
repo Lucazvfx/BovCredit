@@ -38,4 +38,8 @@ def montar_explicacao_classificacao(resultado: dict, indicadores: dict) -> dict:
         'explicacoes': list(resultado.get('explicacao') or []),
         'dados_faltantes': list(resultado.get('dados_faltantes') or []),
         'revisao_humana': bool(resultado.get('revisao_humana')),
+        # Guardados no parecer para que uma proposta vinculada a ele herde a
+        # revisão humana e a atipicidade sem depender do cliente.
+        'motivos_revisao': list(resultado.get('motivos_revisao') or []),
+        'atipicidade_nivel': (resultado.get('atipicidade') or {}).get('nivel'),
     }

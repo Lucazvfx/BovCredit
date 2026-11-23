@@ -12,7 +12,7 @@ const srv = http.createServer((q, r) => {
 const longo = 'CT-2026-0001-REFERENCIA-MUITO-LONGA-SEM-ESPACOS-PARA-FORCAR-QUEBRA-NA-TELA-ESTREITA-0000000000';
 const prop = (id, st, alc, pode) => ({ id, referencia: id === 1 ? longo : 'CT-' + id, valor_pretendido: 800000 + id,
   prazo_meses: 60, status_alcada: alc, status: st, motivos_texto: ['Valor acima da alçada do analista.'],
-  criado_por_nome: 'Analista com nome bastante extenso para testar quebra', criado_em: '2026-11-20 10:00:00',
+  parecer_id: id === 1 ? 7 : null, criado_por_nome: 'Analista com nome bastante extenso para testar quebra', criado_em: '2026-11-20 10:00:00',
   parecer_decisor: st === 'em_analise' ? null : 'Parecer longo '.repeat(20), decidido_por_nome: st === 'em_analise' ? null : 'Aprovador',
   decidido_em: st === 'em_analise' ? null : '2026-11-21 09:00:00', pode_decidir: pode });
 const politica = { alcada_analista: 500000, alcada_comite: 3000000, prazo_max_meses: 60, margem_capacidade_pct: 100, comite_se_revisao_humana: true, padrao: true };
@@ -26,7 +26,8 @@ const papeis = [{ id: 'admin', rotulo: 'Administrador' }, { id: 'aprovador', rot
       const errs = []; pg.on('pageerror', e => errs.push(String(e)));
       await pg.route('**/api/**', r => {
         const u = r.request().url(); let body = {};
-        if (u.includes('/api/politica-alcada')) body = { politica, pode_editar: admin };
+        if (u.includes('/api/pareceres-salvos')) body = { pareceres: [1, 2].map(i => ({ id: i, fazenda_id: i, fazenda_nome: 'Fazenda com nome muito extenso para testar o seletor em tela estreita ' + i, emitido_em: '2026-11-20 10:00:00', credito_valor: 800000 })) };
+        else if (u.includes('/api/politica-alcada')) body = { politica, pode_editar: admin };
         else if (u.includes('/api/propostas')) body = { meu_papel: admin ? 'admin' : 'analista', propostas: [prop(1, 'em_analise', 'requer_comite', admin), prop(2, 'aprovado', 'fora_alcada', false), prop(3, 'em_analise', 'fora_alcada', false)] };
         else if (u.includes('/api/empresa/papeis')) body = { meu_papel: admin ? 'admin' : 'analista', papeis, membros: admin ? membros : [] };
         r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
@@ -35,17 +36,28 @@ const papeis = [{ id: 'admin', rotulo: 'Administrador' }, { id: 'aprovador', rot
       await pg.evaluate(() => showTab('alcada'));
       await pg.waitForSelector('#prop-lista strong');
       await pg.waitForTimeout(150);
+      await pg.selectOption('#sim-parecer', '1');
+      let enviado = null;
+      await pg.route('**/api/simulacao-proposta', r => { enviado = r.request().postDataJSON(); r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status_rotulo: 'Dentro da alçada', motivos_texto: [] }) }); });
+      await pg.click('#sim-rodar');
+      await pg.waitForTimeout(100);
+      await pg.waitForTimeout(50);
       const info = await pg.evaluate(() => {
         const dock = document.querySelector('.od-dock'); const r = dock && dock.getBoundingClientRect();
         const txt = document.getElementById('panel-alcada').innerText;
-        return { props: document.querySelectorAll('#prop-lista strong').length,
+        const sp = document.getElementById('sim-parecer'); const ex = document.getElementById('prop-exportar');
+        return { pareceres: sp.options.length, travados: document.getElementById('sim-juros').disabled,
+          valor: document.getElementById('sim-valor').value, exportar: ex && ex.getAttribute('href'),
+          vinculo: /Parecer vinculado: #7/.test(document.getElementById('prop-lista').innerText),
+          props: document.querySelectorAll('#prop-lista strong').length,
           decidir: document.querySelectorAll('#prop-lista [data-act="decidir"]').length,
           equipe: !document.getElementById('eq-card').hidden, selects: document.querySelectorAll('#eq-lista select').length,
           sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth,
           undef: /\bundefined\b|\bNaN\b|\bnull\b/.test(txt),
           dock: r ? { l: r.left, r: r.right, vw: innerWidth } : null };
       });
-      const ok = info.props === 3 && info.decidir === (admin ? 1 : 0) && info.equipe === admin && info.selects === (admin ? 3 : 0)
+      const simOk = enviado && enviado.parecer_id === 1 && !('prazo_meses' in enviado) && !('juros_aa' in enviado);
+      const ok = simOk && info.pareceres === 3 && info.travados && info.valor === '800000' && info.exportar === '/api/propostas/exportar.csv' && info.vinculo && info.props === 3 && info.decidir === (admin ? 1 : 0) && info.equipe === admin && info.selects === (admin ? 3 : 0)
         && info.sw <= info.cw && !info.undef && errs.length === 0 && (!info.dock || (info.dock.l >= 0 && info.dock.r <= info.dock.vw));
       if (!ok) fail++;
       console.log(vp.width, admin ? 'admin' : 'analista', ok ? 'OK' : 'FAIL', JSON.stringify({ ...info, errs }));

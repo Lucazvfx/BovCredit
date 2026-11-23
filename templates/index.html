@@ -1535,6 +1535,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <div class="card">
     <div class="ch"><div class="ct"><div class="cd"></div>Simular proposta</div></div>
     <div class="cb">
+      <div class="field" style="max-width:520px;margin-bottom:14px"><label for="sim-parecer">Iniciar a partir de um parecer salvo</label>
+        <select id="sim-parecer" onchange="aoEscolherParecer()" style="min-width:0;max-width:100%"><option value="">Simulação avulsa (digitar os dados)</option></select>
+        <p class="psub" id="sim-parecer-nota" style="margin-top:6px"></p></div>
       <div class="fgrid">
         <div class="field"><label for="sim-valor">Valor pretendido (R$)</label><input type="number" id="sim-valor" min="0" step="1000" style="min-width:0"></div>
         <div class="field"><label for="sim-prazo">Prazo (meses)</label><input type="number" id="sim-prazo" min="1" max="360" step="1" style="min-width:0"></div>
@@ -1553,8 +1556,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <div class="card">
     <div class="ch"><div class="ct"><div class="cd"></div>Propostas comerciais</div></div>
     <div class="cb">
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between">
       <div class="field" style="max-width:240px"><label for="prop-filtro">Situação</label>
         <select id="prop-filtro" onchange="carregarPropostas()"><option value="">Todas</option><option value="em_analise">Em análise</option><option value="aprovado">Aprovada</option><option value="aprovado_com_ressalva">Aprovada com ressalva</option><option value="reprovado">Reprovada</option></select></div>
+      <a class="btn-sm" id="prop-exportar" href="/api/propostas/exportar.csv" download style="text-decoration:none">Exportar CSV</a>
+      </div>
       <div id="prop-lista" aria-live="polite" style="margin-top:14px;overflow-wrap:anywhere"></div>
     </div>
   </div>
@@ -4892,7 +4898,7 @@ async function carregarAlcada(){
     document.getElementById('alc-salvar').disabled=!d.pode_editar;
     document.getElementById('alc-salvar').title=d.pode_editar?'':'Somente administradores alteram a política.';
   }catch(e){ showToast('Não foi possível carregar a política de alçada.',true); }
-  carregarPropostas(); carregarEquipe();
+  carregarPropostas(); carregarEquipe(); carregarPareceresSalvos();
 }
 async function salvarAlcada(){
   const corpo={
@@ -4911,15 +4917,7 @@ async function salvarAlcada(){
   }catch(e){ showToast('Não foi possível salvar a política.',true); }
 }
 async function simularProposta(){
-  const corpo={
-    valor_pretendido:Number(document.getElementById('sim-valor').value),
-    prazo_meses:Number(document.getElementById('sim-prazo').value),
-    carencia_meses:Number(document.getElementById('sim-carencia').value||0),
-    juros_aa:document.getElementById('sim-juros').value===''?null:Number(document.getElementById('sim-juros').value)/100,
-    geracao_caixa_anual:document.getElementById('sim-caixa').value===''?null:Number(document.getElementById('sim-caixa').value),
-    dividas_mensais:Number(document.getElementById('sim-div').value||0),
-    revisao_humana:document.getElementById('sim-rev').value==='1',
-  };
+  const corpo=_corpoSimulacao();
   const box=document.getElementById('sim-resultado');
   try{
     const r=await fetch('/api/simulacao-proposta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)});
@@ -4936,8 +4934,42 @@ async function simularProposta(){
 // ---- Propostas e papéis (empresa ativa) ----
 const ALC_ROTULO={dentro_alcada:'Dentro da alçada',requer_comite:'Requer comitê',fora_alcada:'Fora da alçada'};
 const PROP_ROTULO={em_analise:'Em análise',aprovado:'Aprovada',aprovado_com_ressalva:'Aprovada com ressalva',reprovado:'Reprovada'};
+const SIM_CAMPOS_TECNICOS=['sim-prazo','sim-carencia','sim-juros','sim-caixa','sim-div','sim-rev'];
+async function carregarPareceresSalvos(){
+  const sel=document.getElementById('sim-parecer'); if(!sel) return;
+  const atual=sel.value;
+  try{
+    const r=await fetch('/api/pareceres-salvos');
+    const d=await r.json();
+    if(!r.ok) throw new Error();
+    const lista=d.pareceres||[];
+    sel.innerHTML='<option value="">Simulação avulsa (digitar os dados)</option>'+lista.map(p=>
+      '<option value="'+Number(p.id)+'" data-valor="'+Number(p.credito_valor||0)+'">'
+      +escapeHtml('Parecer '+p.id+' · '+(p.fazenda_nome||'Fazenda')+' · '+String(p.emitido_em).slice(0,10)
+      +(p.credito_valor?' · '+fR(p.credito_valor):''))+'</option>').join('');
+    if(atual && lista.some(p=>String(p.id)===atual)) sel.value=atual;
+  }catch(e){ /* sem a lista, segue a simulação avulsa */ }
+  aoEscolherParecer(true);
+}
+function aoEscolherParecer(manter){
+  const sel=document.getElementById('sim-parecer'); if(!sel) return;
+  const vinculado=sel.value!=='';
+  SIM_CAMPOS_TECNICOS.forEach(id=>{ document.getElementById(id).disabled=vinculado; });
+  document.getElementById('sim-parecer-nota').textContent=vinculado
+    ?'Prazo, juros, carência, caixa, dívidas, revisão humana e atipicidade são lidos do parecer no servidor. Apenas o valor pretendido pode ser ajustado.':'';
+  if(vinculado && manter!==true){
+    const v=Number(sel.selectedOptions[0].dataset.valor);
+    if(v>0) document.getElementById('sim-valor').value=v;
+  }
+}
 function _corpoSimulacao(){
   const v=id=>document.getElementById(id).value;
+  const pid=v('sim-parecer');
+  if(pid){
+    const c={referencia:v('sim-ref'),parecer_id:Number(pid)};
+    if(v('sim-valor')!=='') c.valor_pretendido=Number(v('sim-valor'));
+    return c;
+  }
   return {
     referencia:v('sim-ref'),
     valor_pretendido:Number(v('sim-valor')),
@@ -4973,6 +5005,7 @@ async function carregarPropostas(){
       const base='<div style="border-top:1px solid var(--b);padding:12px 0">'
         +'<strong>'+escapeHtml(p.referencia)+'</strong> · '+fR(p.valor_pretendido)+' · '+Number(p.prazo_meses)+' meses'
         +'<br>'+escapeHtml(ALC_ROTULO[p.status_alcada]||p.status_alcada)+' · '+escapeHtml(PROP_ROTULO[p.status]||p.status)
+        +(p.parecer_id?'<br><span class="psub">Parecer vinculado: #'+Number(p.parecer_id)+'</span>':'')
         +'<br><span class="psub">Registrada por '+escapeHtml(p.criado_por_nome||'—')+' em '+escapeHtml(String(p.criado_em).slice(0,16))+'</span>'
         +(motivos?'<ul>'+motivos+'</ul>':'');
       if(decidida){
