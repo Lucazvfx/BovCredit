@@ -206,7 +206,7 @@ Tabelas principais:
   confirmacoes    — correções do usuário para retreino do modelo
   cotacoes_diarias — preços da arroba (boi, vaca, boi_china, indicador) por data
 
-A senha é armazenada como hash bcrypt (werkzeug.security). Nunca em texto puro.
+A senha é armazenada como hash scrypt (werkzeug.security). Nunca em texto puro.
 
 
 ================================================================================
