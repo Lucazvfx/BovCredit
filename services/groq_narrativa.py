@@ -30,6 +30,82 @@ def _groq_client():
         return None
 
 
+_CAMPOS_TEXTO = {'fazenda': 120, 'municipio': 80, 'proprietario': 120, 'recomendacao': 40}
+_LIMITE_VALOR = 1e13
+
+
+class ContextoInvalido(ValueError):
+    """Payload de narrativa inválido; a mensagem é fixa e segura para o cliente."""
+
+
+def _numero(valor, campo, minimo=None, maximo=None):
+    """Converte para float finito. None/'' → None; bool, NaN/inf, texto não numérico → ValueError."""
+    if valor is None or valor == '':
+        return None
+    if isinstance(valor, bool) or not isinstance(valor, (int, float, str)):
+        raise ContextoInvalido(f"Campo '{campo}' deve ser numérico.")
+    try:
+        n = float(valor)
+    except (ValueError, OverflowError):
+        raise ContextoInvalido(f"Campo '{campo}' deve ser numérico.") from None
+    if n != n or abs(n) > _LIMITE_VALOR:
+        raise ContextoInvalido(f"Campo '{campo}' fora do intervalo válido.")
+    if (minimo is not None and n < minimo) or (maximo is not None and n > maximo):
+        raise ContextoInvalido(f"Campo '{campo}' fora do intervalo válido.")
+    return n
+
+
+def normalizar_confianca(valor) -> Optional[float]:
+    """
+    Devolve a confiança como fração 0–1, ou None se ausente.
+    O contrato é fração; 0–100 é aceito por compatibilidade (valores > 1 são
+    percentuais, então 1 vale 100%).
+    """
+    n = _numero(valor, 'confianca', 0, 100)
+    if n is None:
+        return None
+    return n / 100 if n > 1 else n
+
+
+def sanitizar_contexto(ctx: dict) -> dict:
+    """
+    Valida e normaliza o contexto recebido em /api/narrativa.
+    Levanta ValueError (mensagem segura para o cliente) em tipo/valor inválido;
+    None/ausente recebem fallback seguro. Só devolve chaves aceitas por gerar_narrativa.
+    """
+    tipo = ctx.get('tipo')
+    if not isinstance(tipo, str) or not tipo.strip() or len(tipo) > 40:
+        raise ContextoInvalido("Campo 'tipo' inválido.")
+    out = {'tipo': tipo.strip()}
+    out['confianca'] = normalizar_confianca(ctx.get('confianca'))  # None se ausente
+    out['total_rebanho'] = int(_numero(ctx.get('total_rebanho'), 'total_rebanho', 0) or 0)
+    out['receita_anual'] = _numero(ctx.get('receita_anual'), 'receita_anual') or 0.0
+    out['geracao_caixa_anual'] = _numero(ctx.get('geracao_caixa_anual'), 'geracao_caixa_anual') or 0.0
+    out['dscr'] = _numero(ctx.get('dscr'), 'dscr')
+    out['limite_credito'] = _numero(ctx.get('limite_credito'), 'limite_credito', 0)
+    out['coe_por_arroba'] = _numero(ctx.get('coe_por_arroba'), 'coe_por_arroba', 0)
+    score = _numero(ctx.get('consistencia_score'), 'consistencia_score', 0, 100)
+    out['consistencia_score'] = 100 if score is None else int(score)
+    for campo, limite in _CAMPOS_TEXTO.items():
+        v = ctx.get(campo)
+        if v is None:
+            out[campo] = None if campo == 'recomendacao' else ''
+        elif isinstance(v, str):
+            out[campo] = v.strip()[:limite]
+        else:
+            raise ContextoInvalido(f"Campo '{campo}' deve ser texto.")
+    return out
+
+
+def _conf_str(valor) -> str:
+    """Confiança formatada em %, sem nunca lançar (o chat passa contexto do cliente)."""
+    try:
+        c = normalizar_confianca(valor)
+    except (ValueError, OverflowError):
+        c = None
+    return 'não informada' if c is None else f"{c:.0%}"
+
+
 def _contexto_str(d: dict) -> str:
     """Serializa o contexto do parecer em texto legível para o prompt."""
     tipo = d.get('tipo', 'CICLO_COMPLETO')
@@ -50,9 +126,9 @@ def _contexto_str(d: dict) -> str:
     }.get(_rec) or (str(_rec).upper() if _rec else 'NÃO AVALIADO (sem solicitação de crédito)')
 
     partes = [
-        f"Fazenda: {d.get('fazenda', 'não informada')}" + (f" — {d['municipio']}" if d.get('municipio') else ""),
+        f"Fazenda: {d.get('fazenda') or 'não informada'}" + (f" — {d['municipio']}" if d.get('municipio') else ""),
         f"Proprietário: {d['proprietario']}" if d.get('proprietario') else None,
-        f"Ciclo detectado: {ciclo_desc} (confiança ML: {d.get('confianca', 0):.0%})",
+        f"Ciclo detectado: {ciclo_desc} (confiança ML: {_conf_str(d.get('confianca'))})",
         f"Rebanho total: {d.get('total_rebanho', 0):,.0f} cabeças",
         f"Receita anual projetada: R$ {d.get('receita_anual', 0):,.0f}",
         f"Geração de caixa: R$ {d.get('geracao_caixa_anual', 0):,.0f}/ano",
