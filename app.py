@@ -2489,11 +2489,12 @@ def api_classificar():
                    else 'ressalva' if _cap_recomendacao == 'ressalva'
                    else 'reprovada')
     _cons_score = float(consistencia.get('score_consistencia', 0) or 0)
+    # result['confianca'] está em 0–100 (ml_engine); o limiar de 70% é 70, não 0.70.
     _conf = float(result.get('confianca', 0) or 0)
     _risco_alertas = int((consistencia.get('resumo') or {}).get('alertas', 0) or 0)
     _risco_erros = int((consistencia.get('resumo') or {}).get('erros', 0) or 0)
     _risco_status = ('baixo' if _risco_erros == 0 and _risco_alertas <= 1
-                     and _cons_score >= 80 and _conf >= 0.70
+                     and _cons_score >= 80 and _conf >= 70
                      else 'alto' if _risco_erros > 0 or _cons_score < 50
                      else 'medio')
     analises_credito = {

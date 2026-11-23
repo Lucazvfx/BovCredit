@@ -41,11 +41,13 @@ def _contexto_str(d: dict) -> str:
         'RECRIA_ENGORDA': 'recria/engorda (compra de magro e terminação, giro alto)',
         'CRIA_RECRIA': 'sistema misto cria+recria (produção própria e compra de desmama)',
     }.get(tipo, tipo)
+    # recomendacao é None quando não há solicitação de crédito (chave presente, valor nulo).
+    _rec = d.get('recomendacao')
     rec_str = {
         'aprovar': 'APROVADO',
         'ressalva': 'APROVADO COM RESSALVAS',
         'negar': 'NEGADO',
-    }.get(d.get('recomendacao', ''), d.get('recomendacao', '').upper())
+    }.get(_rec) or (str(_rec).upper() if _rec else 'NÃO AVALIADO (sem solicitação de crédito)')
 
     partes = [
         f"Fazenda: {d.get('fazenda', 'não informada')}" + (f" — {d['municipio']}" if d.get('municipio') else ""),
