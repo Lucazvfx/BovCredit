@@ -223,6 +223,22 @@
     return m && m.rotulo ? String(m.rotulo) : String(mes);
   }
 
+  // Principais ressalvas na primeira dobra: justificativa da conclusão +
+  // avisos do estresse (máx. 3). O detalhe completo continua nas abas.
+  function ressalvasHero(parecer) {
+    const c = parecer.conclusao || {};
+    const est = parecer.estresse_pecuario || null;
+    const itens = [];
+    if (c.justificativa && c.recomendacao !== "aprovar") itens.push(String(c.justificativa));
+    if (est && est.disponivel && Array.isArray(est.avisos)) est.avisos.forEach((t) => itens.push(String(t)));
+    return el("div", { cls: "od-hero__notes" }, [
+      el("div", { cls: "od-hero__notes-title", text: "Principais ressalvas" }),
+      itens.length
+        ? el("ul", { cls: "od-hero__notes-list" }, itens.slice(0, 3).map((t) => el("li", { text: t })))
+        : el("div", { cls: "od-hero__notes-empty", text: "—" }),
+    ]);
+  }
+
   function montarHero(parecer, rating) {
     const c = parecer.conclusao || {};
     const ciclo = parecer.ciclo_pecuario || null;
@@ -263,6 +279,13 @@
       ? kpi("Rating", String(r.faixa), (num(r.score) !== null ? Math.round(num(r.score)) + "/100 · " : "") + (r.rotulo || ""), false)
       : kpi("Rating", "—", "Indisponível", true);
 
+    // Mini-KPI 4 — prazo: quantos anos do prazo foram avaliados e qual o crítico
+    const nAnos = num(c.anos_avaliados);
+    const k4 = nAnos !== null && nAnos > 0
+      ? kpi("Prazo avaliado", nAnos + (nAnos === 1 ? " ano" : " anos"),
+        c.ano_critico ? "Ano crítico: " + c.ano_critico : "Sem ano crítico", false)
+      : kpi("Prazo avaliado", "—", "Indisponível para este parecer", true);
+
     return el("section", { cls: "od-hero", attrs: { "aria-label": "Resumo do parecer de crédito" } }, [
       el("div", { cls: "od-hero__top" }, [el("span", { cls: "od-eyebrow", text: "Parecer de crédito" }), badge]),
       el("div", { cls: "od-hero__figures" }, [
@@ -277,7 +300,8 @@
           el("div", { cls: "od-fig__sub", text: "capacidade de pagamento" }),
         ]),
       ]),
-      el("div", { cls: "od-kpis" }, [k1, k2, k3]),
+      el("div", { cls: "od-kpis" }, [k1, k2, k3, k4]),
+      ressalvasHero(parecer),
     ]);
   }
 
@@ -518,6 +542,14 @@
     montarAbas(legado, parecer).forEach((n) => raiz.appendChild(n));
     wrap.appendChild(raiz);
   }
+
+  // Impressão: <details> fechado não sai no papel; abre antes e restaura depois.
+  window.addEventListener("beforeprint", () => {
+    document.querySelectorAll("details.ork-fold:not([open])").forEach((d) => { d.dataset.pr = "1"; d.open = true; });
+  });
+  window.addEventListener("afterprint", () => {
+    document.querySelectorAll("details.ork-fold[data-pr]").forEach((d) => { d.open = false; delete d.dataset.pr; });
+  });
 
   window.OrkavynDash = { lerCamposNovos, renderParecer, definirSistema, aplicarTema };
 

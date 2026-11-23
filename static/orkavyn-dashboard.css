@@ -191,7 +191,7 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
 .od-fig__label { font-size: .72rem; font-weight: 500; opacity: .78; }
 .od-fig__value { font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; }
 .od-fig__sub { font-size: .72rem; opacity: .7; margin-top: 2px; }
-.od-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.od-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .od-kpi { padding: 12px 14px; border-radius: var(--od-r-sm); background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14); min-width: 0; }
 .od-kpi__label { font-size: .68rem; font-weight: 500; opacity: .8; }
 .od-kpi__value { font-size: 1.2rem; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
@@ -485,3 +485,19 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
   .od-tabs { display: none; }
   .od-panel[hidden] { display: grid !important; }
 }
+
+/* ── Hero: ressalvas na primeira dobra ───────────────────────────────── */
+.od-hero__notes { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.18); min-width: 0; }
+.od-hero__notes-title { font-size: .68rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .8; }
+.od-hero__notes-list { margin: 6px 0 0 16px; padding: 0; font-size: .78rem; line-height: 1.5; overflow-wrap: anywhere; }
+.od-hero__notes-empty { margin-top: 4px; opacity: .55; }
+
+/* ── Blocos densos recolhíveis (leitura em camadas) ──────────────────── */
+.ork-fold { margin-bottom: 16px; border: 1px solid var(--b, rgba(128,128,128,.25)); border-radius: 10px; min-width: 0; }
+.ork-fold > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; cursor: pointer; list-style: none; font-weight: 600; font-size: .82rem; min-height: 44px; }
+.ork-fold > summary::-webkit-details-marker { display: none; }
+.ork-fold > summary::after { content: "Mostrar"; font-size: .68rem; font-weight: 500; opacity: .6; }
+.ork-fold[open] > summary::after { content: "Ocultar"; }
+.ork-fold > summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+@media print { .ork-fold > summary::after { content: none; } }
+.ork-fold > :not(summary) { margin: 0 12px 12px; max-width: calc(100% - 24px); overflow-x: auto; }
