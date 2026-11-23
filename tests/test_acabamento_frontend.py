@@ -121,7 +121,7 @@ def test_a_numeracao_segue_a_ordem_da_tela():
     O resumo diz "1 e 2 mudam o resultado" — se a ordem do DOM não bater, o
     texto passa a apontar para o bloco errado.
     """
-    painel = INDEX[INDEX.index('id="conds-wrap"'):INDEX.index('id="cot-strip"')]
+    painel = INDEX[INDEX.index('id="conds-wrap"'):INDEX.index('id="btn-class"')]
     numeros = [int(n) for n in re.findall(r'>(\d+) · ', painel)]
     assert numeros == sorted(numeros) == list(range(1, len(numeros) + 1)), numeros
 

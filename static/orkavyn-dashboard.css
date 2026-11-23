@@ -1,4 +1,5 @@
-/* Orkavyn UI — tokens verde-floresta (skill orkavyn-ui), light + dark.
+/* Orkavyn UI — layout institucional minimalista (skill orkavyn-ui): tokens
+   verde-floresta, dark carvão, topbar enxuta e dock flutuante, sem sidebar.
    Carregado DEPOIS de orkavyn-fields.css: remapeia as variáveis --ork-* e as
    legadas do index para os tokens, de modo que a tela inteira troca de tema. */
 
@@ -28,6 +29,9 @@
   --od-r-sm: 8px;
   --od-r-md: 14px;
   --od-r-lg: 20px;
+  --od-gutter: 24px;
+  --od-dock-bg: rgba(255, 255, 255, 0.78);
+  --od-float-shadow: 0 8px 28px rgba(17, 24, 39, 0.12);
   color-scheme: light;
 }
 
@@ -37,11 +41,11 @@
   --brand-hero-start: #0F2E1D;
   --brand-hero-end: #14532D;
   --brand-tint: rgba(34, 197, 94, 0.12);
-  --bg-canvas: #0B110E;
-  --bg-surface: #111915;
-  --bg-subtle: #18231D;
-  --border-subtle: #23322A;
-  --border-strong: #32473B;
+  --bg-canvas: #0A0C0B;
+  --bg-surface: #121513;
+  --bg-subtle: #181C1A;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
   --text-primary: #F3F4F6;
   --text-secondary: #D1D5DB;
   --text-muted: #9CA3AF;
@@ -52,6 +56,8 @@
   --status-warn-bg: rgba(245, 158, 11, 0.16);
   --status-reject-fg: #F87171;
   --status-reject-bg: rgba(239, 68, 68, 0.16);
+  --od-dock-bg: rgba(18, 21, 19, 0.78);
+  --od-float-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 }
 
@@ -106,24 +112,11 @@
 input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
 .od-block input[type="number"] { text-align: right; }
 
-/* Painéis em verde-floresta (importação) mantêm texto claro nos dois temas. */
-.ork-import-panel,
+/* Painéis verdes explícitos (.ork-panel--forest) mantêm texto claro nos dois temas. */
 .ork-panel--forest {
   background: linear-gradient(135deg, var(--brand-hero-start), var(--brand-hero-end));
   border-color: var(--brand-hero-start);
   color: var(--text-on-brand);
-}
-.ork-import-panel .analysis-flow-title,
-.ork-panel--forest { color: var(--text-on-brand); }
-.ork-import-panel .ork-action,
-.ork-import-panel .ork-action:not(.ork-action--secondary):not(.ork-action--ghost),
-[data-theme="dark"] .ork-import-panel .ork-action:not(.ork-action--secondary):not(.ork-action--quiet):not(.ork-action--ghost) {
-  /* Fundo branco fixo nos dois temas: o texto tem de ser escuro nos dois também.
-     As regras genéricas de botão primário (texto claro) tinham mais
-     especificidade e deixavam o rótulo branco sobre branco. */
-  color: var(--brand-hero-start);
-  background: #FFFFFF;
-  border-color: #FFFFFF;
 }
 
 /* Botões primários: texto sempre claro sobre o verde da marca. */
@@ -131,9 +124,8 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
 [data-theme="dark"] .btn-p { color: #052E16; }
 .btn-p { background: var(--brand-primary); border-color: var(--brand-primary); }
 .btn-p:hover { background: var(--brand-primary-hover); border-color: var(--brand-primary-hover); }
-.ork-ticker, #news-ticker { background: var(--bg-surface) !important; border-bottom: 1px solid var(--border-subtle) !important; }
-#news-ticker #ticker-inner { color: var(--text-muted) !important; }
-#news-ticker > div:first-child { background: var(--brand-primary) !important; color: var(--text-on-brand) !important; }
+/* Ticker de notícias: ruído visual, fora do layout (o markup fica para o JS legado). */
+#news-ticker { display: none !important; }
 
 /* ── Alternador de tema ──────────────────────────────────────────────── */
 .od-theme-toggle {
@@ -144,6 +136,7 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
   font: 600 .68rem/1 var(--od-font); cursor: pointer;
 }
 .od-theme-toggle:hover { background: var(--bg-subtle); }
+@media (max-width: 480px) { .od-theme-toggle__label { display: none; } .od-theme-toggle { padding: 4px 9px; } }
 .od-theme-toggle:focus-visible,
 .od-sys:focus-visible,
 .od-tab:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
@@ -282,24 +275,13 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
 .ork-entry-view > .od-block { order: 5; margin-bottom: 0; }
 
 /* ── Superfícies com cor fixa no CSS legado → tokens ─────────────────── */
-.ork-sidebar { background: var(--bg-surface); border-right: 1px solid var(--border-subtle); }
 .ork-dashboard-surface .ork-context-header,
 .ork-dashboard-surface .ork-page-header { background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); }
 .ork-dashboard-surface .ork-panel:not(.ork-import-panel) { background: var(--bg-surface); border-color: var(--border-subtle); }
-.ork-dashboard-surface .ork-mobile-nav { background: var(--bg-surface); }
 .ork-state.is-success, .ork-import-status.is-success { color: var(--status-approve-fg); background: var(--status-approve-bg); border-color: var(--status-approve-fg); }
 .ork-state.is-warning, .ork-state.is-partial, .ork-import-status.is-partial { color: var(--status-warn-fg); background: var(--status-warn-bg); border-color: var(--status-warn-fg); }
 .ork-state.is-error, .ork-import-status.is-error { color: var(--status-reject-fg); background: var(--status-reject-bg); border-color: var(--status-reject-fg); }
 
-/* Painéis verdes: texto claro nos dois temas */
-.ork-import-panel .analysis-step,
-.ork-import-panel .analysis-flow-kicker,
-.ork-import-panel .analysis-flow-copy,
-.ork-import-alternatives .ork-action { color: rgba(255, 255, 255, .9); }
-.ork-import-correction select { color: #fff; }
-.ork-decision-summary__primary { background: linear-gradient(135deg, var(--brand-hero-start), var(--brand-hero-end)); color: #fff; }
-.ork-decision-summary__primary > span,
-.ork-decision-summary__primary small { color: rgba(255, 255, 255, .8); }
 /* O aviso "efetivo não verificado" (grid-column 1/-1) caía entre as duas
    colunas e empurrava as métricas para baixo da faixa verde. */
 .ork-decision-summary > p { order: 3; }
@@ -328,25 +310,160 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
 .ork-decision-summary__metrics { grid-template-columns: 1fr; }
 .ork-decision-summary__metrics > div { border-right: 0; border-bottom: 0; min-height: 0; }
 
-/* ── Mobile: header e barra inferior ─────────────────────────────────── */
-@media (max-width: 900px) {
-  /* A altura fixa (60px do header base + min-height do tema) deixava a 2ª
-     linha de itens vazar por cima do ticker e do Hero. Fluxo normal. */
-  .ork-dashboard-surface .ork-context-header { height: auto; flex-wrap: wrap; }
-  .ork-dashboard-surface .ork-context-header .hdr-r { min-width: 0; max-width: 100%; flex-wrap: wrap; }
+/* ═══ Shell: sem sidebar, conteúdo centralizado em 1120px ═══════════════ */
+@media (max-width: 600px) { :root { --od-gutter: 16px; } }
 
-  /* Barra encostada no fundo do viewport, com área segura do iOS, e uma
-     única linha para os 7 itens (antes quebrava em duas e subia). */
-  .ork-dashboard-surface .ork-mobile-nav {
-    right: 0; bottom: 0; left: 0;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    min-height: 0;
-    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
-    border-width: 1px 0 0; border-radius: 0;
-    box-shadow: 0 -1px 3px rgba(17, 24, 39, .08);
-  }
-  .ork-dashboard-surface .ork-mobile-nav__item { min-width: 0; min-height: 48px; padding: 5px 1px; font-size: .62rem; }
-  .ork-dashboard-surface .ork-main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+.ork-dashboard-surface .ork-workspace { margin-left: 0; padding-bottom: 0; }
+.ork-dashboard-surface .ork-main {
+  width: min(1120px, 100%);
+  padding: 24px var(--od-gutter) calc(96px + env(safe-area-inset-bottom));
+}
+
+/* ── Topbar: linha única — logo | cotações, tema, usuário ───────────────── */
+.ork-dashboard-surface .od-topbar {
+  position: sticky; top: 0; z-index: 200;
+  height: 60px; min-height: 60px; flex-wrap: nowrap; align-items: center; gap: 12px;
+  padding: 0 max(var(--od-gutter), calc((100% - 1120px) / 2 + var(--od-gutter)));
+  background: var(--od-dock-bg);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.od-topbar__brand { flex: 0 0 auto; margin: 0; }
+/* logo-dark.svg tem viewBox bem mais largo (760x92 vs 320x82): largura maior no escuro iguala o tamanho do texto. */
+.ork-dashboard-surface .od-topbar .ork-brand__mark { width: 128px; }
+[data-theme="dark"] .ork-dashboard-surface .od-topbar .ork-brand__mark { width: 190px; }
+.ork-dashboard-surface .od-topbar .hdr-r { gap: 8px; min-width: 0; flex-wrap: nowrap; }
+.ork-dashboard-surface .od-pill {
+  display: inline-flex; align-items: center; padding: 5px 10px;
+  border: 1px solid var(--border-subtle); border-radius: 999px;
+  background: var(--bg-surface); color: var(--text-secondary);
+  font: 600 .68rem/1 var(--od-font); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.ork-dashboard-surface .od-pill.sem-cotacao { color: var(--text-muted); background: transparent; }
+.ork-dashboard-surface .od-topbar #hdr-vaca { display: inline-flex; }
+@media (max-width: 480px) {
+  .ork-dashboard-surface .od-topbar { gap: 8px; }
+  .ork-dashboard-surface .od-topbar .ork-brand__mark { width: 88px; }
+  [data-theme="dark"] .ork-dashboard-surface .od-topbar .ork-brand__mark { width: 104px; }
+  .ork-dashboard-surface .od-topbar .hdr-r { gap: 4px; }
+  .ork-dashboard-surface .od-pill { padding: 4px 6px; font-size: .58rem; }
+}
+
+/* Menu do usuário */
+.od-user { position: relative; flex: 0 0 auto; }
+.od-user__btn {
+  display: grid; place-items: center; width: 32px; height: 32px; padding: 0;
+  border: 1px solid var(--border-strong); border-radius: 50%;
+  background: var(--bg-subtle); color: var(--text-primary); cursor: pointer;
+}
+.od-user__btn:hover { background: var(--bg-surface); }
+.od-user__avatar { font: 700 .78rem/1 var(--od-font); }
+
+/* Popover (usuário e "Mais") */
+.od-menu {
+  position: absolute; z-index: 300; display: grid; gap: 2px;
+  width: max-content; min-width: 200px; max-width: min(280px, calc(100vw - 32px));
+  padding: 6px; border: 1px solid var(--border-strong); border-radius: var(--od-r-md);
+  background: var(--bg-surface); box-shadow: var(--od-float-shadow);
+}
+.od-menu[hidden] { display: none; }
+.od-menu--down { top: calc(100% + 10px); right: 0; }
+.od-menu--up { bottom: calc(100% + 14px); right: 0; }
+.od-menu__who { padding: 8px 10px 6px; font: 600 .78rem/1.3 var(--od-font); color: var(--text-primary); overflow-wrap: anywhere; }
+.od-menu__field { padding: 6px 10px 0; font: 600 .66rem/1 var(--od-font); color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+.od-menu__select {
+  margin: 4px 6px 6px; padding: 7px 8px; min-width: 0; max-width: 100%;
+  border: 1px solid var(--border-strong); border-radius: var(--od-r-sm);
+  background: var(--bg-subtle); color: var(--text-primary); font: 500 .78rem var(--od-font);
+}
+.od-menu__item {
+  display: block; width: 100%; padding: 9px 10px; border: 0; border-radius: var(--od-r-sm);
+  background: transparent; color: var(--text-secondary); text-align: left; text-decoration: none;
+  font: 500 .82rem/1.2 var(--od-font); cursor: pointer;
+}
+.od-menu__item:hover { background: var(--bg-subtle); color: var(--text-primary); }
+.od-menu__item.is-active { color: var(--text-primary); font-weight: 700; box-shadow: inset 2px 0 0 var(--text-muted); }
+.od-menu__item:focus-visible, .od-user__btn:focus-visible, .od-dock__item:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+
+/* ── Dock flutuante ─────────────────────────────────────────────────────── */
+.od-dock {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: max(16px, env(safe-area-inset-bottom)); z-index: 150;
+  display: flex; align-items: center; gap: 4px; max-width: calc(100vw - 24px);
+  padding: 6px; border: 1px solid var(--border-strong); border-radius: 999px;
+  background: var(--od-dock-bg);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  box-shadow: var(--od-float-shadow);
+}
+.od-dock__more { position: relative; }
+.od-dock__item {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px;
+  border: 0; border-radius: 999px; background: transparent; color: var(--text-secondary);
+  font: 600 .8rem/1 var(--od-font); white-space: nowrap; cursor: pointer;
+}
+.od-dock__item svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.od-dock__item:hover { background: var(--bg-subtle); color: var(--text-primary); }
+.od-dock__item.is-active, .od-dock__item.is-active:hover { background: var(--brand-primary); color: var(--text-on-brand); }
+[data-theme="dark"] .od-dock__item.is-active { color: #052E16; }
+@media (max-width: 600px) {
+  .od-dock { gap: 0; padding: 5px; }
+  .od-dock__item { flex-direction: column; justify-content: center; gap: 3px; min-height: 50px; min-width: 0; padding: 4px 8px; font-size: .62rem; border-radius: 22px; }
+}
+
+/* ═══ Nova análise: capa atmosférica + card central elevado ═════════════ */
+.ork-entry-view > .od-cover { order: -1; }
+.od-cover {
+  min-height: 220px; padding: 36px 32px 92px; border: 1px solid var(--border-subtle); border-radius: var(--od-r-lg);
+  color: #F3F4F6; overflow: hidden;
+  background:
+    radial-gradient(rgba(255, 255, 255, .045) 1px, transparent 1px) 0 0 / 22px 22px,
+    radial-gradient(120% 150% at 88% -10%, rgba(34, 197, 94, .16), transparent 55%),
+    linear-gradient(165deg, #0A0C0B 0%, #0E1712 55%, #12241A 100%);
+}
+.od-cover__title { margin: 0; font: 700 clamp(1.5rem, 3.4vw, 2.1rem)/1.15 var(--od-font); letter-spacing: -.02em; }
+.od-cover__sub { margin: 10px 0 0; max-width: 56ch; font-size: .92rem; line-height: 1.5; color: rgba(243, 244, 246, .72); }
+
+.ork-dashboard-surface .ork-entry-view > #od-upload {
+  order: 0; position: relative; z-index: 1; margin: -64px 24px 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  padding: 20px 24px; color: var(--text-primary);
+  background: var(--bg-surface); border: 1px solid var(--border-strong); border-radius: var(--od-r-lg);
+  box-shadow: var(--od-float-shadow);
+}
+#od-upload.drag { border-color: var(--brand-primary); box-shadow: 0 0 0 3px var(--brand-tint), var(--od-float-shadow); }
+#od-upload .analysis-flow-copy { grid-column: auto; min-width: 0; }
+#od-upload .analysis-flow-title { margin: 0; font: 700 1.05rem/1.2 var(--od-font); color: var(--text-primary); }
+#od-upload .analysis-flow-sub { margin: 6px 0 0; max-width: 52ch; font-size: .8rem; line-height: 1.5; color: var(--text-muted); }
+#od-upload .analysis-flow-cta { grid-column: auto; grid-row: auto; flex: 0 0 auto; flex-direction: row; gap: 10px; padding: 0; border: 0; min-width: 0; }
+#od-upload .ork-action { width: auto; min-height: 44px; padding: 0 20px; border-radius: var(--od-r-sm); font: 600 .84rem var(--od-font); white-space: nowrap; }
+#od-upload .ork-action:not(.ork-action--secondary) { background: var(--brand-primary); border-color: var(--brand-primary); color: var(--text-on-brand); }
+#od-upload .ork-action:not(.ork-action--secondary):hover { background: var(--brand-primary-hover); border-color: var(--brand-primary-hover); }
+[data-theme="dark"] #od-upload .ork-action:not(.ork-action--secondary) { color: #052E16; }
+#od-upload .ork-action--secondary { background: transparent; border: 1px solid var(--border-strong); color: var(--text-primary); }
+#od-upload .ork-action--secondary:hover { background: var(--bg-subtle); }
+@media (max-width: 720px) {
+  .od-cover { padding: 28px 20px 84px; }
+  .ork-dashboard-surface .ork-entry-view > #od-upload { flex-direction: column; align-items: stretch; margin-inline: 8px; padding: 18px; gap: 16px; }
+  #od-upload .analysis-flow-cta { flex-direction: column; }
+  #od-upload .ork-action { width: 100%; }
+}
+
+/* ═══ Resultado: card legado "Resumo / Base" compacto ═══════════════════ */
+.ork-dashboard-surface .ork-decision-summary {
+  grid-template-columns: 1fr auto; align-items: center; gap: 8px 24px;
+  padding: 14px 18px; border: 1px solid var(--border-subtle); background: var(--bg-surface);
+}
+.ork-dashboard-surface .ork-decision-summary__primary {
+  min-height: 0; padding: 0; background: transparent; color: var(--text-primary); justify-content: flex-start;
+}
+.ork-dashboard-surface .ork-decision-summary__primary > span { margin: 0 0 4px; color: var(--text-muted); font-size: .68rem; }
+.ork-dashboard-surface .ork-decision-summary__primary strong { font: 700 1.05rem/1.2 var(--od-font); letter-spacing: 0; }
+.ork-dashboard-surface .ork-decision-summary__metrics > div { min-height: 0; padding: 0; border: 0; align-items: flex-end; justify-content: flex-start; gap: 4px; text-align: right; }
+.ork-dashboard-surface .ork-decision-summary__metrics strong { font: 700 1.2rem/1.1 var(--od-font); font-variant-numeric: tabular-nums; }
+.ork-dashboard-surface .ork-decision-summary > p { grid-column: 1 / -1; margin: 4px 0 0 !important; order: 3; }
+@media (max-width: 600px) {
+  .ork-dashboard-surface .ork-decision-summary { grid-template-columns: 1fr; }
+  .ork-dashboard-surface .ork-decision-summary__metrics > div { align-items: flex-start; text-align: left; }
 }
 
 /* Impressão: as abas escondidas (Ciclo 12m, Estresse) também saem no papel */

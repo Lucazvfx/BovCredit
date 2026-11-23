@@ -12,24 +12,17 @@ import pytest
 
 RAIZ = Path(__file__).parents[1]
 INDEX = (RAIZ / 'templates' / 'index.html').read_text(encoding='utf-8')
-SIDEBAR = (RAIZ / 'templates' / 'partials' / 'fields_sidebar.html').read_text(
+DOCK = (RAIZ / 'templates' / 'partials' / 'dashboard_dock.html').read_text(
     encoding='utf-8')
 
 
 # ── O caminho até a tela ────────────────────────────────────────────────────
 
-def test_o_menu_lateral_leva_a_lavoura_perene():
-    """O menu lateral é a navegação real; a barra de abas é acessibilidade."""
-    assert 'data-ork-nav="perene"' in SIDEBAR
-    assert "showTab('perene', this)" in SIDEBAR
-
-
-def test_o_menu_do_celular_tambem_leva():
-    """O celular tem menu próprio. Só o lateral deixaria a tela inalcançável lá."""
-    mobile = (RAIZ / 'templates' / 'partials' / 'fields_mobile_nav.html').read_text(
-        encoding='utf-8')
-
-    assert 'data-ork-nav="perene"' in mobile
+def test_o_dock_leva_a_lavoura_perene_pelo_menu_mais():
+    """O dock é a navegação real (desktop e celular); a barra de abas é acessibilidade."""
+    mais = DOCK[DOCK.index('id="od-more-menu"'):]
+    assert 'data-ork-nav="perene"' in mais
+    assert "showTab('perene', this)" in mais
 
 
 def test_o_painel_existe_e_tem_aba_correspondente():
@@ -78,10 +71,11 @@ def test_a_tela_avisa_quando_a_analise_esta_incompleta():
     assert 'Análise incompleta' in INDEX
 
 
-def test_a_secao_do_menu_e_agricola():
-    """"Agrícola" é a casa; lavoura perene é o primeiro morador dela."""
-    assert '<span class="ork-nav__label">Agrícola</span>' in SIDEBAR
-    assert '<span>Lavoura perene</span>' in SIDEBAR
+def test_o_menu_mais_rotula_a_lavoura_perene():
+    """Grãos & Safra e Lavoura perene moram juntos no menu "Mais"."""
+    mais = DOCK[DOCK.index('id="od-more-menu"'):]
+    assert 'Lavoura perene</button>' in mais
+    assert 'Grãos &amp; Safra</button>' in mais
 
 
 def test_os_campos_de_credito_tem_dica_curta():
