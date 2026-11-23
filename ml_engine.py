@@ -808,7 +808,21 @@ def classificar(
     # mais honesto do que apresentar RECRIA como conclusão definitiva.
     classificacao_limitada = bois_vendidos is None
     dados_faltantes = ['bois_vendidos'] if bois_vendidos is None else []
-    revisao_humana = classificacao_limitada
+    # Rebanho muito distante do treino: a probabilidade do modelo não tem
+    # significado estatístico (ver calcular_atipicidade), então a revisão
+    # humana deixa de ser só uma recomendação em texto e vira o flag.
+    muito_atipico = bool(atipicidade and atipicidade.get('nivel') == 'muito_atipico')
+    motivos_revisao = []
+    if classificacao_limitada:
+        motivos_revisao.append('dados_incompletos')
+    if muito_atipico:
+        motivos_revisao.append('muito_atipico')
+    revisao_humana = bool(motivos_revisao)
+    if muito_atipico:
+        explicacao.append(
+            'Rebanho muito atípico frente ao conjunto de treino: a probabilidade '
+            'do modelo não é estatisticamente significativa; revisão humana necessária.'
+        )
     if classificacao_limitada:
         explicacao.append(
             'Classificação limitada: o modelo sugere CICLO_COMPLETO, mas a '
@@ -833,6 +847,7 @@ def classificar(
         'classificacao_limitada': classificacao_limitada,
         'dados_faltantes': dados_faltantes,
         'revisao_humana':  revisao_humana,
+        'motivos_revisao': motivos_revisao,  # 'dados_incompletos' | 'muito_atipico'
     }
 
 

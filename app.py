@@ -2621,20 +2621,26 @@ def api_confirmar_ciclo():
     previsão do modelo nunca realimenta a si mesma.
     """
     data = request.json or {}
-    registro_id = data.get('registro_id')
     ciclo = (data.get('ciclo') or '').strip().upper()
 
-    if not registro_id:
+    if not data.get('registro_id'):
         return jsonify({'erro': 'Registro não informado.'}), 400
+    try:
+        registro_id = int(data['registro_id'])
+    except (TypeError, ValueError):
+        return jsonify({'erro': 'Registro inválido.'}), 400
     if ciclo not in TIPOS:
         return jsonify({'erro': f'Ciclo inválido. Esperado um de: {", ".join(TIPOS)}'}), 400
 
-    registro = db.buscar_registro_por_id(int(registro_id))
+    # Só o dono rotula o próprio registro: este rótulo vira dado de treino, e
+    # aceitar o de outro usuário permitiria envenenar o conjunto entre tenants.
+    # 404 (e não 403) para não revelar a existência de registros alheios.
+    registro = db.buscar_registro_por_id(registro_id, user_id=current_user.id)
     if not registro:
         return jsonify({'erro': 'Registro não encontrado.'}), 404
 
-    db.confirmar(int(registro_id), ciclo)
-    caso_real = db.buscar_caso_real(int(registro_id), user_id=current_user.id)
+    db.confirmar(registro_id, ciclo)
+    caso_real = db.buscar_caso_real_por_registro(registro_id, user_id=current_user.id)
     if caso_real:
         db.confirmar_caso_real(
             caso_real['id'], ciclo,
