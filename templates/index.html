@@ -702,11 +702,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="ch">
       <div class="ct"><div class="cd" style="background:var(--cy)"></div>Composição por Faixa Etária <span class="od-req">Mínimo necessário</span></div>
       <div class="od-actions">
-        <button class="btn-sm" onclick="document.getElementById('insr-xlsx-inp').click()">📊 Ler Planilha</button>
+        <button class="btn-sm" onclick="document.getElementById('insr-xlsx-inp').click()">Ler Planilha</button>
         <input type="file" id="insr-xlsx-inp" accept=".xlsx,.xlsm" style="display:none" onchange="lerPlanilha(this.files[0]);this.value=''">
-        <button class="btn-sm" onclick="document.getElementById('pdf-inp-main').click()" title="Ler saldo de rebanho em PDF">📄 Ler PDF</button>
+        <button class="btn-sm" onclick="document.getElementById('pdf-inp-main').click()" title="Ler saldo de rebanho em PDF">Ler PDF</button>
         <input type="file" id="pdf-inp-main" accept=".pdf" multiple style="display:none" onchange="lerPDFs(this.files);this.value=''">
-        <button class="btn-sm" onclick="document.getElementById('insr-ficha-inp').click()">📋 Importar Ficha</button>
+        <button class="btn-sm" onclick="document.getElementById('insr-ficha-inp').click()">Importar Ficha</button>
         <input type="file" id="insr-ficha-inp" accept=".xlsx,.xlsm" style="display:none" onchange="lerFichaExcel(this.files[0]);this.value=''">
         <button class="btn-sm" onclick="clearAll()">✕ Limpar</button>
         <details class="od-more" id="od-more-faixa">
@@ -720,7 +720,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <span class="od-more__grp">Arquivos</span>
             <button class="od-more__item" onclick="window.location='/api/template/download'">⬇ Template</button>
             <button class="od-more__item" onclick="window.location='/api/ficha/download'" title="Baixar ficha de consolidação (.xlsx)">⬇ Baixar Ficha</button>
-            <button class="od-more__item" onclick="window.location='/api/ficha/instrucoes'" title="Baixar instruções de preenchimento">📄 Instruções</button>
+            <button class="od-more__item" onclick="window.location='/api/ficha/instrucoes'" title="Baixar instruções de preenchimento">Instruções</button>
             <button class="od-more__item" onclick="toggleGuiaFicha(this)" title="Como preencher o Excel">? Como preencher o Excel</button>
           </div>
         </details>
@@ -740,7 +740,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
     <!-- Guia de preenchimento do Excel CONSOLIDADO -->
     <div id="guia-ficha-panel" style="display:none;margin:0 16px 12px;background:var(--surface-2);border:.5px solid var(--border-accent);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--text-secondary)">
-      <div style="font-weight:600;color:var(--text-primary);margin-bottom:8px;font-size:13px">📋 Como preencher a planilha CONSOLIDADO antes de importar</div>
+      <div style="font-weight:600;color:var(--text-primary);margin-bottom:8px;font-size:13px">Como preencher a planilha CONSOLIDADO antes de importar</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
         <div>
           <div style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Por fazenda (repetir cada bloco)</div>
@@ -794,7 +794,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div id="consist-panel" style="display:none;margin-top:16px"></div>
         <div id="comparativo-panel" style="display:none;margin-top:16px"></div>
         <div style="margin-top:14px">
-          <button class="btn-sm" onclick="toggleSituacaoCadastral()" id="btn-situacao-cadastral" style="width:100%;justify-content:center">🔍 Situação Cadastral (CNPJ) <span style="font-size:.65rem;opacity:.6">(opcional — consulta gratuita, Receita Federal)</span></button>
+          <button class="btn-sm" onclick="toggleSituacaoCadastral()" id="btn-situacao-cadastral" style="width:100%;justify-content:center">Situação Cadastral (CNPJ) <span style="font-size:.65rem;opacity:.6">(opcional — consulta gratuita, Receita Federal)</span></button>
           <div id="situacao-cadastral-wrap" style="display:none;margin-top:12px;padding:14px;border:1px solid var(--b);border-radius:var(--rs);background:var(--c)">
             <div style="font-size:.72rem;color:var(--mu);margin-bottom:10px;line-height:1.5">
               Consulta pública de situação cadastral na Receita Federal — <strong>não é score de crédito</strong>
@@ -815,7 +815,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           </div>
         </div>
         <div style="margin-top:14px">
-          <button class="btn-sm" onclick="toggleConds()" id="btn-conds" style="width:100%;justify-content:center">⚙ Condições de Classificação <span style="font-size:.65rem;opacity:.6">(opcional)</span></button>
+          <button class="btn-sm" onclick="toggleConds()" id="btn-conds" style="width:100%;justify-content:center">Condições de Classificação <span style="font-size:.65rem;opacity:.6">(opcional)</span></button>
           <div id="conds-wrap" style="display:none;margin-top:12px">
             <!-- Dezenove campos com a mesma cara, e nenhuma pista de quais
                  mudam o veredito. Uns reescrevem a projeção inteira, outros
@@ -1038,7 +1038,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div class="field"><label>Venda de Bezerras (%)</label><input type="number" id="param-vendbez" step="1" value="30" onchange="marcarParametroAlterado()"></div>
           <div class="field"><label>Taxa de Natalidade (%)</label><input type="number" id="param-nat" step="1" value="65" onchange="marcarParametroAlterado()"></div>
         </div>
-        <div style="display:flex;gap:12px;margin-top:16px"><button class="btn-sm" onclick="salvarParametrosDoCiclo()">💾 Salvar para este ciclo</button><button class="btn-sm" onclick="resetarParametrosDoCiclo()">↺ Restaurar padrões</button></div>
+        <div style="display:flex;gap:12px;margin-top:16px"><button class="btn-sm" onclick="salvarParametrosDoCiclo()">Salvar para este ciclo</button><button class="btn-sm" onclick="resetarParametrosDoCiclo()">↺ Restaurar padrões</button></div>
         <div id="param-status" style="font-family:var(--fm);font-size:.6rem;color:var(--tx);margin-top:8px"></div>
       </div>
     </div>
@@ -1131,11 +1131,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
   <!-- BARRA DE ETAPAS (STEPPER UX) -->
   <div class="ork-stepper-bar" style="display:flex;gap:6px;margin-bottom:18px;overflow-x:auto;padding:6px;background:var(--c2);border:1px solid var(--b);border-radius:var(--rs)">
-    <button type="button" class="btn-sm ork-step-btn active" id="gr-step-tab-1" onclick="graosMudarEtapa(1)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:var(--gn);color:#fff;border:none;cursor:pointer">1. 🌱 Safra & Custos</button>
-    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-2" onclick="graosMudarEtapa(2)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">2. 💰 Crédito & Barter</button>
-    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-3" onclick="graosMudarEtapa(3)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">3. 🛡️ Garantias & LTV</button>
-    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-4" onclick="graosMudarEtapa(4)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">4. 🛰️ Compliance ESG</button>
-    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-5" onclick="graosMudarEtapa(5)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">5. 📑 Comitê & PDF</button>
+    <button type="button" class="btn-sm ork-step-btn active" id="gr-step-tab-1" onclick="graosMudarEtapa(1)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:var(--gn);color:#fff;border:none;cursor:pointer">1. Safra & Custos</button>
+    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-2" onclick="graosMudarEtapa(2)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">2. Crédito & Barter</button>
+    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-3" onclick="graosMudarEtapa(3)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">3. Garantias & LTV</button>
+    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-4" onclick="graosMudarEtapa(4)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">4. Compliance ESG</button>
+    <button type="button" class="btn-sm ork-step-btn" id="gr-step-tab-5" onclick="graosMudarEtapa(5)" style="flex:1;min-width:135px;text-align:center;font-weight:700;padding:8px 10px;border-radius:6px;background:transparent;color:var(--tx);border:none;cursor:pointer;opacity:0.75">5. Comitê & PDF</button>
   </div>
 
   <!-- ETAPA 1: SAFRA & CUSTOS -->
@@ -1249,7 +1249,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <!-- DADOS PARA EMISSÃO DA CPR -->
         <details style="margin-top:12px;background:var(--c2);padding:10px 14px;border-radius:var(--rs);border:1px solid var(--b)">
           <summary style="font-size:.78rem;font-weight:700;cursor:pointer;color:var(--tx)">
-            📋 Dados Opcionais para Emissão da Minuta da CPR (Emitente, Credor e Local)
+            Dados Opcionais para Emissão da Minuta da CPR (Emitente, Credor e Local)
           </summary>
           <div class="fgrid" style="margin-top:12px">
             <div class="field"><label>Nome do Produtor / Emitente</label><input type="text" id="cpr-emitente-nome" value="Fazenda Esperança Agropecuária Ltda"></div>
@@ -1446,10 +1446,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           </div>
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
-          <button type="button" class="btn-p" onclick="graosAnalisarCompleto()" style="padding:10px 20px;font-weight:700">⚡ Julgar Safra & Emitir Parecer</button>
+          <button type="button" class="btn-p" onclick="graosAnalisarCompleto()" style="padding:10px 20px;font-weight:700">Julgar Safra & Emitir Parecer</button>
           <button type="button" class="btn-sm" id="gr-btn-pdf" onclick="graosPDF()" disabled style="padding:10px 20px;font-weight:700">⬇ Parecer & CPR (PDF)</button>
-          <button type="button" class="btn-sm" id="comite-btn-pdf" onclick="baixarDossieComitePDF()" disabled style="padding:10px 20px;font-weight:700;border-color:var(--a);color:var(--a)">🏛️ Dossiê Comitê (PDF)</button>
-          <button type="button" class="btn-sm" id="comite-btn-excel" onclick="baixarDossieComiteExcel()" disabled style="padding:10px 20px;font-weight:700;border-color:var(--k);color:var(--tx)">📊 Modelagem (Excel)</button>
+          <button type="button" class="btn-sm" id="comite-btn-pdf" onclick="baixarDossieComitePDF()" disabled style="padding:10px 20px;font-weight:700;border-color:var(--a);color:var(--a)">Dossiê Comitê (PDF)</button>
+          <button type="button" class="btn-sm" id="comite-btn-excel" onclick="baixarDossieComiteExcel()" disabled style="padding:10px 20px;font-weight:700;border-color:var(--k);color:var(--tx)">Modelagem (Excel)</button>
         </div>
       </div>
     </div>
@@ -1526,22 +1526,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="cb">
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px" class="g2-help">
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-size:1.5rem;margin-bottom:8px">📄</div>
           <div style="font-family:var(--fn);font-weight:700;font-size:.78rem;margin-bottom:6px">1. Leia o PDF</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Faça upload da GTA/Inventário do estado (INDEA, IDARON, IAGRO, AGRODEFESA, ADAPEC, ADEPARA). O sistema extrai o rebanho automaticamente.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-size:1.5rem;margin-bottom:8px">🐄</div>
           <div style="font-family:var(--fn);font-weight:700;font-size:.78rem;margin-bottom:6px">2. Confirme o rebanho</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Revise as quantidades por faixa etária e sexo. Use o Template para preencher manualmente se necessário.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-size:1.5rem;margin-bottom:8px">💰</div>
           <div style="font-family:var(--fn);font-weight:700;font-size:.78rem;margin-bottom:6px">3. Informe os custos</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Em "Cenários → Parâmetros", preencha o desembolso mensal por componente ou use os presets GEP. Marque N/A para custos inexistentes.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-size:1.5rem;margin-bottom:8px">📊</div>
           <div style="font-family:var(--fn);font-weight:700;font-size:.78rem;margin-bottom:6px">4. Classifique</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Clique em "Classificar" para gerar o parecer. O resultado compara o produtor com benchmarks nacionais e regionais.</div>
         </div>
@@ -1624,19 +1620,19 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="cb">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">🐮 Cria</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">Cria</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Produção de bezerros do nascimento ao desmame (~7 meses). Foco em matrizes, taxa de natalidade e sobrevivência. <br><strong style="color:var(--tx)">Benchmark GEP 24/25:</strong> R$90,88/cab·mês (média) · R$69,63 (top). <br><strong style="color:var(--tx)">Indicador chave:</strong> Taxa de natalidade (&gt;75% = bom; &gt;85% = excelente).</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">🐂 Recria</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">Recria</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Do desmame até o ponto de transferência para engorda ou abate (7–24 meses). Foco em GMD e eficiência de pastagem. <br><strong style="color:var(--tx)">Benchmark GEP 24/25:</strong> R$100,50/cab·mês (média) · R$77,40 (top). <br><strong style="color:var(--tx)">GMD referência:</strong> 0,4–0,6 kg/dia (pasto) · 0,8–1,2 kg/dia (suplementado).</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">🥩 Engorda (Pasto)</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">Engorda (Pasto)</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Terminação a pasto com suplementação proteico-energética. Ciclo de 90–180 dias até o peso de abate (>450 kg). <br><strong style="color:var(--tx)">Benchmark GEP 24/25:</strong> R$182,60/cab·mês (média) · R$177,30 (top). <br><strong style="color:var(--tx)">Rendimento de carcaça:</strong> 52–56% do peso vivo.</div>
         </div>
         <div style="background:var(--c2);border-radius:var(--rs);padding:16px;border:1px solid var(--b)">
-          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">🏗️ Confinamento</div>
+          <div style="font-family:var(--fn);font-weight:700;font-size:.85rem;color:var(--tx);margin-bottom:8px">Confinamento</div>
           <div style="font-size:.78rem;color:var(--sb);line-height:1.6">Feedlot com dieta completa (milho + farelo de soja + núcleo mineral). Ração representa ~80% do custo. <br><strong style="color:var(--tx)">Benchmark estimado 24/25:</strong> R$484/cab·mês (média) · R$421 (top). <br><strong style="color:var(--tx)">GMD:</strong> 1,2–1,8 kg/dia · Conversão: 6–8 kg ração/kg ganho.</div>
         </div>
       </div>
@@ -1850,7 +1846,6 @@ function setValsFromApi(v10){
   upd();
 }
 const TC={CRIA:'#8B95A8',RECRIA:'#8B95A8',ENGORDA:'#8B95A8',CICLO_COMPLETO:'#8B95A8',RECRIA_ENGORDA:'#8B95A8',CRIA_RECRIA:'#8B95A8'};
-const TE={CRIA:'🐄',RECRIA:'🐂',ENGORDA:'🥩',CICLO_COMPLETO:'🔄',RECRIA_ENGORDA:'🐂',CRIA_RECRIA:'🐄'};
 const TL={CRIA:'CRIA',RECRIA:'RECRIA',ENGORDA:'ENGORDA',CICLO_COMPLETO:'CICLO COMPLETO',RECRIA_ENGORDA:'RECRIA / ENGORDA',CRIA_RECRIA:'CRIA + RECRIA'};
 const TD={CRIA:'Foco em produção de bezerros. Predomínio de vacas/matrizes adultas, alta taxa de cria.',RECRIA:'Fase de desenvolvimento pós-desmame. Alta concentração 13–24m.',ENGORDA:'Terminação para abate. Machos adultos em peso de corte predominam.',CICLO_COMPLETO:'Todas as fases integradas: cria, recria e terminação na mesma propriedade.',RECRIA_ENGORDA:'Compra magro e termina. Giro alto, retenção muito baixa, receita em boi gordo.',CRIA_RECRIA:'Base de cria com compra de desmama. Produção própria somada a animais adquiridos para recria.'};
 // Ausente/não numérico vira '—' (mesmo padrão do PDF), nunca 'NaN' nem 'R$ 0' fabricado.
@@ -2903,7 +2898,7 @@ function mostrarPDFPreview(data){
         </table>
       </div>
     </div>
-    <button class="btn-p" style="margin-top:16px" onclick="classificarPDF(window._pdfPreviewData.valores,window._pdfPreviewData)"><span>🧠 Classificar com Machine Learning</span></button>`;
+    <button class="btn-p" style="margin-top:16px" onclick="classificarPDF(window._pdfPreviewData.valores,window._pdfPreviewData)"><span>Classificar com Machine Learning</span></button>`;
   window._pdfPreviewData = data;
   status.scrollIntoView({behavior:'smooth', block:'start'});
   // Aqui o #dz do painel órfão era repintado com "PDF carregado" — num painel
@@ -3182,7 +3177,7 @@ function renderDadosImpeditivos(data){
   const {status, score_completude, impeditivos=[], alertas=[], ok=[], bloqueio_aprovacao, mensagem} = imp;
   const corStatus = bloqueio_aprovacao ? 'var(--ork-danger)' : alertas.length ? 'var(--ork-warning)' : 'var(--ork-success)';
   const bgStatus  = bloqueio_aprovacao ? 'rgba(155,79,66,.09)' : alertas.length ? 'rgba(168,118,49,.09)' : 'rgba(63,104,73,.09)';
-  const iconStatus = bloqueio_aprovacao ? '🔴' : alertas.length ? '🟡' : '✅';
+  const iconStatus = bloqueio_aprovacao ? '✕' : alertas.length ? '!' : '✓';
   const pct = score_completude || 0;
   const circ = 2*Math.PI*18; // raio 18
   const dash = (pct/100)*circ;
@@ -3274,7 +3269,7 @@ function renderRetencao(data){
     </div>` : '';
 
   const alertsHtml = alertas.map(a=>`<div style="padding:8px 11px;border-radius:7px;background:${a.nivel==='impeditivo'?'rgba(155,79,66,.08)':'rgba(168,118,49,.08)'};border:1px solid ${a.nivel==='impeditivo'?'rgba(155,79,66,.2)':'rgba(168,118,49,.2)'};font-size:.72rem;color:${a.nivel==='impeditivo'?'var(--ork-danger)':'var(--ork-warning)'};margin-top:8px">
-    ${a.nivel==='impeditivo'?'⛔':'⚠'} ${a.mensagem}</div>`).join('');
+    ${a.nivel==='impeditivo'?'✕':'!'} ${a.mensagem}</div>`).join('');
 
   return `<div class="card" style="margin-bottom:16px">
     <div class="ch">
@@ -3731,7 +3726,6 @@ function renderResult(data){
     const sel=t===tipo;
     return`<div class="tc" style="${sel?`border-color:${TC[t]};background:${TC[t]}12;border-width:2px`:''}">
       ${sel?`<div class="tc-sel" style="background:${TC[t]}25;color:${TC[t]}">← IDENTIFICADO</div>`:''}
-      <span class="tc-ico">${TE[t]}</span>
       <div class="tc-name" style="color:${sel?TC[t]:'var(--sb)'}">${TL[t]}</div>
       <div class="tc-desc">${TD[t]}</div>
     </div>`;
@@ -3752,17 +3746,17 @@ function renderResult(data){
           ${(()=>{
             const chips=[];
             if(data.origem_decisao==='regra'){
-              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--tx);background:rgba(251,191,36,.1)">⚖ regra determinística: ${escapeHtml(data.regra_aplicada||'')}</span>`);
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--tx);background:rgba(251,191,36,.1)">regra determinística: ${escapeHtml(data.regra_aplicada||'')}</span>`);
             } else if(data.origem_decisao==='composicao_modelo'){
-              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--tx);background:rgba(251,191,36,.1)">📋 inferido pela composição da ficha</span>`);
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--tx);background:rgba(251,191,36,.1)">inferido pela composição da ficha</span>`);
             } else {
-              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(74,222,128,.35);color:var(--tx);background:rgba(74,222,128,.1)">🧠 decidido pelo modelo ML</span>`);
+              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(74,222,128,.35);color:var(--tx);background:rgba(74,222,128,.1)">decidido pelo modelo ML</span>`);
             }
             const at=data.atipicidade;
             if(at && at.nivel!=='tipico'){
               const c = at.nivel==='muito_atipico' ? 'var(--rd)' : 'var(--am)';
               const rgb = at.nivel==='muito_atipico' ? '248,113,113' : '251,191,36';
-              chips.push(`<span title="${escapeHtml(at.mensagem||'')}" style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(${rgb},.35);color:${c};background:rgba(${rgb},.1)">📊 rebanho ${at.nivel==='muito_atipico'?'muito atípico':'atípico'} · revisão recomendada</span>`);
+              chips.push(`<span title="${escapeHtml(at.mensagem||'')}" style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(${rgb},.35);color:${c};background:rgba(${rgb},.1)">rebanho ${at.nivel==='muito_atipico'?'muito atípico':'atípico'} · revisão recomendada</span>`);
             }
             return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${chips.join('')}</div>`;
           })()}
@@ -3775,7 +3769,6 @@ function renderResult(data){
             </div>` : ''}
           <div style="margin-top:22px">${confBars}</div>
         </div>
-        <div class="rhero-em">${TE[tipo]}</div>
       </div>
     </div>
 
@@ -4156,7 +4149,7 @@ function renderMemoria(c, chave='concl'){
   return `<div style="margin-top:12px">
     <div onclick="toggleMemoria('${chave}')" style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border:1px solid var(--b);border-radius:8px;background:var(--c2)">
       <span style="font-family:var(--fn);font-weight:700;font-size:.68rem;letter-spacing:1.2px;text-transform:uppercase;color:var(--sb)">
-        ${rebaixado?'⚠ ':''}Por que este resultado — memória de cálculo
+        Por que este resultado — memória de cálculo
       </span>
       <span id="mem-ico-${chave}" style="font-family:var(--fm);font-size:.62rem;color:var(--mu)">▼ ver</span>
     </div>
@@ -4246,7 +4239,7 @@ function renderDesfrute(data){
         </div>
       </div>
 
-      ${acima&&item.alerta?`<div style="margin-top:12px;font-size:.76rem;line-height:1.6;color:var(--tx);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:11px 14px">⚠ ${escapeHtml(item.alerta)}</div>`:''}
+      ${acima&&item.alerta?`<div style="margin-top:12px;font-size:.76rem;line-height:1.6;color:var(--tx);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:11px 14px">${escapeHtml(item.alerta)}</div>`:''}
     </div>
   </div>`;
 }
@@ -4268,7 +4261,7 @@ function regRow(b){
   if(b.faixa==='acima'){
     const det=`<span style="opacity:.6;font-size:.62rem">(+${b.falta}${b.unidade} sobre o teto)</span>`;
     const linha=mr(b.label, `${b.valor}${b.unidade} · ACIMA DA FAIXA ${det}`, c);
-    return linha + (b.alerta ? `<div style="font-size:.72rem;line-height:1.5;color:var(--tx);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:9px 12px;margin:2px 0 10px">⚠ ${escapeHtml(b.alerta)}</div>` : '');
+    return linha + (b.alerta ? `<div style="font-size:.72rem;line-height:1.5;color:var(--tx);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:8px;padding:9px 12px;margin:2px 0 10px">${escapeHtml(b.alerta)}</div>` : '');
   }
   const prox=b.proximo_nivel?` <span style="opacity:.5;font-size:.62rem">(faltam ${b.falta}${b.unidade} p/ ${b.proximo_nivel.toUpperCase()})</span>`:'';
   return mr(b.label, `${b.valor}${b.unidade} · ${b.faixa.toUpperCase()}${prox}`, c);
@@ -4314,7 +4307,7 @@ function benchUnificado(data){
     if(regByKey['natalidade']) html+=regRow(regByKey['natalidade']);
     if(regByKey['desfrute']) html+=regRow(regByKey['desfrute']);
   }
-  if(!html) html='<div class="mrow"><span class="mk" style="opacity:.55">Preencha os indicadores em "⚙ Condições de Classificação" para comparar com os benchmarks nacionais.</span></div>';
+  if(!html) html='<div class="mrow"><span class="mk" style="opacity:.55">Preencha os indicadores em "Condições de Classificação" para comparar com os benchmarks nacionais.</span></div>';
   return html;
 }
 
@@ -4322,33 +4315,32 @@ function benchUnificado(data){
 function getRecs(tipo,ind){
   const R={
     CRIA:[
-      {ico:'🐄',tag:'Reprodução',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Taxa de Prenhez',d:'Implemente <strong>IATF</strong> para elevar a taxa acima de 80%. Monitore escore corporal das matrizes (mínimo 3,0).'},
-      {ico:'🧬',tag:'Genética',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Seleção de Matrizes',d:'Descarte matrizes falhadas (2+ ciclos). Use <strong>touros EPD</strong> para habilidade materna e produção de leite.'},
-      {ico:'🌿',tag:'Nutrição',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Suplementação Estratégica',d:'Suplemento proteico-energético no período seco. Escore ≥3,0 = <strong>+30% taxa de prenhes</strong>.'},
-      {ico:'📅',tag:'Gestão',tc:'rgba(167,139,250,.15)',tcc:'var(--tx)',t:'Estação de Monta',d:'Adote estação de monta de <strong>60–75 dias</strong> para concentrar partos e facilitar manejo de bezerros.'},
+      {tag:'Reprodução',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Taxa de Prenhez',d:'Implemente <strong>IATF</strong> para elevar a taxa acima de 80%. Monitore escore corporal das matrizes (mínimo 3,0).'},
+      {tag:'Genética',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Seleção de Matrizes',d:'Descarte matrizes falhadas (2+ ciclos). Use <strong>touros EPD</strong> para habilidade materna e produção de leite.'},
+      {tag:'Nutrição',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Suplementação Estratégica',d:'Suplemento proteico-energético no período seco. Escore ≥3,0 = <strong>+30% taxa de prenhes</strong>.'},
+      {tag:'Gestão',tc:'rgba(167,139,250,.15)',tcc:'var(--tx)',t:'Estação de Monta',d:'Adote estação de monta de <strong>60–75 dias</strong> para concentrar partos e facilitar manejo de bezerros.'},
     ],
     RECRIA:[
-      {ico:'🌿',tag:'Nutrição',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Ganho Médio Diário',d:'Meta <strong>≥0,7 kg/dia</strong> em pastagem, ≥1,2 kg/dia em confinamento. Monitore mensalmente.'},
-      {ico:'🐂',tag:'Manejo',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Lotes Homogêneos',d:'Separe machos e fêmeas e estratifique por peso. Lotes uniformes têm <strong>+20% eficiência alimentar</strong>.'},
-      {ico:'💉',tag:'Sanidade',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Protocolo Sanitário',d:'Vacine contra clostridioses, IBR e BVD. Parasite estratégico no início e fim das águas.'},
-      {ico:'📋',tag:'Planejamento',tc:'rgba(248,113,113,.15)',tcc:'var(--tx)',t:'Destino dos Animais',d:'Defina antecipadamente: reposição x venda de novilhas; machos para confinamento ou pastagem.'},
+      {tag:'Nutrição',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Ganho Médio Diário',d:'Meta <strong>≥0,7 kg/dia</strong> em pastagem, ≥1,2 kg/dia em confinamento. Monitore mensalmente.'},
+      {tag:'Manejo',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Lotes Homogêneos',d:'Separe machos e fêmeas e estratifique por peso. Lotes uniformes têm <strong>+20% eficiência alimentar</strong>.'},
+      {tag:'Sanidade',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Protocolo Sanitário',d:'Vacine contra clostridioses, IBR e BVD. Parasite estratégico no início e fim das águas.'},
+      {tag:'Planejamento',tc:'rgba(248,113,113,.15)',tcc:'var(--tx)',t:'Destino dos Animais',d:'Defina antecipadamente: reposição x venda de novilhas; machos para confinamento ou pastagem.'},
     ],
     ENGORDA:[
-      {ico:'🥩',tag:'Terminação',tc:'rgba(248,113,113,.15)',tcc:'var(--tx)',t:'Peso de Abate',d:'Meta <strong>560–600 kg PV (16–18@)</strong>. Acompanhe conversão alimentar (CA ≤7,5).'},
-      {ico:'🌽',tag:'Nutrição',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Dieta de Terminação',d:'70–80% concentrado na fase final. Use <strong>monensina/lasalocida</strong> para eficiência e saúde ruminal.'},
-      {ico:'📈',tag:'Mercado',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Timing de Venda',d:'Monitore mercado futuro. <strong>Venda antecipada</strong> garante preço mínimo. Compare frigoríficos.'},
-      {ico:'🔄',tag:'Giro',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Giro de Confinamento',d:'<strong>3 lotes/ano (120 dias)</strong> é o ideal para amortizar infraestrutura e maximizar retorno.'},
+      {tag:'Terminação',tc:'rgba(248,113,113,.15)',tcc:'var(--tx)',t:'Peso de Abate',d:'Meta <strong>560–600 kg PV (16–18@)</strong>. Acompanhe conversão alimentar (CA ≤7,5).'},
+      {tag:'Nutrição',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Dieta de Terminação',d:'70–80% concentrado na fase final. Use <strong>monensina/lasalocida</strong> para eficiência e saúde ruminal.'},
+      {tag:'Mercado',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Timing de Venda',d:'Monitore mercado futuro. <strong>Venda antecipada</strong> garante preço mínimo. Compare frigoríficos.'},
+      {tag:'Giro',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Giro de Confinamento',d:'<strong>3 lotes/ano (120 dias)</strong> é o ideal para amortizar infraestrutura e maximizar retorno.'},
     ],
     CICLO_COMPLETO:[
-      {ico:'🔄',tag:'Integração',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Fluxo entre Fases',d:'Planeje a transferência entre cria → recria → terminação. <strong>Evite gargalos</strong> de capacidade.'},
-      {ico:'📊',tag:'Gestão',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Centro de Custo',d:'Separe custos por fase para identificar onde está o lucro. Use <strong>software de gestão pecuária</strong>.'},
-      {ico:'🧬',tag:'Genética',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Programa Genético',d:'DEPs balanceados: facilidade de parto + crescimento + acabamento. Considere <strong>cruzamentos F1</strong>.'},
-      {ico:'💰',tag:'Financeiro',tc:'rgba(167,139,250,.15)',tcc:'var(--tx)',t:'Diversificação',d:'Regra <strong>80/20</strong>: 80% terminação própria, 20% venda precoce para liquidez e gestão de risco.'},
+      {tag:'Integração',tc:'rgba(251,191,36,.15)',tcc:'var(--tx)',t:'Fluxo entre Fases',d:'Planeje a transferência entre cria → recria → terminação. <strong>Evite gargalos</strong> de capacidade.'},
+      {tag:'Gestão',tc:'rgba(74,222,128,.15)',tcc:'var(--tx)',t:'Centro de Custo',d:'Separe custos por fase para identificar onde está o lucro. Use <strong>software de gestão pecuária</strong>.'},
+      {tag:'Genética',tc:'rgba(34,211,238,.15)',tcc:'var(--tx)',t:'Programa Genético',d:'DEPs balanceados: facilidade de parto + crescimento + acabamento. Considere <strong>cruzamentos F1</strong>.'},
+      {tag:'Financeiro',tc:'rgba(167,139,250,.15)',tcc:'var(--tx)',t:'Diversificação',d:'Regra <strong>80/20</strong>: 80% terminação própria, 20% venda precoce para liquidez e gestão de risco.'},
     ],
   };
   return(R[tipo]||[]).map(r=>`
     <div class="rec-item">
-      <div class="rec-ico">${r.ico}</div>
       <div class="rec-txt">
         <div class="rtag" style="background:${r.tc};color:${r.tcc}">${r.tag}</div>
         <strong>${r.t}</strong><br>${r.d}
@@ -4783,10 +4775,10 @@ function renderSc(d){
       <div class="pjc"><div class="pjc-l">Rebanho Ano 5</div><div class="pjc-v cg">${fN(anos[4].total)}</div><div class="pjc-d" style="color:var(--tx)">${delta>=0?'▲':'▼'} ${fN(Math.abs(delta))} cab.</div></div>
       <div class="pjc"><div class="pjc-l">Receita 5 Anos</div><div class="pjc-v cc">${fR(acc.receita)}</div><div class="pjc-d" style="color:var(--mu)">acumulado</div></div>
       <div class="pjc"><div class="pjc-l">Custo 5 Anos</div><div class="pjc-v cr">${fR(acc.custo)}</div><div class="pjc-d" style="color:var(--mu)">acumulado</div></div>
-      <div class="pjc"><div class="pjc-l">Resultado Líquido</div><div class="pjc-v ${acc.resultado>=0?'cg':'cr'}">${fR(acc.resultado)}</div><div class="pjc-d" style="color:var(--tx)">${d.emoji} ${d.nome.split('—')[0].trim()}</div></div>
+      <div class="pjc"><div class="pjc-l">Resultado Líquido</div><div class="pjc-v ${acc.resultado>=0?'cg':'cr'}">${fR(acc.resultado)}</div><div class="pjc-d" style="color:var(--tx)">${d.nome.split('—')[0].trim()}</div></div>
     </div>
     <div class="card" style="margin-bottom:16px">
-      <div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Receita Anual Projetada — ${d.emoji} ${d.nome}</div></div>
+      <div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Receita Anual Projetada — ${d.nome}</div></div>
       <div class="cb"><div style="height:120px;display:flex;align-items:flex-end;gap:6px">${chartBars}</div></div>
     </div>
     <div class="card">
@@ -5011,7 +5003,7 @@ function _prRenderResultado(d){
     const borda=atencao?'rgba(234,179,8,.35)':'var(--b2)';
     const fundo=atencao?'rgba(234,179,8,.07)':'transparent';
     return `<div style="padding:11px 13px;border:1px solid ${borda};border-radius:8px;background:${fundo};margin-bottom:9px">
-      <div style="font-weight:700;font-size:.79rem;margin-bottom:4px">${atencao?'⚠ ':''}${escapeHtml(x.titulo)}</div>
+      <div style="font-weight:700;font-size:.79rem;margin-bottom:4px">${escapeHtml(x.titulo)}</div>
       <div style="font-size:.76rem;line-height:1.6;color:var(--mu)">${escapeHtml(x.texto)}</div></div>`;
   }).join('');
 
@@ -5248,7 +5240,7 @@ function _grRenderResultado(d){
     const borda = atencao ? 'rgba(234,179,8,.35)' : 'var(--b2)';
     const fundo = atencao ? 'rgba(234,179,8,.07)' : 'transparent';
     return `<div style="padding:11px 13px;border:1px solid ${borda};border-radius:8px;background:${fundo};margin-bottom:9px">
-      <div style="font-weight:700;font-size:.79rem;margin-bottom:4px">${atencao ? '⚠ ' : '✔ '}${escapeHtml(x.titulo)}</div>
+      <div style="font-weight:700;font-size:.79rem;margin-bottom:4px">${atencao ? '' : '✔ '}${escapeHtml(x.titulo)}</div>
       <div style="font-size:.76rem;line-height:1.6;color:var(--mu)">${escapeHtml(x.texto)}</div>
     </div>`;
   }).join('');
@@ -5511,7 +5503,7 @@ function _renderMinutaCPR(d){
     <div class="card" style="margin-top:14px;border:1px solid rgba(234,179,8,.3)">
       <div class="ch">
         <div class="ct"><div class="cd" style="background:var(--am)"></div>Minuta da Cédula de Produto Rural (Lei 8.929/94)</div>
-        <button class="btn-sm" onclick="barterCopiarMinuta()">📋 Copiar Minuta</button>
+        <button class="btn-sm" onclick="barterCopiarMinuta()">Copiar Minuta</button>
       </div>
       <div class="cb">
         <textarea id="cpr-minuta-texto" readonly style="width:100%;height:320px;font-family:var(--fm);font-size:.72rem;background:var(--c3);color:var(--tx);border:1px solid var(--b);border-radius:var(--rs);padding:10px;line-height:1.5">${escapeHtml(d.texto_minuta)}</textarea>
@@ -6171,7 +6163,7 @@ function shapCardHtml(shapData, tipo, col){
         </div></div>
         <div class="cb">
           ${porRegra ? `<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.28);border-radius:8px;padding:12px 14px;margin-bottom:16px">
-            <div style="font-family:var(--fn);font-weight:700;font-size:.7rem;letter-spacing:.5px;color:var(--tx);margin-bottom:5px">⚠ DECISÃO POR REGRA DETERMINÍSTICA</div>
+            <div style="font-family:var(--fn);font-weight:700;font-size:.7rem;letter-spacing:.5px;color:var(--tx);margin-bottom:5px">DECISÃO POR REGRA DETERMINÍSTICA</div>
             <div style="font-size:.76rem;line-height:1.6;color:var(--sb)">${escapeHtml(shapData.aviso||'')}</div>
           </div>` : ''}
           <div style="font-family:var(--fm);font-size:.6rem;letter-spacing:.5px;opacity:.5;margin-bottom:16px;text-transform:uppercase">
@@ -6266,7 +6258,7 @@ function initChat() {
       <div class="ch" style="cursor:pointer;user-select:none" onclick="toggleChat()">
         <div class="ct">
           <div class="cd" style="background:#A78BFA"></div>
-          ✨ Perguntar à IA sobre este parecer
+          Perguntar à IA sobre este parecer
         </div>
         <span id="chat-toggle-icon" style="font-family:var(--fm);font-size:.7rem;color:var(--mu)">▼ expandir</span>
       </div>
@@ -6401,7 +6393,7 @@ async function enviarChat() {
     document.getElementById(loadId)?.remove();
 
     if (data.erro) {
-      _chatAppendMsg('assistant', '⚠ ' + data.erro);
+      _chatAppendMsg('assistant', data.erro);
     } else {
       const resposta = data.resposta || '';
       _chatAppendMsg('assistant', resposta);
@@ -6409,7 +6401,7 @@ async function enviarChat() {
     }
   } catch(e) {
     document.getElementById(loadId)?.remove();
-    _chatAppendMsg('assistant', '⚠ Erro de conexão. Tente novamente.');
+    _chatAppendMsg('assistant', 'Erro de conexão. Tente novamente.');
   } finally {
     if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Enviar'; }
     if (msgs) msgs.scrollTop = msgs.scrollHeight;

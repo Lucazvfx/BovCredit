@@ -414,7 +414,7 @@ main {
 /* ============================================================
    13. ZONA DE UPLOAD DE PDF
    Área de arrastar e soltar PDFs (painel "Ler PDF" e
-   também o botão "📂 Ler PDF" no painel "Inserir Dados").
+   também o botão "Ler PDF" no painel "Inserir Dados").
    ============================================================ */
 .upzone {
   border: 2px dashed var(--b2);
