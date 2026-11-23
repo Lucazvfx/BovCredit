@@ -73,6 +73,10 @@ def _styles():
         textColor=texto,
     ))
     ss.add(ParagraphStyle(
+        'Celula', parent=ss['Normal'], fontSize=7.5, leading=9,
+        textColor=colors.black,
+    ))
+    ss.add(ParagraphStyle(
         'Rotulo', parent=ss['Normal'], fontSize=7, leading=9,
         textColor=terra, uppercase=True,
     ))
@@ -81,8 +85,11 @@ def _styles():
 
 def _fmt_moeda(v) -> str:
     try:
-        return f"R$ {float(v):,.2f}".replace(',', '_').replace('.', ',').replace('_', '.')
-    except (TypeError, ValueError):
+        f = float(v)
+        if not math.isfinite(f):
+            return '—'
+        return f"R$ {f:,.2f}".replace(',', '_').replace('.', ',').replace('_', '.')
+    except (TypeError, ValueError, OverflowError):
         return '—'
 
 
@@ -106,8 +113,11 @@ def _logo_flowable(logo_base64: str):
 
 def _fmt_pct(v) -> str:
     try:
-        return f"{float(v):.1f}%".replace('.', ',')
-    except (TypeError, ValueError):
+        f = float(v)
+        if not math.isfinite(f):
+            return '—'
+        return f"{f:.1f}%".replace('.', ',')
+    except (TypeError, ValueError, OverflowError):
         return '—'
 
 
@@ -129,9 +139,9 @@ def _append_b2b_sections(story, ss, parecer: dict):
     story.append(Paragraph('Resumo executivo', ss['SecaoTitulo']))
     resumo_lin = [
         ['Recomendação', _LABEL_RECOMENDACAO.get(conclusao.get('recomendacao'), '—')],
-        ['DSCR', str(conclusao.get('dscr_minimo') if conclusao.get('dscr_minimo') is not None else conclusao.get('dscr', '—'))],
-        ['Qualidade', qualidade.get('nivel_confianca', qualidade.get('status', '—'))],
-        ['Risco', rating.get('faixa', rating.get('rotulo', '—'))],
+        ['DSCR', _num(_primeiro(conclusao.get('dscr_minimo'), conclusao.get('dscr')))],
+        ['Qualidade', _cel(_primeiro(qualidade.get('nivel_confianca'), qualidade.get('status')), 60)],
+        ['Risco', _cel(_primeiro(rating.get('faixa'), rating.get('rotulo')), 60)],
     ]
     t_resumo = Table(resumo_lin, colWidths=[4*cm, 12*cm])
     t_resumo.setStyle(TableStyle([
@@ -147,22 +157,22 @@ def _append_b2b_sections(story, ss, parecer: dict):
     ]))
     story.append(t_resumo)
     if conclusao.get('justificativa'):
-        story.append(Paragraph(conclusao.get('justificativa'), ss['Corpo']))
+        story.append(Paragraph(_txt(conclusao.get('justificativa'), 2000), ss['Corpo']))
 
     story.append(Paragraph('Rebanho', ss['SecaoTitulo']))
     story.append(Paragraph(
-        f"Total de animais: <b>{composicao.get('total', '—')}</b> · "
-        f"Fêmeas: <b>{indicadores.get('total_femeas', indicadores.get('femeas', '—'))}</b> · "
-        f"Machos: <b>{indicadores.get('total_machos', indicadores.get('machos', '—'))}</b>",
+        f"Total de animais: <b>{_val(composicao.get('total'))}</b> · "
+        f"Fêmeas: <b>{_val(_primeiro(indicadores.get('total_femeas'), indicadores.get('femeas')))}</b> · "
+        f"Machos: <b>{_val(_primeiro(indicadores.get('total_machos'), indicadores.get('machos')))}</b>",
         ss['Corpo']))
     story.append(Paragraph(
-        f"Cria: <b>{indicadores.get('cria', '—')}</b> · "
-        f"Recria: <b>{indicadores.get('recria', '—')}</b> · "
-        f"Adultos: <b>{indicadores.get('adultos', indicadores.get('total_adultos', '—'))}</b>",
+        f"Cria: <b>{_val(indicadores.get('cria'))}</b> · "
+        f"Recria: <b>{_val(indicadores.get('recria'))}</b> · "
+        f"Adultos: <b>{_val(_primeiro(indicadores.get('adultos'), indicadores.get('total_adultos')))}</b>",
         ss['Corpo']))
 
     story.append(Paragraph('Produção', ss['SecaoTitulo']))
-    arrobas_vendidas = fluxo_gep.get('arrobas_vendidas', '—')
+    arrobas_vendidas = _val(fluxo_gep.get('arrobas_vendidas'))
     story.append(Paragraph(
         f"Arrobas vendidas: <b>{arrobas_vendidas}</b> · "
         f"Produz/vende: <b>{_fmt_pct(fluxo_gep.get('producao_sobre_venda_pct'))}</b> · "
@@ -203,7 +213,7 @@ def _append_b2b_sections(story, ss, parecer: dict):
     if endiv.get('itens'):
         for item in endiv.get('itens')[:3]:
             story.append(Paragraph(
-                f"• {item.get('instituicao', '—')}: {_fmt_moeda(item.get('parcela_mensal'))} / mês",
+                f"• {_val(item.get('instituicao'), 80)}: {_moeda(item.get('parcela_mensal'))} / mês",
                 ss['Corpo']))
     story.append(Paragraph(
         f"Parcela mensal: <b>{_fmt_moeda(conclusao.get('parcela_mensal'))}</b> · "
@@ -213,30 +223,33 @@ def _append_b2b_sections(story, ss, parecer: dict):
 
     story.append(Paragraph('DSCR', ss['SecaoTitulo']))
     story.append(Paragraph(
-        f"DSCR calculado: <b>{conclusao.get('dscr_minimo', conclusao.get('dscr', '—'))}</b> · "
-        f"Ano crítico: <b>{conclusao.get('ano_critico', '—')}</b>",
+        f"DSCR calculado: <b>{_num(_primeiro(conclusao.get('dscr_minimo'), conclusao.get('dscr')))}</b> · "
+        f"Ano crítico: <b>{_val(conclusao.get('ano_critico'), 10)}</b>",
         ss['Corpo']))
 
     story.append(Paragraph('Stress', ss['SecaoTitulo']))
     if sens:
         for item in sens[:3]:
+            vp = item.get('variacao_pct')
             story.append(Paragraph(
-                f"• {item.get('variacao_pct', '—')}%: DSCR {item.get('dscr', '—')} · {item.get('recomendacao', '—')}",
+                f"• {_var_pct(vp)}: DSCR {_num(item.get('dscr'))} · "
+                f"{_val(item.get('recomendacao'), 40)}",
                 ss['Corpo']))
     if cenarios:
         for item in cenarios[:2]:
             story.append(Paragraph(
-                f"• {item.get('id', '—')}: DSCR mín. {item.get('dscr_minimo', '—')} · ano crítico {item.get('ano_critico', '—')}",
+                f"• {_val(item.get('id'), 40)}: DSCR mín. {_num(item.get('dscr_minimo'))} · "
+                f"ano crítico {_val(item.get('ano_critico'), 10)}",
                 ss['Corpo']))
 
     story.append(Paragraph('Risco', ss['SecaoTitulo']))
     if rating:
         story.append(Paragraph(
-            f"Rating: <b>{rating.get('faixa', '—')}</b> · Score: <b>{rating.get('score', '—')}</b>",
+            f"Rating: <b>{_val(rating.get('faixa'), 20)}</b> · Score: <b>{_val(rating.get('score'), 10)}</b>",
             ss['Corpo']))
     if garantia:
         story.append(Paragraph(
-            f"Garantia: {_fmt_moeda(garantia.get('valor_garantia'))} · LTV {garantia.get('ltv', '—')}",
+            f"Garantia: {_moeda(garantia.get('valor_garantia'))} · LTV {_pct(garantia.get('ltv'))}",
             ss['Corpo']))
     if validacoes.get('alertas'):
         story.append(Paragraph(
@@ -245,8 +258,8 @@ def _append_b2b_sections(story, ss, parecer: dict):
 
     story.append(Paragraph('Qualidade dos dados', ss['SecaoTitulo']))
     story.append(Paragraph(
-        f"Nível: <b>{qualidade.get('nivel_confianca', qualidade.get('status', '—'))}</b> · "
-        f"Origem principal: <b>{qualidade.get('origem_principal', '—')}</b>",
+        f"Nível: <b>{_val(_primeiro(qualidade.get('nivel_confianca'), qualidade.get('status')), 60)}</b> · "
+        f"Origem principal: <b>{_val(qualidade.get('origem_principal'), 80)}</b>",
         ss['Corpo']))
 
     story.append(Paragraph('Premissas', ss['SecaoTitulo']))
@@ -254,7 +267,8 @@ def _append_b2b_sections(story, ss, parecer: dict):
     if params:
         for param in params[:4]:
             story.append(Paragraph(
-                f"• {param.get('rotulo', '—')}: {param.get('valor', '—')} ({param.get('origem_rotulo', '—')})",
+                f"• {_val(param.get('rotulo'), 120)}: {_val(param.get('valor'), 80)} "
+                f"({_val(param.get('origem_rotulo'), 80)})",
                 ss['Corpo']))
     else:
         story.append(Paragraph('Sem premissas detalhadas informadas.', ss['Corpo']))
@@ -267,7 +281,7 @@ def _append_b2b_sections(story, ss, parecer: dict):
             fontes.append(fonte)
     if fontes:
         for fonte in fontes:
-            story.append(Paragraph(f'• {fonte}', ss['Corpo']))
+            story.append(Paragraph(f'• {_txt(fonte, 400)}', ss['Corpo']))
     else:
         story.append(Paragraph('Sem fontes adicionais registradas.', ss['Corpo']))
 
@@ -295,9 +309,43 @@ def _txt(v, limite: int = 300) -> str:
     return xml_escape(str(v)[:limite])
 
 
+def _vazio(v) -> bool:
+    """None, texto em branco ou número NaN/inf: nada a mostrar."""
+    if v is None or (isinstance(v, str) and not v.strip()):
+        return True
+    return isinstance(v, float) and not math.isfinite(v)
+
+
 def _cel(v, limite: int = 30) -> str:
-    """Texto para célula de Table (não interpreta XML: sem escape)."""
-    return str(v)[:limite]
+    """Texto para célula de Table (não interpreta XML: sem escape).
+
+    Vazio vira '—': `None` cru nunca chega ao documento.
+    """
+    return '—' if _vazio(v) else str(v)[:limite]
+
+
+def _val(v, limite: int = 300) -> str:
+    """Valor do parecer em Paragraph: vazio vira '—'; o resto, escapado."""
+    return '—' if _vazio(v) else _txt(v, limite)
+
+
+def _var_pct(v) -> str:
+    """Variação com sinal em pt-BR: +10%, -12,5%; vazio vira '—'."""
+    f = _finito(v)
+    if f is None:
+        return '—'
+    return ('+' if f > 0 else '') + _num(f, 0 if f == int(f) else 1) + '%'
+
+
+def _pos(v) -> bool:
+    """True só para número finito > 0 (None/texto/NaN contam como ausente)."""
+    f = _finito(v)
+    return f is not None and f > 0
+
+
+def _primeiro(*valores):
+    """Primeiro valor não vazio (`.get(k, default)` não cobre chave com None)."""
+    return next((v for v in valores if not _vazio(v)), None)
 
 
 def _finito(v):
@@ -365,9 +413,9 @@ def _append_ciclo_12_meses(story, ss, ciclo):
                  'insuficientes.'), ss['Corpo']))
         return
     story.append(Paragraph(
-        f"Sistema: <b>{_txt(ciclo.get('sistema', '—'), 40)}</b> · "
-        f"Pagamento: <b>{_txt(ciclo.get('frequencia', '—'), 40)}</b> · "
-        f"Ano de referência: <b>{_txt(ciclo.get('ano_referencia', '—'), 10)}</b> · "
+        f"Sistema: <b>{_val(ciclo.get('sistema'), 40)}</b> · "
+        f"Pagamento: <b>{_val(ciclo.get('frequencia'), 40)}</b> · "
+        f"Ano de referência: <b>{_val(ciclo.get('ano_referencia'), 10)}</b> · "
         f"Receita anual: <b>{_moeda(ciclo.get('receita_anual'))}</b> · "
         f"Serviço da dívida: <b>{_moeda(ciclo.get('servico_divida_anual_parecer', ciclo.get('servico_divida_anual')))}</b>",
         ss['Corpo']))
@@ -441,7 +489,7 @@ def _append_estresse_arroba(story, ss, est):
                  'insuficientes.'), ss['Corpo']))
         return
     story.append(Paragraph(
-        f"Ano crítico: <b>{_txt(est.get('ano_referencia', '—'), 10)}</b> · "
+        f"Ano crítico: <b>{_val(est.get('ano_referencia'), 10)}</b> · "
         f"Preço-base da arroba: <b>{_moeda(base.get('preco_arroba'))}</b> · "
         f"Serviço da dívida: <b>{_moeda(base.get('servico_divida_anual'))}</b>",
         ss['Corpo']))
@@ -540,7 +588,8 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
     municipio = ident.get('municipio') or '—'
     proprietario = ident.get('proprietario') or '—'
     story.append(Paragraph(
-        f"{fazenda} · {municipio} · {proprietario} — emitido em "
+        f"{xml_escape(str(fazenda))} · {xml_escape(str(municipio))} · "
+        f"{xml_escape(str(proprietario))} — emitido em "
         f"{datetime.now().strftime('%d/%m/%Y')}", ss['Subtitulo']))
     story.append(Spacer(1, 5))
     story.append(Paragraph(
@@ -556,7 +605,7 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
     if origem.get('aviso'):
         story.append(Spacer(1, 4))
         story.append(Paragraph(
-            f"<b>Origem do efetivo:</b> {origem['aviso']}", ss['Subtitulo']))
+            f"<b>Origem do efetivo:</b> {_txt(origem['aviso'], 800)}", ss['Subtitulo']))
     story.append(HRFlowable(width='100%', color=colors.HexColor('#D8C9B3'), spaceBefore=8, spaceAfter=4))
 
     _append_b2b_sections(story, ss, parecer)
@@ -564,17 +613,17 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
 
     composicao = parecer.get('composicao') or {}
     story.append(Paragraph('Composição do Rebanho', ss['SecaoTitulo']))
-    story.append(Paragraph(f"Total de animais: {composicao.get('total', '—')}", ss['Corpo']))
+    story.append(Paragraph(f"Total de animais: {_val(composicao.get('total'))}", ss['Corpo']))
 
     qualidade = parecer.get('qualidade_dados') or {}
     if qualidade:
         story.append(Paragraph('Qualidade e origem dos dados', ss['SecaoTitulo']))
         story.append(Paragraph(
-            f"Confiança: <b>{qualidade.get('nivel_confianca', '—')}</b> · "
-            f"Origem principal: {qualidade.get('origem_principal', '—')}",
+            f"Confiança: <b>{_val(qualidade.get('nivel_confianca'), 60)}</b> · "
+            f"Origem principal: {_val(qualidade.get('origem_principal'), 80)}",
             ss['Corpo']))
         for aviso in (qualidade.get('avisos') or []):
-            story.append(Paragraph(f"• {aviso}", ss['Corpo']))
+            story.append(Paragraph(f"• {_txt(aviso, 600)}", ss['Corpo']))
 
     if qualidade.get('campos'):
         _origens = qualidade['campos'].values()
@@ -593,12 +642,12 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
     if explicacao_classificacao:
         story.append(Paragraph('Por que este ciclo foi classificado assim', ss['SecaoTitulo']))
         story.append(Paragraph(
-            f"Ciclo final: <b>{explicacao_classificacao.get('ciclo_final', '—')}</b> · "
-            f"Modelo: <b>{explicacao_classificacao.get('ciclo_modelo', '—')}</b> · "
-            f"Decisão: {explicacao_classificacao.get('decisao', '—')}", ss['Corpo']))
+            f"Ciclo final: <b>{_val(explicacao_classificacao.get('ciclo_final'), 60)}</b> · "
+            f"Modelo: <b>{_val(explicacao_classificacao.get('ciclo_modelo'), 60)}</b> · "
+            f"Decisão: {_val(explicacao_classificacao.get('decisao'), 200)}", ss['Corpo']))
         for fator in (explicacao_classificacao.get('fatores') or [])[:6]:
             story.append(Paragraph(
-                f"• {fator.get('evidencia', fator.get('rotulo', '—'))}", ss['Corpo']))
+                f"• {_val(_primeiro(fator.get('evidencia'), fator.get('rotulo')), 400)}", ss['Corpo']))
 
     validacoes = parecer.get('validacoes_zootecnicas') or {}
     if validacoes:
@@ -625,9 +674,10 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
     if rating:
         story.append(Paragraph('Rating indicativo de crédito', ss['SecaoTitulo']))
         story.append(Paragraph(
-            f"Faixa <b>{rating.get('faixa', '—')}</b> · "
-            f"Score <b>{rating.get('score', '—')}/100</b> · "
-            f"{rating.get('rotulo', '—')}. {rating.get('observacao', '')}",
+            f"Faixa <b>{_val(rating.get('faixa'), 20)}</b> · "
+            f"Score <b>{_val(rating.get('score'), 10)}/100</b> · "
+            f"{_val(rating.get('rotulo'), 80)}."
+            + (f" {_txt(rating.get('observacao'), 600)}" if not _vazio(rating.get('observacao')) else ''),
             ss['Corpo']))
 
     indicadores = parecer.get('indicadores') or {}
@@ -636,7 +686,8 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         story.append(Paragraph('Indicadores Técnicos vs. Benchmark', ss['SecaoTitulo']))
         linhas = [['Indicador', 'Faixa']]
         for b in benchmarks:
-            linhas.append([b.get('label', '—'), str(b.get('faixa', '—')).capitalize()])
+            linhas.append([_cel(b.get('label'), 80),
+                           '—' if _vazio(b.get('faixa')) else str(b.get('faixa')).capitalize()])
         t = Table(linhas, colWidths=[10*cm, 6*cm])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EEEEEE')),
@@ -647,14 +698,14 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
 
     consistencia = parecer.get('consistencia') or {}
     story.append(Paragraph('Consistência do Rebanho Declarado', ss['SecaoTitulo']))
-    score = consistencia.get('score_consistencia', '—')
+    score = _val(consistencia.get('score_consistencia'), 10)
     resumo = consistencia.get('resumo') or {}
     story.append(Paragraph(
         f"Score: {score} — {resumo.get('erros', 0)} erro(s), "
         f"{resumo.get('alertas', 0)} alerta(s), {resumo.get('ok', 0)} ok", ss['Corpo']))
     for f in (consistencia.get('flags') or []):
         story.append(Paragraph(
-            f"• <b>{f.get('titulo', '')}</b>: {f.get('mensagem', '')}", ss['Corpo']))
+            f"• <b>{_txt(f.get('titulo') or '', 120)}</b>: {_txt(f.get('mensagem') or '', 600)}", ss['Corpo']))
 
     financeiro = parecer.get('financeiro') or {}
     if financeiro:
@@ -666,25 +717,38 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
                 f"{financeiro.get('unidade', '')}", ss['Corpo']))
 
     fluxo_gep = parecer.get('fluxo_gep')
-    if fluxo_gep and fluxo_gep.get('receita_vendas', 0) > 0:
+    if isinstance(fluxo_gep, dict) and _pos(fluxo_gep.get('receita_vendas')):
         story.append(Paragraph('Fluxo de Caixa', ss['SecaoTitulo']))
         linhas_fc = [['Componente', 'R$ (Ano 1)']]
-        linhas_fc.append(['(+) Receita de vendas', _fmt_moeda(fluxo_gep.get('receita_vendas'))])
-        if 'custo_manutencao' in fluxo_gep:
-            linhas_fc.append(['(-) Manutenção do plantel', _fmt_moeda(fluxo_gep.get('custo_manutencao'))])
-            linhas_fc.append(['(=) Resultado antes da reposição', _fmt_moeda(fluxo_gep.get('resultado_antes_reposicao'))])
-            if fluxo_gep.get('custo_reposicao', 0) > 0:
-                linhas_fc.append(['(-) Compra de animais para reposição', _fmt_moeda(fluxo_gep.get('custo_reposicao'))])
-        linhas_fc.append(['(−) Custo operacional', _fmt_moeda(fluxo_gep.get('custo_operacional'))])
-        linhas_fc.append(['(=) Resultado operacional (caixa)', _fmt_moeda(fluxo_gep.get('resultado_operacional'))])
-        linhas_fc.append(['(±) Variação de estoque do rebanho', _fmt_moeda(fluxo_gep.get('variacao_estoque'))])
-        linhas_fc.append(['(=) Resultado econômico total', _fmt_moeda(fluxo_gep.get('resultado_economico'))])
-        if fluxo_gep.get('servico_divida_anual', 0) > 0:
-            linhas_fc.append(['(−) Serviço da dívida (anual)', _fmt_moeda(fluxo_gep.get('servico_divida_anual'))])
-            linhas_fc.append(['(=) Fluxo livre', _fmt_moeda(fluxo_gep.get('fluxo_livre'))])
-        linhas_fc.append(['Valor do rebanho — início do período', _fmt_moeda(fluxo_gep.get('valor_rebanho_ini'))])
-        linhas_fc.append(['Valor do rebanho — fim do período', _fmt_moeda(fluxo_gep.get('valor_rebanho_fim'))])
-        tf = Table(linhas_fc, colWidths=[10*cm, 6*cm])
+        linhas_fc.append(['(+) Receita de vendas', _moeda(fluxo_gep.get('receita_vendas'))])
+        # Mesma estrutura da tela (spec transparência de custos). O custo caixa
+        # é o desembolso TOTAL: manutenção e compra de animais já estão nele e
+        # os rótulos dizem isso, para não se lerem como custos adicionais.
+        _tem_comp = fluxo_gep.get('custo_manutencao') is not None
+        if _tem_comp:
+            linhas_fc.append(['(−) Manutenção do plantel (inclusa no custo caixa)',
+                              _moeda(fluxo_gep.get('custo_manutencao'))])
+            if fluxo_gep.get('resultado_antes_reposicao') is not None:
+                linhas_fc.append(['(=) Resultado antes da reposição (receita − manutenção)',
+                                  _moeda(fluxo_gep.get('resultado_antes_reposicao'))])
+            if _pos(fluxo_gep.get('custo_reposicao')):
+                linhas_fc.append(['(−) Compra de animais para reposição (inclusa no custo caixa)',
+                                  _moeda(fluxo_gep.get('custo_reposicao'))])
+            elif _pos(fluxo_gep.get('custo_compra_desmama')):
+                linhas_fc.append(['(−) Compra de desmama (inclusa no custo caixa)',
+                                  _moeda(fluxo_gep.get('custo_compra_desmama'))])
+        linhas_fc.append(['(−) Custo caixa total (desembolso do Ano 1)', _moeda(fluxo_gep.get('custo_operacional'))])
+        if _pos(fluxo_gep.get('reposicao_reprodutores')):
+            linhas_fc.append(['(−) Reposição de reprodutores', _moeda(fluxo_gep.get('reposicao_reprodutores'))])
+        linhas_fc.append(['(=) Resultado operacional (caixa)', _moeda(fluxo_gep.get('resultado_operacional'))])
+        linhas_fc.append(['(±) Variação de estoque do rebanho', _moeda(fluxo_gep.get('variacao_estoque'))])
+        linhas_fc.append(['(=) Resultado econômico total', _moeda(fluxo_gep.get('resultado_economico'))])
+        if _pos(fluxo_gep.get('servico_divida_anual')):
+            linhas_fc.append(['(−) Serviço da dívida — total anual (Ano 1)', _moeda(fluxo_gep.get('servico_divida_anual'))])
+            linhas_fc.append(['(=) Fluxo livre (após o serviço da dívida)', _moeda(fluxo_gep.get('fluxo_livre'))])
+        linhas_fc.append(['Valor do rebanho — início do período', _moeda(fluxo_gep.get('valor_rebanho_ini'))])
+        linhas_fc.append(['Valor do rebanho — fim do período', _moeda(fluxo_gep.get('valor_rebanho_fim'))])
+        tf = Table(linhas_fc, colWidths=[12*cm, 4*cm])
         _destaques = {i for i, linha in enumerate(linhas_fc)
                       if linha[0].startswith('(=)')}
         _estilo_fc = [
@@ -700,6 +764,11 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         tf.setStyle(TableStyle(_estilo_fc))
         story.append(tf)
         story.append(Spacer(1, 4))
+        if _tem_comp:
+            story.append(Paragraph(
+                '<i>Manutenção e compra de animais já estão incluídas no custo caixa '
+                'total: não se somam a ele. O serviço da dívida é o total anual do '
+                'Ano 1, não a parcela mensal.</i>', ss['Subtitulo']))
         # A legenda tem de seguir o SINAL do número que ela explica. Era fixa em
         # "riqueza criada pelo crescimento do rebanho" e aparecia embaixo de uma
         # variação de −R$ 1,7 milhão num parecer real: a legenda dizia riqueza
@@ -707,7 +776,7 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         #
         # É a mesma classe de defeito do ano 1 na sensibilidade — texto estático
         # ao lado de número que mudou de sinal, e quem lê acredita no texto.
-        _var_est = float(fluxo_gep.get('variacao_estoque') or 0)
+        _var_est = _finito(fluxo_gep.get('variacao_estoque')) or 0.0
         story.append(Paragraph(
             ('<i>Variação de estoque: riqueza criada pelo crescimento do rebanho '
              '— não é caixa, mas é valor real do ativo.</i>'
@@ -716,15 +785,15 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
              'Não é saída de caixa, mas é perda de ativo — a fazenda financiou '
              'parte do resultado consumindo o próprio plantel. Confira se é '
              'realização planejada ou descapitalização.</i>'), ss['Subtitulo']))
-        _cd = fluxo_gep.get('compra_desmama_estimada', 0)
-        if _cd:
+        _cd = fluxo_gep.get('compra_desmama_estimada')
+        if _pos(_cd):
             _repoe = fluxo_gep.get('repoe_compra_desmama')
             story.append(Paragraph(
                 f"<b>Suposição — compra de desmama:</b> a coorte de 0–12 meses "
-                f"excede a produção própria em <b>{_cd} animais</b>, que só podem "
+                f"excede a produção própria em <b>{_val(_cd, 20)} animais</b>, que só podem "
                 f"ter sido comprados. "
                 + (f"A projeção MANTÉM essa compra todo ano "
-                   f"({_fmt_moeda(fluxo_gep.get('custo_compra_desmama'))} no ano 1), "
+                   f"({_moeda(fluxo_gep.get('custo_compra_desmama'))} no ano 1), "
                    f"preservando a estrutura do rebanho."
                    if _repoe else
                    "A projeção assume que o produtor DEIXA de comprar: não há custo "
@@ -737,15 +806,15 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
     # Sem isto o parecer não diz sobre qual preço os números foram feitos, e
     # quem lê não tem como conferir nada que dependa de cotação.
     reg = parecer.get('precos_regional')
-    if reg:
+    if isinstance(reg, dict) and reg:
         story.append(Paragraph('Praça de Referência dos Preços', ss['SecaoTitulo']))
         if reg.get('ajustado'):
-            linhas_p = [['Categoria', 'Indicador nacional', f"Praça {reg.get('uf')}"]]
+            linhas_p = [['Categoria', 'Indicador nacional', f"Praça {_cel(reg.get('uf'), 4)}"]]
             for c in reg.get('categorias', []):
                 linhas_p.append([
-                    c['categoria'].replace('preco_', '').capitalize(),
-                    _fmt_moeda(c['nacional']),
-                    _fmt_moeda(c['regional']),
+                    _cel(str(c.get('categoria') or '').replace('preco_', '').capitalize(), 40),
+                    _moeda(c.get('nacional')),
+                    _moeda(c.get('regional')),
                 ])
             tp = Table(linhas_p, colWidths=[6*cm, 5*cm, 5*cm])
             tp.setStyle(TableStyle([
@@ -756,33 +825,36 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
             ]))
             story.append(tp)
             story.append(Spacer(1, 4))
-        story.append(Paragraph(reg.get('resumo', ''), ss['Corpo']))
+        story.append(Paragraph(_txt(reg.get('resumo') or '', 1000), ss['Corpo']))
         story.append(Paragraph(
-            f"<i>Origem: {reg.get('origem', '')}. O indicador CEPEA/ESALQ é "
-            f"praça de {reg.get('uf_referencia', 'SP')}; o diferencial regional "
+            f"<i>Origem: {_val(reg.get('origem'), 200)}. O indicador CEPEA/ESALQ é "
+            f"praça de {_val(reg.get('uf_referencia') or 'SP', 10)}; o diferencial regional "
             f"aqui aplicado é calibração de referência, a ser recalibrada com "
             f"série própria.</i>", ss['Subtitulo']))
         story.append(Spacer(1, 6))
 
     # ── Garantia: valor de execução, não valor de mercado ────────────────────
     garantia = parecer.get('garantia')
-    if garantia and garantia.get('valor_mercado', 0) > 0:
+    if isinstance(garantia, dict) and _pos(garantia.get('valor_mercado')):
         story.append(Paragraph('Garantia — Valor de Execução', ss['SecaoTitulo']))
         linhas_g = [['Categoria', 'Valor de mercado', 'Deságio', 'Valor de execução']]
-        for linha in garantia.get('composicao', []):
+        for linha in _lista(garantia.get('composicao'), 30):
+            linha = _dict(linha)
+            _d = _finito(linha.get('desagio_pct'))
             linhas_g.append([
-                linha['rotulo'],
-                _fmt_moeda(linha['valor_mercado']),
-                f"{linha['desagio_pct']:.0f}%".replace('.', ','),
-                _fmt_moeda(linha['valor_garantia']),
+                Paragraph(_val(linha.get('rotulo'), 60), ss['Celula']),
+                _moeda(linha.get('valor_mercado')),
+                '—' if _d is None else f"{_d:.0f}%",
+                _moeda(linha.get('valor_garantia')),
             ])
         linhas_g.append([
             'Total',
-            _fmt_moeda(garantia.get('valor_mercado')),
-            f"{garantia.get('desagio_medio_pct', 0):.1f}%".replace('.', ','),
-            _fmt_moeda(garantia.get('valor_garantia')),
+            _moeda(garantia.get('valor_mercado')),
+            _pct(garantia.get('desagio_medio_pct')),
+            _moeda(garantia.get('valor_garantia')),
         ])
-        tg = Table(linhas_g, colWidths=[6*cm, 4*cm, 2.2*cm, 4*cm])
+        # Colunas numéricas com folga para "R$ 99.999.999,99" em uma linha só.
+        tg = Table(linhas_g, colWidths=[5.2*cm, 4.2*cm, 2.2*cm, 4.4*cm])
         tg.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EEEEEE')),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#DDDDDD')),
@@ -793,13 +865,13 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         ]))
         story.append(tg)
         story.append(Spacer(1, 4))
-        if garantia.get('ltv') is not None:
+        if _finito(garantia.get('ltv')) is not None:
             _cor_ltv = {'suficiente': '#2E7D32', 'ajustada': '#F9A825',
                         'insuficiente': '#C62828'}.get(garantia.get('veredito'), '#333333')
             story.append(Paragraph(
-                f"<b>LTV {garantia['ltv']:.1f}%</b> sobre o valor de execução — "
-                f"<font color='{_cor_ltv}'><b>{(garantia.get('veredito') or '').upper()}</b></font>. "
-                f"Crédito máximo pela garantia: {_fmt_moeda(garantia.get('credito_maximo_garantia'))}.",
+                f"<b>LTV {_pct(garantia.get('ltv'))}</b> sobre o valor de execução — "
+                f"<font color='{_cor_ltv}'><b>{_txt((garantia.get('veredito') or '').upper(), 20)}</b></font>. "
+                f"Crédito máximo pela garantia: {_moeda(garantia.get('credito_maximo_garantia'))}.",
                 ss['Corpo']))
         story.append(Paragraph(
             '<i>Rebanho em penhor não se realiza pela cotação do dia: entre a '
@@ -810,24 +882,25 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
 
     # ── Endividamento total ──────────────────────────────────────────────────
     endiv = parecer.get('endividamento')
-    if endiv and (endiv.get('itens') or endiv.get('alerta') is None):
+    if isinstance(endiv, dict) and endiv and (endiv.get('itens') or endiv.get('alerta') is None):
         story.append(Paragraph('Endividamento do Proponente', ss['SecaoTitulo']))
         if endiv.get('itens'):
             linhas_e = [['Credor', 'Saldo devedor', 'Parcela mensal']]
-            for it in endiv['itens']:
+            for it in _lista(endiv.get('itens'), 50):
+                it = _dict(it)
                 linhas_e.append([
-                    it['instituicao'],
-                    _fmt_moeda(it['saldo_devedor']) if it['saldo_devedor'] else '—',
-                    _fmt_moeda(it['parcela_mensal']),
+                    Paragraph(_val(it.get('instituicao'), 80), ss['Celula']),
+                    _moeda(it.get('saldo_devedor')) if it.get('saldo_devedor') else '—',
+                    _moeda(it.get('parcela_mensal')),
                 ])
             linhas_e.append(['Total existente',
-                             _fmt_moeda(endiv.get('saldo_devedor_total')) if endiv.get('saldo_devedor_total') else '—',
-                             _fmt_moeda(endiv.get('parcela_existente_mensal'))])
-            if endiv.get('parcela_nova_mensal', 0) > 0:
+                             _moeda(endiv.get('saldo_devedor_total')) if endiv.get('saldo_devedor_total') else '—',
+                             _moeda(endiv.get('parcela_existente_mensal'))])
+            if _pos(endiv.get('parcela_nova_mensal')):
                 linhas_e.append(['(+) Crédito em análise', '—',
-                                 _fmt_moeda(endiv['parcela_nova_mensal'])])
+                                 _moeda(endiv.get('parcela_nova_mensal'))])
                 linhas_e.append(['(=) Serviço total mensal', '—',
-                                 _fmt_moeda(endiv.get('parcela_total_mensal'))])
+                                 _moeda(endiv.get('parcela_total_mensal'))])
             te = Table(linhas_e, colWidths=[7.2*cm, 4.4*cm, 4.4*cm])
             te.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EEEEEE')),
@@ -841,31 +914,33 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
             story.append(Spacer(1, 4))
         _cor_e = '#C62828' if endiv.get('alerta') == 'critico' else '#333333'
         story.append(Paragraph(
-            f"<font color='{_cor_e}'>{endiv.get('justificativa', '')}</font>",
+            f"<font color='{_cor_e}'>{_txt(endiv.get('justificativa') or '', 800)}</font>",
             ss['Subtitulo']))
         story.append(Paragraph(
-            f"<i>Origem: {endiv.get('origem', 'declarado')}. Endividamento "
+            f"<i>Origem: {_val(endiv.get('origem') or 'declarado', 80)}. Endividamento "
             f"declarado pelo proponente não substitui consulta ao SCR do Banco "
             f"Central.</i>", ss['Subtitulo']))
         story.append(Spacer(1, 6))
 
     sensibilidade = parecer.get('sensibilidade') or []
+    sensibilidade = _lista(sensibilidade, 50)
     if sensibilidade:
         story.append(Paragraph('Sensibilidade de Preço', ss['SecaoTitulo']))
         _SLBL = {'aprovar': 'APROVAR', 'ressalva': 'RESSALVA', 'negar': 'NEGAR'}
         linhas_s = [['Cenário', 'Preço R$/@', 'Geração de Caixa', 'DSCR', 'Resultado']]
+        sensibilidade = [_dict(x) for x in sensibilidade]
         for s in sensibilidade:
-            vp = s.get('variacao_pct', 0)
-            prefix = f'+{vp}%' if vp > 0 else f'{vp}%'
+            vp = _finito(s.get('variacao_pct'))
+            prefix = _var_pct(vp)
             linhas_s.append([
                 prefix,
-                _fmt_moeda(s.get('preco_boi')),
-                _fmt_moeda(s.get('geracao_caixa')),
-                str(s.get('dscr') or '—'),
+                _moeda(s.get('preco_boi')),
+                _moeda(s.get('geracao_caixa')),
+                _num(s.get('dscr')),
                 _SLBL.get(s.get('recomendacao'), '—'),
             ])
         ts = Table(linhas_s, colWidths=[2.5*cm, 3.5*cm, 4*cm, 2*cm, 4*cm])
-        _base_idx = next((i+1 for i, s in enumerate(sensibilidade) if s.get('variacao_pct', 0) == 0), None)
+        _base_idx = next((i+1 for i, s in enumerate(sensibilidade) if _finito(s.get('variacao_pct')) == 0), None)
         _s_style = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EEEEEE')),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#DDDDDD')),
@@ -880,16 +955,17 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         story.append(Spacer(1, 4))
 
     comparacao = parecer.get('comparacao_cenarios') or {}
-    if comparacao.get('cenarios'):
+    if isinstance(comparacao, dict) and _lista(comparacao.get('cenarios'), 50):
         story.append(Paragraph('Comparação de cenários', ss['SecaoTitulo']))
         linhas_c = [['Cenário', 'Receita acumulada', 'Custo acumulado', 'Resultado', 'DSCR mín.', 'Ano crítico']]
-        for c in comparacao['cenarios']:
-            ac = c.get('acumulado') or {}
+        for c in _lista(comparacao.get('cenarios'), 50):
+            c = _dict(c)
+            ac = _dict(c.get('acumulado'))
             linhas_c.append([
-                c.get('id', '—'), _fmt_moeda(ac.get('receita')),
-                _fmt_moeda(ac.get('custo')), _fmt_moeda(ac.get('resultado')),
-                str(c.get('dscr_minimo') if c.get('dscr_minimo') is not None else '—'),
-                str(c.get('ano_critico') if c.get('ano_critico') is not None else '—'),
+                _cel(c.get('id'), 20), _moeda(ac.get('receita')),
+                _moeda(ac.get('custo')), _moeda(ac.get('resultado')),
+                _num(c.get('dscr_minimo')),
+                _cel(c.get('ano_critico'), 10),
             ])
         tc = Table(linhas_c, colWidths=[3.2*cm, 3.2*cm, 3.2*cm, 3.2*cm, 2*cm, 2.2*cm])
         tc.setStyle(TableStyle([
@@ -905,12 +981,12 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
     _append_estresse_arroba(story, ss, parecer.get('estresse_pecuario'))
 
     shap = parecer.get('shap_explicacao') or {}
-    fatores = shap.get('fatores') or []
+    fatores = [_dict(f) for f in _lista(shap.get('fatores'), 50)]
     if fatores:
         story.append(Paragraph('Explicabilidade da Classificação (SHAP)', ss['SecaoTitulo']))
         story.append(Paragraph(
-            f"Classe classificada: <b>{shap.get('classe', '—')}</b> · "
-            f"{shap.get('metodo', '')}",
+            f"Classe classificada: <b>{_val(shap.get('classe'), 60)}</b> · "
+            f"{_txt(shap.get('metodo') or '', 200)}",
             ss['Subtitulo']))
         story.append(Spacer(1, 4))
         linhas_shap = [['Característica do Rebanho', 'Contribuição', 'Impacto']]
@@ -918,9 +994,10 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
             sinal = '▲' if f.get('direcao') == 'positivo' else '▼'
             cor_txt = '+' if f.get('direcao') == 'positivo' else '−'
             linhas_shap.append([
-                f.get('feature', '—'),
-                f"{cor_txt}{abs(f.get('shap', 0)):.4f}",
-                f"{sinal} {f.get('importancia_pct', 0):.1f}%",
+                Paragraph(_val(f.get('feature'), 80), ss['Celula']),
+                '—' if _finito(f.get('shap')) is None else f"{cor_txt}{abs(_finito(f.get('shap'))):.4f}",
+                '—' if _finito(f.get('importancia_pct')) is None
+                else f"{sinal} {_finito(f.get('importancia_pct')):.1f}%",
             ])
         ts = Table(linhas_shap, colWidths=[9*cm, 3.5*cm, 3.5*cm])
         _shap_style = [
@@ -936,17 +1013,17 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         story.append(ts)
         story.append(Spacer(1, 4))
         story.append(Paragraph(
-            f'<i>Conformidade: {shap.get("conformidade", "")}. '
+            f'<i>Conformidade: {_val(shap.get("conformidade"), 200)}. '
             'Valores positivos aumentam e negativos reduzem a probabilidade da classe.</i>',
             ss['Subtitulo']))
 
     conclusao = parecer.get('conclusao') or {}
     # ── Proveniência dos parâmetros ──────────────────────────────────────────
     prov = parecer.get('proveniencia') or {}
-    _params = prov.get('parametros') or []
+    _params = [_dict(d) for d in _lista(prov.get('parametros'), 200)]
     if _params:
-        res = prov.get('resumo') or {}
-        cont = res.get('contagem') or {}
+        res = _dict(prov.get('resumo'))
+        cont = _dict(res.get('contagem'))
         story.append(Paragraph('Origem dos Parâmetros', ss['SecaoTitulo']))
         story.append(Paragraph(
             f"{res.get('total', 0)} parâmetros sustentam este parecer: "
@@ -956,11 +1033,12 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
             f"{cont.get('declarado', 0)} declarados.", ss['Corpo']))
         linhas_pv = [['Parâmetro', 'Valor', 'Origem', 'Fonte']]
         for d in _params:
+            _v = _finito(d.get('valor'))
             linhas_pv.append([
-                d['rotulo'] or '—',
-                f"{d['valor']:g}",
-                d['origem_rotulo'],
-                d['fonte'] or '—',
+                Paragraph(_val(d.get('rotulo'), 120), ss['Celula']),
+                '—' if _v is None else f"{_v:g}",
+                Paragraph(_val(d.get('origem_rotulo'), 60), ss['Celula']),
+                Paragraph(_val(d.get('fonte'), 300), ss['Celula']),
             ])
         tpv = Table(linhas_pv, colWidths=[5.4*cm, 1.8*cm, 2.2*cm, 6.6*cm],
                     repeatRows=1)
@@ -986,10 +1064,10 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
     if rec:
         if conclusao.get('nivel_recomendacao_label'):
             story.append(Paragraph(
-                f"Nível operacional: <b>{conclusao['nivel_recomendacao_label']}</b>",
+                f"Nível operacional: <b>{_val(conclusao.get('nivel_recomendacao_label'), 80)}</b>",
                 ss['Corpo']))
         cor = _COR_RECOMENDACAO.get(rec, colors.grey)
-        label = _LABEL_RECOMENDACAO.get(rec, rec.upper())
+        label = _LABEL_RECOMENDACAO.get(rec, _txt(str(rec).upper(), 40))
         t = Table([[Paragraph(f"<b>{label}</b>", ParagraphStyle('r', parent=ss['Corpo'], textColor=colors.white, fontSize=12))]],
                   colWidths=[16*cm])
         t.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), cor),
@@ -1002,21 +1080,25 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         # animais prontos declarado na ficha. O documento que vai ao comitê
         # precisa mostrar o ano crítico, que é o que define a recomendação.
         _dmin = conclusao.get('dscr_minimo')
-        _dano1 = conclusao.get('dscr_ano1', conclusao.get('dscr'))
-        if _dmin is not None and _dmin != _dano1:
+        _dano1 = _primeiro(conclusao.get('dscr_ano1'), conclusao.get('dscr'))
+        _parcela = f"Parcela mensal: {_moeda(conclusao.get('parcela_mensal'))}"
+        if not _vazio(_dmin) and _dmin != _dano1:
+            # Cada informação em sua própria linha: numa só, "ano 2" colava
+            # no "DSCR" seguinte ao quebrar a linha.
             story.append(Paragraph(
-                f"DSCR no ano crítico (ano {conclusao.get('ano_critico')}): <b>{_dmin}</b> "
-                f"· no ano 1: {_dano1} · Parcela mensal: "
-                f"{_fmt_moeda(conclusao.get('parcela_mensal'))}", ss['Corpo']))
+                f"DSCR no ano crítico (ano {_val(conclusao.get('ano_critico'), 10)}): "
+                f"<b>{_num(_dmin)}</b>", ss['Corpo']))
+            story.append(Paragraph(
+                f"DSCR no ano 1: {_num(_dano1)} · {_parcela}", ss['Corpo']))
         else:
             story.append(Paragraph(
-                f"DSCR: {conclusao.get('dscr')} · Parcela mensal: "
-                f"{_fmt_moeda(conclusao.get('parcela_mensal'))}", ss['Corpo']))
-        if conclusao.get('capacidade_maxima', 0) > 0:
-            story.append(Paragraph(
-                f"Crédito máximo (DSCR ≥ 1,30): <b>{_fmt_moeda(conclusao.get('capacidade_maxima'))}</b>",
+                f"DSCR: {_num(_primeiro(conclusao.get('dscr'), _dmin))} · {_parcela}",
                 ss['Corpo']))
-        story.append(Paragraph(conclusao.get('justificativa', ''), ss['Corpo']))
+        if _pos(conclusao.get('capacidade_maxima')):
+            story.append(Paragraph(
+                f"Crédito máximo (DSCR ≥ 1,30): <b>{_moeda(conclusao.get('capacidade_maxima'))}</b>",
+                ss['Corpo']))
+        story.append(Paragraph(_txt(conclusao.get('justificativa') or '', 2000), ss['Corpo']))
 
         # Memória de cálculo — o comitê precisa auditar o raciocínio, não só
         # receber o veredicto. Exigência prática sob CMN 4.966/2021.
@@ -1025,14 +1107,17 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
             story.append(Spacer(1, 8))
             story.append(Paragraph('Memória de cálculo', ss['SecaoTitulo']))
             linhas_m = [['#', 'Passo', 'Valor', 'Justificativa']]
-            for i, m in enumerate(memoria, 1):
+            for i, m in enumerate(_lista(memoria, 100), 1):
+                m = _dict(m)
                 linhas_m.append([
                     str(i),
-                    Paragraph(f"<b>{m.get('passo','')}</b>", ss['Corpo']),
-                    Paragraph(str(m.get('valor', '')), ss['Corpo']),
-                    Paragraph(m.get('detalhe', ''), ss['Corpo']),
+                    Paragraph(f"<b>{_val(m.get('passo'), 200)}</b>", ss['Corpo']),
+                    Paragraph(_val(m.get('valor'), 200), ss['Corpo']),
+                    Paragraph(_val(m.get('detalhe'), 2000), ss['Corpo']),
                 ])
-            tm = Table(linhas_m, colWidths=[0.8*cm, 4.2*cm, 3.4*cm, 7.6*cm])
+            # "Valor" é texto livre (ex.: "ano 2 · DSCR -0.53"): coluna larga o
+            # bastante para não quebrar no meio do rótulo e colar em "DSCR".
+            tm = Table(linhas_m, colWidths=[0.8*cm, 3.8*cm, 4.2*cm, 7.2*cm])
             tm.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E2535')),
                 ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
@@ -1045,7 +1130,8 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
             story.append(tm)
     else:
         story.append(Paragraph(
-            conclusao.get('justificativa') or 'Sem solicitação de crédito informada.', ss['Corpo']))
+            _txt(conclusao.get('justificativa') or 'Sem solicitação de crédito informada.', 2000),
+            ss['Corpo']))
 
     doc.build(story)
     return buf.getvalue()
