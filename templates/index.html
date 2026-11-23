@@ -1828,11 +1828,17 @@ const TC={CRIA:'#8B95A8',RECRIA:'#8B95A8',ENGORDA:'#8B95A8',CICLO_COMPLETO:'#8B9
 const TE={CRIA:'🐄',RECRIA:'🐂',ENGORDA:'🥩',CICLO_COMPLETO:'🔄',RECRIA_ENGORDA:'🐂',CRIA_RECRIA:'🐄'};
 const TL={CRIA:'CRIA',RECRIA:'RECRIA',ENGORDA:'ENGORDA',CICLO_COMPLETO:'CICLO COMPLETO',RECRIA_ENGORDA:'RECRIA / ENGORDA',CRIA_RECRIA:'CRIA + RECRIA'};
 const TD={CRIA:'Foco em produção de bezerros. Predomínio de vacas/matrizes adultas, alta taxa de cria.',RECRIA:'Fase de desenvolvimento pós-desmame. Alta concentração 13–24m.',ENGORDA:'Terminação para abate. Machos adultos em peso de corte predominam.',CICLO_COMPLETO:'Todas as fases integradas: cria, recria e terminação na mesma propriedade.',RECRIA_ENGORDA:'Compra magro e termina. Giro alto, retenção muito baixa, receita em boi gordo.',CRIA_RECRIA:'Base de cria com compra de desmama. Produção própria somada a animais adquiridos para recria.'};
-const fN=n=>Math.round(n).toLocaleString('pt-BR');
-const fR=n=>'R$ '+Math.round(n).toLocaleString('pt-BR');
+// Ausente/não numérico vira '—' (mesmo padrão do PDF), nunca 'NaN' nem 'R$ 0' fabricado.
+const _numOk=n=>n!==null&&n!==undefined&&n!==''&&Number.isFinite(Number(n));
+const fN=n=>_numOk(n)?Math.round(n).toLocaleString('pt-BR'):'—';
+const fR=n=>_numOk(n)?'R$ '+Math.round(n).toLocaleString('pt-BR'):'—';
 // DSCR sempre no padrão brasileiro (vírgula decimal, 2 casas, sem sufixo "x").
 const fDscr=v=>(v===null||v===undefined||v===''||!Number.isFinite(Number(v)))?'—':Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fP=n=>(n*100).toFixed(1)+'%';
+// Nulos/ausentes no mesmo padrão do PDF: '—' (nunca 'undefined'/'null' soltos).
+const fVazio=v=>(v===null||v===undefined||v===''||(typeof v==='number'&&!Number.isFinite(v)))?'—':String(v);
+// Bloco recolhível (leitura em camadas): o conteúdo completo segue no DOM.
+const dobravel=(titulo,corpo)=>corpo?`<details class="ork-fold"><summary>${titulo}</summary>${corpo}</details>`:'';
 let lastVals=null, curSc='otimista';
 let _last_pdf_raw = null; // para reprocessamento
 
@@ -3113,7 +3119,7 @@ function renderProveniencia(pv){
   const linhas = pv.parametros.map(d=>`
     <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
       <td style="padding:7px 10px;color:var(--sb)">${escapeHtml(d.rotulo||'—')}</td>
-      <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${d.valor}</td>
+      <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${escapeHtml(fVazio(d.valor))}</td>
       <td style="padding:7px 10px;white-space:nowrap">
         <span style="width:8px;height:8px;border-radius:50%;background:${PROV_COR[d.origem]};display:inline-block;margin-right:6px"></span>
         <span style="color:${PROV_COR[d.origem]};font-size:.74rem">${escapeHtml(d.origem_rotulo)}</span>
@@ -3512,7 +3518,7 @@ function renderParecer(data){
         <td class="g r" style="padding:7px 10px">${fR(a.receita)}</td>
         <td class="r2 r" style="padding:7px 10px">${fR(a.custo)}</td>
         <td class="r" style="padding:7px 10px;font-weight:700;color:var(--tx)">${fR(a.resultado)}</td>
-        <td class="r" style="padding:7px 10px;color:${mCor}">${a.margem_pct}%</td>
+        <td class="r" style="padding:7px 10px;color:${mCor}">${a.margem_pct != null ? a.margem_pct + '%' : '—'}</td>
         ${a.dscr != null ? `<td class="r" style="padding:7px 10px;font-weight:700;color:${dscrCor}">${fDscr(a.dscr)}</td>` : '<td class="r" style="padding:7px 10px;color:var(--mu)">—</td>'}
       </tr>`;
     }).join('');
@@ -3618,11 +3624,11 @@ function renderParecer(data){
   return `<div class="card" style="margin-bottom:24px">
     <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Parecer de Crédito</div>
       <button class="btn-sm" onclick="baixarPdfParecer(window._lastParecer)">⬇ Baixar PDF</button></div>
-    <div class="cb" style="display:grid;gap:0">${renderAnalisesCredito(data,p)}${renderRetencao(data)}${renderFluxoMensal(data,p)}${renderPraca(p.precos_regional)}${concl}${fluxoGep}${projecaoHtml}${sensHtml}${sensCustoHtml}</div>
+    <div class="cb" style="display:grid;gap:0">${renderAnalisesCredito(data,p)}${renderRetencao(data)}${renderFluxoMensal(data,p)}${renderPraca(p.precos_regional)}${concl}${fluxoGep}${sensHtml}${dobravel('Projeção multianual (detalhe)',projecaoHtml)}${dobravel('Sensibilidade de custo (detalhe)',sensCustoHtml)}</div>
   </div>
   ${renderGarantia(p.garantia)}
   ${renderEndividamento(p.endividamento)}
-  ${renderProveniencia(p.proveniencia)}`;
+  ${dobravel('Origem dos parâmetros e fontes (detalhe)',renderProveniencia(p.proveniencia))}`;
 }
 
 function renderDecisionSummary(data){
@@ -3657,8 +3663,8 @@ function renderDecisionSummary(data){
   </section>
   <aside class="ork-evidence-ribbon" aria-label="Evidências da conclusão">
     <div><span>Qualidade dos dados</span><strong id="ev-quality">${escapeHtml(String(nivelQualidade))}</strong></div>
-    <div><span>Premissas informadas</span><strong id="ev-assumptions">${premissasAlteradas?premissasAlteradas+' confirmada(s)':'Nenhuma registrada'}</strong></div>
-    <div><span>Fontes</span><strong id="ev-sources">${fontes.length?fontes.length+' registrada(s)':'Não informadas'}</strong></div>
+    <div><span>Premissas informadas</span><strong id="ev-assumptions">${premissasAlteradas?premissasAlteradas+' confirmada(s)':'—'}</strong></div>
+    <div><span>Fontes</span><strong id="ev-sources">${fontes.length?fontes.length+' registrada(s)':'—'}</strong></div>
     <div><span>Limitações</span><strong id="ev-limitations">${limitacoes?limitacoes+' ponto(s)':'Nenhuma crítica'}</strong></div>
   </aside>`;
 }
@@ -6045,7 +6051,7 @@ function shapCardHtml(shapData, tipo, col){
       if(!fatores.length) return '';
       const maxPct=Math.max(...fatores.map(f=>f.importancia_pct),1);
       const porRegra = shapData.decisao_por_regra;
-      return `<div class="card" style="margin-bottom:24px">
+      return `<details class="ork-fold ork-fold--shap"><summary>Fatores da classificação (SHAP)</summary><div class="card" style="margin-bottom:0">
         <div class="ch"><div class="ct"><div class="cd" style="background:${col}"></div>
           Fatores da Classificação (SHAP)
           <span style="font-family:var(--fm);font-size:.56rem;opacity:.4;margin-left:8px;letter-spacing:.5px">CMN 4.966/2021</span>
@@ -6074,7 +6080,7 @@ function shapCardHtml(shapData, tipo, col){
             ${shapData.metodo||''}<br>${shapData.conformidade||''}
           </div>
         </div>
-      </div>`;
+      </div></details>`;
 }
 
 // Placeholder que reserva o lugar do card e dá âncora para a fusão.
