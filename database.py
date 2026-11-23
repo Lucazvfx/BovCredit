@@ -717,6 +717,21 @@ def init_db():
         )
     ''', commit=True)
 
+    # Política de alçada comercial: uma linha por empresa (sem linha = padrão)
+    _exec(f'''
+        CREATE TABLE IF NOT EXISTS politica_alcada (
+            id                       {_AI},
+            empresa_id               INTEGER NOT NULL UNIQUE,
+            alcada_analista          DOUBLE PRECISION NOT NULL,
+            alcada_comite            DOUBLE PRECISION NOT NULL,
+            prazo_max_meses          INTEGER NOT NULL,
+            margem_capacidade_pct    DOUBLE PRECISION NOT NULL,
+            comite_se_revisao_humana INTEGER NOT NULL DEFAULT 1,
+            atualizado_por           INTEGER,
+            atualizado_em            TIMESTAMP DEFAULT {_NOW}
+        )
+    ''', commit=True)
+
     # Colunas adicionadas de forma segura (retrocompatibilidade)
     _add_column_safe('registros', 'user_id',    'INTEGER')
     _add_column_safe('registros', 'fazenda_id', 'INTEGER')
@@ -849,6 +864,51 @@ def atualizar_perfil_empresa(empresa_id: int, nome: str, logo_base64: str):
     ph = _PH
     _exec(f'UPDATE empresas SET nome={ph}, logo_base64={ph} WHERE id={ph}',
           ((nome or '').strip()[:120], logo_base64 or '', empresa_id), commit=True)
+
+def obter_politica_alcada(empresa_id: int) -> dict:
+    """Política da empresa; sem registro, devolve o padrão (`padrao=True`).
+
+    Leitura pura: nunca grava, e só enxerga a linha da própria empresa.
+    """
+    from services.politica_alcada import politica_padrao
+    ph = _PH
+    row = _exec(f'SELECT * FROM politica_alcada WHERE empresa_id={ph}',
+                (empresa_id,), fetch='one')
+    if not row:
+        return {**politica_padrao(), 'padrao': True, 'atualizado_em': None}
+    return {
+        'alcada_analista': float(row['alcada_analista']),
+        'alcada_comite': float(row['alcada_comite']),
+        'prazo_max_meses': int(row['prazo_max_meses']),
+        'margem_capacidade_pct': float(row['margem_capacidade_pct']),
+        'comite_se_revisao_humana': bool(row['comite_se_revisao_humana']),
+        'padrao': False,
+        'atualizado_em': str(row.get('atualizado_em') or ''),
+    }
+
+
+def salvar_politica_alcada(empresa_id: int, politica: dict, user_id: int = None):
+    """Grava (insere ou atualiza) a política já validada da empresa."""
+    ph = _PH
+    valores = (
+        politica['alcada_analista'], politica['alcada_comite'],
+        politica['prazo_max_meses'], politica['margem_capacidade_pct'],
+        1 if politica['comite_se_revisao_humana'] else 0, user_id,
+    )
+    _exec(f'''INSERT INTO politica_alcada (alcada_analista, alcada_comite,
+              prazo_max_meses, margem_capacidade_pct,
+              comite_se_revisao_humana, atualizado_por, empresa_id)
+              VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph})
+              ON CONFLICT (empresa_id) DO UPDATE SET
+                alcada_analista=excluded.alcada_analista,
+                alcada_comite=excluded.alcada_comite,
+                prazo_max_meses=excluded.prazo_max_meses,
+                margem_capacidade_pct=excluded.margem_capacidade_pct,
+                comite_se_revisao_humana=excluded.comite_se_revisao_humana,
+                atualizado_por=excluded.atualizado_por,
+                atualizado_em={_NOW}''',
+          valores + (empresa_id,), commit=True)
+
 
 def resetar_senha(email: str, nova_senha: str):
     ph = _PH

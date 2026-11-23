@@ -1513,6 +1513,44 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <div id="pr-resultado"></div>
 </div>
 
+<!-- ═══ ALÇADA COMERCIAL ═══ -->
+<div class="panel" id="panel-alcada">
+  <div class="ptitle">Alçada e <em>Simulação</em></div>
+  <p class="psub">Política de alçada da empresa e simulação de proposta contra a capacidade de pagamento.</p>
+  <div class="card">
+    <div class="ch"><div class="ct"><div class="cd"></div>Política de alçada</div></div>
+    <div class="cb">
+      <p class="psub" id="alc-origem" aria-live="polite"></p>
+      <div class="fgrid">
+        <div class="field"><label for="alc-analista">Alçada do analista (R$)</label><input type="number" id="alc-analista" min="0" step="1000" style="min-width:0"></div>
+        <div class="field"><label for="alc-comite">Alçada do comitê (R$)</label><input type="number" id="alc-comite" min="0" step="1000" style="min-width:0"></div>
+        <div class="field"><label for="alc-prazo">Prazo máximo (meses)</label><input type="number" id="alc-prazo" min="1" max="360" step="1" style="min-width:0"></div>
+        <div class="field"><label for="alc-margem">Uso máximo da capacidade (%)</label><input type="number" id="alc-margem" min="10" max="100" step="1" style="min-width:0"></div>
+        <div class="field"><label for="alc-rev">Revisão humana exige comitê</label>
+          <select id="alc-rev"><option value="1">Sim</option><option value="0">Não</option></select></div>
+      </div>
+      <div style="margin-top:14px"><button type="button" class="btn-sm" id="alc-salvar" onclick="salvarAlcada()">Salvar política</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ch"><div class="ct"><div class="cd"></div>Simular proposta</div></div>
+    <div class="cb">
+      <div class="fgrid">
+        <div class="field"><label for="sim-valor">Valor pretendido (R$)</label><input type="number" id="sim-valor" min="0" step="1000" style="min-width:0"></div>
+        <div class="field"><label for="sim-prazo">Prazo (meses)</label><input type="number" id="sim-prazo" min="1" max="360" step="1" style="min-width:0"></div>
+        <div class="field"><label for="sim-carencia">Carência (meses)</label><input type="number" id="sim-carencia" min="0" step="1" value="0" style="min-width:0"></div>
+        <div class="field"><label for="sim-juros">Juros (% a.a.)</label><input type="number" id="sim-juros" min="0" max="99" step="0.1" style="min-width:0"></div>
+        <div class="field"><label for="sim-caixa">Geração de caixa anual (R$)</label><input type="number" id="sim-caixa" step="1000" style="min-width:0"></div>
+        <div class="field"><label for="sim-div">Dívidas mensais atuais (R$)</label><input type="number" id="sim-div" min="0" step="100" value="0" style="min-width:0"></div>
+        <div class="field"><label for="sim-rev">Classificação exige revisão humana</label>
+          <select id="sim-rev"><option value="0">Não</option><option value="1">Sim</option></select></div>
+      </div>
+      <div style="margin-top:14px"><button type="button" class="btn-sm" id="sim-rodar" onclick="simularProposta()">Simular</button></div>
+      <div id="sim-resultado" aria-live="polite" style="margin-top:16px;overflow-wrap:anywhere"></div>
+    </div>
+  </div>
+</div>
+
 <div class="panel" id="panel-ajuda">
   <div class="ptitle">Central de <em>Ajuda</em></div>
   <p class="psub">Referências técnicas, benchmarks e guia de uso da plataforma.</p>
@@ -4811,15 +4849,72 @@ function showTab(id,btn){
     b.classList.toggle('is-active',active);
     if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
-  document.getElementById('od-more-btn')?.classList.toggle('is-active',['graos','perene','ajuda'].includes(id));
+  document.getElementById('od-more-btn')?.classList.toggle('is-active',['graos','perene','ajuda','alcada'].includes(id));
   if(!btn)document.querySelectorAll('.tab-btn')[idx[id]]?.classList.add('active');
   if(id==='historico' && typeof carregarCarteira==='function') carregarCarteira();
+  if(id==='alcada') carregarAlcada();
   // Antes de existir classificação, o Dashboard de cenários é uma tela de
   // zeros. Quem abre a aba nesse momento está atrás dos custos, então cai
   // direto em Parâmetros.
   if(id==='cenarios' && !lastVals){
     showScSub('params', document.querySelector('.sc-sn[onclick*="params"]'));
   }
+}
+// ================== ALÇADA COMERCIAL ==================
+async function carregarAlcada(){
+  try{
+    const r=await fetch('/api/politica-alcada');
+    const d=await r.json();
+    if(!r.ok) throw new Error();
+    const p=d.politica;
+    document.getElementById('alc-analista').value=p.alcada_analista;
+    document.getElementById('alc-comite').value=p.alcada_comite;
+    document.getElementById('alc-prazo').value=p.prazo_max_meses;
+    document.getElementById('alc-margem').value=p.margem_capacidade_pct;
+    document.getElementById('alc-rev').value=p.comite_se_revisao_humana?'1':'0';
+    document.getElementById('alc-origem').textContent=p.padrao?'Valores padrão da plataforma (premissa de política); ainda não configurados pela empresa.':'Política definida pela empresa.';
+    document.getElementById('alc-salvar').disabled=!d.pode_editar;
+    document.getElementById('alc-salvar').title=d.pode_editar?'':'Somente administradores alteram a política.';
+  }catch(e){ showToast('Não foi possível carregar a política de alçada.',true); }
+}
+async function salvarAlcada(){
+  const corpo={
+    alcada_analista:Number(document.getElementById('alc-analista').value),
+    alcada_comite:Number(document.getElementById('alc-comite').value),
+    prazo_max_meses:Number(document.getElementById('alc-prazo').value),
+    margem_capacidade_pct:Number(document.getElementById('alc-margem').value),
+    comite_se_revisao_humana:document.getElementById('alc-rev').value==='1',
+  };
+  try{
+    const r=await fetch('/api/politica-alcada',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)});
+    const d=await r.json();
+    if(!r.ok){ showToast(d.erro||'Não foi possível salvar a política.',true); return; }
+    showToast('Política de alçada salva.');
+    carregarAlcada();
+  }catch(e){ showToast('Não foi possível salvar a política.',true); }
+}
+async function simularProposta(){
+  const corpo={
+    valor_pretendido:Number(document.getElementById('sim-valor').value),
+    prazo_meses:Number(document.getElementById('sim-prazo').value),
+    carencia_meses:Number(document.getElementById('sim-carencia').value||0),
+    juros_aa:document.getElementById('sim-juros').value===''?null:Number(document.getElementById('sim-juros').value)/100,
+    geracao_caixa_anual:document.getElementById('sim-caixa').value===''?null:Number(document.getElementById('sim-caixa').value),
+    dividas_mensais:Number(document.getElementById('sim-div').value||0),
+    revisao_humana:document.getElementById('sim-rev').value==='1',
+  };
+  const box=document.getElementById('sim-resultado');
+  try{
+    const r=await fetch('/api/simulacao-proposta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)});
+    const d=await r.json();
+    if(!r.ok){ box.textContent=(d.erro||'Não foi possível simular.').replace(/^juros_aa deve.*$/,'Informe os juros em % a.a., entre 0 e 100.'); return; }
+    const motivos=(d.motivos_texto||[]).map(t=>'<li>'+escapeHtml(t)+'</li>').join('');
+    box.innerHTML='<div class="ptitle" style="font-size:1.1rem">'+escapeHtml(d.status_rotulo)+'</div>'
+      +'<p>Capacidade máxima de endividamento: '+fR(d.capacidade_maxima)+' · permitida pela política: '+fR(d.capacidade_permitida)
+      +'<br>Uso da capacidade permitida: '+(d.uso_da_capacidade_pct==null?'—':Number(d.uso_da_capacidade_pct).toLocaleString('pt-BR')+'%')
+      +' · DSCR do pedido: '+fDscr(d.dscr)+'</p>'
+      +(motivos?'<ul>'+motivos+'</ul>':'');
+  }catch(e){ box.textContent='Não foi possível simular.'; }
 }
 function resetApp(){clearAll();document.getElementById('tab-res').style.display='none';document.getElementById('tab-cen').style.display='none';showTab('entrada',document.querySelectorAll('.tab-btn')[0]);lastVals=null;document.getElementById('result-wrap').innerHTML='';document.getElementById('sc-result').innerHTML=''}
 

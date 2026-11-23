@@ -27,6 +27,7 @@ from services.limites_entrada import (
     JUROS_AA_TETO, MSG_JUROS_TETO, erro_anos, erro_juros_aa,
 )
 from services import assistente as _assistente
+from services import politica_alcada as _alcada
 from services.documentos import (
     impressao as doc_impressao, comparar as doc_comparar,
 )
@@ -2732,6 +2733,53 @@ def api_descartar_caso_real(caso_id):
     except (ValueError, LookupError) as exc:
         return jsonify({'erro': str(exc)}), 400 if isinstance(exc, ValueError) else 404
     return jsonify({'ok': True, 'caso_id': caso_id, 'status': 'DESCARTADO'})
+
+
+@app.route('/api/politica-alcada', methods=['GET'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_obter_politica_alcada():
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    return jsonify({
+        'politica': db.obter_politica_alcada(empresa_id),
+        'pode_editar': is_admin(getattr(current_user, 'email', '')),
+    })
+
+
+@app.route('/api/politica-alcada', methods=['PUT'])
+@limiter.limit("20 per minute; 100 per hour")
+@login_required
+def api_salvar_politica_alcada():
+    # Alçada é decisão de crédito da empresa: só administrador altera.
+    if not is_admin(getattr(current_user, 'email', '')):
+        return jsonify({'erro': 'Sem permissão para alterar a política.'}), 403
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    politica, msg = _alcada.validar_politica(
+        request.get_json(silent=True),
+        base=db.obter_politica_alcada(empresa_id))
+    if msg:
+        return jsonify({'erro': msg}), 400
+    db.salvar_politica_alcada(empresa_id, politica, user_id=current_user.id)
+    _auditar(_aud.ALCADA_ALTERADA, recurso='empresa', recurso_id=empresa_id)
+    return jsonify({'ok': True, 'politica': db.obter_politica_alcada(empresa_id)})
+
+
+@app.route('/api/simulacao-proposta', methods=['POST'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_simular_proposta():
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    params, msg = _alcada.validar_simulacao(request.get_json(silent=True))
+    if msg:
+        return jsonify({'erro': msg}), 400
+    politica = db.obter_politica_alcada(empresa_id)
+    return jsonify(_alcada.simular_proposta(politica, **params))
 
 
 @app.route('/api/shap', methods=['POST'])

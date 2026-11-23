@@ -56,6 +56,8 @@ CONTA_CRIADA            = 'conta_criada'
 # Desfecho é dado financeiro de terceiro: quem registrou, e quando,
 # precisa ficar tão rastreável quanto quem consultou um CPF.
 DESFECHO_REGISTRADO     = 'desfecho_registrado'
+# Alçada define quem decide cada valor de crédito: mudar é decisão de política.
+ALCADA_ALTERADA         = 'alcada_alterada'
 
 EVENTOS = {
     LOGIN:             'Entrou no sistema',
@@ -80,6 +82,7 @@ EVENTOS = {
     DOIS_FATORES_DESATIVADO: 'Desativou o segundo fator',
     CONSULTA_CADASTRAL:      'Consultou situação cadastral (CPF/CNPJ)',
     CONTA_CRIADA:            'Conta criada por login social (domínio liberado)',
+    ALCADA_ALTERADA:         'Alterou a política de alçada da empresa',
 }
 
 # Eventos que tocam dado de crédito de um cliente identificado. É esta lista
