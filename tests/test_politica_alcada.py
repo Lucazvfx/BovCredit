@@ -209,7 +209,9 @@ def test_api_exige_login():
 
 
 def test_api_get_padrao_e_nao_admin_nao_edita(monkeypatch):
-    uid, _, email = _empresa_nova('ApiGet')
+    uid, eid, email = _empresa_nova('ApiGet')
+    # o criador da empresa nasce admin dela; aqui o caso é o do analista
+    db.definir_papel_membro(eid, uid, 'analista', permitir_sem_admin=True)
     monkeypatch.setattr(app_module, '_ADMIN_EMAILS', set())
     c = _cliente(email, uid)
     d = c.get('/api/politica-alcada').get_json()

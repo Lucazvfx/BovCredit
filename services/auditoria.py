@@ -58,6 +58,11 @@ CONTA_CRIADA            = 'conta_criada'
 DESFECHO_REGISTRADO     = 'desfecho_registrado'
 # Alçada define quem decide cada valor de crédito: mudar é decisão de política.
 ALCADA_ALTERADA         = 'alcada_alterada'
+# Papel define quem aprova o quê; proposta decidida é decisão de crédito.
+PAPEL_ALTERADO          = 'papel_alterado'
+PROPOSTA_REGISTRADA     = 'proposta_registrada'
+PROPOSTA_DECIDIDA       = 'proposta_decidida'
+PROPOSTA_DECISAO_NEGADA = 'proposta_decisao_negada'
 
 EVENTOS = {
     LOGIN:             'Entrou no sistema',
@@ -83,6 +88,10 @@ EVENTOS = {
     CONSULTA_CADASTRAL:      'Consultou situação cadastral (CPF/CNPJ)',
     CONTA_CRIADA:            'Conta criada por login social (domínio liberado)',
     ALCADA_ALTERADA:         'Alterou a política de alçada da empresa',
+    PAPEL_ALTERADO:          'Alterou o papel de um membro da empresa',
+    PROPOSTA_REGISTRADA:     'Registrou proposta comercial',
+    PROPOSTA_DECIDIDA:       'Decidiu proposta comercial',
+    PROPOSTA_DECISAO_NEGADA: 'Decisão de proposta recusada por alçada',
 }
 
 # Eventos que tocam dado de crédito de um cliente identificado. É esta lista

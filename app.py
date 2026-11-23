@@ -28,6 +28,7 @@ from services.limites_entrada import (
 )
 from services import assistente as _assistente
 from services import politica_alcada as _alcada
+from services import papeis_empresa as _papeis
 from services.documentos import (
     impressao as doc_impressao, comparar as doc_comparar,
 )
@@ -395,6 +396,18 @@ def _resolver_empresa_ativa():
     nova_ativa = empresas[0]['id']
     session['empresa_ativa_id'] = nova_ativa
     return nova_ativa
+
+
+def _papel_na_empresa(empresa_id):
+    """Papel efetivo do usuário logado na empresa ativa.
+
+    Admin global (ADMIN_EMAILS) conta como admin, mas só da empresa à qual
+    pertence — `empresa_id` vem sempre de `_resolver_empresa_ativa`, que já
+    limita às empresas do usuário.
+    """
+    if is_admin(getattr(current_user, 'email', '')):
+        return _papeis.PAPEL_ADMIN
+    return db.papel_do_membro(current_user.id, empresa_id) or _papeis.PAPEL_PADRAO
 
 
 def _empresa_ativa_ou_400():
@@ -886,7 +899,7 @@ def admin_vincular_empresa():
     user_id = request.form.get('user_id')
     empresa_id = request.form.get('empresa_id')
     if user_id and empresa_id and not db.usuario_pertence_a_empresa(int(user_id), int(empresa_id)):
-        db._exec(f"INSERT INTO empresa_membros (empresa_id, user_id) VALUES ({db._PH},{db._PH})",
+        db._exec(f"INSERT INTO empresa_membros (empresa_id, user_id, papel) VALUES ({db._PH},{db._PH},'analista')",
                  (int(empresa_id), int(user_id)), commit=True)
     return redirect(url_for('admin'))
 
@@ -2744,7 +2757,7 @@ def api_obter_politica_alcada():
         return erro
     return jsonify({
         'politica': db.obter_politica_alcada(empresa_id),
-        'pode_editar': is_admin(getattr(current_user, 'email', '')),
+        'pode_editar': _papel_na_empresa(empresa_id) == _papeis.PAPEL_ADMIN,
     })
 
 
@@ -2752,12 +2765,13 @@ def api_obter_politica_alcada():
 @limiter.limit("20 per minute; 100 per hour")
 @login_required
 def api_salvar_politica_alcada():
-    # Alçada é decisão de crédito da empresa: só administrador altera.
-    if not is_admin(getattr(current_user, 'email', '')):
-        return jsonify({'erro': 'Sem permissão para alterar a política.'}), 403
+    # Alçada é decisão de crédito da empresa: só administrador (da empresa
+    # ativa, ou global) altera.
     empresa_id, erro = _empresa_ativa_ou_400()
     if erro:
         return erro
+    if _papel_na_empresa(empresa_id) != _papeis.PAPEL_ADMIN:
+        return jsonify({'erro': 'Sem permissão para alterar a política.'}), 403
     politica, msg = _alcada.validar_politica(
         request.get_json(silent=True),
         base=db.obter_politica_alcada(empresa_id))
@@ -2780,6 +2794,125 @@ def api_simular_proposta():
         return jsonify({'erro': msg}), 400
     politica = db.obter_politica_alcada(empresa_id)
     return jsonify(_alcada.simular_proposta(politica, **params))
+
+
+# ── Papéis por empresa ───────────────────────────────────────────────────────
+@app.route('/api/empresa/papeis', methods=['GET'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_empresa_papeis():
+    """Papel do usuário e, para admin, a lista de membros da empresa ativa."""
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    meu = _papel_na_empresa(empresa_id)
+    membros = []
+    if meu == _papeis.PAPEL_ADMIN:
+        membros = db.listar_membros_empresa(empresa_id)
+    return jsonify({
+        'meu_papel': meu,
+        'papeis': [{'id': p, 'rotulo': _papeis.PAPEIS_ROTULO[p]} for p in _papeis.PAPEIS],
+        'membros': membros,
+    })
+
+
+@app.route('/api/empresa/membros/<int:uid>/papel', methods=['PUT'])
+@limiter.limit("20 per minute; 100 per hour")
+@login_required
+def api_definir_papel_membro(uid):
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    if _papel_na_empresa(empresa_id) != _papeis.PAPEL_ADMIN:
+        return jsonify({'erro': 'Sem permissão para gerenciar papéis.'}), 403
+    dados = request.get_json(silent=True)
+    papel = dados.get('papel') if isinstance(dados, dict) else None
+    if papel not in _papeis.PAPEIS:
+        return jsonify({'erro': 'papel inválido.'}), 400
+    # Alvo restrito à empresa ativa: id de outra empresa é "não encontrado".
+    atual = db.papel_do_membro(uid, empresa_id)
+    if atual is None:
+        return jsonify({'erro': 'Membro não encontrado.'}), 404
+    if (atual == _papeis.PAPEL_ADMIN and papel != atual
+            and db.contar_admins_empresa(empresa_id) <= 1):
+        return jsonify({'erro': 'A empresa precisa manter ao menos um administrador.'}), 400
+    if papel != atual:
+        if not db.definir_papel_membro(empresa_id, uid, papel):
+            return jsonify({'erro': 'A empresa precisa manter ao menos um administrador.'}), 400
+        _auditar(_aud.PAPEL_ALTERADO, recurso='empresa', recurso_id=empresa_id,
+                 detalhe=f'usuario {uid}: {atual} -> {papel}')
+    return jsonify({'ok': True, 'user_id': uid, 'papel': papel})
+
+
+# ── Propostas comerciais ─────────────────────────────────────────────────────
+@app.route('/api/propostas', methods=['GET'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_listar_propostas():
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    status = request.args.get('status') or None
+    if status and status not in _papeis.STATUS_PROPOSTA:
+        return jsonify({'erro': 'status inválido.'}), 400
+    meu = _papel_na_empresa(empresa_id)
+    propostas = db.listar_propostas(empresa_id, status=status)
+    for p in propostas:
+        p['pode_decidir'] = (p['status'] == _papeis.STATUS_EM_ANALISE
+                             and _papeis.pode_decidir(meu, p['status_alcada']))
+    return jsonify({'propostas': propostas, 'meu_papel': meu})
+
+
+@app.route('/api/propostas', methods=['POST'])
+@limiter.limit("20 per minute; 100 per hour")
+@login_required
+def api_registrar_proposta():
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    dados = request.get_json(silent=True)
+    referencia, msg = _papeis.validar_proposta(dados)
+    if msg:
+        return jsonify({'erro': msg}), 400
+    params, msg = _alcada.validar_simulacao(dados)
+    if msg:
+        return jsonify({'erro': msg}), 400
+    # A classificação de alçada é sempre recalculada aqui, com a política da
+    # empresa ativa: o cliente nunca informa o status.
+    simulacao = _alcada.simular_proposta(db.obter_politica_alcada(empresa_id), **params)
+    pid = db.criar_proposta(empresa_id, current_user.id, referencia, simulacao)
+    _auditar(_aud.PROPOSTA_REGISTRADA, recurso='proposta', recurso_id=pid,
+             detalhe=f"alcada={simulacao['status']}")
+    return jsonify({'ok': True, 'id': pid, 'status': _papeis.STATUS_EM_ANALISE,
+                    'status_alcada': simulacao['status'],
+                    'status_alcada_rotulo': simulacao['status_rotulo']}), 201
+
+
+@app.route('/api/propostas/<int:pid>/decisao', methods=['POST'])
+@limiter.limit("20 per minute; 100 per hour")
+@login_required
+def api_decidir_proposta(pid):
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    dec, msg = _papeis.validar_decisao(request.get_json(silent=True))
+    if msg:
+        return jsonify({'erro': msg}), 400
+    proposta = db.buscar_proposta(pid, empresa_id)
+    if not proposta:
+        return jsonify({'erro': 'Proposta não encontrada.'}), 404
+    if proposta['status'] != _papeis.STATUS_EM_ANALISE:
+        return jsonify({'erro': 'Proposta já decidida.'}), 409
+    if not _papeis.pode_decidir(_papel_na_empresa(empresa_id), proposta['status_alcada']):
+        _auditar(_aud.PROPOSTA_DECISAO_NEGADA, recurso='proposta', recurso_id=pid,
+                 detalhe=f"alcada={proposta['status_alcada']}", sucesso=False)
+        return jsonify({'erro': 'Esta proposta exige aprovador ou administrador.'}), 403
+    if not db.decidir_proposta(pid, empresa_id, current_user.id,
+                               dec['decisao'], dec['parecer']):
+        return jsonify({'erro': 'Proposta já decidida.'}), 409
+    _auditar(_aud.PROPOSTA_DECIDIDA, recurso='proposta', recurso_id=pid,
+             detalhe=f"alcada={proposta['status_alcada']}; decisao={dec['decisao']}")
+    return jsonify({'ok': True, 'id': pid, 'status': dec['decisao']})
 
 
 @app.route('/api/shap', methods=['POST'])
