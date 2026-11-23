@@ -7,7 +7,7 @@ from __future__ import annotations
 import os
 
 from services.proveniencia import (
-    catalogo, do_modulo, resumo as _resumo_prov)
+    catalogo, do_modulo, e_parametro, resumo as _resumo_prov)
 
 
 _CARENCIA_SEM_CAP = os.environ.get('CARENCIA_SEM_CAPITALIZACAO', '0') == '1'
@@ -45,6 +45,11 @@ from services.payment_capacity_engine.dscr import (  # noqa: E402
 )
 from services.payment_capacity_engine.ciclo_pecuario import (  # noqa: E402
     projetar_fluxo_ciclo,
+)
+from services.stress_engine.pecuaria import (  # noqa: E402
+    _MAX_VALOR as _ESTRESSE_MAX, _MIN_POSITIVO as _ESTRESSE_MIN, _numero,
+    CENARIOS_PECUARIOS, BasePecuaria, simular_cenarios_pecuarios,
+    ponto_ruptura_arroba,
 )
 
 
@@ -103,9 +108,7 @@ def _fluxo_ciclo_do_parecer(*, sistema_produtivo, frequencia_pagamento,
             'frequencia_pagamento': frequencia_pagamento}
     if not projecao_anos:
         return {**base, 'motivo': 'Sem projeção por ano para derivar receita e custo.'}
-    ano = conclusao.get('ano_critico')
-    linha = next((a for a in projecao_anos if a.get('ano') == ano), None) \
-        or projecao_anos[0]
+    linha = _linha_ano_critico(conclusao, projecao_anos)
     try:
         receita = float(linha['receita'])
         resultado = float(linha['resultado'])
@@ -145,13 +148,153 @@ def _fluxo_ciclo_do_parecer(*, sistema_produtivo, frequencia_pagamento,
             'capital_giro_inicial': capital_giro_inicial}
 
 
+CAMPOS_ESTRESSE_PECUARIO = ('preco_arroba_base', 'custo_reposicao_anual',
+                            'custo_suplementacao_anual')
+
+
+def validar_entrada_estresse_pecuario(entrada: dict) -> dict:
+    """Valida os 3 campos do estresse pecuário; ValueError com mensagem clara.
+
+    Usa o mesmo validador e os mesmos tetos de `stress_engine.pecuaria`
+    (rejeita texto, bool, negativo, NaN, inf e int gigante tipo 10**400).
+    O preço da arroba é obrigatoriamente > 0: o volume é derivado dele.
+    """
+    ausentes = [c for c in CAMPOS_ESTRESSE_PECUARIO
+                if entrada.get(c) in (None, '')]
+    if ausentes:
+        raise ValueError('Estresse pecuário exige os três campos juntos; '
+                         'faltando: ' + ', '.join(ausentes) + '.')
+    preco = _numero(entrada['preco_arroba_base'], 'preco_arroba_base',
+                    minimo=_ESTRESSE_MIN, maximo=_ESTRESSE_MAX)
+    return {
+        'preco_arroba_base': preco,
+        'custo_reposicao_anual': _numero(
+            entrada['custo_reposicao_anual'], 'custo_reposicao_anual',
+            minimo=0.0, maximo=_ESTRESSE_MAX),
+        'custo_suplementacao_anual': _numero(
+            entrada['custo_suplementacao_anual'], 'custo_suplementacao_anual',
+            minimo=0.0, maximo=_ESTRESSE_MAX),
+    }
+
+
+def _linha_ano_critico(conclusao, projecao_anos):
+    ano = conclusao.get('ano_critico')
+    return next((a for a in projecao_anos if a.get('ano') == ano), None) \
+        or projecao_anos[0]
+
+
+def _estresse_pecuario_do_parecer(*, entrada, conclusao, projecao_anos):
+    """Estresse pecuário do ANO CRÍTICO, com os números do DSCR do parecer.
+
+    Receita, resultado e serviço da dívida saem da mesma linha de
+    `projecao_anos` que sustenta `conclusao['dscr_minimo']`; custo total =
+    receita − resultado. O analista informa preço da arroba, reposição e
+    suplementação; `custo_outros` é o resíduo e o volume é a receita dividida
+    pelo preço (arrobas EQUIVALENTES: toda a receita do ano é tratada como
+    venda de arrobas). Assim o DSCR-base do motor é igual ao do parecer.
+    """
+    base = {'disponivel': False, 'entrada': dict(entrada)}
+    if not projecao_anos:
+        return {**base, 'motivo': 'Sem projeção por ano para derivar a base do estresse.'}
+    linha = _linha_ano_critico(conclusao, projecao_anos)
+    try:
+        receita = float(linha['receita'])
+        resultado = float(linha['resultado'])
+        servico = float(linha.get('servico_divida_anual') or 0.0)
+        preco = entrada['preco_arroba_base']
+        custo = receita - resultado
+        outros = custo - entrada['custo_reposicao_anual'] \
+            - entrada['custo_suplementacao_anual']
+        if custo < 0:
+            return {**base, 'motivo': 'Resultado do ano crítico maior que a '
+                    'receita: custo operacional negativo.'}
+        if outros < -1e-6 * max(1.0, abs(custo)):
+            return {**base, 'motivo': 'Reposição + suplementação informadas '
+                    'excedem o custo operacional do ano crítico.'}
+        b = BasePecuaria(
+            arrobas_vendidas=receita / preco, preco_arroba=preco,
+            custo_reposicao=entrada['custo_reposicao_anual'],
+            custo_suplementacao=entrada['custo_suplementacao_anual'],
+            custo_outros=max(outros, 0.0), servico_divida=servico)
+        res = simular_cenarios_pecuarios(b)
+        pr = ponto_ruptura_arroba(b)
+    except (KeyError, TypeError, ValueError, OverflowError) as e:
+        return {**base, 'motivo': f'Estresse pecuário indisponível: {e}'}
+
+    def _res(r):
+        return {'receita': r.receita, 'custo': r.custo,
+                'resultado': r.resultado, 'margem_liquida': r.margem_liquida,
+                'dscr': r.dscr, 'classificacao': r.classificacao}
+
+    ref = res['base']
+    cenarios = {}
+    for nome, r in res.items():
+        if nome == 'base':
+            continue
+        ch = CENARIOS_PECUARIOS[nome]
+        d = _res(r)
+        d['descricao'] = ch.descricao
+        d['impacto_margem_pp'] = (
+            None if r.margem_liquida is None or ref.margem_liquida is None
+            else (r.margem_liquida - ref.margem_liquida) * 100.0)
+        d['premissas'] = {
+            c: (getattr(ch, c).para_dict() if e_parametro(getattr(ch, c))
+                else float(getattr(ch, c)))
+            for c in ('arroba_pct', 'reposicao_pct', 'suplementacao_pct',
+                      'volume_pct')}
+        cenarios[nome] = d
+
+    def _rup(x):
+        return {'dscr_alvo': x.dscr_alvo, 'status': x.status,
+                'preco_base': x.preco_base, 'preco_minimo': x.preco_minimo,
+                'queda_maxima_suportada_pct': x.margem_seguranca_pct,
+                'em_ruptura': x.em_ruptura}
+
+    # O parecer decide pelo DSCR ARREDONDADO a 2 casas; o estresse usa o exato.
+    # Na faixa de arredondamento (ex.: 1,297 -> 1,30) os dois discordam: os
+    # números do motor não são alterados, mas a divergência é dita no bloco.
+    avisos = []
+    dscr_p = linha.get('dscr')
+    if dscr_p is not None and servico > 0:
+        dscr_p = float(dscr_p)
+        cls_p = ('aprovar' if dscr_p >= DSCR_APROVAR
+                 else 'ressalva' if dscr_p >= DSCR_RESSALVA else 'negar')
+        if cls_p != ref.classificacao:
+            avisos.append(
+                f"DSCR do parecer ({dscr_p:.2f}, arredondado) classifica como "
+                f"'{cls_p}'; a conta exata do estresse ({ref.dscr:.4f}) "
+                f"classifica a base como '{ref.classificacao}'. O veredito do "
+                f"parecer vale; o ponto de ruptura usa a conta exata.")
+    return {**base, 'avisos': avisos, 'disponivel': True, 'ano_referencia': linha.get('ano'),
+            'base': {**_res(ref), 'arrobas_equivalentes': b.arrobas_vendidas,
+                     'preco_arroba': b.preco_arroba,
+                     'custo_reposicao': b.custo_reposicao,
+                     'custo_suplementacao': b.custo_suplementacao,
+                     'custo_outros': b.custo_outros,
+                     'servico_divida_anual': b.servico_divida,
+                     'dscr_parecer': linha.get('dscr')},
+            'cenarios': cenarios,
+            'ponto_ruptura_arroba': {'aprovar': _rup(pr.aprovar),
+                                     'ressalva': _rup(pr.ressalva)},
+            'limiares_dscr': {
+                'aprovar': (DSCR_APROVAR.para_dict()
+                            if e_parametro(DSCR_APROVAR) else float(DSCR_APROVAR)),
+                'ressalva': (DSCR_RESSALVA.para_dict()
+                             if e_parametro(DSCR_RESSALVA) else float(DSCR_RESSALVA))},
+            'premissas_base': ('Volume = receita do ano crítico ÷ preço da '
+                               'arroba (arrobas equivalentes); outros custos '
+                               '= custo total − reposição − suplementação; '
+                               'a reposição não cai com o volume.')}
+
+
 def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
                    consistencia, financeiro, geracao_caixa_anual, credito,
                    fluxo_gep=None, sensibilidade=None, shap_explicacao=None,
                    projecao_anos=None, garantia=None, endividamento=None,
                    precos_regional=None, sistema_produtivo=None,
                    frequencia_pagamento='mensal',
-                   capital_giro_inicial=0.0) -> dict:
+                   capital_giro_inicial=0.0,
+                   estresse_pecuario_entrada=None) -> dict:
     def _f(v, default=0.0):
         try: return float(v or default)
         except (TypeError, ValueError): return default
@@ -364,6 +507,12 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
         conclusao=conclusao, projecao_anos=projecao_anos)
         if sistema_produtivo else None)
 
+    # Só quando o analista informa os três campos do estresse pecuário.
+    estresse_pecuario = (_estresse_pecuario_do_parecer(
+        entrada=estresse_pecuario_entrada, conclusao=conclusao,
+        projecao_anos=projecao_anos)
+        if estresse_pecuario_entrada else None)
+
     resultado = {
         'secoes': ['identificacao', 'composicao', 'indicadores',
                    'consistencia', 'financeiro', 'precos_regional',
@@ -385,4 +534,6 @@ def montar_parecer(*, identificacao, composicao, indicadores, benchmarks,
     }
     if ciclo_pecuario is not None:
         resultado['ciclo_pecuario'] = ciclo_pecuario
+    if estresse_pecuario is not None:
+        resultado['estresse_pecuario'] = estresse_pecuario
     return resultado

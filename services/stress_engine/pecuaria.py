@@ -61,7 +61,10 @@ def _numero(
     bool, NaN, inf e valores fora de [minimo, maximo]."""
     if isinstance(valor, bool) or not isinstance(valor, (Real, Decimal)):
         raise ValueError(f"{nome} deve ser numérico, recebido {valor!r}")
-    numero = float(valor)
+    try:
+        numero = float(valor)
+    except OverflowError:  # int gigante (ex.: 10**400) não cabe em float
+        raise ValueError(f"{nome} deve ser finito, recebido um valor fora do limite") from None
     if not math.isfinite(numero):
         raise ValueError(f"{nome} deve ser finito, recebido {valor!r}")
     if not minimo <= numero <= maximo:
