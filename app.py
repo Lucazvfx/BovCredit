@@ -58,6 +58,7 @@ from services.benchmarks_nacionais import (
 )
 from services.parecer_credito import (
     montar_parecer, cronograma_divida,
+    CAMPOS_ESTRESSE_PECUARIO, validar_entrada_estresse_pecuario,
     SISTEMAS as _SISTEMAS_AMORT, PERIODICIDADES as _PERIODICIDADES)
 from services.payment_capacity_engine.ciclo_pecuario import (
     SISTEMAS as _SISTEMAS_CICLO, FREQUENCIAS as _FREQUENCIAS_CICLO,
@@ -1451,6 +1452,15 @@ def api_classificar():
     else:
         capital_giro_inicial = float(giro_raw)
 
+    # Estresse pecuário (arroba/reposição/suplementação): tudo opcional, mas os
+    # três campos vêm juntos. Sem nenhum deles a resposta não muda.
+    estresse_pecuario_entrada = None
+    if any(data.get(c) not in (None, '') for c in CAMPOS_ESTRESSE_PECUARIO):
+        try:
+            estresse_pecuario_entrada = validar_entrada_estresse_pecuario(data)
+        except ValueError as e:
+            return jsonify({'erro': str(e)}), 400
+
     kwargs = {}
     if 'taxa_natalidade' in data:
         if not _eh_numero_finito(data['taxa_natalidade']):
@@ -2343,7 +2353,8 @@ def api_classificar():
         precos_regional=precos_regional,
         sistema_produtivo=sistema_produtivo,
         frequencia_pagamento=frequencia_pagamento,
-        capital_giro_inicial=capital_giro_inicial)
+        capital_giro_inicial=capital_giro_inicial,
+        estresse_pecuario_entrada=estresse_pecuario_entrada)
 
     # As três perguntas do crédito ficam explícitas e independentes no
     # resultado. Uma operação pode ter caixa suficiente, mas garantia fraca;
