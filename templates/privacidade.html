@@ -58,6 +58,8 @@
     <li><strong>Hostinger (servidor VPS)</strong>: hospedagem da aplicação; a comunicação entre o seu navegador e o servidor é cifrada por HTTPS/TLS.</li>
     <li><strong>Supabase (banco de dados)</strong>: banco de dados PostgreSQL gerenciado, onde ficam armazenados os dados descritos na seção 2, com criptografia em repouso.</li>
     <li><strong>Groq (inteligência artificial)</strong>: provedor sediado nos Estados Unidos que gera o texto narrativo do parecer e as respostas do assistente. Para isso recebem-se dados da análise, como nome da fazenda, município, nome do proprietário e indicadores financeiros. Trata-se de transferência internacional de dados, realizada nos termos do Art. 33 da LGPD.</li>
+    <li><strong>Provedor de e-mail (SMTP, por padrão Google/Gmail)</strong>: usado para o envio de e-mails transacionais, como o link de redefinição de senha. Recebe seu endereço de e-mail, seu nome e o conteúdo da mensagem. Provedor sediado nos Estados Unidos, o que configura transferência internacional de dados (Art. 33 da LGPD).</li>
+    <li><strong>Meta (WhatsApp Business)</strong>: usado somente quando o canal de WhatsApp está habilitado e o seu número está vinculado à conta. Recebe o número de telefone e o conteúdo das mensagens trocadas (consultas e respostas sobre pareceres). Provedor com operação internacional (Art. 33 da LGPD).</li>
     <li><strong>Autoridades competentes</strong>: quando exigido por lei ou ordem judicial.</li>
   </ul>
   <p>Nenhum dado de rebanho ou financeiro é compartilhado com terceiros para fins comerciais.</p>
@@ -86,7 +88,7 @@
   <p>Utilizamos apenas um cookie de sessão estritamente necessário ao funcionamento do login. Ele não contém dados pessoais identificáveis, não é compartilhado com terceiros e expira ao fechar o navegador (ou após 24 horas de inatividade). Não utilizamos cookies de rastreamento, analytics ou publicidade.</p>
 
   <h2>8. Segurança</h2>
-  <p>Adotamos medidas técnicas e organizacionais adequadas: comunicação via HTTPS/TLS, senhas armazenadas com hash bcrypt, banco de dados em ambiente isolado, e controle de acesso por função (usuário / administrador).</p>
+  <p>Adotamos medidas técnicas e organizacionais adequadas: comunicação via HTTPS/TLS entre o navegador e o servidor, conexão com o banco de dados exigindo TLS (<code>sslmode=require</code>) por padrão para hosts remotos, senhas armazenadas apenas como hash salgado (scrypt, biblioteca Werkzeug), banco de dados em ambiente isolado, e controle de acesso por função (usuário / administrador).</p>
 
   <h2>9. Alterações nesta política</h2>
   <p>Podemos atualizar esta política periodicamente. Alterações materiais serão comunicadas por e-mail ou aviso no sistema com no mínimo 15 dias de antecedência. A versão sempre atualizada estará disponível em <strong>/privacidade</strong>.</p>

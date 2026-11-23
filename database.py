@@ -5,6 +5,7 @@ Usa PostgreSQL (via DATABASE_URL) em produção e SQLite localmente.
 import hashlib
 import json, logging, math, os
 from datetime import datetime, timedelta
+from urllib.parse import parse_qs, urlsplit, urlunsplit
 from zoneinfo import ZoneInfo
 from werkzeug.security import generate_password_hash, check_password_hash
 from contextlib import contextmanager
@@ -37,7 +38,33 @@ def _sanitizar_database_url(raw: str) -> str:
     return ''
 
 
-_DATABASE_URL = _sanitizar_database_url(os.environ.get('DATABASE_URL', ''))
+_SSLMODES_VALIDOS = {'disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'}
+_HOSTS_LOCAIS = {'localhost', '127.0.0.1', '::1'}
+
+
+def _aplicar_sslmode(url: str) -> str:
+    """Garante TLS (``sslmode=require``) em conexões PostgreSQL remotas.
+
+    Preserva: URL sem host ou com host local (localhost/127.0.0.1/::1) e URL
+    que já define ``sslmode``. Override explícito para ambientes internos/testes:
+    variável ``DATABASE_SSLMODE`` (ex.: ``disable``); valor inválido é ignorado.
+    """
+    if not url:
+        return url
+    partes = urlsplit(url)
+    if 'sslmode' in parse_qs(partes.query):
+        return url
+    host = (partes.hostname or '').lower()
+    if not host or host in _HOSTS_LOCAIS:
+        return url
+    modo = os.environ.get('DATABASE_SSLMODE', '').strip().lower()
+    if modo not in _SSLMODES_VALIDOS:
+        modo = 'require'
+    query = f'{partes.query}&sslmode={modo}' if partes.query else f'sslmode={modo}'
+    return urlunsplit(partes._replace(query=query))
+
+
+_DATABASE_URL = _aplicar_sslmode(_sanitizar_database_url(os.environ.get('DATABASE_URL', '')))
 _USE_PG = bool(_DATABASE_URL)
 
 # ─────────────────────────────────────────────
