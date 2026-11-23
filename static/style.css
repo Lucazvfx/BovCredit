@@ -493,11 +493,10 @@ main {
   margin-bottom: 18px;
   position: relative; overflow: hidden; border: 1px solid;
 }
-.rhero-grid { display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: center; }
+.rhero-grid { display: grid; grid-template-columns: 1fr; gap: 40px; align-items: center; }
 .rhero-ey   { font-family: var(--fm); font-size: .6rem; letter-spacing: 3px; text-transform: uppercase; opacity: .6; margin-bottom: 10px; }
 .rhero-tipo { font-family: var(--fn); font-weight: 800; font-size: 4.5rem; line-height: .9; letter-spacing: -2px; text-transform: uppercase; }
 .rhero-sub  { font-family: var(--fm); font-size: .78rem; margin-top: 10px; opacity: .6; }
-.rhero-em   { font-size: 7rem; opacity: .15; line-height: 1; }
 
 /* Barra de confiança (probabilidade por tipo) */
 .cbar   { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
@@ -630,7 +629,6 @@ main {
   padding: 2px 8px; border-radius: 3px;
 }
 
-.tc-ico  { font-size: 1.7rem; margin-bottom: 7px; display: block; }
 .tc-name { font-family: var(--fn); font-weight: 700; font-size: .8rem; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
 .tc-desc { font-size: .73rem; color: var(--mu); line-height: 1.5; }
 
@@ -938,8 +936,7 @@ main {
   }
   main, header { padding-left: 20px; padding-right: 20px; }
   .rhero-tipo { font-size: 3rem; }
-  .rhero-em   { display: none; }
-  .tstrip     { grid-template-columns: repeat(3, 1fr); }
+    .tstrip     { grid-template-columns: repeat(3, 1fr); }
   .kpi-custos { grid-template-columns: 1fr 1fr; }
 }
 
