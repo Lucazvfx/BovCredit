@@ -102,3 +102,24 @@ def test_ciclo_legado_migrou_para_a_aba_sem_funcao_orfa():
 def test_numeros_com_tabular_nums_e_tabela_alinhada_a_direita():
     assert "tabular-nums" in CSS
     assert ".od-table th:not(:first-child)" in CSS and "text-align: right" in CSS
+
+
+def test_resumo_legado_nao_repete_numeros_do_hero_e_dscr_usa_virgula():
+    ini = INDEX.index("function renderDecisionSummary")
+    corpo = INDEX[ini:INDEX.index("function renderResult", ini)]
+    for repetido in ("Capacidade estimada", "DSCR mínimo", "<span>Risco</span>"):
+        assert repetido not in corpo, repetido
+    for mantido in ("Resultado operacional", "Sistema identificado", "Análise preliminar"):
+        assert mantido in corpo, mantido
+    # Nenhum DSCR formatado com ponto decimal ou sufixo "x".
+    assert "toFixed(2)+'x'" not in INDEX
+    assert "_prNum(c.dscr_minimo, 2)}x" not in INDEX
+    assert "const fDscr=" in INDEX
+
+
+def test_mobile_header_em_fluxo_normal_e_nav_fixa_no_fundo():
+    assert re.search(r"\.ork-context-header \{ height: auto;", CSS)
+    nav = CSS[CSS.index(".ork-dashboard-surface .ork-mobile-nav {\n    right"):]
+    nav = nav[:nav.index("}")]
+    assert "bottom: 0" in nav and "env(safe-area-inset-bottom)" in nav
+    assert "env(safe-area-inset-bottom)" in CSS[CSS.index(".ork-main { padding-bottom"):][:120]
