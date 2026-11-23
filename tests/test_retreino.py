@@ -1,43 +1,23 @@
-import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+"""O retreino é offline (`avaliar_retreino.py`, coberto em test_avaliar_retreino.py).
 
-def test_contador_dispara_ao_atingir_limite():
-    LIMITE = 10
-    contador = 0
-    disparou = []
-    for i in range(1, 12):
-        contador += 1
-        if contador >= LIMITE:
-            disparou.append(i)
-            contador = 0
-    assert len(disparou) == 1
-    assert disparou[0] == 10
-    assert contador == 1
+O app não expõe rota de retreino nem mantém contador de confirmações:
+reintroduzir isso exige decisão explícita, não pode acontecer por acidente.
+"""
+import os
 
-def test_contador_reseta_apos_retrain_manual():
-    """api_retrain deve zerar o contador independente do valor atual."""
-    LIMITE = 10
+from app import app
 
-    # Simula estado: 7 confirmações acumuladas antes do retreino manual
-    contador = 7
-    assert contador > 0  # confirma pré-condição: havia confirmações pendentes
+RAIZ = os.path.join(os.path.dirname(__file__), '..')
 
-    # Simula api_retrain zerando o contador
-    contador = 0
-    assert contador == 0  # contador zerado
 
-    # Confirma que agora precisa de LIMITE novas confirmações para disparar
-    for _ in range(LIMITE - 1):
-        contador += 1
-    assert contador == LIMITE - 1
-    assert contador < LIMITE  # não deve ter disparado ainda
+def test_app_nao_expoe_rota_de_retreino():
+    rotas = [r.rule for r in app.url_map.iter_rules()]
+    assert not [r for r in rotas if 'retrain' in r or 'retreino' in r]
 
-def test_resposta_json_inclui_progresso():
-    RETRAIN_A_CADA = 10
-    _confirmacoes_desde_retrain = 0
-    for _ in range(4):
-        _confirmacoes_desde_retrain += 1
-    faltam = RETRAIN_A_CADA - _confirmacoes_desde_retrain
-    assert faltam == 6
-    assert _confirmacoes_desde_retrain == 4
 
+def test_app_nao_mantem_contador_de_retreino_automatico():
+    with open(os.path.join(RAIZ, 'app.py'), encoding='utf-8') as f:
+        src = f.read()
+    for simbolo in ('api_retrain', 'RETRAIN_A_CADA',
+                    '_confirmacoes_desde_retrain', '_auto_retrain'):
+        assert simbolo not in src
