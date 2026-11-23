@@ -10,7 +10,9 @@ from __future__ import annotations
 import io
 import base64
 import logging
+import math
 from datetime import datetime
+from xml.sax.saxutils import escape as xml_escape
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -278,6 +280,241 @@ def _append_b2b_sections(story, ss, parecer: dict):
         limitacoes.append('Parte do resultado financeiro depende de premissas estimadas.')
     for texto in limitacoes:
         story.append(Paragraph(f'• {texto}', ss['Corpo']))
+
+
+_COR_ALERTA_FUNDO = colors.HexColor('#FFEBEE')
+_COR_OK_FUNDO = colors.HexColor('#E8F5E9')
+_COR_CABECALHO = colors.HexColor('#EEEEEE')
+_NOME_CENARIO = {'base': 'Base'}
+_STATUS_RUPTURA = {'folga': 'Com folga', 'ja_em_ruptura': 'Em ruptura',
+                   'sem_divida': 'Sem dívida', 'sem_volume': 'Sem volume'}
+
+
+def _txt(v, limite: int = 300) -> str:
+    """Texto vindo do parecer (JSON do cliente) → seguro para Paragraph."""
+    return xml_escape(str(v)[:limite])
+
+
+def _cel(v, limite: int = 30) -> str:
+    """Texto para célula de Table (não interpreta XML: sem escape)."""
+    return str(v)[:limite]
+
+
+def _finito(v):
+    """float(v) ou None se não numérico, NaN/inf ou grande demais."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return f if math.isfinite(f) else None
+
+
+def _moeda(v) -> str:
+    return '—' if _finito(v) is None else _fmt_moeda(v)
+
+
+def _pct(v) -> str:
+    return '—' if _finito(v) is None else _fmt_pct(v)
+
+
+def _dict(v) -> dict:
+    return v if isinstance(v, dict) else {}
+
+
+def _lista(v, maximo: int) -> list:
+    return v[:maximo] if isinstance(v, list) else []
+
+
+def _num(v, casas: int = 2) -> str:
+    f = _finito(v)
+    return '—' if f is None else f"{f:.{casas}f}".replace('.', ',')
+
+
+def _tabela(linhas, larguras, fonte=7.5, extra=()):
+    t = Table(linhas, colWidths=larguras, repeatRows=1)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), _COR_CABECALHO),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#DDDDDD')),
+        ('FONTSIZE', (0, 0), (-1, -1), fonte),
+        ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+        *extra,
+    ]))
+    return t
+
+
+def _aviso(story, ss, texto, ok=False):
+    caixa = Table([[Paragraph(texto, ss['Corpo'])]], colWidths=[17*cm])
+    caixa.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), _COR_OK_FUNDO if ok else _COR_ALERTA_FUNDO),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#DDDDDD')),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8), ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    story.append(caixa)
+    story.append(Spacer(1, 4))
+
+
+def _append_ciclo_12_meses(story, ss, ciclo):
+    """Fluxo mensal do ano crítico. Sem dado (chave ausente) a seção não aparece."""
+    if not isinstance(ciclo, dict) or not ciclo:
+        return
+    story.append(Paragraph('Ciclo de 12 meses', ss['SecaoTitulo']))
+    meses = [m for m in _lista(ciclo.get('meses'), 12) if isinstance(m, dict)]
+    if ciclo.get('disponivel') is False or not meses:
+        story.append(Paragraph(
+            _txt(ciclo.get('motivo') or 'Fluxo sazonal indisponível: dados '
+                 'insuficientes.'), ss['Corpo']))
+        return
+    story.append(Paragraph(
+        f"Sistema: <b>{_txt(ciclo.get('sistema', '—'), 40)}</b> · "
+        f"Pagamento: <b>{_txt(ciclo.get('frequencia', '—'), 40)}</b> · "
+        f"Ano de referência: <b>{_txt(ciclo.get('ano_referencia', '—'), 10)}</b> · "
+        f"Receita anual: <b>{_moeda(ciclo.get('receita_anual'))}</b> · "
+        f"Serviço da dívida: <b>{_moeda(ciclo.get('servico_divida_anual_parecer', ciclo.get('servico_divida_anual')))}</b>",
+        ss['Corpo']))
+    story.append(Spacer(1, 4))
+
+    vale = ciclo.get('vale_caixa')
+    rotulo_vale = next((m.get('rotulo') for m in meses
+                        if m.get('mes') == ciclo.get('mes_vale')), None)
+    deficit = _lista(ciclo.get('meses_deficit'), 12)
+    vale_f = _finito(vale)
+    if vale_f is None:
+        pass
+    elif vale_f < 0:
+        _aviso(story, ss,
+               f"<b>Vale de caixa: {_moeda(vale)}</b>"
+               f"{' em ' + _txt(rotulo_vale, 20) if rotulo_vale else ''} — "
+               f"saldo acumulado negativo em {len(deficit)} mês(es); o caixa do "
+               f"ciclo (já com o capital de giro informado) não cobre o ano.")
+    else:
+        _aviso(story, ss,
+               f"<b>Sem vale de caixa:</b> menor saldo acumulado do ciclo "
+               f"{_moeda(vale)}"
+               f"{' em ' + _txt(rotulo_vale, 20) if rotulo_vale else ''}.", ok=True)
+    if ciclo.get('quebra_caixa_com_dscr_ok'):
+        story.append(Paragraph(
+            '<b>Atenção:</b> o DSCR anual é suficiente, mas o caixa quebra em '
+            'meses do ciclo.', ss['Corpo']))
+
+    linhas = [['Mês', 'Entradas', 'Saídas oper.', 'Dívida', 'Saldo mês', 'Saldo acum.']]
+    destaque = []
+    for i, m in enumerate(meses, start=1):
+        linhas.append([_cel(m.get('rotulo', m.get('mes', '—')), 12),
+                       _moeda(m.get('entradas')),
+                       _moeda(m.get('saidas_operacionais')),
+                       _moeda(m.get('servico_divida')),
+                       _moeda(m.get('saldo_mensal')),
+                       _moeda(m.get('saldo_acumulado'))])
+        if m.get('mes') is not None and m.get('mes') == ciclo.get('mes_vale'):
+            destaque += [('BACKGROUND', (0, i), (-1, i), _COR_ALERTA_FUNDO),
+                         ('FONTNAME', (0, i), (-1, i), 'Helvetica-Bold')]
+    story.append(_tabela(linhas, [1.8*cm, 3*cm, 3*cm, 3*cm, 3.1*cm, 3.1*cm],
+                         extra=destaque))
+    story.append(Spacer(1, 4))
+
+    rec = _dict(ciclo.get('recomendacao'))
+    if rec.get('estrutura_recomendada'):
+        txt = (f"Estrutura de pagamento recomendada: "
+               f"<b>{_txt(rec['estrutura_recomendada'], 40)}</b>")
+        if rec.get('melhora_vale'):
+            txt += f" (reduz o vale em {_moeda(rec.get('reducao_vale'))})"
+        story.append(Paragraph(txt + '.', ss['Corpo']))
+    prov = _dict(ciclo.get('proveniencia'))
+    if prov.get('descricao'):
+        story.append(Paragraph(
+            f"<i>Perfil sazonal — {_txt(prov['descricao'], 400)}. "
+            f"{_txt(prov.get('nota', ''), 300)}</i>", ss['Subtitulo']))
+    for j in _lista(ciclo.get('justificativa'), 6):
+        story.append(Paragraph(f"• {_txt(j, 400)}", ss['Subtitulo']))
+
+
+def _append_estresse_arroba(story, ss, est):
+    """Cenários de estresse da arroba e ponto de ruptura (ano crítico)."""
+    if not isinstance(est, dict) or not est:
+        return
+    story.append(Paragraph('Estresse da arroba — cenários', ss['SecaoTitulo']))
+    cenarios = _dict(est.get('cenarios'))
+    base = _dict(est.get('base'))
+    if est.get('disponivel') is False or not (cenarios or base):
+        story.append(Paragraph(
+            _txt(est.get('motivo') or 'Estresse da arroba indisponível: dados '
+                 'insuficientes.'), ss['Corpo']))
+        return
+    story.append(Paragraph(
+        f"Ano crítico: <b>{_txt(est.get('ano_referencia', '—'), 10)}</b> · "
+        f"Preço-base da arroba: <b>{_moeda(base.get('preco_arroba'))}</b> · "
+        f"Serviço da dívida: <b>{_moeda(base.get('servico_divida_anual'))}</b>",
+        ss['Corpo']))
+    story.append(Spacer(1, 4))
+
+    linhas = [['Cenário', 'Receita', 'Custo', 'Resultado', 'Margem', 'DSCR', 'Class.']]
+    if base:
+        linhas.append(['Base', *_celulas_cenario(base)])
+    for nome, c in list(cenarios.items())[:8]:
+        c = _dict(c)
+        linhas.append([_cel(_NOME_CENARIO.get(nome, nome), 30), *_celulas_cenario(c)])
+    if len(linhas) > 1:
+        story.append(_tabela(
+            linhas, [3.2*cm, 2.9*cm, 2.9*cm, 2.9*cm, 1.6*cm, 1.3*cm, 2.2*cm],
+            extra=[('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#F5F5F5'))]
+            if base else ()))
+        story.append(Spacer(1, 4))
+    for nome, c in list(cenarios.items())[:8]:
+        desc = _dict(c).get('descricao')
+        if desc:
+            story.append(Paragraph(f"• <b>{_txt(nome, 30)}:</b> {_txt(desc, 200)}",
+                                   ss['Subtitulo']))
+    origens = []
+    for c in cenarios.values():
+        for v in _dict(_dict(c).get('premissas')).values():
+            d = _dict(v).get('descricao')
+            if d and d not in origens:
+                origens.append(d)
+    if origens:
+        story.append(Paragraph(
+            f"<i>Origem dos choques: {_txt('; '.join(origens[:3]), 400)}.</i>",
+            ss['Subtitulo']))
+    for aviso in _lista(est.get('avisos'), 5):
+        story.append(Paragraph(f"• {_txt(aviso, 400)}", ss['Subtitulo']))
+
+    rup = _dict(est.get('ponto_ruptura_arroba'))
+    if not rup:
+        return
+    story.append(Paragraph('Ponto de ruptura da arroba', ss['SecaoTitulo']))
+    linhas_r = [['Limiar de DSCR', 'DSCR alvo', 'Preço-base', 'Preço mínimo',
+                 'Folga de preço', 'Situação']]
+    em_ruptura = False
+    for chave, rotulo in (('aprovar', 'Aprovar'), ('ressalva', 'Ressalva')):
+        r = _dict(rup.get(chave))
+        if not r:
+            continue
+        em_ruptura = em_ruptura or bool(r.get('em_ruptura'))
+        linhas_r.append([rotulo, _num(r.get('dscr_alvo')),
+                         _moeda(r.get('preco_base')),
+                         _moeda(r.get('preco_minimo')),
+                         _pct(r.get('queda_maxima_suportada_pct')),
+                         'Em ruptura' if r.get('em_ruptura') else _STATUS_RUPTURA.get(
+                             r.get('status'), _cel(r.get('status', '—'), 20))])
+    if len(linhas_r) > 1:
+        story.append(_tabela(linhas_r, [2.6*cm, 2*cm, 2.8*cm, 2.8*cm, 2.2*cm, 3.2*cm]))
+        story.append(Spacer(1, 4))
+        if em_ruptura:
+            _aviso(story, ss, '<b>Preço-base no preço mínimo ou abaixo dele</b> em '
+                   'pelo menos um limiar de DSCR (ver tabela).')
+    story.append(Paragraph(
+        '<i>Folga de preço negativa: a arroba precisaria subir esse percentual '
+        'para atingir o DSCR alvo.</i>', ss['Subtitulo']))
+    if est.get('premissas_base'):
+        story.append(Paragraph(f"<i>{_txt(est['premissas_base'], 600)}</i>",
+                               ss['Subtitulo']))
+
+
+def _celulas_cenario(c: dict) -> list:
+    m = _finito(c.get('margem_liquida'))  # fração (resultado / receita)
+    margem = '—' if m is None else _pct(m * 100)
+    return [_moeda(c.get('receita')), _moeda(c.get('custo')),
+            _moeda(c.get('resultado')), margem,
+            _num(c.get('dscr')), _cel(c.get('classificacao', '—'), 20)]
 
 
 def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
@@ -663,6 +900,9 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
         ]))
         story.append(tc)
         story.append(Spacer(1, 4))
+
+    _append_ciclo_12_meses(story, ss, parecer.get('ciclo_pecuario'))
+    _append_estresse_arroba(story, ss, parecer.get('estresse_pecuario'))
 
     shap = parecer.get('shap_explicacao') or {}
     fatores = shap.get('fatores') or []
