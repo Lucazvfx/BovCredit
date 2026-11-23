@@ -124,6 +124,20 @@ def _fluxo_ciclo_do_parecer(*, sistema_produtivo, frequencia_pagamento,
     except ValueError as e:
         # Resultado maior que a receita (custo negativo) ou valor fora do limite.
         return {**base, 'motivo': f'Fluxo sazonal indisponível: {e}'}
+    # O parecer aprova pelo DSCR ARREDONDADO a 2 casas (1,2996 -> 1,30); o motor
+    # compara o valor exato. Na faixa [1,295; 1,30) os dois discordariam e o
+    # alerta sumiria sob um APROVAR. O alerta segue o veredito que o analista lê.
+    dscr_parecer = linha.get('dscr')
+    if dscr_parecer is not None and servico > 0:
+        ok = float(dscr_parecer) >= DSCR_APROVAR
+        if ok != r['dscr_anual_suficiente']:
+            r['dscr_anual_suficiente'] = ok
+            r['quebra_caixa_com_dscr_ok'] = bool(
+                ok and r['meses_deficit_por_divida'])
+            r['justificativa'] = list(r['justificativa']) + [
+                f"DSCR do parecer ({float(dscr_parecer):.2f}, arredondado) é a "
+                f"referência da aprovação; a conta exata do fluxo difere na "
+                f"segunda casa."]
     return {**r, 'disponivel': True, 'ano_referencia': linha.get('ano'),
             'receita_anual': round(receita, 2),
             'custo_operacional_anual': round(custo, 2),

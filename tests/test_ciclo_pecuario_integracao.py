@@ -152,6 +152,22 @@ def test_descasamento_dscr_ok_mas_caixa_quebra_gera_alerta_e_recomendacao():
     assert c['servico_divida_anual'] == 216000.0
 
 
+def test_limiar_130_alerta_segue_o_dscr_arredondado_do_parecer():
+    # 1,2996 arredonda para 1,30: o parecer aprova, então o alerta não pode
+    # sumir nem se contradizer.
+    ano = [{**ANO_CRIA_DSCR_OK[0], 'resultado': 1.2996 * 216000, 'dscr': 1.30}]
+    c = _parecer_direto(ano, sistema_produtivo='cria')['ciclo_pecuario']
+    assert c['dscr_anual_suficiente'] is True
+    assert c['quebra_caixa_com_dscr_ok'] is True
+    assert any('arredondado' in j for j in c['justificativa'])
+
+
+def test_resultado_maior_que_a_receita_nao_quebra_o_parecer():
+    ano = [{**ANO_CRIA_DSCR_OK[0], 'resultado': 700000.0}]
+    c = _parecer_direto(ano, sistema_produtivo='cria')['ciclo_pecuario']
+    assert c['disponivel'] is False and c['motivo']
+
+
 def test_capital_de_giro_entra_no_fluxo():
     sem = _parecer_direto(ANO_CRIA_DSCR_OK, sistema_produtivo='cria')
     com = _parecer_direto(ANO_CRIA_DSCR_OK, sistema_produtivo='cria',
@@ -237,6 +253,8 @@ def test_parecer_persistido_guarda_o_fluxo_e_outra_empresa_nao_o_alcanca():
     assert ra.status_code == 200
     itens = a.get(f'/api/fazendas/{fid}/pareceres').get_json()['pareceres']
     assert len(itens) == 1
+    salvo = db.listar_pareceres(fazenda_id=fid)[0]
+    assert 'ciclo_pecuario' in json.dumps(salvo, default=str)
 
     # B aponta para a fazenda de A: o campo novo não abre brecha.
     rb = b.post('/api/classificar', json=_payload(
