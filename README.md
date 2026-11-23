@@ -13,15 +13,15 @@ Este documento descreve o sistema **como ele está**. A Orkavyn Agro Intelligenc
 A interface compartilhada fica em:
 
 - `static/orkavyn-fields.css` — tokens, shell, componentes, estados, páginas públicas, acesso, demonstração e responsividade;
-- `static/orkavyn-shell.js` — abertura segura da navegação lateral;
-- `templates/partials/fields_sidebar.html` — navegação desktop da aplicação;
-- `templates/partials/fields_mobile_nav.html` — navegação móvel inferior;
+- `static/orkavyn-shell.js` — comportamento de navegação, sem regra de negócio;
+- `static/orkavyn-dashboard.css` / `static/orkavyn-dashboard.js` — estilo e comportamento do dashboard;
+- `templates/partials/dashboard_dock.html` — dock de navegação flutuante do dashboard;
 - `.interface-design/system.md` — decisões do sistema visual e regras de manutenção.
 
 Breakpoints de referência:
 
-- acima de `900px`: sidebar fixa de `256px`;
-- até `900px`: sidebar recolhível e navegação inferior na aplicação;
+- acima de `900px`: dock de navegação flutuante no dashboard;
+- até `900px`: dock adaptada ao celular, respeitando a área segura inferior;
 - até `760px`: formulários, demonstração e blocos executivos empilhados;
 - até `480px`: gutters de `16px`, métricas em uma coluna e controles com alvo mínimo de `44px`.
 
@@ -29,8 +29,8 @@ QA visual recomendado:
 
 1. Inicie com `SECRET_KEY=visual-qa python app.py`.
 2. Revise `/`, `/login`, `/demo`, `/app`, `/admin`, `/termos` e `/privacidade` em `1440×900`, `1280×800`, `768×1024`, `390×844` e `320×720`.
-3. Confirme ausência de scroll horizontal, foco visível, navegação lateral no desktop, barra inferior no celular e status legível na importação.
-4. Execute `pytest -q tests/test_ui_fields_contract.py tests/test_frontend_pdf_upload.py` e depois `pytest -q`.
+3. Confirme ausência de scroll horizontal, foco visível, dock de navegação no desktop e no celular e status legível na importação.
+4. Execute `python -m pytest -q tests/test_ui_fields_contract.py tests/test_frontend_pdf_upload.py` e depois `python -m pytest -q`.
 
 As imagens em `docs/screenshots/` devem ser regeneradas após alterações visuais; não são usadas como fonte de verdade para os cálculos.
 
@@ -443,6 +443,19 @@ O invariante, coberto por teste: o retreino consome **exclusivamente** `class_co
 
 A correção vale mais que a confirmação: é ela que mostra onde a faixa de referência está errada.
 
+**Retreino é offline e nunca automático.** Nenhum caminho do app grava `gestao_model.pkl`. O único caminho de retreino é `avaliar_retreino.py`, executado localmente:
+
+```bash
+python avaliar_retreino.py                  # compara modelo atual x candidato e imprime o relatório
+python avaliar_retreino.py --saida r.json   # grava o relatório
+python avaliar_retreino.py --promover       # grava o pkl SOMENTE se os critérios passarem
+```
+
+- Entram só casos confirmados por humano, não descartados e com vetor válido (`database.exportar_treino_detalhado()`).
+- Classe com poucos casos reais fica fora da avaliação; sem amostra suficiente não há métrica nem promoção.
+- A promoção cria backup `.bak` e escreve de forma atômica. É local: rode a suíte e commite o artefato, no mesmo fluxo de `treinar_ciclos.py`. Não rode no VPS — sujaria `/opt/orkavyn` e quebraria o `git checkout --detach` do deploy.
+- O candidato é avaliado contra o modelo atual nos mesmos casos reais; com N pequeno, trate o relatório como evidência, não como veredito.
+
 ---
 
 ## 10. IA e canais
@@ -491,7 +504,7 @@ Consultoria B
 | IA | Groq (Llama 3.3 70B) |
 | Frontend | HTML/CSS/JS (sem framework) |
 | Scheduler | APScheduler |
-| Deploy | Docker no Railway (auto-deploy via push em `main`) |
+| Deploy | Docker Compose em VPS (Hostinger) + Supabase; deploy automático via GitHub Actions após `tests` passar em `main` |
 
 ### Estrutura
 
@@ -502,6 +515,7 @@ database.py                   # Abstração SQLite/PostgreSQL
 scraper.py                    # Cotações diárias
 pdf_parsers.py                # 7 agências estaduais + genérico
 treinar_ciclos.py             # Geração do conjunto de treino
+avaliar_retreino.py           # Avaliação offline e promoção do retreino (--promover)
 
 services/
   fluxo_caixa_gep.py          # Valoração + DRE
@@ -529,7 +543,7 @@ templates/
   index.html                  # SPA principal
   admin.html · login.html · cadastro.html
 
-tests/                        # pytest — 56 arquivos, 417 casos
+tests/                        # pytest — 1989 passed, 4 skipped, 1 xfailed
 ```
 
 ### Banco de dados
@@ -649,9 +663,9 @@ O segundo worker custou ~17 MB, não +334.
 
 Ajuste por ambiente: `WEB_CONCURRENCY`, `WEB_THREADS`, `WEB_TIMEOUT`.
 
-### Railway
+### Docker e deploy
 
-Push em `main` dispara deploy automático. A imagem usa `python:3.11.15` e instala quatro pacotes do `apt` que o pip não cobre, porque a `-slim` não traz nenhum:
+O workflow `deploy` sobe sozinho depois que `tests` passa em `main` (ou manualmente em Actions → Run workflow). O repositório no VPS fica num commit fixo (HEAD solto), de propósito: sobe exatamente o commit que a suíte aprovou. A imagem usa `python:3.11.15` e instala quatro pacotes do `apt` que o pip não cobre, porque a `-slim` não traz nenhum:
 
 | Pacote | Por quê |
 |---|---|

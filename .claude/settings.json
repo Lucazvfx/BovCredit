@@ -3,14 +3,11 @@
     "allow": [
       "Read(//tmp/**)",
       "Bash(PYTHONIOENCODING=utf-8 nohup python app.py)",
-      "Bash(git -C \"c:/Users/Lucas/Downloads/boviml_python/boviml\" remote -v)",
       "Bash(git push *)",
       "Bash(python -c \"import ast; ast.parse\\(open\\('app.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
       "Bash(python -c \"import ast; ast.parse\\(open\\('app.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
       "Bash(python -c \"import ast; ast.parse\\(open\\('app.py', encoding='utf-8'\\).read\\(\\)\\); print\\('app.py OK'\\)\")",
       "Bash(python -m pytest)",
-      "Bash(grep -n \"-- Nova Fazenda --\" \"c:/Users/Lucas/Downloads/boviml_python/boviml/templates/index.html\")",
-      "Bash(python -m pytest -q \"c:/Users/Lucas/Downloads/boviml_python/boviml/\")",
       "Bash(python3 -)",
       "Bash(python -m pytest -q)",
       "Bash(python -m pytest tests/test_retreino.py -v)",
@@ -18,9 +15,6 @@
       "Bash(python -c \"import pkg_resources; print\\('pkg ok'\\)\")",
       "Bash(git pull *)",
       "Bash(git stash *)"
-    ],
-    "additionalDirectories": [
-      "c:\\Users\\Lucas\\Downloads\\boviml_python\\boviml\\docs\\superpowers\\specs"
     ]
   },
   "hooks": {
