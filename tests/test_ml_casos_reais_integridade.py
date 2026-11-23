@@ -15,6 +15,9 @@ import ml_engine
 from app import app
 
 
+V_TESTE = [80, 80, 50, 50, 60, 60, 90, 40, 220, 60]
+
+
 def _cliente():
     db.init_db()
     email = f'integridade-{uuid.uuid4().hex}@example.com'
@@ -70,28 +73,42 @@ def test_confirmar_ciclo_rotula_o_caso_do_proprio_registro(client):
     assert caso_a['status'] == 'PENDENTE' and not caso_a['classificacao_humana']
 
 
-def test_caso_com_id_igual_ao_registro_nao_e_confundido(client):
-    """
-    Desalinha as sequências de propósito: cria casos sem registro até que o
-    `casos_reais.id` do próximo caso difira do `registros.id` correspondente.
-    O código antigo rotularia o caso de id == registro_id (o intruso).
-    """
-    d = _classificar(client, _vetor_inedito())
-    caso_certo = db.buscar_caso_real_por_registro(d['registro_id'])
-    # intruso: caso do mesmo usuário cujo id numérico == registro_id do alvo
-    dono = db.buscar_registro_por_id(d['registro_id'])['user_id']
-    while True:
-        cid = db.criar_caso_real(V_TESTE, 'CRIA', user_id=dono)
-        if cid >= d['registro_id']:
-            break
-    intruso = db.buscar_caso_real(d['registro_id'], user_id=dono)
-    assert intruso and intruso['id'] != caso_certo['id'], 'sequências ainda alinhadas'
+def _max_id(tabela):
+    return int(dict(db._exec(f'SELECT COALESCE(MAX(id), 0) AS n FROM {tabela}',
+                             fetch='one'))['n'])
 
-    client.post('/api/confirmar-ciclo',
-                json={'registro_id': d['registro_id'], 'ciclo': 'ENGORDA'})
-    assert db.buscar_caso_real(caso_certo['id'])['status'] == 'CONFIRMADO'
-    depois = db.buscar_caso_real(intruso['id'])
-    assert depois['status'] == 'PENDENTE' and not depois['classificacao_humana']
+
+def _trocar_id(tabela, de, para):
+    db._exec(f'UPDATE {tabela} SET id={db._PH} WHERE id={db._PH}', (para, de), commit=True)
+
+
+def test_caso_com_id_igual_ao_registro_nao_e_confundido():
+    """
+    Monta os ids de propósito, sem depender do estado do banco: o registro R
+    tem o caso vinculado K (K != R), e existe um caso INTRUSO de id == R, do
+    mesmo usuário e sem vínculo. O código antigo (que tratava registro_id como
+    casos_reais.id) rotularia o intruso e deixaria o caso certo PENDENTE.
+    """
+    client, uid = _cliente()
+    base = max(_max_id('registros'), _max_id('casos_reais')) + 1000
+    R, K = base, base + 1
+
+    rid = db.salvar(valores=V_TESTE, class_ml='CRIA', confianca=50, user_id=uid)
+    _trocar_id('registros', rid, R)
+    cid = db.criar_caso_real(V_TESTE, 'CRIA', user_id=uid, registro_id=R)
+    _trocar_id('casos_reais', cid, K)
+    iid = db.criar_caso_real(V_TESTE, 'CRIA', user_id=uid)          # sem registro
+    _trocar_id('casos_reais', iid, R)
+
+    assert db.buscar_caso_real(R)['registro_id'] is None
+    assert db.buscar_caso_real_por_registro(R)['id'] == K
+
+    r = client.post('/api/confirmar-ciclo', json={'registro_id': R, 'ciclo': 'ENGORDA'})
+    assert r.status_code == 200
+
+    certo, intruso = db.buscar_caso_real(K), db.buscar_caso_real(R)
+    assert certo['status'] == 'CONFIRMADO' and certo['classificacao_humana'] == 'ENGORDA'
+    assert intruso['status'] == 'PENDENTE' and not intruso['classificacao_humana']
 
 
 def test_confirmar_caso_gravado_em_outra_empresa_nao_deixa_pela_metade(client):
@@ -187,9 +204,6 @@ def test_exportar_treino_ignora_nan_e_bool():
 
 
 # ── Atipicidade vira sinal de revisão humana ────────────────────────────────
-V_TESTE = [80, 80, 50, 50, 60, 60, 90, 40, 220, 60]
-
-
 def _atip(nivel):
     return {'distancia': 99.0, 'nivel': nivel, 'mensagem': 'x',
             'limiar_p95': 10.0, 'limiar_p99': 15.0}
