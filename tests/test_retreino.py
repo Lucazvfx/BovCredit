@@ -11,8 +11,8 @@ RAIZ = os.path.join(os.path.dirname(__file__), '..')
 
 
 def test_app_nao_expoe_rota_de_retreino():
-    rotas = [r.rule for r in app.url_map.iter_rules()]
-    assert not [r for r in rotas if 'retrain' in r or 'retreino' in r]
+    rotas = [r.rule.lower() for r in app.url_map.iter_rules()]
+    assert not [r for r in rotas if 'trein' in r or 'train' in r]
 
 
 def test_app_nao_mantem_contador_de_retreino_automatico():
