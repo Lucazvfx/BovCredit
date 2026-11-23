@@ -63,6 +63,8 @@ PAPEL_ALTERADO          = 'papel_alterado'
 PROPOSTA_REGISTRADA     = 'proposta_registrada'
 PROPOSTA_DECIDIDA       = 'proposta_decidida'
 PROPOSTA_DECISAO_NEGADA = 'proposta_decisao_negada'
+# Identidade institucional sai impressa no parecer: mudar é decisão da empresa.
+IDENTIDADE_ALTERADA     = 'identidade_alterada'
 # Carteira de propostas exportada: dado de crédito de terceiros sai do sistema.
 PROPOSTAS_EXPORTADAS    = 'propostas_exportadas'
 
@@ -90,6 +92,7 @@ EVENTOS = {
     CONSULTA_CADASTRAL:      'Consultou situação cadastral (CPF/CNPJ)',
     CONTA_CRIADA:            'Conta criada por login social (domínio liberado)',
     ALCADA_ALTERADA:         'Alterou a política de alçada da empresa',
+    IDENTIDADE_ALTERADA:     'Alterou a identidade institucional da empresa',
     PAPEL_ALTERADO:          'Alterou o papel de um membro da empresa',
     PROPOSTA_REGISTRADA:     'Registrou proposta comercial',
     PROPOSTA_DECIDIDA:       'Decidiu proposta comercial',

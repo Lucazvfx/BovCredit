@@ -748,6 +748,20 @@ def init_db():
         )
     ''', commit=True)
 
+    # Identidade institucional no PDF do parecer: uma linha por empresa
+    _exec(f'''
+        CREATE TABLE IF NOT EXISTS empresa_identidade (
+            id                   {_AI},
+            empresa_id           INTEGER NOT NULL UNIQUE,
+            nome_exibicao        TEXT NOT NULL DEFAULT '',
+            cnpj                 TEXT NOT NULL DEFAULT '',
+            responsavel_nome     TEXT NOT NULL DEFAULT '',
+            responsavel_registro TEXT NOT NULL DEFAULT '',
+            atualizado_por       INTEGER,
+            atualizado_em        TIMESTAMP DEFAULT {_NOW}
+        )
+    ''', commit=True)
+
     # Propostas comerciais: snapshot da simulação + decisão do aprovador
     _exec(f'''
         CREATE TABLE IF NOT EXISTS propostas_comerciais (
@@ -1088,6 +1102,34 @@ def salvar_politica_alcada(empresa_id: int, politica: dict, user_id: int = None)
                 atualizado_por=excluded.atualizado_por,
                 atualizado_em={_NOW}''',
           valores + (empresa_id,), commit=True)
+
+
+def obter_identidade_empresa(empresa_id: int) -> dict:
+    """Identidade institucional da empresa; sem registro, tudo vazio.
+
+    Leitura pura e restrita à própria empresa.
+    """
+    row = _exec(f'SELECT * FROM empresa_identidade WHERE empresa_id={_PH}',
+                (empresa_id,), fetch='one')
+    campos = ('nome_exibicao', 'cnpj', 'responsavel_nome', 'responsavel_registro')
+    return {c: ((row or {}).get(c) or '') for c in campos}
+
+
+def salvar_identidade_empresa(empresa_id: int, dados: dict, user_id: int = None):
+    """Grava (insere ou atualiza) a identidade já validada da empresa."""
+    ph = _PH
+    _exec(f'''INSERT INTO empresa_identidade (nome_exibicao, cnpj,
+              responsavel_nome, responsavel_registro, atualizado_por, empresa_id)
+              VALUES ({ph},{ph},{ph},{ph},{ph},{ph})
+              ON CONFLICT (empresa_id) DO UPDATE SET
+                nome_exibicao=excluded.nome_exibicao,
+                cnpj=excluded.cnpj,
+                responsavel_nome=excluded.responsavel_nome,
+                responsavel_registro=excluded.responsavel_registro,
+                atualizado_por=excluded.atualizado_por,
+                atualizado_em={_NOW}''',
+          (dados['nome_exibicao'], dados['cnpj'], dados['responsavel_nome'],
+           dados['responsavel_registro'], user_id, empresa_id), commit=True)
 
 
 def resetar_senha(email: str, nova_senha: str):

@@ -13,6 +13,7 @@ import logging
 import math
 from datetime import datetime
 from xml.sax.saxutils import escape as xml_escape
+from services.identidade_institucional import linhas_pdf as linhas_identidade
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -574,16 +575,19 @@ def gerar_pdf_parecer(parecer: dict, branding: dict | None = None) -> bytes:
     story = []
 
     branding = branding or {}
-    nome_consultoria = (branding.get('nome_consultoria') or '').strip()
+    nome_consultoria = ((branding.get('nome_exibicao') or '').strip()
+                        or (branding.get('nome_consultoria') or '').strip())
     logo = _logo_flowable(branding.get('logo_base64') or '')
     if logo is not None:
         story.append(logo)
         story.append(Spacer(1, 6))
 
     ident = parecer.get('identificacao') or {}
-    titulo = (f"{nome_consultoria} — Parecer de Crédito" if nome_consultoria
+    titulo = (f"{_txt(nome_consultoria, 120)} — Parecer de Crédito" if nome_consultoria
               else 'Parecer de Crédito — Análise Técnico-Financeira')
     story.append(Paragraph(titulo, ss['Titulo']))
+    for linha in linhas_identidade(branding):
+        story.append(Paragraph(_txt(linha, 200), ss['Subtitulo']))
     fazenda = ident.get('fazenda') or '—'
     municipio = ident.get('municipio') or '—'
     proprietario = ident.get('proprietario') or '—'

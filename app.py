@@ -28,6 +28,7 @@ from services.limites_entrada import (
 )
 from services import assistente as _assistente
 from services import politica_alcada as _alcada
+from services import identidade_institucional as _identidade
 from services import papeis_empresa as _papeis
 from services import propostas_vinculo as _vinculo
 from services import exportacao_csv as _csv_propostas
@@ -1263,6 +1264,39 @@ def api_empresa_perfil():
         'logo_base64': (e.get('logo_base64') or '') if e else '',
     })
 
+@app.route('/api/empresa/identidade', methods=['GET'])
+@limiter.limit(_LIM_CALCULO)
+@login_required
+def api_obter_identidade_empresa():
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    return jsonify({
+        'identidade': _identidade.para_resposta(db.obter_identidade_empresa(empresa_id)),
+        'pode_editar': _papel_na_empresa(empresa_id) == _papeis.PAPEL_ADMIN,
+    })
+
+
+@app.route('/api/empresa/identidade', methods=['PUT'])
+@limiter.limit("20 per minute; 100 per hour")
+@login_required
+def api_salvar_identidade_empresa():
+    # Identidade sai em documento de crédito: só administrador da empresa
+    # ativa (ou admin global) altera.
+    empresa_id, erro = _empresa_ativa_ou_400()
+    if erro:
+        return erro
+    if _papel_na_empresa(empresa_id) != _papeis.PAPEL_ADMIN:
+        return jsonify({'erro': 'Sem permissão para alterar a identidade da empresa.'}), 403
+    dados, msg = _identidade.validar_identidade(request.get_json(silent=True))
+    if msg:
+        return jsonify({'erro': msg}), 400
+    db.salvar_identidade_empresa(empresa_id, dados, user_id=current_user.id)
+    _auditar(_aud.IDENTIDADE_ALTERADA, recurso='empresa', recurso_id=empresa_id)
+    return jsonify({'ok': True,
+                    'identidade': _identidade.para_resposta(db.obter_identidade_empresa(empresa_id))})
+
+
 @app.route('/api/parecer/pdf', methods=['POST'])
 @limiter.limit(_LIM_ARQUIVO)
 @login_required
@@ -1274,6 +1308,8 @@ def api_parecer_pdf():
     e = db.buscar_empresa(empresa_id) if empresa_id else None
     branding = {'nome_consultoria': e.get('nome') or '',
                 'logo_base64': e.get('logo_base64') or ''} if e else None
+    if branding is not None:
+        branding.update(db.obter_identidade_empresa(empresa_id))
     pdf_bytes = gerar_pdf_parecer(parecer, branding=branding)
     _ident = (parecer.get('identificacao') or {})
     _auditar(_aud.PARECER_PDF, recurso='fazenda',
