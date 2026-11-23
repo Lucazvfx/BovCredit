@@ -958,16 +958,41 @@ def parsear_resumo_fazendas(text: str, pdf_path: str = None) -> dict:
 # Quantidade ao fim da linha. Aceita milhar com ponto ("1.250") e decimal
 # pt-BR sem fração ("250,00"). Antes só `\d{1,6}` casava: "1.250" virava 250 e
 # o rebanho saía 5x menor sem nenhum alerta.
-_QTD_FINAL = re.compile(r'(?<![\d.,])(\d{1,3}(?:\.\d{3}){1,2}|\d{1,6})(?:,0{1,2})?\s*$')
+#
+# Milhar com espaço ("1 250", "12 340") também é aceito, mas é ambíguo com
+# colunas vizinhas ("Vacas 45 120" pode ser 45 e 120). Por isso só vale com
+# grupo inicial de 1-2 dígitos, um único grupo de milhar e fora de intervalos
+# (ver `_qtd_da_linha`); e toda leitura assim gera aviso em `avisos_leitura`.
+_QTD_FINAL = re.compile(
+    r'(?<![\d.,])(\d{1,3}(?:\.\d{3}){1,2}|\d{1,2}(?: \d{3}){1,2}|\d{1,6})'
+    r'(?:,0{1,2})?\s*$')
+_PREFIXO_AMBIGUO = re.compile(
+    r'(?:\d\s+|\d\s*[-–—/]\s*|\b(?:a|à|até|ate|de|e)\s+)$', re.I)
 
 
 def _qtd_ptbr(token: str) -> int:
-    return int(token.replace('.', ''))
+    return int(token.replace('.', '').replace(' ', ''))
+
+
+def _qtd_da_linha(bruto: str):
+    """(quantidade, usou_milhar_com_espaco) ao fim da linha, ou None.
+
+    Milhar com espaço só quando inequívoco; senão lê apenas o último grupo
+    (comportamento anterior), que é o lado conservador para o rebanho."""
+    m = _QTD_FINAL.search(bruto)
+    if not m:
+        return None
+    token = m.group(1)
+    usou_espaco = ' ' in token
+    if usou_espaco and (token.count(' ') > 1
+                        or _PREFIXO_AMBIGUO.search(bruto[:m.start(1)])):
+        token, usou_espaco = token.rsplit(' ', 1)[1], False
+    return _qtd_ptbr(token), usou_espaco
 
 
 _TOTAL_DOC = re.compile(
     r'^\s*TOTAL(?:\s+GERAL)?(?:\s+(?:DE\s+)?(?:BOVINOS|ANIMAIS|REBANHO|CABE[CÇ]AS))?'
-    r'\s*[:\-]?\s*(\d{1,3}(?:\.\d{3}){1,2}|\d{1,7})(?:,0{1,2})?\s*$',
+    r'\s*[:\-]?\s*(\d{1,3}(?:\.\d{3}){1,2}|\d{1,2}(?: \d{3}){1,2}|\d{1,7})(?:,0{1,2})?\s*$',
     re.I | re.M)
 
 
@@ -988,6 +1013,10 @@ def avisos_leitura(text: str, dados: dict) -> list:
             'Nenhuma categoria de animal foi reconhecida — confira o '
             'documento e informe o rebanho manualmente.')
         return avisos
+    if any((_qtd_da_linha(l.strip()) or (0, False))[1] for l in text.split('\n')):
+        avisos.append(
+            'Há quantidade com milhar separado por espaço (ex.: "1 250"), lida '
+            'como 1250. Confira se não são duas colunas antes de classificar.')
     totais = {_qtd_ptbr(m.group(1)) for m in _TOTAL_DOC.finditer(text)}
     if len(totais) == 1:
         declarado = next(iter(totais))
@@ -1042,10 +1071,10 @@ def parsear_generico(text: str) -> dict:
         bruto = line.strip()
         if not bruto:
             continue
-        m_qtd = _QTD_FINAL.search(bruto)
-        if not m_qtd:
+        lida = _qtd_da_linha(bruto)
+        if lida is None:
             continue
-        qtd = _qtd_ptbr(m_qtd.group(1))
+        qtd = lida[0]
         if qtd <= 0 or qtd > 500_000:
             continue
 
