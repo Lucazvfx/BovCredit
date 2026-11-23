@@ -156,3 +156,10 @@ def test_carteira_em_navegador_sem_overflow_nos_dois_viewports(tmp_path):
                          capture_output=True, text=True, timeout=120)
     assert out.returncode == 0, out.stdout + out.stderr
     assert len([l for l in out.stdout.splitlines() if " OK " in l]) == 4, out.stdout
+
+
+def test_ruptura_sem_volume_conta_mesmo_sem_preco_minimo():
+    p = {"estresse_pecuario": {"disponivel": True, "ponto_ruptura_arroba": {"ressalva": {
+        "preco_minimo": None, "preco_base": None, "queda_maxima_suportada_pct": None,
+        "em_ruptura": True}}}}
+    assert resumo_parecer(p)["ruptura"]["em_ruptura"] is True

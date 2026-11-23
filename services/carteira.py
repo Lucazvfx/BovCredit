@@ -56,7 +56,8 @@ def resumo_parecer(parecer_json, solicitacao_json=None) -> dict:
     rup = (_dict(_dict(est.get('ponto_ruptura_arroba')).get('ressalva'))
            if est.get('disponivel') else {})
     ruptura = None
-    if rup and _num(rup.get('preco_minimo')) is not None:
+    if rup and (_num(rup.get('preco_minimo')) is not None
+                or rup.get('em_ruptura') is True):
         ruptura = {'preco_minimo': _num(rup.get('preco_minimo')),
                    'preco_base': _num(rup.get('preco_base')),
                    'folga_pct': _num(rup.get('queda_maxima_suportada_pct')),

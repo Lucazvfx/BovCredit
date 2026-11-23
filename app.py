@@ -1170,6 +1170,7 @@ def api_fazenda_pareceres(fid):
 
 @app.route('/api/carteira', methods=['GET'])
 @login_required
+@limiter.limit(_LIM_CALCULO)
 def api_carteira():
     """Uma linha por fazenda da empresa ativa, com o resumo do último parecer."""
     empresa_id, erro = _empresa_ativa_ou_400()

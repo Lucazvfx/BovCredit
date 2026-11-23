@@ -5974,11 +5974,11 @@ function carteiraMetricasHtml(resumo, dscr){
   const valeTxt = !vale ? '—' : (vale.tem_vale===null ? '—' : (vale.tem_vale ? escapeHtml(_fArr(vale.valor))+(vale.mes?' · '+escapeHtml(vale.mes):'') : 'Sem vale'));
   const rat = r.rating_faixa ? escapeHtml(r.rating_faixa)+(r.rating_score!=null?' · '+escapeHtml(String(Math.round(r.rating_score))):'') : '—';
   const prazo = r.prazo_meses ? escapeHtml(String(Math.round(r.prazo_meses)))+' meses' : '—';
-  const ress = resumo ? (r.ressalvas_total ? String(r.ressalvas_total) : 'Nenhuma') : '—';
+  const ress = r.ressalvas_total ? String(r.ressalvas_total) : ((rup || vale) ? 'Nenhuma' : '—');
   return '<div class="ork-metrics">'
     + _cartCel('DSCR', escapeHtml(fDscr(d)))
     + _cartCel('Rating', rat)
-    + _cartCel('Folga de preço', rupTxt, rup && rup.em_ruptura ? 'bad' : '')
+    + _cartCel('Folga até negar', rupTxt, rup && rup.em_ruptura ? 'bad' : '')
     + _cartCel('Vale de caixa', valeTxt, vale && vale.tem_vale ? 'warn' : '')
     + _cartCel('Prazo', prazo)
     + _cartCel('Ressalvas', ress, r.ressalvas_total ? 'warn' : '')
