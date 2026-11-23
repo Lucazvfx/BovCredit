@@ -1825,6 +1825,8 @@ const TL={CRIA:'CRIA',RECRIA:'RECRIA',ENGORDA:'ENGORDA',CICLO_COMPLETO:'CICLO CO
 const TD={CRIA:'Foco em produção de bezerros. Predomínio de vacas/matrizes adultas, alta taxa de cria.',RECRIA:'Fase de desenvolvimento pós-desmame. Alta concentração 13–24m.',ENGORDA:'Terminação para abate. Machos adultos em peso de corte predominam.',CICLO_COMPLETO:'Todas as fases integradas: cria, recria e terminação na mesma propriedade.',RECRIA_ENGORDA:'Compra magro e termina. Giro alto, retenção muito baixa, receita em boi gordo.',CRIA_RECRIA:'Base de cria com compra de desmama. Produção própria somada a animais adquiridos para recria.'};
 const fN=n=>Math.round(n).toLocaleString('pt-BR');
 const fR=n=>'R$ '+Math.round(n).toLocaleString('pt-BR');
+// DSCR sempre no padrão brasileiro (vírgula decimal, 2 casas, sem sufixo "x").
+const fDscr=v=>(v===null||v===undefined||v===''||!Number.isFinite(Number(v)))?'—':Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fP=n=>(n*100).toFixed(1)+'%';
 let lastVals=null, curSc='otimista';
 let _last_pdf_raw = null; // para reprocessamento
@@ -3267,7 +3269,7 @@ function renderAnalisesCredito(data, parecer){
   const statusLabel={aprovada:'ADEQUADA',ressalva:'RESSALVA',reprovada:'INSUFICIENTE',baixo:'BAIXO',medio:'MÉDIO',alto:'ALTO',suficiente:'SUFICIENTE',insuficiente:'INSUFICIENTE',nao_avaliada:'NÃO AVALIADA'};
   const dot=s=>({aprovada:'var(--ork-success)',alto:'var(--ork-success)',suficiente:'var(--ork-success)',ressalva:'var(--ork-warning)',medio:'var(--ork-warning)',reprovada:'var(--ork-danger)',baixo:'var(--ork-danger)',insuficiente:'var(--ork-danger)'}[s]||'var(--ork-copy)');
   return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:var(--ork-line-strong)"></div>Três dimensões da análise</div><div style="font-size:.72rem;color:var(--ork-copy);font-weight:700">Rating ${rating.faixa||'—'} · ${rating.score??'—'}/100</div></div><div class="cb analises-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
-    ${Object.entries(labels).map(([k,l])=>{const x=a[k]||{},s=x.status||'nao_avaliada',dc=dot(s);return `<div style="border:1px solid var(--ork-line);border-radius:10px;padding:14px;background:var(--ork-surface-raised)"><div style="font-size:.65rem;color:var(--ork-copy);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${l}</div><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><div style="width:8px;height:8px;border-radius:50%;background:${dc};flex-shrink:0"></div><div style="font-size:.88rem;font-weight:700;color:var(--ork-ink)">${statusLabel[s]||s}</div></div><div style="font-size:.72rem;color:var(--ork-copy);line-height:1.45">${k==='capacidade_pagamento'?(x.dscr!=null?'DSCR: '+x.dscr:'Sem crédito informado'):k==='risco_credito'?`Confiança: ${x.confianca_classificacao!=null?(x.confianca_classificacao*100).toFixed(0)+'%':'—'} · Consistência: ${x.score_consistencia??'—'}`:`LTV: ${x.ltv!=null?x.ltv+'%':'—'} · Execução: ${x.valor_execucao!=null?fR(x.valor_execucao):'—'}`}</div></div>`}).join('')}
+    ${Object.entries(labels).map(([k,l])=>{const x=a[k]||{},s=x.status||'nao_avaliada',dc=dot(s);return `<div style="border:1px solid var(--ork-line);border-radius:10px;padding:14px;background:var(--ork-surface-raised)"><div style="font-size:.65rem;color:var(--ork-copy);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${l}</div><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><div style="width:8px;height:8px;border-radius:50%;background:${dc};flex-shrink:0"></div><div style="font-size:.88rem;font-weight:700;color:var(--ork-ink)">${statusLabel[s]||s}</div></div><div style="font-size:.72rem;color:var(--ork-copy);line-height:1.45">${k==='capacidade_pagamento'?(x.dscr!=null?'DSCR: '+fDscr(x.dscr):'Sem crédito informado'):k==='risco_credito'?`Confiança: ${x.confianca_classificacao!=null?(x.confianca_classificacao*100).toFixed(0)+'%':'—'} · Consistência: ${x.score_consistencia??'—'}`:`LTV: ${x.ltv!=null?x.ltv+'%':'—'} · Execução: ${x.valor_execucao!=null?fR(x.valor_execucao):'—'}`}</div></div>`}).join('')}
   </div><div style="padding:0 14px 14px;color:var(--ork-copy);font-size:.68rem">Pré-avaliação de apoio à consultoria. Confirme documentos, pesos, custos, dívidas e movimentações antes da decisão final.</div></div>`;
 }
 function renderFluxoMensal(data, parecer){
@@ -3305,10 +3307,10 @@ function renderParecer(data){
             c.dscr_minimo!=null && c.dscr_minimo!==c.dscr_ano1 ? `DSCR · ano ${c.ano_critico}` : 'DSCR'
           }</div>
           <div style="font-family:var(--fn);font-weight:900;font-size:1.8rem;letter-spacing:-.5px;color:${cor}">${
-            c.dscr_minimo!=null ? c.dscr_minimo : c.dscr
+            fDscr(c.dscr_minimo!=null ? c.dscr_minimo : c.dscr)
           }</div>
           ${c.dscr_minimo!=null && c.dscr_minimo!==c.dscr_ano1
-            ? `<div style="font-family:var(--fm);font-size:.5rem;color:var(--mu);margin-top:3px">ano 1: ${c.dscr_ano1}</div>` : ''}
+            ? `<div style="font-family:var(--fm);font-size:.5rem;color:var(--mu);margin-top:3px">ano 1: ${fDscr(c.dscr_ano1)}</div>` : ''}
         </div>
         ${ltv !== null ? `<div style="background:var(--c);padding:13px 14px;text-align:center">
           <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">LTV · execução</div>
@@ -3472,7 +3474,7 @@ function renderParecer(data){
       const h = Math.round(Math.abs(a.resultado) / maxRes * 80);
       const cor = 'var(--sb)';
       const dscrBadge = a.dscr != null
-        ? `<div style="font-size:.48rem;padding:1px 4px;border-radius:3px;margin-top:2px;background:${a.dscr>=1.3?'rgba(74,222,128,.15)':a.dscr>=1.0?'rgba(251,191,36,.15)':'rgba(248,113,113,.15)'};color:var(--tx)">DSCR ${a.dscr}</div>`
+        ? `<div style="font-size:.48rem;padding:1px 4px;border-radius:3px;margin-top:2px;background:${a.dscr>=1.3?'rgba(74,222,128,.15)':a.dscr>=1.0?'rgba(251,191,36,.15)':'rgba(248,113,113,.15)'};color:var(--tx)">DSCR ${fDscr(a.dscr)}</div>`
         : '';
       return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0">
         <div style="font-size:.48rem;color:${cor};font-weight:700">${fR(a.resultado)}</div>
@@ -3506,7 +3508,7 @@ function renderParecer(data){
         <td class="r2 r" style="padding:7px 10px">${fR(a.custo)}</td>
         <td class="r" style="padding:7px 10px;font-weight:700;color:var(--tx)">${fR(a.resultado)}</td>
         <td class="r" style="padding:7px 10px;color:${mCor}">${a.margem_pct}%</td>
-        ${a.dscr != null ? `<td class="r" style="padding:7px 10px;font-weight:700;color:${dscrCor}">${a.dscr}</td>` : '<td class="r" style="padding:7px 10px;color:var(--mu)">—</td>'}
+        ${a.dscr != null ? `<td class="r" style="padding:7px 10px;font-weight:700;color:${dscrCor}">${fDscr(a.dscr)}</td>` : '<td class="r" style="padding:7px 10px;color:var(--mu)">—</td>'}
       </tr>`;
     }).join('');
 
@@ -3555,7 +3557,7 @@ function renderParecer(data){
               ${isBase ? `<span style="font-family:var(--fm);font-size:.48rem;padding:2px 6px;border-radius:3px;background:var(--b);color:var(--mu);letter-spacing:1px">BASE</span>` : ''}
             </div>
             <div style="font-family:var(--fn);font-weight:900;font-size:1.5rem;letter-spacing:-.5px;color:${rc};line-height:1;margin-bottom:2px">${rl}</div>
-            <div style="font-family:var(--fm);font-size:.62rem;color:var(--mu);margin-bottom:12px">DSCR <strong style="color:${rc};font-size:.78rem">${s.dscr ?? '—'}</strong></div>
+            <div style="font-family:var(--fm);font-size:.62rem;color:var(--mu);margin-bottom:12px">DSCR <strong style="color:${rc};font-size:.78rem">${fDscr(s.dscr)}</strong></div>
             <div style="border-top:1px solid var(--b);padding-top:10px;display:grid;gap:6px">
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <span style="font-family:var(--fm);font-size:.58rem;color:var(--mu)">Preço/@</span>
@@ -3591,7 +3593,7 @@ function renderParecer(data){
               ${isBase?`<span style="font-family:var(--fm);font-size:.48rem;padding:2px 6px;border-radius:3px;background:var(--b);color:var(--mu);letter-spacing:1px">BASE</span>`:''}
             </div>
             <div style="font-family:var(--fn);font-weight:900;font-size:1.5rem;letter-spacing:-.5px;color:${rc};line-height:1;margin-bottom:2px">${rl||'—'}</div>
-            <div style="font-family:var(--fm);font-size:.62rem;color:var(--mu);margin-bottom:12px">DSCR <strong style="color:${rc};font-size:.78rem">${s.dscr??'—'}</strong></div>
+            <div style="font-family:var(--fm);font-size:.62rem;color:var(--mu);margin-bottom:12px">DSCR <strong style="color:${rc};font-size:.78rem">${fDscr(s.dscr)}</strong></div>
             <div style="border-top:1px solid var(--b);padding-top:10px;display:grid;gap:6px">
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <span style="font-family:var(--fm);font-size:.58rem;color:var(--mu)">Custo/@</span>
@@ -3623,7 +3625,6 @@ function renderDecisionSummary(data){
   const conclusao=parecer.conclusao||{};
   const fluxo=data.fluxo_gep||parecer.fluxo_gep||{};
   const qualidade=data.qualidade_dados||parecer.qualidade_dados||{};
-  const rating=parecer.rating||data.rating||{};
   const proveniencia=parecer.proveniencia||data.proveniencia||{};
   const parametros=proveniencia.parametros||[];
   const fontes=[...new Set(parametros.map(item=>item.fonte).filter(Boolean))];
@@ -3631,10 +3632,7 @@ function renderDecisionSummary(data){
   const limitacoes=(qualidade.avisos||[]).length+(data.dados_faltantes||[]).length;
   const recomendacoes={aprovar:'Aprovar',ressalva:'Aprovar com ressalva',negar:'Não aprovar'};
   const recomendacao=recomendacoes[conclusao.recomendacao]||'Análise sem recomendação';
-  const dscr=conclusao.dscr_minimo??conclusao.dscr;
-  const capacidade=conclusao.capacidade_maxima;
   const resultado=fluxo.resultado_operacional;
-  const risco=rating.faixa||rating.rotulo||'—';
   const nivelQualidade=qualidade.nivel_confianca||qualidade.status||'—';
 
   // O aviso vem pronto do backend (services/origem_rebanho.py) em vez de ser
@@ -3653,10 +3651,7 @@ function renderDecisionSummary(data){
       ${escapeHtml(orig.aviso.replace('Análise preliminar — efetivo não verificado. ',''))}
     </p>`:''}
     <div class="ork-decision-summary__metrics">
-      <div><span>Capacidade estimada</span><strong>${capacidade==null?'—':fR(capacidade)}</strong></div>
-      <div><span>DSCR mínimo</span><strong class="${dscr!=null&&dscr<1?'is-critical':''}">${dscr==null?'—':Number(dscr).toFixed(2)+'x'}</strong></div>
       <div><span>Resultado operacional</span><strong class="${resultado!=null&&resultado<0?'is-critical':''}">${resultado==null?'—':fR(resultado)}</strong></div>
-      <div><span>Risco</span><strong>${escapeHtml(String(risco))}</strong></div>
     </div>
   </section>
   <aside class="ork-evidence-ribbon" aria-label="Evidências da conclusão">
@@ -3953,7 +3948,7 @@ function renderTransparencia(data){
   const alertas=vz.alertas||[];
   const cen=(cc.cenarios||[]).map(x=>{
     const ac=x.acumulado||{};
-    return `<tr><td>${escapeHtml(x.id||'—')}</td><td>${fR(ac.receita)}</td><td>${fR(ac.custo)}</td><td>${fR(ac.resultado)}</td><td>${x.dscr_minimo==null?'—':x.dscr_minimo}</td><td>${x.ano_critico==null?'—':x.ano_critico}</td></tr>`;
+    return `<tr><td>${escapeHtml(x.id||'—')}</td><td>${fR(ac.receita)}</td><td>${fR(ac.custo)}</td><td>${fR(ac.resultado)}</td><td>${fDscr(x.dscr_minimo)}</td><td>${x.ano_critico==null?'—':x.ano_critico}</td></tr>`;
   }).join('');
   const fatores=(e.fatores||[]).slice(0,6).map(f=>`<li>${escapeHtml(f.evidencia||f.rotulo||'')}</li>`).join('');
   const avisos=alertas.slice(0,5).map(a=>`<div style="padding:8px 0;border-bottom:1px solid var(--b)"><b>${escapeHtml(a.titulo||'Alerta')}</b><br><span style="color:var(--mu)">${escapeHtml(a.evidencia||'')} · ${escapeHtml(a.acao||'')}</span></div>`).join('');
@@ -5210,7 +5205,7 @@ function _grRenderResultado(d){
   const linhasCen = cenarios.map(c => `<tr>
     <td>${escapeHtml(String(c.nome || '').replace(/_/g, ' '))}</td>
     <td style="font-size:.7rem;color:var(--mu)">${escapeHtml((c.applied_changes || []).join(', '))}</td>
-    <td class="r" style="${c.uncovered ? 'color:var(--sb);font-weight:700' : ''}">${_prNum(c.dscr_minimo, 2)}x</td>
+    <td class="r" style="${c.uncovered ? 'color:var(--sb);font-weight:700' : ''}">${_prNum(c.dscr_minimo, 2)}</td>
     <td><span class="badge ${c.uncovered ? 'badge-danger' : 'badge-success'}" style="padding:2px 8px;border-radius:4px;font-size:.68rem;background:${c.uncovered ? 'rgba(248,113,113,.15)' : 'rgba(34,197,94,.15)'};color:${c.uncovered ? 'var(--sb)' : 'var(--gn)'}">${c.uncovered ? 'Descoberto' : 'Coberto'}</span></td>
   </tr>`).join('');
 
@@ -5238,7 +5233,7 @@ function _grRenderResultado(d){
     </tr>`;
   }).join('');
 
-  const dscrMin = cred.dscr_minimo !== undefined && cred.dscr_minimo !== null ? `${_prNum(cred.dscr_minimo, 2)}x` : '—';
+  const dscrMin = cred.dscr_minimo !== undefined && cred.dscr_minimo !== null ? _prNum(cred.dscr_minimo, 2) : '—';
   const capMax = cred.capacidade_maxima_estimativa ? _prMoeda(cred.capacidade_maxima_estimativa) : '—';
 
   document.getElementById('gr-resultado').innerHTML = `
@@ -5953,7 +5948,7 @@ async function carregarHistoricoPareceres(){
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
           <div>
             <span style="font-weight:800;color:${c};text-transform:uppercase">${it.recomendacao||'—'}</span>
-            <span style="font-family:var(--fm);font-size:.7rem;color:var(--mu);margin-left:10px">DSCR ${it.dscr??'—'} · ${it.created_at||''}</span>
+            <span style="font-family:var(--fm);font-size:.7rem;color:var(--mu);margin-left:10px">DSCR ${fDscr(it.dscr)} · ${it.created_at||''}</span>
             ${solic.credito_valor?`<span style="font-family:var(--fm);font-size:.7rem;color:var(--mu);margin-left:10px">Crédito: ${fR(solic.credito_valor)}</span>`:''}
           </div>
           <button class="btn-sm" onclick="baixarPdfParecerHistorico(${i})">⬇ Baixar PDF</button>

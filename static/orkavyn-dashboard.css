@@ -115,7 +115,12 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
 }
 .ork-import-panel .analysis-flow-title,
 .ork-panel--forest { color: var(--text-on-brand); }
-.ork-import-panel .ork-action {
+.ork-import-panel .ork-action,
+.ork-import-panel .ork-action:not(.ork-action--secondary):not(.ork-action--ghost),
+[data-theme="dark"] .ork-import-panel .ork-action:not(.ork-action--secondary):not(.ork-action--quiet):not(.ork-action--ghost) {
+  /* Fundo branco fixo nos dois temas: o texto tem de ser escuro nos dois também.
+     As regras genéricas de botão primário (texto claro) tinham mais
+     especificidade e deixavam o rótulo branco sobre branco. */
   color: var(--brand-hero-start);
   background: #FFFFFF;
   border-color: #FFFFFF;
@@ -318,6 +323,31 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
 /* Botão primário .ork-action: contraste AA nos dois temas */
 [data-theme="dark"] .ork-action:not(.ork-action--secondary):not(.ork-action--quiet):not(.ork-action--ghost) { color: #052E16; }
 .ork-action:hover { background: var(--brand-primary-hover); }
+
+/* ── Card legado "Resumo / Base": sobra só o que o Hero não mostra ───── */
+.ork-decision-summary__metrics { grid-template-columns: 1fr; }
+.ork-decision-summary__metrics > div { border-right: 0; border-bottom: 0; min-height: 0; }
+
+/* ── Mobile: header e barra inferior ─────────────────────────────────── */
+@media (max-width: 900px) {
+  /* A altura fixa (60px do header base + min-height do tema) deixava a 2ª
+     linha de itens vazar por cima do ticker e do Hero. Fluxo normal. */
+  .ork-dashboard-surface .ork-context-header { height: auto; flex-wrap: wrap; }
+  .ork-dashboard-surface .ork-context-header .hdr-r { min-width: 0; max-width: 100%; flex-wrap: wrap; }
+
+  /* Barra encostada no fundo do viewport, com área segura do iOS, e uma
+     única linha para os 7 itens (antes quebrava em duas e subia). */
+  .ork-dashboard-surface .ork-mobile-nav {
+    right: 0; bottom: 0; left: 0;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    min-height: 0;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    border-width: 1px 0 0; border-radius: 0;
+    box-shadow: 0 -1px 3px rgba(17, 24, 39, .08);
+  }
+  .ork-dashboard-surface .ork-mobile-nav__item { min-width: 0; min-height: 48px; padding: 5px 1px; font-size: .62rem; }
+  .ork-dashboard-surface .ork-main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+}
 
 /* Impressão: as abas escondidas (Ciclo 12m, Estresse) também saem no papel */
 @media print {
