@@ -199,6 +199,65 @@ def test_retencao_tem_padrao_e_e_configuravel():
     assert 'RETENCAO_AUDITORIA_DIAS' in lgpd.INVENTARIO['auditoria_acessos']['retencao']
 
 
+def test_retencao_padrao_e_180_dias_como_na_politica_de_privacidade():
+    """Roda em subprocesso: o ambiente de teste pode definir a variável."""
+    import os
+    import subprocess
+    import sys
+    env = {k: v for k, v in os.environ.items() if k != 'RETENCAO_AUDITORIA_DIAS'}
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out = subprocess.run(
+        [sys.executable, '-c',
+         'from services import lgpd; print(lgpd.RETENCAO_AUDITORIA_DIAS)'],
+        env=env, cwd=raiz, capture_output=True, text=True, check=True)
+    assert out.stdout.strip().splitlines()[-1] == '180'
+    assert 'default 180' in lgpd.INVENTARIO['auditoria_acessos']['retencao']
+
+
+def test_purga_sem_argumento_usa_a_retencao_padrao(monkeypatch):
+    from datetime import datetime, timedelta
+    db.init_db()
+    monkeypatch.setattr(lgpd, 'RETENCAO_AUDITORIA_DIAS', 180)
+    email = 'purga180@x.com'
+    for dias, uid in ((200, 6001), (100, 6002)):
+        db._exec(f'''INSERT INTO auditoria_acessos
+                     (user_id, user_email, evento, created_at)
+                     VALUES ({db._PH},{db._PH},{db._PH},{db._PH})''',
+                 (uid, email, 'login', datetime.now() - timedelta(days=dias)),
+                 commit=True)
+    db.purgar_auditoria()
+    assert not db.listar_acessos(user_id=6001, limit=1), 'além de 180 dias sai'
+    assert db.listar_acessos(user_id=6002, limit=1), 'dentro de 180 dias fica'
+
+
+# ── remover_usuario ─────────────────────────────────────────────────────────
+def _novo_usuario():
+    import uuid
+    email = f'rm_{uuid.uuid4().hex[:10]}@example.com'
+    db.criar_usuario(email, 'Usuário de Teste', 'senha123')
+    return db.buscar_usuario_email(email)
+
+
+def test_remover_usuario_limpa_vinculo_e_codigos_de_whatsapp_sem_tocar_outros():
+    import uuid
+    db.init_db()
+    alvo, outro = _novo_usuario(), _novo_usuario()
+    tel_alvo = '55119' + uuid.uuid4().hex[:8].translate(str.maketrans('abcdef', '123456'))
+    tel_outro = '55118' + uuid.uuid4().hex[:8].translate(str.maketrans('abcdef', '123456'))
+    db.consumir_codigo_whatsapp(db.criar_codigo_whatsapp(alvo['id']), tel_alvo)
+    db.consumir_codigo_whatsapp(db.criar_codigo_whatsapp(outro['id']), tel_outro)
+    cod_alvo = db.criar_codigo_whatsapp(alvo['id'])     # pendente, não usado
+    cod_outro = db.criar_codigo_whatsapp(outro['id'])
+
+    db.remover_usuario(alvo['id'])
+
+    assert db.buscar_user_por_telefone([tel_alvo]) is None
+    assert db.buscar_user_por_telefone([tel_outro]) == outro['id']
+    assert db.consumir_codigo_whatsapp(cod_alvo, '5511977770000') is None
+    assert db.consumir_codigo_whatsapp(cod_outro, '5511977771111') == outro['id']
+    assert db.buscar_usuario_email(alvo['email']) is None
+
+
 # ── Inventário (Art. 37) ────────────────────────────────────────────────────
 def test_toda_tabela_com_dado_pessoal_declara_finalidade_e_retencao():
     for tabela, d in lgpd.INVENTARIO.items():

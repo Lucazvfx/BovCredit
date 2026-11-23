@@ -979,6 +979,10 @@ def listar_usuarios() -> list:
 def remover_usuario(user_id: int):
     ph = _PH
     _exec(f'DELETE FROM empresa_membros WHERE user_id={ph}', (user_id,), commit=True)
+    # Sem FK declarada: sem isto o telefone continuaria apontando para um id morto.
+    _ensure_whatsapp_tables()
+    _exec(f'DELETE FROM whatsapp_vinculos WHERE user_id={ph}', (user_id,), commit=True)
+    _exec(f'DELETE FROM whatsapp_codigos WHERE user_id={ph}', (user_id,), commit=True)
     _exec(f'DELETE FROM usuarios WHERE id={ph}', (user_id,), commit=True)
 
 # ─────────────────────────────────────────────
