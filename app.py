@@ -2621,25 +2621,42 @@ def api_confirmar_ciclo():
     previsão do modelo nunca realimenta a si mesma.
     """
     data = request.json or {}
-    registro_id = data.get('registro_id')
     ciclo = (data.get('ciclo') or '').strip().upper()
 
-    if not registro_id:
+    if not data.get('registro_id'):
         return jsonify({'erro': 'Registro não informado.'}), 400
+    try:
+        if isinstance(data['registro_id'], bool):
+            raise ValueError
+        registro_id = int(data['registro_id'])
+        if not 0 < registro_id < 2**31:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({'erro': 'Registro inválido.'}), 400
     if ciclo not in TIPOS:
         return jsonify({'erro': f'Ciclo inválido. Esperado um de: {", ".join(TIPOS)}'}), 400
 
-    registro = db.buscar_registro_por_id(int(registro_id))
+    # Só o dono rotula o próprio registro: este rótulo vira dado de treino, e
+    # aceitar o de outro usuário permitiria envenenar o conjunto entre tenants.
+    # 404 (e não 403) para não revelar a existência de registros alheios.
+    registro = db.buscar_registro_por_id(registro_id, user_id=current_user.id)
     if not registro:
         return jsonify({'erro': 'Registro não encontrado.'}), 404
 
-    db.confirmar(int(registro_id), ciclo)
-    caso_real = db.buscar_caso_real(int(registro_id), user_id=current_user.id)
+    caso_real = db.buscar_caso_real_por_registro(registro_id, user_id=current_user.id)
+    # O analista já descartou este caso: reconfirmar não o traz de volta ao
+    # treino em silêncio. Reativar é decisão explícita, pela rota do caso.
+    if caso_real and caso_real['status'] == 'DESCARTADO':
+        return jsonify({'erro': 'Este caso foi descartado e não pode ser confirmado aqui.'}), 409
+
+    db.confirmar(registro_id, ciclo)
     if caso_real:
+        # Mesma empresa em que o caso foi gravado: filtrar pela empresa ativa
+        # atual deixaria a confirmação pela metade (registro rotulado, caso PENDENTE).
         db.confirmar_caso_real(
             caso_real['id'], ciclo,
             user_id=current_user.id,
-            empresa_id=_resolver_empresa_ativa(),
+            empresa_id=caso_real.get('empresa_id'),
         )
     concordou = registro.get('class_ml') == ciclo
     _auditar(_aud.CICLO_CONFIRMADO, recurso='registro', recurso_id=registro_id,

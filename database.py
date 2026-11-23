@@ -3,12 +3,14 @@ Fluxo de Gestão — Camada de persistência
 Usa PostgreSQL (via DATABASE_URL) em produção e SQLite localmente.
 """
 import hashlib
-import json, os
+import json, logging, math, os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from werkzeug.security import generate_password_hash, check_password_hash
 from contextlib import contextmanager
 from services import cripto_segredo as _cripto
+
+logger = logging.getLogger(__name__)
 
 
 def _sanitizar_database_url(raw: str) -> str:
@@ -1250,6 +1252,18 @@ def buscar_caso_real(caso_id: int, user_id: int = None, empresa_id: int = None) 
     return _caso_real_dict(_exec(sql, tuple(params), fetch='one'))
 
 
+def buscar_caso_real_por_registro(registro_id: int, user_id: int = None) -> dict | None:
+    """Caso real vinculado a um registro (`casos_reais.registro_id`, não `casos_reais.id`)."""
+    ph = _PH
+    sql = f'SELECT * FROM casos_reais WHERE registro_id={ph}'
+    params = [registro_id]
+    if user_id is not None:
+        sql += f' AND user_id={ph}'
+        params.append(user_id)
+    sql += ' ORDER BY id DESC LIMIT 1'
+    return _caso_real_dict(_exec(sql, tuple(params), fetch='one'))
+
+
 def listar_casos_reais(user_id: int = None, empresa_id: int = None,
                        status: str = None, classificacao: str = None,
                        origem: str = None, limit: int = 100) -> list:
@@ -1323,29 +1337,53 @@ def exportar_treino():
         fetch='all'
     ) or []
     vinculados = {r['registro_id'] for r in casos if r.get('registro_id') is not None}
+    # Um caso descartado pelo analista é um veredito de "não usar": o registro
+    # ligado a ele pode ter `class_conf` de uma confirmação anterior, mas não
+    # pode voltar ao treino pela porta legada.
+    descartados = {r['registro_id'] for r in (_exec(
+        "SELECT registro_id FROM casos_reais "
+        "WHERE status='DESCARTADO' AND registro_id IS NOT NULL",
+        fetch='all') or [])}
     rows = _exec(
         'SELECT id, valores, class_conf FROM registros WHERE class_conf IS NOT NULL',
         fetch='all'
     ) or []
     X, y = [], []
+
+    def _adicionar(valores_json, tipo, origem):
+        # Uma linha corrompida não pode derrubar o retreino inteiro nem
+        # entrar com vetor de tamanho errado.
+        try:
+            vetor = json.loads(valores_json)
+            if any(isinstance(x, bool) or not math.isfinite(x) for x in vetor):
+                raise ValueError('valor não finito ou booleano')
+            X.append(_validar_caso_real(vetor, tipo))
+        except (ValueError, TypeError):
+            logger.warning('[exportar_treino] %s ignorado: vetor inválido', origem)
+            return
+        y.append(TIPOS.index(tipo))
+
     for r in casos:
         t = r['classificacao_humana']
         if t in TIPOS:
-            X.append(json.loads(r['valores']))
-            y.append(TIPOS.index(t))
+            _adicionar(r['valores'], t, f"caso_real(registro={r.get('registro_id')})")
     for r in rows:
-        if r['id'] in vinculados:
+        if r['id'] in vinculados or r['id'] in descartados:
             continue
         t = r['class_conf']
         if t in TIPOS:
-            X.append(json.loads(r['valores']))
-            y.append(TIPOS.index(t))
+            _adicionar(r['valores'], t, f"registro({r['id']})")
     return X, y
 
-def buscar_registro_por_id(registro_id: int) -> dict | None:
+def buscar_registro_por_id(registro_id: int, user_id: int = None) -> dict | None:
+    """Com `user_id`, só devolve o registro se ele pertencer a esse usuário."""
     ph = _PH
-    row = _exec(f'SELECT id, fazenda, valores, class_ml, class_conf FROM registros WHERE id={ph}',
-                (registro_id,), fetch='one')
+    sql = f'SELECT id, user_id, fazenda, valores, class_ml, class_conf FROM registros WHERE id={ph}'
+    params = [registro_id]
+    if user_id is not None:
+        sql += f' AND user_id={ph}'
+        params.append(user_id)
+    row = _exec(sql, tuple(params), fetch='one')
     return dict(row) if row else None
 
 
