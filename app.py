@@ -3113,17 +3113,18 @@ def api_narrativa():
     if not _narrativa_ativa():
         return jsonify({'erro': 'IA não configurada — defina GROQ_API_KEY.'}), 503
 
-    ctx = (request.json or {}).get('contexto') or {}
-    if not ctx.get('tipo'):
-        return jsonify({'erro': 'Contexto do parecer ausente.'}), 400
+    from services.groq_narrativa import ContextoInvalido, sanitizar_contexto
 
-    permitido = {
-        'tipo', 'confianca', 'total_rebanho', 'receita_anual',
-        'geracao_caixa_anual', 'recomendacao', 'dscr', 'limite_credito',
-        'coe_por_arroba', 'consistencia_score', 'fazenda', 'municipio',
-        'proprietario',
-    }
-    texto = _gerar_narrativa_groq(**{k: v for k, v in ctx.items() if k in permitido})
+    corpo = request.get_json(silent=True)
+    ctx = corpo.get('contexto') if isinstance(corpo, dict) else None
+    if not isinstance(ctx, dict) or not ctx.get('tipo'):
+        return jsonify({'erro': 'Contexto do parecer ausente.'}), 400
+    try:
+        ctx = sanitizar_contexto(ctx)
+    except ContextoInvalido as e:  # mensagem fixa e segura
+        return jsonify({'erro': str(e)}), 400
+
+    texto = _gerar_narrativa_groq(**ctx)
     if texto is None:
         return jsonify({'erro': 'Serviço de IA temporariamente indisponível.'}), 503
     return jsonify({'narrativa': texto})
