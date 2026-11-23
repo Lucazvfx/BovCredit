@@ -67,6 +67,7 @@ from services.parecer_credito import (
     SISTEMAS as _SISTEMAS_AMORT, PERIODICIDADES as _PERIODICIDADES)
 from services.payment_capacity_engine.ciclo_pecuario import (
     SISTEMAS as _SISTEMAS_CICLO, FREQUENCIAS as _FREQUENCIAS_CICLO,
+    SISTEMA_POR_CICLO_MODELO as _SISTEMA_POR_CICLO_MODELO,
     VALOR_MAXIMO as _CAPITAL_GIRO_MAX)
 from services.parecer_pdf import gerar_pdf_parecer
 from services.parecer_pdf_perene import gerar_pdf_parecer_perene
@@ -2454,6 +2455,29 @@ def api_classificar():
     comparacao_cenarios = comparar_cenarios(
         v, result['tipo'], parametros=_parametros_cenarios)
 
+    # Ciclo 12m já na primeira resposta: sem `sistema_produtivo` explícito, usa o
+    # ciclo que o modelo acabou de classificar. O que o analista informa sempre
+    # prevalece (é o override). Rebanho zerado/fora da faixa não ganha fluxo
+    # automático: os gatilhos de revisão humana continuam valendo.
+    _ciclo_classificado = result.get('tipo')
+    _sistema_origem = 'analista' if sistema_produtivo else None
+    _motivo_sem_12m = None
+    if sistema_produtivo is None:
+        _padrao = _SISTEMA_POR_CICLO_MODELO.get(_ciclo_classificado)
+        if set(result.get('motivos_revisao') or []) & {
+                'rebanho_zerado', 'rebanho_fora_faixa'}:
+            _motivo_sem_12m = ('Rebanho em revisão humana: o fluxo de 12 meses '
+                               'não é projetado automaticamente.')
+        elif _padrao:
+            sistema_produtivo, _sistema_origem = _padrao, 'modelo'
+        else:
+            _motivo_sem_12m = (
+                'Ciclo misto sem perfil sazonal próprio: escolha o sistema '
+                'produtivo para projetar o caixa.'
+                if _ciclo_classificado in ('CRIA_RECRIA', 'RECRIA_ENGORDA') else
+                'Ciclo classificado sem perfil sazonal: escolha o sistema '
+                'produtivo para projetar o caixa.')
+
     parecer = montar_parecer(
         identificacao={'fazenda': fazenda, 'municipio': municipio,
                        'proprietario': data.get('proprietario', ''),
@@ -2477,6 +2501,15 @@ def api_classificar():
         frequencia_pagamento=frequencia_pagamento,
         capital_giro_inicial=capital_giro_inicial,
         estresse_pecuario_entrada=estresse_pecuario_entrada)
+
+    # Mantém visível o ciclo classificado (decisão final; pode vir de regra,
+    # ver origem_decisao) ao lado do sistema usado no 12m.
+    _ciclo_12m = parecer.get('ciclo_pecuario')
+    if _ciclo_12m is None:
+        _ciclo_12m = parecer['ciclo_pecuario'] = {
+            'disponivel': False, 'motivo': _motivo_sem_12m}
+    _ciclo_12m['ciclo_classificado'] = _ciclo_classificado
+    _ciclo_12m['sistema_origem'] = _sistema_origem
 
     # As três perguntas do crédito ficam explícitas e independentes no
     # resultado. Uma operação pode ter caixa suficiente, mas garantia fraca;

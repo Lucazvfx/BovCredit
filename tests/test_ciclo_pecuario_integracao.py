@@ -61,11 +61,13 @@ ANO_CRIA_DSCR_OK = [{'ano': 1, 'receita': 600000.0, 'custo': 300000.0,
 
 
 # ── Retrocompatibilidade ─────────────────────────────────────────────────────
-def test_sem_sistema_produtivo_o_parecer_nao_muda(cli):
+def test_sem_sistema_produtivo_o_12m_vem_do_ciclo_do_modelo(cli):
+    # /api/classificar agora projeta o 12m com o ciclo classificado; o contrato
+    # de `montar_parecer` sem sistema (testes abaixo) segue inalterado.
     r = cli.post('/api/classificar', json=_payload())
     assert r.status_code == 200
     p = r.get_json()['parecer']
-    assert 'ciclo_pecuario' not in p
+    assert p['ciclo_pecuario']['sistema_origem'] == 'modelo'
     assert 'ciclo_pecuario' not in p['secoes']
 
 
@@ -76,7 +78,7 @@ def test_sistema_produtivo_vazio_ou_nulo_equivale_a_ausente(cli, vazio):
                                frequencia_pagamento=vazio,
                                capital_giro_inicial=vazio))
     assert r.status_code == 200
-    assert 'ciclo_pecuario' not in r.get_json()['parecer']
+    assert r.get_json()['parecer']['ciclo_pecuario']['sistema_origem'] == 'modelo'
 
 
 def test_conclusao_e_identica_com_e_sem_o_fluxo_sazonal():

@@ -51,6 +51,12 @@ from .dscr import DSCR_APROVAR
 
 SISTEMAS = ("cria", "recria", "engorda", "ciclo_completo")
 FREQUENCIAS = ("mensal", "semestral", "anual")
+# Ciclo classificado pelo modelo -> perfil sazonal. Só os tipos puros têm perfil;
+# CRIA_RECRIA e RECRIA_ENGORDA ficam de fora de propósito: escolher um perfil
+# para eles seria premissa de crédito nova, então o analista informa o sistema.
+SISTEMA_POR_CICLO_MODELO = {"CRIA": "cria", "RECRIA": "recria",
+                            "ENGORDA": "engorda",
+                            "CICLO_COMPLETO": "ciclo_completo"}
 _PAGAMENTOS_ANO = {"mensal": 12, "semestral": 2, "anual": 1}
 
 MESES = ("jan", "fev", "mar", "abr", "mai", "jun",
