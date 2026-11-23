@@ -1325,14 +1325,20 @@ def resumo_casos_reais(user_id: int = None, empresa_id: int = None) -> dict:
             resumo['por_classificacao'][ciclo] = resumo['por_classificacao'].get(ciclo, 0) + 1
     return resumo
 
-def exportar_treino():
+def exportar_treino_detalhado() -> list:
+    """
+    Seleção estrita do que pode entrar no treino: casos confirmados por humano,
+    não descartados, com vetor válido. Cada item traz `vetor`, `y` (índice em
+    TIPOS), `tipo`, `classe_ml` (previsão original do modelo, ou None) e
+    `origem`. `exportar_treino()` é a visão (X, y) desta mesma lista.
+    """
     TIPOS = ['CRIA', 'RECRIA', 'ENGORDA', 'CICLO_COMPLETO',
              'RECRIA_ENGORDA', 'CRIA_RECRIA']
     # Casos reais confirmados são a fonte principal. Registros legados continuam
     # válidos para compatibilidade; quando possuem caso_real vinculado, entram
     # apenas uma vez.
     casos = _exec(
-        "SELECT registro_id, valores, classificacao_humana "
+        "SELECT registro_id, valores, classificacao_humana, classificacao_ml "
         "FROM casos_reais WHERE status='CONFIRMADO'",
         fetch='all'
     ) or []
@@ -1345,35 +1351,44 @@ def exportar_treino():
         "WHERE status='DESCARTADO' AND registro_id IS NOT NULL",
         fetch='all') or [])}
     rows = _exec(
-        'SELECT id, valores, class_conf FROM registros WHERE class_conf IS NOT NULL',
+        'SELECT id, valores, class_conf, class_ml FROM registros '
+        'WHERE class_conf IS NOT NULL',
         fetch='all'
     ) or []
-    X, y = [], []
+    itens = []
 
-    def _adicionar(valores_json, tipo, origem):
+    def _adicionar(valores_json, tipo, classe_ml, origem):
         # Uma linha corrompida não pode derrubar o retreino inteiro nem
         # entrar com vetor de tamanho errado.
         try:
             vetor = json.loads(valores_json)
             if any(isinstance(x, bool) or not math.isfinite(x) for x in vetor):
                 raise ValueError('valor não finito ou booleano')
-            X.append(_validar_caso_real(vetor, tipo))
+            vetor = _validar_caso_real(vetor, tipo)
         except (ValueError, TypeError):
             logger.warning('[exportar_treino] %s ignorado: vetor inválido', origem)
             return
-        y.append(TIPOS.index(tipo))
+        itens.append({'vetor': vetor, 'y': TIPOS.index(tipo), 'tipo': tipo,
+                      'classe_ml': classe_ml if classe_ml in TIPOS else None,
+                      'origem': origem})
 
     for r in casos:
         t = r['classificacao_humana']
         if t in TIPOS:
-            _adicionar(r['valores'], t, f"caso_real(registro={r.get('registro_id')})")
+            _adicionar(r['valores'], t, r.get('classificacao_ml'),
+                       f"caso_real(registro={r.get('registro_id')})")
     for r in rows:
         if r['id'] in vinculados or r['id'] in descartados:
             continue
         t = r['class_conf']
         if t in TIPOS:
-            _adicionar(r['valores'], t, f"registro({r['id']})")
-    return X, y
+            _adicionar(r['valores'], t, r.get('class_ml'), f"registro({r['id']})")
+    return itens
+
+
+def exportar_treino():
+    itens = exportar_treino_detalhado()
+    return [i['vetor'] for i in itens], [i['y'] for i in itens]
 
 def buscar_registro_por_id(registro_id: int, user_id: int = None) -> dict | None:
     """Com `user_id`, só devolve o registro se ele pertencer a esse usuário."""
