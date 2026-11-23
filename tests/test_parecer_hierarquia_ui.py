@@ -30,10 +30,10 @@ def test_hero_traz_prazo_e_ressalvas_na_primeira_dobra():
 
 def test_blocos_densos_ficam_recolhidos_por_padrao():
     assert "const dobravel=" in INDEX
-    for titulo in ("Projeção multianual (detalhe)",
-                   "Sensibilidade de custo (detalhe)",
-                   "Origem dos parâmetros e fontes (detalhe)"):
-        assert f"dobravel('{titulo}'" in INDEX
+    # checklist: pendentes e OK recolhidos; projeção e sensibilidade viraram
+    # conteúdo das sub-abas; a origem dos parâmetros mora na gaveta
+    assert "dobravel(`${titulo} (${lista.length})`" in INDEX
+    assert "Origem dos parâmetros e fontes" in INDEX and 'id="dlg-memoria"' in INDEX
     # SHAP assíncrono: o card final vira <details>, o placeholder segue com id
     assert 'class="ork-fold ork-fold--shap"' in INDEX
     assert 'id="card-shap"' in INDEX

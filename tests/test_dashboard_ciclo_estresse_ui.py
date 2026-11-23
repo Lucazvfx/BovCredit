@@ -89,7 +89,7 @@ def test_js_novo_nao_usa_innerhtml_nem_apis_equivalentes():
 def test_parecer_tem_hero_banner_e_tres_abas():
     for trecho in ("Resumo / Base", "Ciclo 12m", "Estresse do Boi",
                    "quebra_caixa_com_dscr_ok === true", "em_ruptura === true",
-                   "Ponto de ruptura (@)", "Vale de caixa (12m)", "Rating",
+                   "Ponto de ruptura (@)", "Vale de caixa (12m)",
                    "DSCR mínimo", "Crédito máximo", "Brasil Central"):
         assert trecho in JS, trecho
     for cenario in ("queda_arroba", "alta_reposicao", "alta_suplementacao",
@@ -97,6 +97,8 @@ def test_parecer_tem_hero_banner_e_tres_abas():
         assert cenario in JS, cenario
     assert "linear-gradient(135deg, var(--brand-hero-start), var(--brand-hero-end))" in CSS
     assert "OrkavynDash.renderParecer(data)" in INDEX
+    # o Rating saiu do hero e vive no resumo executivo (sem repetir o número)
+    assert 'kpi("Rating"' not in JS and "badge('Rating'" in INDEX
 
 
 def test_ciclo_legado_migrou_para_a_aba_sem_funcao_orfa():
