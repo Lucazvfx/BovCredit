@@ -3509,7 +3509,7 @@ function renderParecer(data){
            : 'Produz o que vende ou mais: o plantel não está sendo consumido.');
 
     const linhas = proj.map(a => {
-      const mCor = a.margem_pct >= 15 ? 'var(--g)' : a.margem_pct >= 0 ? 'var(--am)' : 'var(--rd)';
+      const mCor = a.margem_pct == null ? 'var(--mu)' : a.margem_pct >= 15 ? 'var(--g)' : a.margem_pct >= 0 ? 'var(--am)' : 'var(--rd)';
       const dscrCor = a.dscr == null ? 'var(--mu)' : a.dscr >= 1.3 ? 'var(--g)' : a.dscr >= 1.0 ? 'var(--am)' : 'var(--rd)';
       return `<tr style="border-bottom:1px solid var(--b)">
         <td style="font-family:var(--fm);font-size:.72rem;padding:7px 10px">Ano ${a.ano}</td>

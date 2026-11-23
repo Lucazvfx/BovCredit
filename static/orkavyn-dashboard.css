@@ -499,4 +499,5 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
 .ork-fold > summary::after { content: "Mostrar"; font-size: .68rem; font-weight: 500; opacity: .6; }
 .ork-fold[open] > summary::after { content: "Ocultar"; }
 .ork-fold > summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+@media print { .ork-fold > summary::after { content: none; } }
 .ork-fold > :not(summary) { margin: 0 12px 12px; max-width: calc(100% - 24px); overflow-x: auto; }

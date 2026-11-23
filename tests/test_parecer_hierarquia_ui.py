@@ -93,3 +93,8 @@ def test_parecer_em_navegador_sem_overflow_nos_dois_viewports(tmp_path):
 
 def test_formatadores_nao_fabricam_nan_nem_zero():
     assert "const fR=n=>_numOk(n)?" in INDEX and "const fN=n=>_numOk(n)?" in INDEX
+
+
+def test_impressao_abre_os_blocos_recolhidos():
+    assert 'addEventListener("beforeprint"' in JS and 'addEventListener("afterprint"' in JS
+    assert "@media print" in CSS and "content: none" in CSS

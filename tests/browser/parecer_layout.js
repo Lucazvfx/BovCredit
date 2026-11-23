@@ -44,12 +44,12 @@ const data = {
           notes: w.querySelector('.od-hero__notes')?.innerText || '',
           folds: folds.map(f => ({ t: f.querySelector('summary').innerText, open: f.open })),
           dock: r ? { l: r.left, r: r.right, vw: innerWidth, vis: getComputedStyle(dock).position } : null,
-          undef: /\bundefined\b|\bNaN\b|\bnull\b/.test(w.innerText),
+          undef: /\bundefined\b|\bNaN\b|\bnull\b/.test(w.textContent),
         };
       }, data);
       await pg.evaluate(() => document.querySelectorAll('details.ork-fold').forEach(f => f.open = true));
       const sw2 = await pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      const ok = info.sw <= info.cw && sw2 <= 0 && info.hero && info.kpis === 4 && info.folds.length >= 3 && info.folds.every(f => !f.open) && !info.undef && errs.length === 0 && (!info.dock || (info.dock.l >= 0 && info.dock.r <= info.dock.vw));
+      const ok = info.sw <= info.cw && sw2 <= 0 && info.hero && info.kpis === 4 && JSON.stringify(info.folds.map(f => f.t).sort()) === JSON.stringify(['Fatores da classificação (SHAP)', 'Origem dos parâmetros e fontes (detalhe)', 'Projeção multianual (detalhe)']) && info.notes.includes('Aviso de estresse A') && info.folds.every(f => !f.open) && !info.undef && errs.length === 0 && (!info.dock || (info.dock.l >= 0 && info.dock.r <= info.dock.vw));
       if (!ok) fail++;
       console.log(vp.width, tema, ok ? 'OK' : 'FAIL', JSON.stringify({ ...info, sw2, errs }));
       await pg.screenshot({ path: `${process.argv[3]}/shot-${vp.width}-${tema}.png`, fullPage: false });

@@ -229,7 +229,7 @@
     const c = parecer.conclusao || {};
     const est = parecer.estresse_pecuario || null;
     const itens = [];
-    if (c.justificativa) itens.push(String(c.justificativa));
+    if (c.justificativa && c.recomendacao !== "aprovar") itens.push(String(c.justificativa));
     if (est && est.disponivel && Array.isArray(est.avisos)) est.avisos.forEach((t) => itens.push(String(t)));
     return el("div", { cls: "od-hero__notes" }, [
       el("div", { cls: "od-hero__notes-title", text: "Principais ressalvas" }),
@@ -284,7 +284,7 @@
     const k4 = nAnos !== null && nAnos > 0
       ? kpi("Prazo avaliado", nAnos + (nAnos === 1 ? " ano" : " anos"),
         c.ano_critico ? "Ano crítico: " + c.ano_critico : "Sem ano crítico", false)
-      : kpi("Prazo avaliado", "—", "Sem crédito solicitado", true);
+      : kpi("Prazo avaliado", "—", "Indisponível para este parecer", true);
 
     return el("section", { cls: "od-hero", attrs: { "aria-label": "Resumo do parecer de crédito" } }, [
       el("div", { cls: "od-hero__top" }, [el("span", { cls: "od-eyebrow", text: "Parecer de crédito" }), badge]),
@@ -542,6 +542,14 @@
     montarAbas(legado, parecer).forEach((n) => raiz.appendChild(n));
     wrap.appendChild(raiz);
   }
+
+  // Impressão: <details> fechado não sai no papel; abre antes e restaura depois.
+  window.addEventListener("beforeprint", () => {
+    document.querySelectorAll("details.ork-fold:not([open])").forEach((d) => { d.dataset.pr = "1"; d.open = true; });
+  });
+  window.addEventListener("afterprint", () => {
+    document.querySelectorAll("details.ork-fold[data-pr]").forEach((d) => { d.open = false; delete d.dataset.pr; });
+  });
 
   window.OrkavynDash = { lerCamposNovos, renderParecer, definirSistema, aplicarTema };
 
