@@ -2626,7 +2626,11 @@ def api_confirmar_ciclo():
     if not data.get('registro_id'):
         return jsonify({'erro': 'Registro não informado.'}), 400
     try:
+        if isinstance(data['registro_id'], bool):
+            raise ValueError
         registro_id = int(data['registro_id'])
+        if not 0 < registro_id < 2**31:
+            raise ValueError
     except (TypeError, ValueError):
         return jsonify({'erro': 'Registro inválido.'}), 400
     if ciclo not in TIPOS:
@@ -2639,13 +2643,20 @@ def api_confirmar_ciclo():
     if not registro:
         return jsonify({'erro': 'Registro não encontrado.'}), 404
 
-    db.confirmar(registro_id, ciclo)
     caso_real = db.buscar_caso_real_por_registro(registro_id, user_id=current_user.id)
+    # O analista já descartou este caso: reconfirmar não o traz de volta ao
+    # treino em silêncio. Reativar é decisão explícita, pela rota do caso.
+    if caso_real and caso_real['status'] == 'DESCARTADO':
+        return jsonify({'erro': 'Este caso foi descartado e não pode ser confirmado aqui.'}), 409
+
+    db.confirmar(registro_id, ciclo)
     if caso_real:
+        # Mesma empresa em que o caso foi gravado: filtrar pela empresa ativa
+        # atual deixaria a confirmação pela metade (registro rotulado, caso PENDENTE).
         db.confirmar_caso_real(
             caso_real['id'], ciclo,
             user_id=current_user.id,
-            empresa_id=_resolver_empresa_ativa(),
+            empresa_id=caso_real.get('empresa_id'),
         )
     concordou = registro.get('class_ml') == ciclo
     _auditar(_aud.CICLO_CONFIRMADO, recurso='registro', recurso_id=registro_id,

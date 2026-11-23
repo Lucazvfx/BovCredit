@@ -71,19 +71,53 @@ def test_confirmar_ciclo_rotula_o_caso_do_proprio_registro(client):
 
 
 def test_caso_com_id_igual_ao_registro_nao_e_confundido(client):
-    """Reproduz o bug: o caso cujo `id` coincide com o `registro_id` não é o vinculado."""
+    """
+    Desalinha as sequências de propósito: cria casos sem registro até que o
+    `casos_reais.id` do próximo caso difira do `registros.id` correspondente.
+    O código antigo rotularia o caso de id == registro_id (o intruso).
+    """
     d = _classificar(client, _vetor_inedito())
     caso_certo = db.buscar_caso_real_por_registro(d['registro_id'])
-    # Um caso do mesmo usuário cujo id numérico é o registro_id (se existir)
-    # nunca pode ser quem recebe o rótulo.
-    intruso = db.buscar_caso_real(d['registro_id'])
+    # intruso: caso do mesmo usuário cujo id numérico == registro_id do alvo
+    dono = db.buscar_registro_por_id(d['registro_id'])['user_id']
+    while True:
+        cid = db.criar_caso_real(V_TESTE, 'CRIA', user_id=dono)
+        if cid >= d['registro_id']:
+            break
+    intruso = db.buscar_caso_real(d['registro_id'], user_id=dono)
+    assert intruso and intruso['id'] != caso_certo['id'], 'sequências ainda alinhadas'
+
     client.post('/api/confirmar-ciclo',
                 json={'registro_id': d['registro_id'], 'ciclo': 'ENGORDA'})
-    if intruso and intruso['id'] != caso_certo['id']:
-        depois = db.buscar_caso_real(intruso['id'])
-        assert depois['status'] == intruso['status']
-        assert depois['classificacao_humana'] == intruso['classificacao_humana']
     assert db.buscar_caso_real(caso_certo['id'])['status'] == 'CONFIRMADO'
+    depois = db.buscar_caso_real(intruso['id'])
+    assert depois['status'] == 'PENDENTE' and not depois['classificacao_humana']
+
+
+def test_confirmar_caso_gravado_em_outra_empresa_nao_deixa_pela_metade(client):
+    """O caso guarda a empresa em que nasceu; a confirmação usa essa, não a ativa agora."""
+    d = _classificar(client, _vetor_inedito())
+    caso = db.buscar_caso_real_por_registro(d['registro_id'])
+    db._exec(f"UPDATE casos_reais SET empresa_id=987654 WHERE id={db._PH}",
+             (caso['id'],), commit=True)
+    r = client.post('/api/confirmar-ciclo',
+                    json={'registro_id': d['registro_id'], 'ciclo': 'CRIA'})
+    assert r.status_code == 200
+    assert db.buscar_caso_real(caso['id'])['status'] == 'CONFIRMADO'
+    assert db.buscar_registro_por_id(d['registro_id'])['class_conf'] == 'CRIA'
+
+
+def test_reconfirmar_caso_descartado_devolve_409(client):
+    v = _vetor_inedito()
+    d = _classificar(client, v)
+    caso = db.buscar_caso_real_por_registro(d['registro_id'])
+    client.post(f"/api/casos-reais/{caso['id']}/descartar", json={'motivo': 'Erro'})
+    r = client.post('/api/confirmar-ciclo',
+                    json={'registro_id': d['registro_id'], 'ciclo': 'CRIA'})
+    assert r.status_code == 409
+    assert db.buscar_caso_real(caso['id'])['status'] == 'DESCARTADO'
+    assert db.buscar_registro_por_id(d['registro_id'])['class_conf'] is None
+    assert not _no_treino(v)
 
 
 # ── Isolamento multi-tenant ─────────────────────────────────────────────────
@@ -99,7 +133,7 @@ def test_usuario_nao_rotula_registro_de_outro(client):
     assert not _no_treino(v), 'rótulo de outro tenant entrou no treino'
 
 
-@pytest.mark.parametrize('rid', ['abc', [1], {'a': 1}])
+@pytest.mark.parametrize('rid', ['abc', [1], {'a': 1}, True, 0, -3, 2**40])
 def test_registro_id_malformado_devolve_400(client, rid):
     r = client.post('/api/confirmar-ciclo', json={'registro_id': rid, 'ciclo': 'CRIA'})
     assert r.status_code == 400
@@ -142,6 +176,16 @@ def test_exportar_treino_ignora_vetor_de_tamanho_errado():
     assert all(len(x) == 10 for x in X)
 
 
+def test_exportar_treino_ignora_nan_e_bool():
+    db.init_db()
+    antes = len(db.exportar_treino()[0])
+    for vetor in ([1, 2, 3, 4, 5, 6, 7, 8, 9, float('nan')],
+                  [True, 2, 3, 4, 5, 6, 7, 8, 9, 10]):
+        rid = db.salvar(valores=vetor, class_ml='CRIA', confianca=50)
+        db.confirmar(rid, 'CRIA')
+    assert len(db.exportar_treino()[0]) == antes
+
+
 # ── Atipicidade vira sinal de revisão humana ────────────────────────────────
 V_TESTE = [80, 80, 50, 50, 60, 60, 90, 40, 220, 60]
 
@@ -156,7 +200,6 @@ def test_muito_atipico_exige_revisao_humana(monkeypatch):
     r = ml_engine.classificar(V_TESTE, bois_vendidos=10)
     assert r['revisao_humana'] is True
     assert r['motivos_revisao'] == ['muito_atipico']
-    assert any('atípico' in e for e in r['explicacao'])
 
 
 @pytest.mark.parametrize('nivel', ['tipico', 'atipico'])

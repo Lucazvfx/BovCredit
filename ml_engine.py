@@ -818,11 +818,6 @@ def classificar(
     if muito_atipico:
         motivos_revisao.append('muito_atipico')
     revisao_humana = bool(motivos_revisao)
-    if muito_atipico:
-        explicacao.append(
-            'Rebanho muito atípico frente ao conjunto de treino: a probabilidade '
-            'do modelo não é estatisticamente significativa; revisão humana necessária.'
-        )
     if classificacao_limitada:
         explicacao.append(
             'Classificação limitada: o modelo sugere CICLO_COMPLETO, mas a '

@@ -3,7 +3,7 @@ Fluxo de Gestão — Camada de persistência
 Usa PostgreSQL (via DATABASE_URL) em produção e SQLite localmente.
 """
 import hashlib
-import json, logging, os
+import json, logging, math, os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -1260,7 +1260,7 @@ def buscar_caso_real_por_registro(registro_id: int, user_id: int = None) -> dict
     if user_id is not None:
         sql += f' AND user_id={ph}'
         params.append(user_id)
-    sql += ' ORDER BY id DESC'
+    sql += ' ORDER BY id DESC LIMIT 1'
     return _caso_real_dict(_exec(sql, tuple(params), fetch='one'))
 
 
@@ -1354,7 +1354,10 @@ def exportar_treino():
         # Uma linha corrompida não pode derrubar o retreino inteiro nem
         # entrar com vetor de tamanho errado.
         try:
-            X.append(_validar_caso_real(json.loads(valores_json), tipo))
+            vetor = json.loads(valores_json)
+            if any(isinstance(x, bool) or not math.isfinite(x) for x in vetor):
+                raise ValueError('valor não finito ou booleano')
+            X.append(_validar_caso_real(vetor, tipo))
         except (ValueError, TypeError):
             logger.warning('[exportar_treino] %s ignorado: vetor inválido', origem)
             return
