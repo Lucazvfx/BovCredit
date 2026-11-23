@@ -488,16 +488,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <span id="hdr-boi" class="ml-acc od-pill" style="cursor:default" title="Cotação Boi (R$/arroba)">Boi: --</span>
     <span id="hdr-vaca" class="ml-acc od-pill" style="cursor:default" title="Cotação Vaca (R$/arroba)">Vaca: --</span>
     <div class="od-user">
-      <button type="button" class="od-user__btn" id="od-user-btn" data-od-menu="od-user-menu" aria-haspopup="true" aria-expanded="false" aria-controls="od-user-menu" aria-label="Menu do usuário">
+      <button type="button" class="od-user__btn" id="od-user-btn" data-od-menu="od-user-menu" aria-expanded="false" aria-controls="od-user-menu" aria-label="Menu do usuário">
         <span class="od-user__avatar" aria-hidden="true">{{ ((usuario.nome or usuario.email or '?')|trim)[0]|upper }}</span>
       </button>
-      <div class="od-menu od-menu--down" id="od-user-menu" role="menu" hidden>
+      <div class="od-menu od-menu--down" id="od-user-menu" hidden>
         <div class="od-menu__who">{{ usuario.nome or usuario.email }}</div>
         <label class="od-menu__field" for="empresa-ativa-select">Empresa ativa</label>
         <select id="empresa-ativa-select" class="od-menu__select" onchange="trocarEmpresaAtiva()" title="Empresa ativa"></select>
-        {% if eh_admin %}<a class="od-menu__item" role="menuitem" href="{{ url_for('admin') }}" title="Gerenciar acessos">Acessos</a>{% endif %}
-        <button type="button" class="od-menu__item" role="menuitem" onclick="abrirMarcaModal()" title="Marca da consultoria no PDF">Marca da consultoria</button>
-        <a class="od-menu__item" role="menuitem" href="/logout">Sair</a>
+        {% if eh_admin %}<a class="od-menu__item" href="{{ url_for('admin') }}" title="Gerenciar acessos">Acessos</a>{% endif %}
+        <button type="button" class="od-menu__item" onclick="abrirMarcaModal()" title="Marca da consultoria no PDF">Marca da consultoria</button>
+        <a class="od-menu__item" href="/logout">Sair</a>
       </div>
     </div>
   </div>
@@ -5982,7 +5982,10 @@ let cotacaoDia = null;
 
 function _avisarCotacaoIndisponivel(){
   const fonte = document.getElementById('cot-fonte');
-  if (fonte) fonte.textContent = 'Cotação indisponível agora — informe os preços à mão em Simular Cenários → Parâmetros, senão o valor do rebanho não é calculado.';
+  const aviso = 'Cotação indisponível agora — informe os preços à mão em Simular Cenários → Parâmetros, senão o valor do rebanho não é calculado.';
+  if (fonte) fonte.textContent = aviso;
+  // #cot-fonte mora em Cenários; na entrada o analista só saberia pela pílula.
+  showToast(aviso, true);
 }
 async function carregarCotacaoDia(){
   try{

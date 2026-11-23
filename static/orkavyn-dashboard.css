@@ -313,10 +313,11 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
 /* ═══ Shell: sem sidebar, conteúdo centralizado em 1120px ═══════════════ */
 @media (max-width: 600px) { :root { --od-gutter: 16px; } }
 
-.ork-dashboard-surface .ork-workspace { margin-left: 0; padding-bottom: 0; }
+/* O rodapé (Termos/Privacidade) fica fora do <main>: a folga do dock tem de estar no workspace. */
+.ork-dashboard-surface .ork-workspace { margin-left: 0; padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
 .ork-dashboard-surface .ork-main {
   width: min(1120px, 100%);
-  padding: 24px var(--od-gutter) calc(96px + env(safe-area-inset-bottom));
+  padding: 24px var(--od-gutter) 32px;
 }
 
 /* ── Topbar: linha única — logo | cotações, tema, usuário ───────────────── */
@@ -357,6 +358,8 @@ input, select, textarea, button, table { font-variant-numeric: tabular-nums; }
   background: var(--bg-subtle); color: var(--text-primary); cursor: pointer;
 }
 .od-user__btn:hover { background: var(--bg-surface); }
+/* o CSS legado força min-height 44px em toque: mantém o avatar redondo */
+.ork-dashboard-surface .od-user__btn { min-height: 32px; }
 .od-user__avatar { font: 700 .78rem/1 var(--od-font); }
 
 /* Popover (usuário e "Mais") */

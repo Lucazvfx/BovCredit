@@ -128,8 +128,9 @@ def test_dock_flutuante_nao_cobre_o_conteudo():
     assert "bottom: max(16px, env(safe-area-inset-bottom))" in dock
     assert "backdrop-filter: blur(12px)" in dock
     assert "border: 1px solid var(--border-strong)" in dock
-    main = _bloco(CSS, ".ork-dashboard-surface .ork-main {")
-    assert "calc(96px + env(safe-area-inset-bottom))" in main
+    # O rodapé (Termos/Privacidade) fica fora do <main>: a folga mora no workspace.
+    workspace = _bloco(CSS, ".ork-dashboard-surface .ork-workspace {")
+    assert "padding-bottom: calc(96px + env(safe-area-inset-bottom))" in workspace
 
 
 def test_topbar_em_linha_unica_e_sem_sidebar():
