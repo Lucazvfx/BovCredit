@@ -381,7 +381,7 @@
         vale < 0 && ciclo.mes_vale !== null && ciclo.mes_vale !== undefined
           ? "Pior ponto em " + rotuloMes(ciclo, ciclo.mes_vale) : "Sem saldo negativo", false);
     } else {
-      k2 = kpi("Vale de caixa (12m)", "—", "Informe o sistema produtivo", true);
+      k2 = kpi("Vale de caixa (12m)", "—", (ciclo && ciclo.motivo) || "Informe o sistema produtivo", true);
     }
     // Mini-KPI 3 — prazo: quantos anos do prazo foram avaliados e qual o crítico
     const nAnos = num(c.anos_avaliados);
@@ -507,6 +507,8 @@
     const defMeses = (Array.isArray(c.meses_deficit) ? c.meses_deficit : []).map((m) => rotuloMes(c, m));
     const chips = el("div", { cls: "od-chips" }, [
       el("span", {}, [document.createTextNode("Sistema: "), el("strong", { text: c.sistema || "—" }), document.createTextNode(" · pagamento " + (c.frequencia || "—"))]),
+      c.ciclo_classificado ? el("span", {}, [document.createTextNode("Ciclo classificado: "), el("strong", { text: c.ciclo_classificado }),
+        document.createTextNode(c.sistema_origem === "analista" ? " · sistema informado pelo analista" : " · sistema adotado da classificação")]) : null,
       el("span", {}, [document.createTextNode("Pior vale: "), el("strong", { text: brl(c.vale_caixa) })]),
       el("span", {}, [document.createTextNode("Meses em déficit: "), el("strong", { text: defMeses.length ? defMeses.join(", ") : "nenhum" })]),
       el("span", {}, [document.createTextNode("DSCR ano " + (c.ano_referencia || "") + ": "), el("strong", { text: dscr(c.dscr_anual) })]),

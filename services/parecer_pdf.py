@@ -420,6 +420,11 @@ def _append_ciclo_12_meses(story, ss, ciclo):
         f"Receita anual: <b>{_moeda(ciclo.get('receita_anual'))}</b> · "
         f"Serviço da dívida: <b>{_moeda(ciclo.get('servico_divida_anual_parecer', ciclo.get('servico_divida_anual')))}</b>",
         ss['Corpo']))
+    if ciclo.get('sistema_origem') == 'modelo':
+        story.append(Paragraph(
+            f"Sistema adotado da classificação do rebanho "
+            f"({_val(ciclo.get('ciclo_classificado'), 30)}); não informado "
+            f"pelo analista.", ss['Corpo']))
     story.append(Spacer(1, 4))
 
     vale = ciclo.get('vale_caixa')
