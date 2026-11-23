@@ -340,6 +340,7 @@
     const itens = [];
     if (c.justificativa && c.recomendacao !== "aprovar") itens.push(String(c.justificativa));
     if (est && est.disponivel && Array.isArray(est.avisos)) est.avisos.forEach((t) => itens.push(String(t)));
+    if (!itens.length && !c.recomendacao) return null;
     return el("div", { cls: "od-hero__notes" }, [
       el("div", { cls: "od-hero__notes-title", text: "Principais ressalvas" }),
       itens.length
@@ -348,7 +349,7 @@
     ]);
   }
 
-  function montarHero(parecer, rating) {
+  function montarHero(parecer) {
     const c = parecer.conclusao || {};
     const ciclo = parecer.ciclo_pecuario || null;
     const est = parecer.estresse_pecuario || null;
@@ -382,22 +383,21 @@
     } else {
       k2 = kpi("Vale de caixa (12m)", "—", "Informe o sistema produtivo", true);
     }
-    // Mini-KPI 3 — rating
-    const r = rating || parecer.rating || null;
-    const k3 = r && r.faixa
-      ? kpi("Rating", String(r.faixa), (num(r.score) !== null ? Math.round(num(r.score)) + "/100 · " : "") + (r.rotulo || ""), false)
-      : kpi("Rating", "—", "Indisponível", true);
-
-    // Mini-KPI 4 — prazo: quantos anos do prazo foram avaliados e qual o crítico
+    // Mini-KPI 3 — prazo: quantos anos do prazo foram avaliados e qual o crítico
     const nAnos = num(c.anos_avaliados);
     const k4 = nAnos !== null && nAnos > 0
       ? kpi("Prazo avaliado", nAnos + (nAnos === 1 ? " ano" : " anos"),
         c.ano_critico ? "Ano crítico: " + c.ano_critico : "Sem ano crítico", false)
       : kpi("Prazo avaliado", "—", "Indisponível para este parecer", true);
 
+    // Sem crédito ativo (recomendacao nula) não há DSCR, crédito máximo, ruptura
+    // nem prazo: o card vazio com "—" só ocupa a primeira dobra.
+    const creditoAtivo = !!c.recomendacao;
+    const kpis = creditoAtivo ? [k1, k2, k4] : [];
+
     return el("section", { cls: "od-hero", attrs: { "aria-label": "Resumo do parecer de crédito" } }, [
       el("div", { cls: "od-hero__top" }, [el("span", { cls: "od-eyebrow", text: "Parecer de crédito" }), badge]),
-      el("div", { cls: "od-hero__figures" }, [
+      creditoAtivo ? el("div", { cls: "od-hero__figures" }, [
         el("div", {}, [
           el("div", { cls: "od-fig__label", text: "DSCR mínimo" }),
           el("div", { cls: "od-fig__value", text: dscr(dscrMin) }),
@@ -408,8 +408,8 @@
           el("div", { cls: "od-fig__value", text: credMax !== null && credMax > 0 ? brl(credMax) : "—" }),
           el("div", { cls: "od-fig__sub", text: "capacidade de pagamento" }),
         ]),
-      ]),
-      el("div", { cls: "od-kpis" }, [k1, k2, k3, k4]),
+      ]) : null,
+      kpis.length ? el("div", { cls: "od-kpis" }, kpis) : null,
       ressalvasHero(parecer),
     ]);
   }
@@ -646,7 +646,7 @@
     if (!wrap || !parecer || !parecer.conclusao) return;
     const legado = Array.from(wrap.childNodes);
     const raiz = el("div", { cls: "od-result" });
-    raiz.appendChild(montarHero(parecer, data.rating));
+    raiz.appendChild(montarHero(parecer));
     montarBanners(parecer).forEach((b) => raiz.appendChild(b));
     montarAbas(legado, parecer).forEach((n) => raiz.appendChild(n));
     wrap.appendChild(raiz);

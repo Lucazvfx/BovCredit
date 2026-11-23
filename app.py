@@ -2597,7 +2597,8 @@ def api_classificar():
     # Reversível: NARRATIVA_INLINE=1 no ambiente volta ao modo bloqueante.
     _ctx_narrativa = {
         'tipo': result.get('tipo', 'CICLO_COMPLETO'),
-        'confianca': result.get('confianca', 0),
+        # groq_narrativa formata com :.0% (espera fração); result['confianca'] é 0–100.
+        'confianca': float(result.get('confianca', 0) or 0) / 100,
         'total_rebanho': int(sum(v)),
         'receita_anual': float(_ano1.get('receita', 0)),
         'geracao_caixa_anual': geracao_caixa_anual,

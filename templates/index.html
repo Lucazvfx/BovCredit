@@ -461,9 +461,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-fields.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-dashboard.css') }}?v=75">
+<link rel="stylesheet" href="{{ url_for('static', filename='orkavyn-dashboard.css') }}?v=76">
 <script defer src="{{ url_for('static', filename='orkavyn-shell.js') }}"></script>
-<script defer src="{{ url_for('static', filename='orkavyn-dashboard.js') }}?v=75"></script>
+<script defer src="{{ url_for('static', filename='orkavyn-dashboard.js') }}?v=76"></script>
 </head>
 <body class="ork-surface ork-dashboard-surface">
 
@@ -1919,6 +1919,12 @@ const fR=n=>_numOk(n)?'R$ '+Math.round(n).toLocaleString('pt-BR'):'—';
 // DSCR sempre no padrão brasileiro (vírgula decimal, 2 casas, sem sufixo "x").
 const fDscr=v=>(v===null||v===undefined||v===''||!Number.isFinite(Number(v)))?'—':Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fP=n=>(n*100).toFixed(1)+'%';
+// Valor que o backend já entrega em 0–100 (confiança do ML, desfrute): nunca
+// multiplicar de novo — foi assim que 42 virou "4200%".
+const fPct100=v=>_numOk(v)?Number(v).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—';
+// Crédito ativo = o parecer chegou a uma recomendação. Sem solicitação, DSCR,
+// parcela e crédito máximo não existem e os cards ficariam só com "—".
+const temCredito=data=>!!(((data||{}).parecer||{}).conclusao||{}).recomendacao;
 // Nulos/ausentes no mesmo padrão do PDF: '—' (nunca 'undefined'/'null' soltos).
 const fVazio=v=>(v===null||v===undefined||v===''||(typeof v==='number'&&!Number.isFinite(v)))?'—':String(v);
 // Bloco recolhível (leitura em camadas): o conteúdo completo segue no DOM.
@@ -3235,41 +3241,55 @@ function renderProveniencia(pv){
 }
 
 // ================== IMPEDITIVOS ==================
+// Campo do formulário que resolve cada impeditivo. Os demais (notas de venda,
+// custos históricos) são documentos: não há campo para "preencher".
+function _campoDoImpeditivo(cod){
+  if(cod==='ficha_rebanho'||cod==='composicao_rebanho') return FAIXAS[0].key+'_F';
+  return {area_ha:'f_area',credito_valor:'credito_valor'}[cod]||null;
+}
+function irParaCampo(id){
+  const alvo=document.getElementById(id);
+  if(!alvo) return;
+  showTab('entrada');
+  if(window.OrkavynDash) OrkavynDash.revelarCampo(id);
+  alvo.scrollIntoView({block:'center'});
+  alvo.focus({preventScroll:true});
+}
+
 function renderDadosImpeditivos(data){
   const imp = data.dados_impeditivos;
   if(!imp) return '';
   const {status, score_completude, impeditivos=[], alertas=[], ok=[], bloqueio_aprovacao, mensagem} = imp;
   const corStatus = bloqueio_aprovacao ? 'var(--ork-danger)' : alertas.length ? 'var(--ork-warning)' : 'var(--ork-success)';
-  const bgStatus  = bloqueio_aprovacao ? 'rgba(155,79,66,.09)' : alertas.length ? 'rgba(168,118,49,.09)' : 'rgba(63,104,73,.09)';
-  const iconStatus = bloqueio_aprovacao ? '✕' : alertas.length ? '!' : '✓';
   const pct = score_completude || 0;
   const circ = 2*Math.PI*18; // raio 18
   const dash = (pct/100)*circ;
   const scoreColor = pct<40 ? 'var(--ork-danger)' : pct<70 ? 'var(--ork-warning)' : 'var(--ork-success)';
 
-  const item = (x) => {
-    const isImp = x.nivel==='impeditivo', isOk = x.nivel==='ok';
-    const dot = isImp ? 'var(--ork-danger)' : isOk ? 'var(--ork-success)' : 'var(--ork-warning)';
-    return `<div style="display:flex;align-items:flex-start;gap:7px;padding:6px 0;border-bottom:1px solid var(--ork-line)">
-      <div style="width:6px;height:6px;border-radius:50%;background:${dot};flex-shrink:0;margin-top:5px"></div>
-      <div style="font-size:.72rem;color:var(--ork-ink);line-height:1.4">${x.descricao}${isImp?'<span style="color:var(--ork-copy);font-size:.62rem"> — bloqueia aprovação</span>':''}</div>
+  const item = (x, cor) => `<div style="display:flex;align-items:flex-start;gap:7px;padding:6px 0;border-bottom:1px solid var(--ork-line)">
+      <div style="width:6px;height:6px;border-radius:50%;background:${cor};flex-shrink:0;margin-top:5px"></div>
+      <div style="font-size:.72rem;color:var(--ork-ink);line-height:1.4">${escapeHtml(x.descricao)}</div>
+    </div>`;
+
+  const impItem = x => {
+    const alvo = _campoDoImpeditivo(x.codigo);
+    return `<div class="rt-imp">
+      <div class="rt-imp__txt">${escapeHtml(x.descricao)}<small> — bloqueia aprovação</small></div>
+      ${alvo ? `<button type="button" class="btn-sm" onclick="irParaCampo('${alvo}')">Preencher</button>`
+             : '<span class="rt-imp__doc">anexar documento</span>'}
     </div>`;
   };
 
-  const col3 = (titulo, dot, lista) => lista.length ? `
-    <div>
-      <div style="display:flex;align-items:center;gap:5px;margin-bottom:8px">
-        <div style="width:7px;height:7px;border-radius:50%;background:${dot};flex-shrink:0"></div>
-        <div style="font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ork-ink)">${titulo} (${lista.length})</div>
-      </div>
-      ${lista.map(x=>item(x)).join('')}
-    </div>` : '';
+  // Pendentes e OK ficam recolhidos: o que bloqueia a aprovação não compete
+  // com o que já está resolvido.
+  const grupo = (titulo, cor, lista) => lista.length
+    ? dobravel(`${titulo} (${lista.length})`, `<div>${lista.map(x=>item(x,cor)).join('')}</div>`) : '';
 
   return `<div class="card" style="margin-bottom:16px">
     <div class="ch">
       <div class="ct"><div class="cd" style="background:${corStatus}"></div>Completude da Análise</div>
       <div style="display:flex;align-items:center;gap:10px">
-        <svg width="40" height="40" viewBox="0 0 44 44" style="flex-shrink:0">
+        <svg width="40" height="40" viewBox="0 0 44 44" style="flex-shrink:0" aria-hidden="true">
           <circle cx="22" cy="22" r="18" fill="none" stroke="var(--ork-line)" stroke-width="4"/>
           <circle cx="22" cy="22" r="18" fill="none" stroke="${scoreColor}" stroke-width="4"
             stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}"
@@ -3280,14 +3300,17 @@ function renderDadosImpeditivos(data){
         </svg>
         <div style="font-size:.75rem;line-height:1.4">
           <div style="font-weight:700;color:var(--ork-ink)">${status==='completo'?'Completo':status==='parcial'?'Parcial':'Incompleto'}</div>
-          <div style="color:var(--ork-copy);font-size:.68rem">${mensagem}</div>
+          <div style="color:var(--ork-copy);font-size:.68rem">${escapeHtml(mensagem||'')}</div>
         </div>
       </div>
     </div>
-    <div class="cb" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px">
-      ${col3('Impeditivos','var(--ork-danger)',impeditivos)}
-      ${col3('Pendentes','var(--ork-warning)',alertas)}
-      ${col3('OK','var(--ork-success)',ok)}
+    <div class="cb">
+      ${impeditivos.length ? `<section class="rt-imps" aria-label="Itens impeditivos">
+        <div class="rt-imps__titulo">Impeditivos (${impeditivos.length})</div>
+        ${impeditivos.map(impItem).join('')}
+      </section>` : ''}
+      ${grupo('Pendentes','var(--ork-warning)',alertas)}
+      ${grupo('OK','var(--ork-success)',ok)}
     </div>
   </div>`;
 }
@@ -3363,8 +3386,8 @@ function renderAnalisesCredito(data, parecer){
   const labels={capacidade_pagamento:'Capacidade de pagamento',risco_credito:'Risco de crédito',garantia:'Garantia'};
   const statusLabel={aprovada:'ADEQUADA',ressalva:'RESSALVA',reprovada:'INSUFICIENTE',baixo:'BAIXO',medio:'MÉDIO',alto:'ALTO',suficiente:'SUFICIENTE',insuficiente:'INSUFICIENTE',nao_avaliada:'NÃO AVALIADA'};
   const dot=s=>({aprovada:'var(--ork-success)',alto:'var(--ork-success)',suficiente:'var(--ork-success)',ressalva:'var(--ork-warning)',medio:'var(--ork-warning)',reprovada:'var(--ork-danger)',baixo:'var(--ork-danger)',insuficiente:'var(--ork-danger)'}[s]||'var(--ork-copy)');
-  return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:var(--ork-line-strong)"></div>Três dimensões da análise</div><div style="font-size:.72rem;color:var(--ork-copy);font-weight:700">Rating ${rating.faixa||'—'} · ${rating.score??'—'}/100</div></div><div class="cb analises-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
-    ${Object.entries(labels).map(([k,l])=>{const x=a[k]||{},s=x.status||'nao_avaliada',dc=dot(s);return `<div style="border:1px solid var(--ork-line);border-radius:10px;padding:14px;background:var(--ork-surface-raised)"><div style="font-size:.65rem;color:var(--ork-copy);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${l}</div><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><div style="width:8px;height:8px;border-radius:50%;background:${dc};flex-shrink:0"></div><div style="font-size:.88rem;font-weight:700;color:var(--ork-ink)">${statusLabel[s]||s}</div></div><div style="font-size:.72rem;color:var(--ork-copy);line-height:1.45">${k==='capacidade_pagamento'?(x.dscr!=null?'DSCR: '+fDscr(x.dscr):'Sem crédito informado'):k==='risco_credito'?`Confiança: ${x.confianca_classificacao!=null?(x.confianca_classificacao*100).toFixed(0)+'%':'—'} · Consistência: ${x.score_consistencia??'—'}`:`LTV: ${x.ltv!=null?x.ltv+'%':'—'} · Execução: ${x.valor_execucao!=null?fR(x.valor_execucao):'—'}`}</div></div>`}).join('')}
+  return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:var(--ork-line-strong)"></div>Três dimensões da análise</div><div style="font-size:.72rem;color:var(--ork-copy);font-weight:700">Rating ${rating.faixa||'—'} · ${rating.score??'—'}/100</div></div><div class="cb analises-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+    ${Object.entries(labels).filter(([k])=>k!=='capacidade_pagamento'||temCredito(data)).map(([k,l])=>{const x=a[k]||{},s=x.status||'nao_avaliada',dc=dot(s);return `<div style="border:1px solid var(--ork-line);border-radius:10px;padding:14px;background:var(--ork-surface-raised)"><div style="font-size:.65rem;color:var(--ork-copy);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${l}</div><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><div style="width:8px;height:8px;border-radius:50%;background:${dc};flex-shrink:0"></div><div style="font-size:.88rem;font-weight:700;color:var(--ork-ink)">${statusLabel[s]||s}</div></div><div style="font-size:.72rem;color:var(--ork-copy);line-height:1.45">${k==='capacidade_pagamento'?(x.dscr!=null?'DSCR: '+fDscr(x.dscr):'Sem crédito informado'):k==='risco_credito'?`Confiança: ${fPct100(x.confianca_classificacao)} · Consistência: ${x.score_consistencia??'—'}`:`LTV: ${x.ltv!=null?x.ltv+'%':'—'} · Execução: ${x.valor_execucao!=null?fR(x.valor_execucao):'—'}`}</div></div>`}).join('')}
   </div><div style="padding:0 14px 14px;color:var(--ork-copy);font-size:.68rem">Pré-avaliação de apoio à consultoria. Confirme documentos, pesos, custos, dívidas e movimentações antes da decisão final.</div></div>`;
 }
 function renderFluxoMensal(data, parecer){
@@ -3373,13 +3396,11 @@ function renderFluxoMensal(data, parecer){
   const c=f.mes_critico;
   return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:#A78BFA"></div>Fluxo mensal para crédito</div></div><div class="cb" style="display:flex;gap:18px;flex-wrap:wrap;font-size:.78rem;color:var(--sb)"><span>Saldo mínimo: <strong style="color:var(--tx)">${fR(f.saldo_minimo)}</strong></span><span>Mês crítico: <strong>${c?`Ano ${c.ano}, mês ${c.mes}`:'—'}</strong></span><span style="color:var(--mu)">Distribuição estimada; informe calendário real para decisão final.</span></div></div>`;
 }
-function renderParecer(data){
-  const p=data.parecer; if(!p) return '';
+function parecerPartes(data){
+  const p=data.parecer; if(!p) return null;
   window._lastParecer = p;
   const c=p.conclusao||{};
-  const LBL={aprovar:'APROVAR',ressalva:'APROVAR COM RESSALVA',negar:'NEGAR'};
   const cor={aprovar:'#4ADE80',ressalva:'#FBBF24',negar:'#F87171'}[c.recomendacao]||'#8891A5';
-  const capMax = c.capacidade_maxima;
   // O LTV vem do servidor, calculado sobre o valor de EXECUÇÃO (com deságio por
   // categoria). Antes era calculado aqui contra o valor de mercado cheio, o que
   // superestimava a cobertura — rebanho em penhor não se realiza pela cotação
@@ -3387,50 +3408,31 @@ function renderParecer(data){
   const gar = p.garantia || {};
   const ltv = (gar.ltv != null) ? gar.ltv : null;
 
-  // Veredicto em banner grande com faixa KPI
+  // Faixa de apoio do crédito. Veredito, DSCR e crédito máximo já estão no hero
+  // e a memória de cálculo fica na gaveta de Risco & Auditoria; aqui só o que
+  // o hero não mostra. Sem crédito ativo não há faixa (nada de cards com "—").
   const concl = c.recomendacao ? (() => {
-    const ncols = 3 + (capMax > 0 ? 1 : 0) + (ltv !== null ? 1 : 0);
     const ltvCor = LTV_COR[gar.veredito] || '#8891A5';
+    const rot = t => `<div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">${t}</div>`;
     return `<div style="border-radius:12px;overflow:hidden;border:1px solid ${cor}33;margin-bottom:16px">
-      <div style="background:${cor}15;padding:26px 24px 20px;text-align:center">
-        <div style="font-family:var(--fn);font-weight:900;font-size:3.2rem;letter-spacing:-1px;line-height:1;color:${cor}">${c.nivel_recomendacao_label||LBL[c.recomendacao]||c.recomendacao}</div>
-        <div style="font-family:var(--fm);font-size:.58rem;color:var(--mu);margin-top:6px;letter-spacing:2px;text-transform:uppercase">Parecer de Capacidade de Pagamento</div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(${ncols},1fr);gap:1px;background:${cor}22">
-        <div style="background:var(--c);padding:13px 14px;text-align:center">
-          <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">${
-            c.dscr_minimo!=null && c.dscr_minimo!==c.dscr_ano1 ? `DSCR · ano ${c.ano_critico}` : 'DSCR'
-          }</div>
-          <div style="font-family:var(--fn);font-weight:900;font-size:1.8rem;letter-spacing:-.5px;color:${cor}">${
-            fDscr(c.dscr_minimo!=null ? c.dscr_minimo : c.dscr)
-          }</div>
-          ${c.dscr_minimo!=null && c.dscr_minimo!==c.dscr_ano1
-            ? `<div style="font-family:var(--fm);font-size:.5rem;color:var(--mu);margin-top:3px">ano 1: ${fDscr(c.dscr_ano1)}</div>` : ''}
-        </div>
-        ${ltv !== null ? `<div style="background:var(--c);padding:13px 14px;text-align:center">
-          <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">LTV · execução</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));background:var(--c)">
+        ${ltv !== null ? `<div style="background:var(--c);padding:13px 14px;text-align:center;box-shadow:0 0 0 .5px ${cor}33">
+          ${rot('LTV · execução')}
           <div style="font-family:var(--fn);font-weight:900;font-size:1.8rem;letter-spacing:-.5px;color:${ltvCor}">${ltv.toFixed(1)}%</div>
           <div style="font-family:var(--fm);font-size:.5rem;color:var(--mu);margin-top:3px">${LTV_ICONE[gar.veredito]||''} ${gar.veredito||''}</div>
         </div>` : ''}
-        <div style="background:var(--c);padding:13px 14px;text-align:center">
-          <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Parcela/Mês</div>
+        <div style="background:var(--c);padding:13px 14px;text-align:center;box-shadow:0 0 0 .5px ${cor}33">
+          ${rot('Parcela/Mês')}
           <div style="font-family:var(--fn);font-weight:800;font-size:1.15rem;letter-spacing:-.5px">${fR(c.parcela_mensal)}</div>
         </div>
-        <div style="background:var(--c);padding:13px 14px;text-align:center">
-          <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Geração de Caixa/Ano</div>
+        <div style="background:var(--c);padding:13px 14px;text-align:center;box-shadow:0 0 0 .5px ${cor}33">
+          ${rot('Geração de Caixa/Ano')}
           <div style="font-family:var(--fn);font-weight:800;font-size:1.15rem;letter-spacing:-.5px">${fR(c.geracao_caixa_anual)}</div>
         </div>
-        ${capMax > 0 ? `<div style="background:var(--c);padding:13px 14px;text-align:center">
-          <div style="font-family:var(--fm);font-size:.5rem;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Crédito Máximo</div>
-          <div style="font-family:var(--fn);font-weight:800;font-size:1.15rem;letter-spacing:-.5px;color:var(--tx)">${fR(capMax)}</div>
-        </div>` : ''}
       </div>
-      <div style="padding:12px 18px;background:var(--c);border-top:1px solid var(--b)">
-        <div style="font-size:.84rem;color:var(--sb)">${c.justificativa||''}</div>
-        ${renderMemoria(c)}
-      </div>
+      ${c.recomendacao==='aprovar' && c.justificativa ? `<div style="padding:12px 18px;background:var(--c);border-top:1px solid var(--b);font-size:.84rem;color:var(--sb)">${escapeHtml(c.justificativa)}</div>` : ''}
     </div>`;
-  })() : `<div style="padding:14px;border-radius:10px;border:1px dashed var(--b);color:var(--mu);font-size:.8rem;margin-bottom:16px">Informe a Solicitação de Crédito na aba de entrada para gerar a conclusão de capacidade de pagamento.</div>`;
+  })() : '';
 
   // Fluxo de caixa completo — metodologia GEP
   const gep = data.fluxo_gep || {};
@@ -3550,7 +3552,7 @@ function renderParecer(data){
         ];
         return `<div style="margin-top:12px;border-top:1px solid var(--b);padding-top:10px">
           <div style="font-family:var(--fm);font-size:.52rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu);margin-bottom:8px">Custo &amp; Receita por Cabeça — Ano 1 (Cenário Conservador)</div>
-          <div style="display:grid;grid-template-columns:repeat(${kpis.length},1fr);gap:8px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">
             ${kpis.map(k=>`<div style="background:var(--bg2);border-radius:8px;padding:10px 12px;border:1px solid var(--b)">
               <div style="font-family:var(--fm);font-size:.52rem;color:var(--mu);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">${k.l}</div>
               <div style="font-family:var(--fn);font-weight:800;font-size:1.05rem;color:${k.c}">${k.v}</div>
@@ -3705,14 +3707,36 @@ function renderParecer(data){
       <div style="margin-top:8px;font-size:.68rem;color:var(--mu)">Simula impacto de variação no custo operacional (seca, insumos, mão de obra) mantendo o preço de venda constante.</div>
     </div>` : '';
 
-  return `<div class="card" style="margin-bottom:24px">
-    <div class="ch"><div class="ct"><div class="cd" style="background:${cor}"></div>Parecer de Crédito</div>
-      <button class="btn-sm" onclick="baixarPdfParecer(window._lastParecer)">↓ Baixar PDF</button></div>
-    <div class="cb" style="display:grid;gap:0">${renderAnalisesCredito(data,p)}${renderRetencao(data)}${renderFluxoMensal(data,p)}${renderPraca(p.precos_regional)}${concl}${fluxoGep}${sensHtml}${dobravel('Projeção multianual (detalhe)',projecaoHtml)}${dobravel('Sensibilidade de custo (detalhe)',sensCustoHtml)}</div>
-  </div>
-  ${renderGarantia(p.garantia)}
-  ${renderEndividamento(p.endividamento)}
-  ${dobravel('Origem dos parâmetros e fontes (detalhe)',renderProveniencia(p.proveniencia))}`;
+  return {
+    p, c, concl, fluxoGep, sensHtml, sensCustoHtml, projecaoHtml,
+    analises: renderAnalisesCredito(data,p),
+    retencao: renderRetencao(data),
+    fluxoMensal: renderFluxoMensal(data,p),
+    praca: renderPraca(p.precos_regional),
+    garantia: renderGarantia(p.garantia),
+    endividamento: renderEndividamento(p.endividamento),
+    proveniencia: renderProveniencia(p.proveniencia),
+  };
+}
+
+// Origem da decisão e atipicidade: o que explica COMO o sistema chegou ao ciclo.
+function chipsOrigemClassificacao(data){
+  const chip=(rgb,cor,txt,titulo)=>`<span${titulo?` title="${escapeHtml(titulo)}"`:''} style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(${rgb},.35);color:${cor};background:rgba(${rgb},.1)">${txt}</span>`;
+  const chips=[];
+  if(data.origem_decisao==='regra'){
+    chips.push(chip('251,191,36','var(--tx)',`regra determinística: ${escapeHtml(data.regra_aplicada||'')}`));
+  } else if(data.origem_decisao==='composicao_modelo'){
+    chips.push(chip('251,191,36','var(--tx)','inferido pela composição da ficha'));
+  } else {
+    chips.push(chip('74,222,128','var(--tx)','decidido pelo modelo ML'));
+  }
+  const at=data.atipicidade;
+  if(at && at.nivel!=='tipico'){
+    const muito=at.nivel==='muito_atipico';
+    chips.push(chip(muito?'248,113,113':'251,191,36',muito?'var(--rd)':'var(--am)',
+      `rebanho ${muito?'muito atípico':'atípico'} · revisão recomendada`,at.mensagem||''));
+  }
+  return `<div class="ork-exec__chips">${chips.join('')}</div>`;
 }
 
 function renderDecisionSummary(data){
@@ -3732,18 +3756,69 @@ function renderDecisionSummary(data){
   // que nenhum dos dois avisar.
   const orig=(parecer.identificacao||{}).origem_rebanho||{};
 
-  return `<section class="ork-decision-summary" aria-label="Resumo executivo da análise">
-    <div class="ork-decision-summary__primary">
+  const val=id=>((document.getElementById(id)||{}).value||'').trim();
+  const faz=val('f_faz'), mun=val('f_mun'), prop=val('f_prop');
+  const ind=data.indicadores||{};
+  const rat=data.rating||parecer.rating||{};
+  const imp=data.dados_impeditivos||null;
+  const imps=(imp&&imp.impeditivos)||[];
+  const alvos=imps.map(x=>_campoDoImpeditivo(x.codigo)).filter(Boolean);
+  const credito=temCredito(data);
+
+  // Só entra o que o servidor calculou: sem dado o card some, em vez de "—".
+  const gar=parecer.garantia||{};
+  const dp=data.desfrute_projetado||{};
+  const cb=fluxo.coe_benchmark||{};
+  const coe=_numOk(cb.coe_calculado)?cb.coe_calculado:fluxo.coe_por_arroba;
+  const kpis=[];
+  if(resultado!=null) kpis.push({l:'Resultado operacional',v:fR(resultado),neg:resultado<0});
+  if(credito && gar.credito_maximo_garantia>0) kpis.push({l:'Crédito máx. (garantia)',v:fR(gar.credito_maximo_garantia)});
+  if(_numOk(dp.valor)) kpis.push({l:'Desfrute anual',v:fPct100(dp.valor)});
+  if(_numOk(coe) && coe>0) kpis.push({l:'COE calculado',v:fR(coe)+'/@'});
+
+  const badge=(rot,val)=>`<span class="ork-exec__badge"><span>${rot}</span><b>${val}</b></span>`;
+  const badges=[
+    rat.faixa?badge('Rating',`${escapeHtml(rat.faixa)}${_numOk(rat.score)?` · ${Math.round(rat.score)}/100`:''}`):'',
+    imp&&_numOk(imp.score_completude)?badge('Completude',`${imp.score_completude}%`):'',
+    _numOk(data.confianca)?badge('Confiança',fPct100(data.confianca)+(
+      data.origem_decisao==='regra'&&_numOk(data.confianca_ml)&&data.confianca_ml!==data.confianca?` <small>(modelo ML: ${fPct100(data.confianca_ml)})</small>`:'')):'',
+  ].join('');
+
+  const _vr=fluxo.valor_rebanho_ini||0;
+  const selo=[_numOk(ind.total)?`${fN(ind.total)} cabeças`:'',_vr>0?fR(_vr):''].filter(Boolean).join(' · ');
+
+  return `<section class="ork-decision-summary ork-exec" aria-label="Resumo executivo da análise">
+    <div class="ork-exec__head">
+      <div class="ork-exec__farm">
+        <span class="ork-exec__eyebrow">Propriedade</span>
+        <strong>${escapeHtml(faz||'Propriedade sem nome')}</strong>
+        ${[mun,prop].some(Boolean)?`<span>${escapeHtml([mun,prop].filter(Boolean).join(' · '))}</span>`:''}
+      </div>
+      <div class="ork-exec__badges">${badges}</div>
+    </div>
+    <div class="ork-decision-summary__primary ork-exec__seal">
       <span>Sistema identificado</span>
       <strong>${escapeHtml(TL[data.tipo]||data.tipo||'—')}</strong>
+      ${selo?`<em>${selo}</em>`:''}
+      <p>${escapeHtml(TD[data.tipo]||'')}</p>
     </div>
-    ${orig.aviso?`<p style="grid-column:1/-1;margin:10px 0 0;padding:9px 12px;border:1px solid rgba(251,191,36,.35);border-radius:8px;background:rgba(251,191,36,.08);font-size:.74rem;line-height:1.55;color:var(--sb)">
-      <b style="color:var(--tx)">Análise preliminar — efetivo não verificado.</b>
+    ${kpis.length?`<div class="ork-exec__kpis">${kpis.map(k=>`<div><span>${k.l}</span><strong${k.neg?' class="is-critical"':''}>${k.v}</strong></div>`).join('')}</div>`:''}
+    ${imps.length?`<div class="ork-exec__alert" role="alert">
+      <div><b>${imps.length} dado(s) impeditivo(s)</b> bloqueiam a aprovação: ${imps.slice(0,3).map(x=>escapeHtml(x.descricao)).join('; ')}${imps.length>3?` e mais ${imps.length-3}`:''}.</div>
+      <div class="ork-exec__cta">
+        ${alvos.length?`<button type="button" class="btn-sm" onclick="irParaCampo('${alvos[0]}')">Preencher campos pendentes</button>`:''}
+        <button type="button" class="btn-sm" onclick="rtAtivar('checklist',true)">Ver checklist</button>
+      </div>
+    </div>`:''}
+    ${data.classificacao_limitada ? `<p class="ork-exec__note">
+      <b>Classificação limitada:</b> o ciclo inferido é <b>${escapeHtml(TL[data.tipo]||data.tipo||'')}</b>,
+      mas faltam ${escapeHtml((data.dados_faltantes||[]).join(', ')||'dados de produção')}.
+      Confirme esta informação antes de usar o resultado.</p>` : ''}
+    ${orig.aviso?`<p class="ork-exec__note">
+      <b>Análise preliminar — efetivo não verificado.</b>
       ${escapeHtml(orig.aviso.replace('Análise preliminar — efetivo não verificado. ',''))}
     </p>`:''}
-    <div class="ork-decision-summary__metrics">
-      <div><span>Resultado operacional</span><strong class="${resultado!=null&&resultado<0?'is-critical':''}">${resultado==null?'—':fR(resultado)}</strong></div>
-    </div>
+    ${chipsOrigemClassificacao(data)}
   </section>
   <aside class="ork-evidence-ribbon" aria-label="Evidências da conclusão">
     <div><span>Qualidade dos dados</span><strong id="ev-quality">${escapeHtml(String(nivelQualidade))}</strong></div>
@@ -3753,21 +3828,73 @@ function renderDecisionSummary(data){
   </aside>`;
 }
 
-function renderResult(data){
-  const tipo=data.tipo, col=TC[tipo];
-  const ind=data.indicadores;
-  const faz=document.getElementById('f_faz').value||'—';
-  const mun=document.getElementById('f_mun').value||'—';
-  const prop=document.getElementById('f_prop').value||'—';
-  const v=data.valores;
-  const _vr = (data.fluxo_gep||{}).valor_rebanho_ini || 0;
+// ── Sub-abas do Resultado ─────────────────────────────────────────────────
+function renderResultTabs(abas,inicial){
+  return `<div class="rt" id="rt-root">
+    <div class="rt-tabs" role="tablist" aria-label="Seções do resultado">${abas.map(a=>{
+      const on=a.id===inicial;
+      return `<button type="button" class="rt-tab" role="tab" id="rt-tab-${a.id}" aria-controls="rt-panel-${a.id}" aria-selected="${on}" tabindex="${on?0:-1}" onclick="rtAtivar('${a.id}')" onkeydown="rtTecla(event,'${a.id}')">${a.rotulo}${a.badge?`<span class="rt-badge">${a.badge}</span>`:''}</button>`;
+    }).join('')}</div>
+    ${abas.map(a=>`<div class="rt-panel" role="tabpanel" id="rt-panel-${a.id}" aria-labelledby="rt-tab-${a.id}"${a.id===inicial?'':' hidden'}>${a.html}</div>`).join('')}
+  </div>`;
+}
+function rtAtivar(id,foco){
+  document.querySelectorAll('#rt-root .rt-tab').forEach(b=>{
+    const on=b.id==='rt-tab-'+id;
+    b.setAttribute('aria-selected',on?'true':'false');
+    b.tabIndex=on?0:-1;
+    if(on&&foco) b.focus();
+  });
+  document.querySelectorAll('#rt-root .rt-panel').forEach(p=>{p.hidden=p.id!=='rt-panel-'+id;});
+}
+function rtTecla(ev,id){
+  const ids=[...document.querySelectorAll('#rt-root .rt-tab')].map(b=>b.id.replace('rt-tab-',''));
+  const i=ids.indexOf(id);
+  const j=ev.key==='ArrowRight'?(i+1)%ids.length:ev.key==='ArrowLeft'?(i+ids.length-1)%ids.length:null;
+  if(j===null) return;
+  ev.preventDefault();
+  rtAtivar(ids[j],true);
+}
 
-  const probs=data.probabilidades;
-  const confBars=`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:18px">${
-    Object.entries(probs).filter(([,p])=>p>0).map(([t,p])=>
-      `<span style="font-family:var(--fm);font-size:.58rem;letter-spacing:.8px;background:${TC[t]}18;border:1px solid ${TC[t]}40;color:${TC[t]};border-radius:20px;padding:3px 10px">${TL[t]} ${p}%</span>`
-    ).join('')
-  }</div>`;
+// Memória de cálculo e parâmetros: em gaveta, fora da rolagem principal.
+function renderMemoriaGaveta(pp){
+  const passos=pp?memoriaPassos(pp.c.memoria):'';
+  const prov=pp?pp.proveniencia:'';
+  if(!passos&&!prov) return '';
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="ch"><div class="ct"><div class="cd" style="background:var(--g)"></div>Memória de cálculo e parâmetros</div>
+      <button type="button" class="btn-sm" onclick="abrirMemoria()">Abrir</button></div>
+  </div>
+  <dialog id="dlg-memoria" class="rt-drawer" aria-labelledby="dlg-memoria-t" onclick="if(event.target===this)fecharMemoria()">
+    <div class="rt-drawer__head"><h3 id="dlg-memoria-t">Memória de cálculo e parâmetros</h3>
+      <button type="button" class="btn-sm" onclick="fecharMemoria()">Fechar</button></div>
+    <div class="rt-drawer__body">
+      ${passos?`<h4>${pp.c.rebaixado_no_prazo?'Rebaixado no prazo · ':''}Por que este resultado</h4>${passos}`:''}
+      ${prov?`<h4>Origem dos parâmetros e fontes</h4>${prov}`:''}
+    </div>
+  </dialog>`;
+}
+function abrirMemoria(){
+  const d=document.getElementById('dlg-memoria');
+  if(!d) return;
+  if(typeof d.showModal==='function') d.showModal(); else d.setAttribute('open','');
+}
+function fecharMemoria(){
+  const d=document.getElementById('dlg-memoria');
+  if(!d) return;
+  if(typeof d.close==='function') d.close(); else d.removeAttribute('open');
+}
+
+// HTML do Resultado: resumo executivo no topo e o resto em 4 sub-abas, para
+// o analista abrir só o que precisa em vez de rolar uma tela única.
+function corpoResultado(data){
+  const tipo=data.tipo, col=TC[tipo];
+  const ind=data.indicadores||{};
+  const v=data.valores;
+  const probs=data.probabilidades||{};
+  const confBars=Object.entries(probs).filter(([,pr])=>pr>0).map(([t,pr])=>
+    `<span style="font-family:var(--fm);font-size:.58rem;letter-spacing:.8px;background:${TC[t]}18;border:1px solid ${TC[t]}40;color:${TC[t]};border-radius:20px;padding:3px 10px">${TL[t]} ${fPct100(pr)}</span>`
+  ).join('');
 
   const _pvd=vApiToDisplay(v);
   const maxAn=Math.max(..._pvd.map(([fv,mv])=>fv+mv),1);
@@ -3785,82 +3912,47 @@ function renderResult(data){
   }).join('');
 
   const recs=getRecs(tipo,ind);
+  const pp=parecerPartes(data);
+  const imp=data.dados_impeditivos||null;
+  const nImp=((imp||{}).impeditivos||[]).length;
+  const vazio=txt=>`<div class="card"><div class="cb" style="font-size:.8rem;color:var(--mu)">${txt}</div></div>`;
 
-  const tipoCards=['CRIA','RECRIA','ENGORDA','CICLO_COMPLETO','RECRIA_ENGORDA','CRIA_RECRIA'].map(t=>{
-    const sel=t===tipo;
-    return`<div class="tc" style="${sel?`border-color:${TC[t]};background:${TC[t]}12;border-width:2px`:''}">
-      ${sel?`<div class="tc-sel" style="background:${TC[t]}25;color:${TC[t]}">← IDENTIFICADO</div>`:''}
-      <div class="tc-name" style="color:${sel?TC[t]:'var(--sb)'}">${TL[t]}</div>
-      <div class="tc-desc">${TD[t]}</div>
-    </div>`;
-  }).join('');
+  // ── Checklist ──
+  const abaChecklist=renderDadosImpeditivos(data)||vazio('Checklist indisponível para esta análise.');
 
-  document.getElementById('result-wrap').innerHTML=`
-    ${renderDecisionSummary(data)}
-    ${renderDadosImpeditivos(data)}
-    <div class="rhero" style="border-color:${col}40;background:${col}08">
-      <div class="rhero-grid">
-        <div>
-          <div class="rhero-ey">Tipo de Exploração · ${escapeHtml(faz)} · ${escapeHtml(mun)}</div>
-          <div class="rhero-tipo" style="color:${col}">${TL[tipo]}</div>
-          <div class="rhero-sub">${escapeHtml(prop)} &nbsp;·&nbsp; Confiança: ${data.confianca}%${
-            data.origem_decisao==='regra' && data.confianca_ml!==data.confianca
-              ? ` <span style="opacity:.65;font-size:.9em">(modelo ML: ${data.confianca_ml}%)</span>` : ''
-          }</div>
-          ${(()=>{
-            const chips=[];
-            if(data.origem_decisao==='regra'){
-              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--tx);background:rgba(251,191,36,.1)">regra determinística: ${escapeHtml(data.regra_aplicada||'')}</span>`);
-            } else if(data.origem_decisao==='composicao_modelo'){
-              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(251,191,36,.35);color:var(--tx);background:rgba(251,191,36,.1)">inferido pela composição da ficha</span>`);
-            } else {
-              chips.push(`<span style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(74,222,128,.35);color:var(--tx);background:rgba(74,222,128,.1)">decidido pelo modelo ML</span>`);
-            }
-            const at=data.atipicidade;
-            if(at && at.nivel!=='tipico'){
-              const c = at.nivel==='muito_atipico' ? 'var(--rd)' : 'var(--am)';
-              const rgb = at.nivel==='muito_atipico' ? '248,113,113' : '251,191,36';
-              chips.push(`<span title="${escapeHtml(at.mensagem||'')}" style="font-family:var(--fm);font-size:.55rem;padding:3px 9px;border-radius:20px;border:1px solid rgba(${rgb},.35);color:${c};background:rgba(${rgb},.1)">rebanho ${at.nivel==='muito_atipico'?'muito atípico':'atípico'} · revisão recomendada</span>`);
-            }
-            return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${chips.join('')}</div>`;
-          })()}
-          ${data.classificacao_limitada ? `
-            <div style="margin-top:12px;padding:11px 13px;border:1px solid rgba(251,191,36,.38);border-radius:9px;background:rgba(251,191,36,.08);color:var(--sb);font-size:.76rem;line-height:1.5">
-              <b style="color:var(--tx)">Classificação limitada:</b>
-              o ciclo inferido é <b>${escapeHtml(TL[data.tipo]||data.tipo||'')}</b>,
-              mas faltam ${escapeHtml((data.dados_faltantes||[]).join(', ')||'dados de produção')}.
-              Confirme esta informação antes de usar o resultado.
-            </div>` : ''}
-          <div style="margin-top:22px">${confBars}</div>
+  // ── Financeiro ──
+  const abaFinanceiro=`
+    ${pp?pp.concl:''}
+    ${pp?pp.fluxoGep:''}
+    ${pp?pp.fluxoMensal:''}
+    <div class="card" id="card-fluxo-proj" style="margin-bottom:24px">
+      <div class="ch">
+        <div class="ct"><div class="cd" style="background:var(--cy)"></div>Fluxo de Caixa do Ciclo</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-family:var(--fm);font-size:.6rem;color:var(--mu)">Duração</span>
+          <input type="number" id="fp-dur" min="1" max="36" value="12" style="width:52px;padding:3px 6px;border:1px solid var(--b);border-radius:4px;background:var(--c2);color:var(--tx);font-family:var(--fm);font-size:.72rem;text-align:center" oninput="renderFluxoProjetado()">
+          <span style="font-family:var(--fm);font-size:.6rem;color:var(--mu)">meses</span>
         </div>
       </div>
+      <div class="cb">
+        <div id="fp-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--b);border:1px solid var(--b);border-radius:var(--rs);overflow:hidden;margin-bottom:8px"></div>
+        <div id="fp-note" style="font-family:var(--fm);font-size:.62rem;color:var(--mu);margin-top:2px;text-align:center"></div>
+      </div>
     </div>
+    ${pp?pp.projecaoHtml:''}
+    ${renderCenarios(data)}
+    ${pp?pp.praca:''}
+    ${pp?pp.endividamento:''}`;
 
-    ${renderTransparencia(data)}
-
-    ${data.shap_pendente ? shapPlaceholderHtml() : shapCardHtml(data.shap_explicacao||{}, tipo, col)}
-
-    ${renderParecer(data)}
-
-    <div class="sstrip" style="grid-template-columns:repeat(${_vr>0?7:6},1fr)">
-      <div class="sc2"><div class="sc2-l">Total Rebanho</div><div class="sc2-v cg">${fN(ind.total)}</div></div>
-      <div class="sc2"><div class="sc2-l">Fêmeas</div><div class="sc2-v cg">${fN(ind.total_femeas)}</div></div>
-      <div class="sc2"><div class="sc2-l">Machos</div><div class="sc2-v ca">${fN(ind.total_machos)}</div></div>
-      <div class="sc2"><div class="sc2-l">Cria 0–12m</div><div class="sc2-v cc">${fN(ind.cria)}</div></div>
-      <div class="sc2"><div class="sc2-l">Recria 13–24m</div><div class="sc2-v ca">${fN(ind.recria)}</div></div>
-      <div class="sc2"><div class="sc2-l">Adultos 25m+</div><div class="sc2-v cp">${fN(ind.adultos)}</div></div>
-      ${_vr>0?`<div class="sc2" style="border-left:1px solid var(--g)22"><div class="sc2-l" style="color:var(--tx)">Valor do Rebanho</div><div class="sc2-v" style="color:var(--tx)">${fR(_vr)}</div></div>`:''}
-    </div>
-
+  // ── Rebanho & Zootecnia ──
+  const abaRebanho=`
     ${renderConfirmacao(data)}
-
     ${renderDesfrute(data)}
-
+    ${pp?pp.retencao:renderRetencao(data)}
     <div class="card" style="margin-bottom:24px">
       <div class="ch"><div class="ct"><div class="cd" style="background:var(--g)"></div>Benchmarks · Nacional</div></div>
       <div class="cb">${benchUnificado(data)}</div>
     </div>
-
     <div class="g2">
       <div class="card">
         <div class="ch"><div class="ct"><div class="cd" style="background:var(--pu)"></div>Pirâmide Etária</div></div>
@@ -3879,7 +3971,6 @@ function renderResult(data){
         </div>
       </div>
     </div>
-
     <div class="g2" style="margin-top:0">
       <div class="card">
         <div class="ch"><div class="ct"><div class="cd" style="background:var(--rd)"></div>Recomendações Técnicas</div></div>
@@ -3890,24 +3981,17 @@ function renderResult(data){
         <div class="cb" id="dist-bars"></div>
       </div>
     </div>
+    ${confBars?`<div class="card" style="margin-bottom:24px"><div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Probabilidade por ciclo</div></div><div class="cb"><div style="display:flex;flex-wrap:wrap;gap:6px">${confBars}</div></div></div>`:''}`;
 
-    <div class="tc-grid">${tipoCards}</div>
-
-    <div class="card" id="card-fluxo-proj" style="margin-bottom:24px">
-      <div class="ch">
-        <div class="ct"><div class="cd" style="background:var(--cy)"></div>Fluxo de Caixa do Ciclo</div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <span style="font-family:var(--fm);font-size:.6rem;color:var(--mu)">Duração</span>
-          <input type="number" id="fp-dur" min="1" max="36" value="12" style="width:52px;padding:3px 6px;border:1px solid var(--b);border-radius:4px;background:var(--c2);color:var(--tx);font-family:var(--fm);font-size:.72rem;text-align:center" oninput="renderFluxoProjetado()">
-          <span style="font-family:var(--fm);font-size:.6rem;color:var(--mu)">meses</span>
-        </div>
-      </div>
-      <div class="cb">
-        <div id="fp-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--b);border:1px solid var(--b);border-radius:var(--rs);overflow:hidden;margin-bottom:8px"></div>
-        <div id="fp-note" style="font-family:var(--fm);font-size:.62rem;color:var(--mu);margin-top:2px;text-align:center"></div>
-      </div>
-    </div>
-
+  // ── Risco & Auditoria ──
+  const abaRisco=`
+    ${pp?pp.analises:''}
+    ${renderTransparencia(data)}
+    ${pp?pp.garantia:''}
+    ${pp?pp.sensHtml:''}
+    ${pp?pp.sensCustoHtml:''}
+    ${data.shap_pendente ? shapPlaceholderHtml() : shapCardHtml(data.shap_explicacao||{}, tipo, col)}
+    ${renderMemoriaGaveta(pp)}
     ${(data.narrativa_ia || data.narrativa_pendente) ? `<div class="card" style="margin-bottom:16px" id="card-narrativa">
       <div class="ch"><div class="ct"><div class="cd" style="background:#A78BFA"></div>Análise Narrativa · IA</div>
         <span style="font-family:var(--fm);font-size:.48rem;letter-spacing:1px;padding:2px 7px;border-radius:4px;background:rgba(167,139,250,.1);color:#A78BFA;border:1px solid rgba(167,139,250,.2)">Llama 3.3 70B</span>
@@ -3916,13 +4000,31 @@ function renderResult(data){
         data.narrativa_ia ? escapeHtml(data.narrativa_ia)
         : '<span style="font-family:var(--fm);font-size:.72rem;color:var(--mu);letter-spacing:2px">· · ·  gerando análise</span>'
       }</div>
-    </div>` : ''}
+    </div>` : ''}`;
 
+  const abas=[
+    {id:'checklist',rotulo:'Checklist',badge:nImp||'',html:abaChecklist},
+    {id:'financeiro',rotulo:'Financeiro',html:abaFinanceiro},
+    {id:'rebanho',rotulo:'Rebanho &amp; Zootecnia',html:abaRebanho},
+    {id:'risco',rotulo:'Risco &amp; Auditoria',html:abaRisco},
+  ];
+
+  return `${renderDecisionSummary(data)}
+    ${renderResultTabs(abas,nImp?'checklist':'financeiro')}
     <div style="display:flex;gap:10px;margin-top:24px;flex-wrap:wrap">
+      ${pp?'<button class="btn-sm" onclick="baixarPdfParecer(window._lastParecer)">↓ Baixar PDF do parecer</button>':''}
       <button class="btn-sm" onclick="document.getElementById('tab-cen').click()">Ver Simulação de Cenários</button>
       <button class="btn-sm" onclick="resetApp()">↩ Nova Classificação</button>
       <button class="btn-sm" onclick="window.print()">Imprimir</button>
     </div>`;
+}
+
+function renderResult(data){
+  const tipo=data.tipo;
+  const ind=data.indicadores;
+  const v=data.valores;
+  if(data.parecer) window._lastParecer=data.parecer;
+  document.getElementById('result-wrap').innerHTML=corpoResultado(data);
 
   window._chatContexto = {
     tipo: data.tipo, confianca: (data.confianca||0)/100,
@@ -4031,14 +4133,9 @@ function renderTransparencia(data){
   const q=data.qualidade_dados||{};
   const e=data.explicacao_classificacao||{};
   const vz=data.validacoes_zootecnicas||{};
-  const cc=data.comparacao_cenarios||{};
   const campos=q.campos||{};
   const contagem=(origem)=>Object.values(campos).filter(x=>x.origem===origem).length;
   const alertas=vz.alertas||[];
-  const cen=(cc.cenarios||[]).map(x=>{
-    const ac=x.acumulado||{};
-    return `<tr><td>${escapeHtml(x.id||'—')}</td><td>${fR(ac.receita)}</td><td>${fR(ac.custo)}</td><td>${fR(ac.resultado)}</td><td>${fDscr(x.dscr_minimo)}</td><td>${x.ano_critico==null?'—':x.ano_critico}</td></tr>`;
-  }).join('');
   const fatores=(e.fatores||[]).slice(0,6).map(f=>`<li>${escapeHtml(f.evidencia||f.rotulo||'')}</li>`).join('');
   const avisos=alertas.slice(0,5).map(a=>`<div style="padding:8px 0;border-bottom:1px solid var(--b)"><b>${escapeHtml(a.titulo||'Alerta')}</b><br><span style="color:var(--mu)">${escapeHtml(a.evidencia||'')} · ${escapeHtml(a.acao||'')}</span></div>`).join('');
   return `<div class="g2" style="margin-bottom:24px">
@@ -4058,8 +4155,21 @@ function renderTransparencia(data){
         : 'Nenhum alerta zootécnico. Todas as checagens rodaram.'
     }</div>`}
     ${renderChecagensPuladas(vz)}
-    ${cen?`<div style="overflow:auto;margin-top:14px"><table class="dt"><thead><tr><th>Cenário</th><th>Receita</th><th>Custo</th><th>Resultado</th><th>DSCR mín.</th><th>Ano crítico</th></tr></thead><tbody>${cen}</tbody></table></div>`:''}
   </div></div>`;
+}
+
+// Cenários do parecer (Base, Conservador, Provável, Otimista): só os que o
+// servidor calculou entram; sem comparação, o bloco inteiro some.
+const ROTULO_CENARIO={base_estimado:'Base',conservador:'Conservador',provavel:'Provável',otimista:'Otimista'};
+function renderCenarios(data){
+  const lista=((data.comparacao_cenarios||{}).cenarios)||[];
+  if(!lista.length) return '';
+  const linhas=lista.map(x=>{
+    const ac=x.acumulado||{};
+    return `<tr><td>${escapeHtml(ROTULO_CENARIO[x.id]||x.id||'—')}</td><td>${fR(ac.receita)}</td><td>${fR(ac.custo)}</td><td>${fR(ac.resultado)}</td><td>${fDscr(x.dscr_minimo)}</td><td>${x.ano_critico==null?'—':x.ano_critico}</td></tr>`;
+  }).join('');
+  return `<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ct"><div class="cd" style="background:var(--cy)"></div>Cenários</div></div>
+    <div class="cb"><div style="overflow:auto"><table class="dt"><thead><tr><th>Cenário</th><th>Receita</th><th>Custo</th><th>Resultado</th><th>DSCR mín.</th><th>Ano crítico</th></tr></thead><tbody>${linhas}</tbody></table></div></div></div>`;
 }
 
 function mr(k,v,c){return`<div class="mrow"><span class="mk">${k}</span><span class="mv ${c}">${v}</span></div>`}
@@ -4123,7 +4233,7 @@ function renderConfirmacao(data){
     <div class="cb">
       <div style="font-size:.8rem;color:var(--sb);line-height:1.6;margin-bottom:14px">
         O sistema detectou <b style="color:${TC[detectado]}">${TL[detectado]}</b>${
-          porRegra ? ' por regra determinística' : ` com ${data.confianca}% de confiança`
+          porRegra ? ' por regra determinística' : ` com ${fPct100(data.confianca)} de confiança`
         }. Se estiver certo, confirme. Se não, aponte o correto — sua resposta
         é o que ensina o modelo a acertar em rebanhos reais.
       </div>
@@ -4192,11 +4302,9 @@ async function lerRespostaJson(res, contexto){
 // Recolhido por padrão para não competir com o número principal.
 // `chave` distingue as memórias na mesma página (conclusão, garantia,
 // endividamento). Sem ela os IDs colidiriam e só a primeira abriria.
-function renderMemoria(c, chave='concl'){
-  const mem = c.memoria;
+function memoriaPassos(mem){
   if(!mem || !mem.length) return '';
-  const rebaixado = c.rebaixado_no_prazo;
-  const passos = mem.map((m,i)=>{
+  return mem.map((m,i)=>{
     const destaque = /Rebaixamento|Ano crítico/.test(m.passo);
     const cor = 'var(--sb)';
     return `<div style="display:flex;gap:12px;padding:10px 0${i?';border-top:1px solid var(--b)':''}">
@@ -4210,6 +4318,11 @@ function renderMemoria(c, chave='concl'){
       </div>
     </div>`;
   }).join('');
+}
+function renderMemoria(c, chave='concl'){
+  const passos = memoriaPassos(c.memoria);
+  if(!passos) return '';
+  const rebaixado = c.rebaixado_no_prazo;
   return `<div style="margin-top:12px">
     <div onclick="toggleMemoria('${chave}')" style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border:1px solid var(--b);border-radius:8px;background:var(--c2)">
       <span style="font-family:var(--fn);font-weight:700;font-size:.68rem;letter-spacing:1.2px;text-transform:uppercase;color:var(--sb)">

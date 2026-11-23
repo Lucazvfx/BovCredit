@@ -10,7 +10,8 @@ const srv = http.createServer((q, r) => {
 // Verificação de layout do parecer (executada por tests/test_parecer_hierarquia_ui.py).
 // Uso: node parecer_layout.js <dir com index.html + static/> <dir de screenshots>
 const data = {
-  tipo: 'CRIA', valores: [1,2,3], confianca: 90,
+  tipo: 'CRIA', valores: [10,10,8,8,6,6,30,2,40,3], confianca: 90, probabilidades: { CRIA: 90 },
+  indicadores: { total: 123, total_femeas: 70, total_machos: 53, cria: 20, recria: 16, adultos: 87, pct_cria: 16, pct_recria: 13, pct_adultos: 71, pct_matrizes: 40, fem_adultas: 60, mac_adultos: 10, ratio_fm: 1.3, bezerros_est: 40 },
   parecer: {
     conclusao: { recomendacao: 'ressalva', nivel_recomendacao_label: 'APROVAR COM RESSALVA', dscr: 1.15, dscr_minimo: 1.05, dscr_ano1: 1.3, ano_critico: 3, anos_avaliados: 5, capacidade_maxima: 250000, parcela_mensal: 9000, justificativa: 'DSCR mínimo 1,05 no ano 3.', memoria: [{passo:'Passo', valor:'1', detalhe:'d'}] },
     rating: { faixa: 'BB', score: 61, rotulo: 'Moderado' },
@@ -33,14 +34,14 @@ const data = {
       await pg.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema);
       const info = await pg.evaluate(d => {
         const w = document.getElementById('result-wrap');
-        w.innerHTML = renderParecer(d) + shapCardHtml(d.shap_explicacao, 'CRIA', '#0a0');
+        w.innerHTML = corpoResultado(d);
         OrkavynDash.renderParecer(d);
         const folds = [...w.querySelectorAll('details.ork-fold')];
         const dock = document.querySelector('.od-dock');
         const r = dock && dock.getBoundingClientRect();
         return {
           sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth,
-          hero: !!w.querySelector('.od-hero'), kpis: w.querySelectorAll('.od-kpi').length,
+          hero: !!w.querySelector('.od-hero'), kpis: w.querySelectorAll('.od-kpi').length, abas: w.querySelectorAll('.rt-tab').length,
           notes: w.querySelector('.od-hero__notes')?.innerText || '',
           folds: folds.map(f => ({ t: f.querySelector('summary').innerText, open: f.open })),
           dock: r ? { l: r.left, r: r.right, vw: innerWidth, vis: getComputedStyle(dock).position } : null,
@@ -49,7 +50,7 @@ const data = {
       }, data);
       await pg.evaluate(() => document.querySelectorAll('details.ork-fold').forEach(f => f.open = true));
       const sw2 = await pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      const ok = info.sw <= info.cw && sw2 <= 0 && info.hero && info.kpis === 4 && JSON.stringify(info.folds.map(f => f.t).sort()) === JSON.stringify(['Fatores da classificação (SHAP)', 'Origem dos parâmetros e fontes (detalhe)', 'Projeção multianual (detalhe)']) && info.notes.includes('Aviso de estresse A') && info.folds.every(f => !f.open) && !info.undef && errs.length === 0 && (!info.dock || (info.dock.l >= 0 && info.dock.r <= info.dock.vw));
+      const ok = info.sw <= info.cw && sw2 <= 0 && info.hero && info.kpis === 3 && info.abas === 4 && JSON.stringify(info.folds.map(f => f.t).sort()) === JSON.stringify(['Fatores da classificação (SHAP)']) && info.notes.includes('Aviso de estresse A') && info.folds.every(f => !f.open) && !info.undef && errs.length === 0 && (!info.dock || (info.dock.l >= 0 && info.dock.r <= info.dock.vw));
       if (!ok) fail++;
       console.log(vp.width, tema, ok ? 'OK' : 'FAIL', JSON.stringify({ ...info, sw2, errs }));
       await pg.screenshot({ path: `${process.argv[3]}/shot-${vp.width}-${tema}.png`, fullPage: false });
