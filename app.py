@@ -1254,6 +1254,10 @@ def api_empresa_perfil():
     if erro:
         return erro
     if request.method == 'POST':
+        # Nome e logo saem impressos no PDF do parecer: só administrador da
+        # empresa ativa (ou global) altera, como a identidade institucional.
+        if _papel_na_empresa(empresa_id) != _papeis.PAPEL_ADMIN:
+            return jsonify({'erro': 'Sem permissão para alterar o perfil da empresa.'}), 403
         data = request.json or {}
         db.atualizar_perfil_empresa(
             empresa_id, data.get('nome_consultoria', ''), data.get('logo_base64', ''))

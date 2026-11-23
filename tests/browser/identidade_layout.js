@@ -30,10 +30,11 @@ const longo = 'Nome-de-exibicao-muito-longo-sem-espacos-para-forcar-quebra-na-te
         return { sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth,
           cnpj: document.getElementById('marca-cnpj').value,
           travado: document.getElementById('marca-cnpj').disabled,
+          nomeTravado: document.getElementById('marca-nome').disabled, salvarTravado: document.getElementById('marca-salvar').disabled,
           cardL: card.left, cardR: card.right, cardB: card.bottom, vw: innerWidth, vh: innerHeight,
           inputsFora: [...document.querySelectorAll('#marca-identidade input')].filter(i => i.getBoundingClientRect().right > card.right + 1).length };
       });
-      const ok = info.sw <= info.cw && info.cnpj === '11.222.333/0001-81' && info.travado === !admin
+      const ok = info.sw <= info.cw && info.cnpj === '11.222.333/0001-81' && info.travado === !admin && info.nomeTravado === !admin && info.salvarTravado === !admin
         && info.cardL >= 0 && info.cardR <= info.vw && info.cardB <= info.vh + 1 && info.inputsFora === 0 && errs.length === 0;
       console.log(ok ? ' OK ' : ' FALHA ', vp.width + 'x' + vp.height, admin ? 'admin' : 'analista', JSON.stringify(info), errs.join('|'));
       if (!ok) fail = 1;

@@ -519,7 +519,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       <div class="field" style="margin-bottom:10px"><label>Responsável técnico</label><input type="text" id="marca-resp-nome" maxlength="120"></div>
       <div class="field"><label>Registro profissional</label><input type="text" id="marca-resp-registro" maxlength="40" placeholder="Ex: CRMV-MT 1234"></div>
     </div>
-    <button class="btn" style="width:100%;justify-content:center" onclick="salvarMarcaConsultoria()">Salvar</button>
+    <button class="btn" id="marca-salvar" style="width:100%;justify-content:center" onclick="salvarMarcaConsultoria()">Salvar</button>
   </div>
 </div>
 
@@ -6147,6 +6147,7 @@ async function abrirMarcaModal(){
     atualizarMarcaLogoPreview();
   }catch(e){}
   marcaPodeEditarIdentidade = false;
+  document.getElementById('marca-salvar').disabled = true;
   try{
     const ri = await fetch('/api/empresa/identidade');
     const di = await ri.json();
@@ -6156,7 +6157,8 @@ async function abrirMarcaModal(){
     document.getElementById('marca-resp-nome').value = id.responsavel_nome || '';
     document.getElementById('marca-resp-registro').value = id.responsavel_registro || '';
     marcaPodeEditarIdentidade = !!di.pode_editar;
-    document.querySelectorAll('#marca-identidade input').forEach(i => { i.disabled = !marcaPodeEditarIdentidade; });
+    document.querySelectorAll('#marca-identidade input, #marca-nome, #marca-logo-input').forEach(i => { i.disabled = !marcaPodeEditarIdentidade; });
+    document.getElementById('marca-salvar').disabled = !marcaPodeEditarIdentidade;
   }catch(e){}
 }
 function fecharMarcaModal(){ document.getElementById('marca-modal-overlay').style.display='none'; }
