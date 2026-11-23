@@ -478,17 +478,28 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <div class="toast" id="toast"></div>
 
 <div class="ork-shell">
-{% include 'partials/fields_sidebar.html' %}
 <div class="ork-workspace">
 
-<header class="ork-context-header">
-  <div class="logo"></div>
+<header class="ork-context-header od-topbar">
+  <a class="ork-brand od-topbar__brand" href="/app" aria-label="Orkavyn Agro Intelligence — início">
+    <img class="ork-brand__mark" src="/static/img/logo-light.svg" alt="Orkavyn Agro Intelligence">
+  </a>
   <div class="hdr-r">
-    <span id="hdr-boi" class="ml-acc" style="cursor:default" title="Cotação Boi (R$/arroba)">Boi: --</span>
-    <span id="hdr-vaca" class="ml-acc" style="cursor:default" title="Cotação Vaca (R$/arroba)">Vaca: --</span>
-    {% if eh_admin %}<a class="ml-acc" href="{{ url_for('admin') }}" style="cursor:pointer;text-decoration:none;background:rgba(96,165,250,.1);color:var(--tx);font-family:var(--fm);font-size:.58rem;padding:4px 10px;border-radius:8px;border:1px solid rgba(96,165,250,.3)" title="Gerenciar acessos">⚙ Acessos</a>{% endif %}
-    <select id="empresa-ativa-select" class="ml-acc" style="cursor:pointer;background:rgba(96,165,250,.07);color:var(--tx);border:1px solid rgba(96,165,250,.2);border-radius:8px;padding:4px 8px;font-family:var(--fm);font-size:.58rem" onchange="trocarEmpresaAtiva()" title="Empresa ativa"></select>
-    <button class="ml-acc" style="cursor:pointer;border:none;background:rgba(167,139,250,.1);color:#A78BFA;font-family:var(--fm);font-size:.58rem;padding:4px 10px;border-radius:8px;border:1px solid rgba(167,139,250,.3)" onclick="abrirMarcaModal()" title="Marca da consultoria no PDF">⚙ Marca</button>
+    <span id="hdr-boi" class="ml-acc od-pill" style="cursor:default" title="Cotação Boi (R$/arroba)">Boi: --</span>
+    <span id="hdr-vaca" class="ml-acc od-pill" style="cursor:default" title="Cotação Vaca (R$/arroba)">Vaca: --</span>
+    <div class="od-user">
+      <button type="button" class="od-user__btn" id="od-user-btn" data-od-menu="od-user-menu" aria-expanded="false" aria-controls="od-user-menu" aria-label="Menu do usuário">
+        <span class="od-user__avatar" aria-hidden="true">{{ ((usuario.nome or usuario.email or '?')|trim)[0]|upper }}</span>
+      </button>
+      <div class="od-menu od-menu--down" id="od-user-menu" hidden>
+        <div class="od-menu__who">{{ usuario.nome or usuario.email }}</div>
+        <label class="od-menu__field" for="empresa-ativa-select">Empresa ativa</label>
+        <select id="empresa-ativa-select" class="od-menu__select" onchange="trocarEmpresaAtiva()" title="Empresa ativa"></select>
+        {% if eh_admin %}<a class="od-menu__item" href="{{ url_for('admin') }}" title="Gerenciar acessos">Acessos</a>{% endif %}
+        <button type="button" class="od-menu__item" onclick="abrirMarcaModal()" title="Marca da consultoria no PDF">Marca da consultoria</button>
+        <a class="od-menu__item" href="/logout">Sair</a>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -557,19 +568,19 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <!-- ═══ ENTRADA MANUAL ═══ -->
 <div class="panel active ork-entry-view" id="panel-entrada">
 
-  <div class="analysis-flow ork-panel ork-import-panel">
+  <section class="od-cover" aria-labelledby="od-cover-title">
+    <h1 class="od-cover__title" id="od-cover-title"><span id="od-greeting">Olá</span>, {{ ((usuario.nome or usuario.email or '')|trim).split(' ')[0].split('@')[0] }}.</h1>
+    <p class="od-cover__sub">Importe a ficha do rebanho ou preencha os dados abaixo para emitir o parecer de crédito.</p>
+  </section>
+
+  <div class="analysis-flow ork-panel ork-import-panel" id="od-upload">
     <div class="analysis-flow-copy">
-      <span class="analysis-flow-kicker">Importação de Dados</span>
-      <div class="analysis-flow-title">Análise de Rebanho</div>
-      <p class="analysis-flow-sub">Importe um PDF de GTA/ficha sanitária ou preencha os dados manualmente para classificar o rebanho e emitir o parecer de crédito.</p>
-      <div class="analysis-flow-steps">
-        <span class="analysis-step">1 — Importar</span>
-        <span class="analysis-step">2 — Classificar</span>
-        <span class="analysis-step">3 — Parecer</span>
-      </div>
+      <div class="analysis-flow-title">Importar ficha do rebanho</div>
+      <p class="analysis-flow-sub">PDF de GTA/ficha sanitária ou planilha Excel. Você também pode arrastar o arquivo para este cartão.</p>
     </div>
     <div class="analysis-flow-cta">
-      <button class="ork-action" onclick="document.getElementById('pdf-inp-main').click()">📄 Ler PDF</button>
+      <button type="button" class="ork-action" onclick="document.getElementById('pdf-inp-main').click()">Ler PDF</button>
+      <button type="button" class="ork-action ork-action--secondary" onclick="document.getElementById('insr-xlsx-inp').click()">Ler planilha</button>
     </div>
   </div>
 
@@ -851,12 +862,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
   </div>
 
-  <div id="cot-strip" style="display:flex;justify-content:center;align-items:center;gap:20px;margin-top:20px;margin-bottom:10px;padding:10px 16px;border-radius:var(--rs);background:var(--c);border:1px solid var(--b);font-family:var(--fm);font-size:.65rem;color:var(--mu)">
-    <span>Boi: <strong id="cs-boi" style="color:var(--tx)">—</strong></span>
-    <span>Vaca: <strong id="cs-vaca" style="color:var(--tx)">—</strong></span>
-    <span>Bezerro: <strong id="cs-bez" style="color:var(--tx)">—</strong></span>
-    <span style="opacity:.5">· cotações usadas no cálculo de valor do rebanho</span>
-  </div>
   <button class="btn-p ork-action ork-submit-analysis" id="btn-class" onclick="classificar()"><span>Executar análise econômico-produtiva</span></button>
   <!-- Sem este aviso, o custo do produtor só é descoberto depois da primeira
        análise — que sai com o desembolso padrão e não vale nada. -->
@@ -3622,7 +3627,6 @@ function renderParecer(data){
 
 function renderDecisionSummary(data){
   const parecer=data.parecer||{};
-  const conclusao=parecer.conclusao||{};
   const fluxo=data.fluxo_gep||parecer.fluxo_gep||{};
   const qualidade=data.qualidade_dados||parecer.qualidade_dados||{};
   const proveniencia=parecer.proveniencia||data.proveniencia||{};
@@ -3630,8 +3634,6 @@ function renderDecisionSummary(data){
   const fontes=[...new Set(parametros.map(item=>item.fonte).filter(Boolean))];
   const premissasAlteradas=parametros.filter(item=>['usuario','medido'].includes(item.origem)).length;
   const limitacoes=(qualidade.avisos||[]).length+(data.dados_faltantes||[]).length;
-  const recomendacoes={aprovar:'Aprovar',ressalva:'Aprovar com ressalva',negar:'Não aprovar'};
-  const recomendacao=recomendacoes[conclusao.recomendacao]||'Análise sem recomendação';
   const resultado=fluxo.resultado_operacional;
   const nivelQualidade=qualidade.nivel_confianca||qualidade.status||'—';
 
@@ -3642,9 +3644,8 @@ function renderDecisionSummary(data){
 
   return `<section class="ork-decision-summary" aria-label="Resumo executivo da análise">
     <div class="ork-decision-summary__primary">
-      <span>Recomendação econômico-produtiva</span>
-      <strong>${escapeHtml(recomendacao)}</strong>
-      <small>Sistema identificado: ${escapeHtml(TL[data.tipo]||data.tipo||'—')}</small>
+      <span>Sistema identificado</span>
+      <strong>${escapeHtml(TL[data.tipo]||data.tipo||'—')}</strong>
     </div>
     ${orig.aviso?`<p style="grid-column:1/-1;margin:10px 0 0;padding:9px 12px;border:1px solid rgba(251,191,36,.35);border-radius:8px;background:rgba(251,191,36,.08);font-size:.74rem;line-height:1.55;color:var(--sb)">
       <b style="color:var(--tx)">Análise preliminar — efetivo não verificado.</b>
@@ -4790,6 +4791,7 @@ function showTab(id,btn){
     b.classList.toggle('is-active',active);
     if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
+  document.getElementById('od-more-btn')?.classList.toggle('is-active',['graos','perene','ajuda'].includes(id));
   if(!btn)document.querySelectorAll('.tab-btn')[idx[id]]?.classList.add('active');
   // Antes de existir classificação, o Dashboard de cenários é uma tela de
   // zeros. Quem abre a aba nesse momento está atrás dos custos, então cai
@@ -5979,13 +5981,11 @@ function baixarPdfParecerHistorico(i){
 let cotacaoDia = null;
 
 function _avisarCotacaoIndisponivel(){
-  const faixa = document.getElementById('cot-strip');
-  if (faixa) faixa.innerHTML =
-    '<span style="color:var(--am)">Cotação indisponível agora — '
-  + 'informe os preços à mão em Simular Cenários → Parâmetros, '
-  + 'senão o valor do rebanho não é calculado.</span>';
   const fonte = document.getElementById('cot-fonte');
-  if (fonte) fonte.textContent = 'sem cotação';
+  const aviso = 'Cotação indisponível agora — informe os preços à mão em Simular Cenários → Parâmetros, senão o valor do rebanho não é calculado.';
+  if (fonte) fonte.textContent = aviso;
+  // #cot-fonte mora em Cenários; na entrada o analista só saberia pela pílula.
+  showToast(aviso, true);
 }
 async function carregarCotacaoDia(){
   try{
@@ -6009,10 +6009,6 @@ async function carregarCotacaoDia(){
     set('cot-vaca', d.precos.vaca);
     set('cot-bezerro', d.precos.bezerro);
     set('cot-bezerra', d.precos.bezerra);
-    const fmtC=v=>v>0?`R$ ${(+v).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,'.')}/@`:'—';
-    const sboi=document.getElementById('cs-boi'); if(sboi) sboi.textContent=fmtC(d.precos.boi);
-    const svac=document.getElementById('cs-vaca'); if(svac) svac.textContent=fmtC(d.precos.vaca);
-    const sbez=document.getElementById('cs-bez'); if(sbez) sbez.textContent=d.precos.bezerro>0?`R$ ${Math.round(d.precos.bezerro)}/cab`:'—';
     const f=document.getElementById('cot-fonte');
     const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     if(f) f.textContent = (d.origem==='banco' ? 'CEPEA/ESALQ (boi) · Scot (vaca)' : 'referência') + ` · atualizado ${hora}`;
@@ -6315,7 +6311,7 @@ carregarFazendasSelect();
 <footer style="text-align: center; padding: 24px 16px 16px; border-top: 1px solid #333; margin-top: 32px; font-family: monospace; font-size: 0.7rem; color: #000;">
   <p>Desenvolvido por <strong style="color: #000;">Lucas Vinicius</strong>. &nbsp;·&nbsp; <a href="/privacidade" target="_blank" style="color:#000;text-decoration:none;border-bottom:1px solid #333">Privacidade</a> &nbsp;·&nbsp; <a href="/termos" target="_blank" style="color:#000;text-decoration:none;border-bottom:1px solid #333">Termos de Uso</a></p>
 </footer>
-{% include 'partials/fields_mobile_nav.html' %}
+{% include 'partials/dashboard_dock.html' %}
 </div>
 </div>
 </body>

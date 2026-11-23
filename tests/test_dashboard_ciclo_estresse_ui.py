@@ -35,6 +35,10 @@ def test_tokens_definidos_em_light_e_dark_e_documentados_na_skill():
         assert f"--{t}:" in dark, f"{t} ausente no dark"
         assert f"`--{t}`" in SKILL, f"{t} ausente na skill"
     assert "--brand-primary: #166534" in light and "--brand-primary: #22C55E" in dark
+    for token, valor in (("bg-canvas", "#0A0C0B"), ("bg-surface", "#121513"), ("bg-subtle", "#181C1A"),
+                         ("border-subtle", "rgba(255, 255, 255, 0.08)"),
+                         ("border-strong", "rgba(255, 255, 255, 0.14)")):
+        assert f"--{token}: {valor};" in dark, token
 
 
 def test_index_carrega_assets_e_tema_sem_flash():
@@ -107,7 +111,8 @@ def test_numeros_com_tabular_nums_e_tabela_alinhada_a_direita():
 def test_resumo_legado_nao_repete_numeros_do_hero_e_dscr_usa_virgula():
     ini = INDEX.index("function renderDecisionSummary")
     corpo = INDEX[ini:INDEX.index("function renderResult", ini)]
-    for repetido in ("Capacidade estimada", "DSCR mínimo", "<span>Risco</span>"):
+    for repetido in ("Capacidade estimada", "DSCR mínimo", "<span>Risco</span>",
+                     "Recomendação econômico-produtiva", "Não aprovar"):
         assert repetido not in corpo, repetido
     for mantido in ("Resultado operacional", "Sistema identificado", "Análise preliminar"):
         assert mantido in corpo, mantido
@@ -117,9 +122,20 @@ def test_resumo_legado_nao_repete_numeros_do_hero_e_dscr_usa_virgula():
     assert "const fDscr=" in INDEX
 
 
-def test_mobile_header_em_fluxo_normal_e_nav_fixa_no_fundo():
-    assert re.search(r"\.ork-context-header \{ height: auto;", CSS)
-    nav = CSS[CSS.index(".ork-dashboard-surface .ork-mobile-nav {\n    right"):]
-    nav = nav[:nav.index("}")]
-    assert "bottom: 0" in nav and "env(safe-area-inset-bottom)" in nav
-    assert "env(safe-area-inset-bottom)" in CSS[CSS.index(".ork-main { padding-bottom"):][:120]
+def test_dock_flutuante_nao_cobre_o_conteudo():
+    dock = _bloco(CSS, ".od-dock {")
+    assert "position: fixed" in dock
+    assert "bottom: max(16px, env(safe-area-inset-bottom))" in dock
+    assert "backdrop-filter: blur(12px)" in dock
+    assert "border: 1px solid var(--border-strong)" in dock
+    # O rodapé (Termos/Privacidade) fica fora do <main>: a folga mora no workspace.
+    workspace = _bloco(CSS, ".ork-dashboard-surface .ork-workspace {")
+    assert "padding-bottom: calc(96px + env(safe-area-inset-bottom))" in workspace
+
+
+def test_topbar_em_linha_unica_e_sem_sidebar():
+    topbar = _bloco(CSS, ".ork-dashboard-surface .od-topbar {")
+    assert "flex-wrap: nowrap" in topbar and "height: 60px" in topbar
+    assert "min(1120px, 100%)" in _bloco(CSS, ".ork-dashboard-surface .ork-main {")
+    assert "#news-ticker { display: none !important; }" in CSS
+    assert "fields_sidebar" not in INDEX and "ork-sidebar" not in INDEX

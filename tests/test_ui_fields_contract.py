@@ -27,37 +27,24 @@ def test_fields_stylesheet_defines_domain_tokens():
         assert token in css
 
 
-def test_shell_has_mobile_and_desktop_navigation():
-    sidebar = (
-        ROOT / "templates" / "partials" / "fields_sidebar.html"
-    ).read_text(encoding="utf-8")
-    mobile = (
-        ROOT / "templates" / "partials" / "fields_mobile_nav.html"
-    ).read_text(encoding="utf-8")
-
-    assert 'aria-label="Navegação principal"' in sidebar
-    assert 'aria-label="Navegação móvel"' in mobile
-    assert "data-ork-nav" in sidebar
-    assert "data-ork-nav" in mobile
-
-
-def test_light_sidebar_preserves_destinations_and_moves_account_to_footer():
-    sidebar = (
-        ROOT / "templates" / "partials" / "fields_sidebar.html"
-    ).read_text(encoding="utf-8")
+def test_dock_flutuante_preserva_destinos_e_move_conta_para_menus():
+    dock = (ROOT / "templates" / "partials" / "dashboard_dock.html").read_text(encoding="utf-8")
     html = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
 
-    assert "Análise econômico-produtiva" in sidebar
-    destinos = ("entrada", "resultado", "cenarios", "historico", "graos", "perene", "ajuda")
-    for destination in destinos:
-        assert f'data-ork-nav="{destination}"' in sidebar
-        assert f"showTab('{destination}', this)" in sidebar
-    # Um ícone por item: item sem ícone quebra o alinhamento da coluna.
-    assert sidebar.count("<svg") == len(destinos)
-    assert 'class="ork-sidebar__account"' in sidebar
-    assert "usuario.nome" in sidebar
-    assert "usuario.email" in sidebar
-    assert 'href="/logout"' in sidebar
+    assert 'aria-label="Navegação principal"' in dock
+    principais = ("entrada", "resultado", "cenarios", "historico")
+    for destino in principais:
+        assert f'data-ork-nav="{destino}"' in dock
+    mais = dock[dock.index('id="od-more-menu"'):]
+    for destino in ("graos", "perene", "ajuda"):
+        assert f'data-ork-nav="{destino}"' in mais
+        assert f"showTab('{destino}', this)" in dock
+    assert 'href="/logout"' in mais
+    # Um ícone por item principal + "Mais": item sem ícone quebra o alinhamento do dock.
+    assert dock.count("<svg") == len(principais) + 1
+    # Conta no menu do usuário da topbar.
+    assert 'id="od-user-menu"' in html
+    assert "usuario.nome" in html and "usuario.email" in html
     assert 'onclick="logout()"' not in html
 
 
@@ -80,8 +67,7 @@ def test_index_shell_preserves_critical_controls():
         'id="loading-ov"',
     ):
         assert selector in html
-    assert "{% include 'partials/fields_sidebar.html' %}" in html
-    assert "{% include 'partials/fields_mobile_nav.html' %}" in html
+    assert "{% include 'partials/dashboard_dock.html' %}" in html
     assert "orkavyn-fields.css" in html
     assert "orkavyn-shell.js" in html
 

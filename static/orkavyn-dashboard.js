@@ -69,7 +69,11 @@
     const btn = document.getElementById("od-theme-toggle");
     if (btn) {
       btn.setAttribute("aria-pressed", tema === "dark" ? "true" : "false");
-      btn.textContent = tema === "dark" ? "☀ Claro" : "☾ Escuro";
+      const [icone, rotulo] = tema === "dark" ? ["☀", "Claro"] : ["☾", "Escuro"];
+      btn.replaceChildren(
+        el("span", { text: icone, attrs: { "aria-hidden": "true" } }),
+        el("span", { cls: "od-theme-toggle__label", text: rotulo })
+      );
     }
   }
   function iniciarTema() {
@@ -77,9 +81,51 @@
     if (hdr && !document.getElementById("od-theme-toggle")) {
       const btn = el("button", { cls: "od-theme-toggle", attrs: { id: "od-theme-toggle", type: "button", "aria-label": "Alternar tema claro/escuro" } });
       btn.addEventListener("click", () => aplicarTema(temaAtual() === "dark" ? "light" : "dark", true));
-      hdr.insertBefore(btn, hdr.firstChild);
+      // Ordem da topbar: cotações, tema, menu do usuário.
+      hdr.insertBefore(btn, hdr.querySelector(".od-user"));
     }
     aplicarTema(temaAtual(), false);
+  }
+
+  // ── menus popover (usuário na topbar, "Mais" no dock) ──────────────────
+  function fecharMenus(exceto) {
+    document.querySelectorAll("[data-od-menu]").forEach((b) => {
+      const menu = document.getElementById(b.dataset.odMenu);
+      if (!menu || menu === exceto) return;
+      menu.hidden = true;
+      b.setAttribute("aria-expanded", "false");
+    });
+  }
+  function iniciarMenus() {
+    document.querySelectorAll("[data-od-menu]").forEach((b) => {
+      const menu = document.getElementById(b.dataset.odMenu);
+      if (!menu) return;
+      b.addEventListener("click", () => {
+        const abrir = menu.hidden;
+        fecharMenus(menu);
+        menu.hidden = !abrir;
+        b.setAttribute("aria-expanded", abrir ? "true" : "false");
+      });
+      // Escolher um item (ou clicar fora do botão) fecha o menu.
+      menu.addEventListener("click", (e) => { if (e.target.closest(".od-menu__item")) fecharMenus(null); });
+    });
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest("[data-od-menu], .od-menu")) fecharMenus(null);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      const aberto = document.querySelector("[data-od-menu][aria-expanded='true']");
+      fecharMenus(null);
+      if (aberto) aberto.focus();
+    });
+  }
+
+  // ── saudação por hora do dia (o nome vem renderizado no servidor) ──────
+  function iniciarSaudacao() {
+    const alvo = document.getElementById("od-greeting");
+    if (!alvo) return;
+    const h = new Date().getHours();
+    alvo.textContent = h < 12 ? "Bom dia" : (h < 18 ? "Boa tarde" : "Boa noite");
   }
 
   // ── formulário: sistema produtivo (4 cards, desmarcável) ───────────────
@@ -477,6 +523,8 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     iniciarTema();
+    iniciarMenus();
+    iniciarSaudacao();
     iniciarSistemas();
   });
 })();
