@@ -122,24 +122,57 @@ def test_numero_invalido_nao_vira_texto_cru(ruim):
     assert _cru(t) == []
 
 
-def test_fluxo_de_caixa_separa_total_operacional_de_seus_componentes():
-    p = {'fluxo_gep': {'receita_vendas': 1_000_000.0, 'custo_operacional': 600_000.0,
-                       'custo_manutencao': 400_000.0, 'custo_reposicao': 200_000.0,
-                       'resultado_operacional': 400_000.0, 'variacao_estoque': 0.0,
-                       'resultado_economico': 400_000.0, 'servico_divida_anual': 216_000.0,
-                       'fluxo_livre': 184_000.0, 'valor_rebanho_ini': 1.0,
-                       'valor_rebanho_fim': 1.0}}
-    t = _texto(gerar_pdf_parecer(p), quebras=True)
+def _fluxo(**extra):
+    base = {'receita_vendas': 1_000_000.0, 'custo_operacional': 600_000.0,
+            'custo_manutencao': 400_000.0, 'custo_reposicao': 200_000.0,
+            'resultado_antes_reposicao': 600_000.0,
+            'resultado_operacional': 400_000.0, 'variacao_estoque': 0.0,
+            'resultado_economico': 400_000.0, 'servico_divida_anual': 216_000.0,
+            'fluxo_livre': 184_000.0, 'valor_rebanho_ini': 1.0,
+            'valor_rebanho_fim': 1.0}
+    base.update(extra)
+    return {'fluxo_gep': base}
+
+
+def test_fluxo_de_caixa_mantem_estrutura_da_tela_e_deixa_claro_que_componentes_estao_no_custo():
+    t = _texto(gerar_pdf_parecer(_fluxo()), quebras=True)
     linhas = t.splitlines()
-    i_total = next(i for i, l in enumerate(linhas) if 'Custo operacional total (Ano 1)' in l)
-    assert 'R$ 600.000,00' in linhas[i_total]
-    resto = '\n'.join(linhas[i_total + 1:i_total + 3])
-    assert 'dos quais: manutenção do plantel R$ 400.000,00' in resto
-    assert 'dos quais: compra de animais (reposição) R$ 200.000,00' in resto
+
+    def i(trecho):
+        return next(n for n, l in enumerate(linhas) if trecho in l)
+
+    # mesma ordem da tela: manutenção → resultado antes da reposição → compra → custo caixa
+    assert (i('Manutenção do plantel') < i('Resultado antes da reposição')
+            < i('Compra de animais para reposição') < i('Custo caixa total'))
+    assert 'R$ 600.000,00' in linhas[i('Resultado antes da reposição')]
+    assert 'inclusa no custo caixa' in linhas[i('Manutenção do plantel')]
+    assert 'R$ 600.000,00' in linhas[i('Custo caixa total')]
+    assert 'não se somam a ele' in ' '.join(linhas)
     assert 'Serviço da dívida — total anual (Ano 1) R$ 216.000,00' in t
-    # nada da tabela ficou na antiga forma ambígua, somável com o custo total
-    assert '(-) Manutenção do plantel' not in t
-    assert '(−) Custo operacional ' not in t
+
+
+def test_fluxo_de_caixa_cria_mostra_compra_de_desmama_como_componente():
+    t = _texto(gerar_pdf_parecer(_fluxo(custo_reposicao=0.0, custo_compra_desmama=150_000.0)))
+    assert 'Compra de desmama (inclusa no custo caixa) R$ 150.000,00' in t
+
+
+def test_fluxo_de_caixa_reposicao_de_reprodutores_aparece_quando_positiva():
+    t = _texto(gerar_pdf_parecer(_fluxo(reposicao_reprodutores=50_000.0)))
+    assert 'Reposição de reprodutores R$ 50.000,00' in t
+
+
+def test_identificacao_com_caractere_especial_nao_derruba_o_pdf():
+    p = {'identificacao': {'fazenda': 'Santa Fé & Cia <Ltda>', 'municipio': 'M', 'proprietario': 'P'}}
+    assert 'Santa Fé & Cia <Ltda>' in _texto(gerar_pdf_parecer(p))
+
+
+def test_variacao_de_preco_em_ptbr():
+    p = {'sensibilidade': [{'variacao_pct': -12.5, 'preco_boi': 1.0, 'geracao_caixa': 1.0,
+                            'dscr': 1.2, 'recomendacao': 'aprovar'},
+                           {'variacao_pct': 10, 'preco_boi': 1.0, 'geracao_caixa': 1.0,
+                            'dscr': 1.3, 'recomendacao': 'aprovar'}]}
+    t = _texto(gerar_pdf_parecer(p))
+    assert '-12,5%' in t and '+10%' in t
 
 
 def test_conclusao_nao_cola_ano_critico_no_dscr():
