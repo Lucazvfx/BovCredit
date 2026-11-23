@@ -1269,7 +1269,23 @@ def remover_usuario(user_id: int):
     _ensure_whatsapp_tables()
     _exec(f'DELETE FROM whatsapp_vinculos WHERE user_id={ph}', (user_id,), commit=True)
     _exec(f'DELETE FROM whatsapp_codigos WHERE user_id={ph}', (user_id,), commit=True)
+    # Credenciais não podem sobreviver à conta: sem FK, a API key continuaria
+    # autenticando e o token de reset continuaria válido para o e-mail dela.
+    # A key é revogada (não apagada) para manter a trilha de quem a emitiu.
+    _ensure_analysis_tables()
+    _exec(
+        f'UPDATE analysis_api_keys SET revoked_at={_NOW} '
+        f'WHERE user_id={ph} AND revoked_at IS NULL',
+        (user_id,), commit=True,
+    )
+    u = buscar_usuario_id(user_id)
     _exec(f'DELETE FROM usuarios WHERE id={ph}', (user_id,), commit=True)
+    # Depois do DELETE do usuário: um pedido de reset que chegasse entre os dois
+    # passos deixaria um token vivo para o e-mail de uma conta que o reutilize.
+    if u and u.get('email'):
+        _ensure_reset_tokens_table()
+        _exec(f'DELETE FROM reset_tokens WHERE email={ph}',
+              (u['email'].lower(),), commit=True)
 
 # ─────────────────────────────────────────────
 # FAZENDAS

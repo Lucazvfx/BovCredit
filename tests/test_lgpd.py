@@ -238,6 +238,42 @@ def _novo_usuario():
     return db.buscar_usuario_email(email)
 
 
+def test_remover_usuario_revoga_api_keys_sem_tocar_as_de_outros():
+    alvo, outro = _novo_usuario(), _novo_usuario()
+    ka = db.issue_analysis_api_key(organization_id=1, user_id=alvo['id'], name='alvo')
+    ko = db.issue_analysis_api_key(organization_id=1, user_id=outro['id'], name='outro')
+    ka_raw, ko_raw = ka['raw_key'], ko['raw_key']
+    assert db.load_analysis_api_key(ka_raw)
+
+    db.remover_usuario(alvo['id'])
+
+    assert db.load_analysis_api_key(ka_raw) is None, 'key do removido segue válida'
+    assert db.load_analysis_api_key(ka_raw, include_revoked=True)['revoked_at']
+    assert db.load_analysis_api_key(ko_raw), 'key de outro usuário foi afetada'
+
+
+def test_remover_usuario_apaga_reset_tokens_e_invalida_o_link():
+    alvo, outro = _novo_usuario(), _novo_usuario()
+    t_alvo = db.criar_token_reset(alvo['email'])
+    t_outro = db.criar_token_reset(outro['email'])
+    assert db.validar_token_reset(t_alvo) == alvo['email'].lower()
+
+    db.remover_usuario(alvo['id'])
+
+    assert db.validar_token_reset(t_alvo) is None
+    assert db.validar_token_reset(t_outro) == outro['email'].lower()
+
+
+def test_remover_usuario_sem_credenciais_nao_quebra():
+    alvo = _novo_usuario()
+    db.remover_usuario(alvo['id'])
+    assert db.buscar_usuario_email(alvo['email']) is None
+
+
+def test_remover_usuario_inexistente_nao_quebra():
+    db.remover_usuario(999999991)
+
+
 def test_remover_usuario_limpa_vinculo_e_codigos_de_whatsapp_sem_tocar_outros():
     import uuid
     db.init_db()
@@ -280,6 +316,11 @@ def test_o_inventario_separa_usuario_do_sistema_e_cliente():
 def test_as_tabelas_com_dado_pessoal_existem_no_banco():
     """Inventário que aponta para tabela inexistente é papel, não conformidade."""
     db.init_db()
+    # Estas tabelas nascem sob demanda, não em init_db(); sem criá-las aqui o
+    # resultado dependeria de outro teste já ter rodado no mesmo gestao.db.
+    db._ensure_auditoria_table()
+    db._ensure_whatsapp_tables()
+    db._ensure_documentos_table()
     reais = {r['name'] for r in db._exec(
         "SELECT name FROM sqlite_master WHERE type='table'", fetch='all') or []}
     if reais:   # só roda no SQLite local
